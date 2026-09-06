@@ -73,12 +73,15 @@ function Auth({ onLoginSuccess }) {
     setForgotSuccess(null);
     setForgotLoading(true);
 
+    const activeUserId = localStorage.getItem('cloxel_user_id');
+
     try {
       const response = await fetch(`${API_BASE}/forgot-password`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          email_or_mobile: forgotIdentifier
+          email_or_mobile: forgotIdentifier,
+          current_session_user_id: activeUserId
         })
       });
 
@@ -87,7 +90,7 @@ function Auth({ onLoginSuccess }) {
         throw new Error(data.detail || data.error || 'Failed to verify account');
       }
 
-      setForgotSuccess(data.message || 'Account verified! Please upload or scan your Cloxel Security QR Code.');
+      setForgotSuccess(data.message || 'Account & Browser session verified! Please upload or scan your Cloxel Security QR Code.');
       setForgotStep(2);
     } catch (err) {
       setForgotError(err.message);
@@ -107,6 +110,7 @@ function Auth({ onLoginSuccess }) {
     }
 
     setForgotLoading(true);
+    const activeUserId = localStorage.getItem('cloxel_user_id');
 
     try {
       const response = await fetch(`${API_BASE}/reset-password`, {
@@ -115,7 +119,8 @@ function Auth({ onLoginSuccess }) {
         body: JSON.stringify({
           email_or_mobile: forgotIdentifier,
           new_password: forgotNewPassword,
-          qr_token: forgotQrToken
+          qr_token: forgotQrToken,
+          current_session_user_id: activeUserId
         })
       });
 
@@ -137,6 +142,7 @@ function Auth({ onLoginSuccess }) {
       setForgotLoading(false);
     }
   };
+
 
 
   const handleSubmit = async (e) => {

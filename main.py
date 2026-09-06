@@ -853,11 +853,14 @@ class UserLogin(BaseModel):
 
 class ForgotPasswordRequest(BaseModel):
     email_or_mobile: str
+    current_session_user_id: Optional[str] = None
 
 class ResetPasswordRequest(BaseModel):
     email_or_mobile: str
     qr_token: str
     new_password: str
+    current_session_user_id: Optional[str] = None
+
 
 
 
@@ -2164,8 +2167,17 @@ async def forgot_password(req: ForgotPasswordRequest):
     if not user:
         raise HTTPException(status_code=400, detail="⚠️ Account Not Found: Please check your Email / Mobile Number.")
 
+    # Enforce Active Browser Session Check if provided
+    if req.current_session_user_id:
+        sess_id = req.current_session_user_id.strip()
+        if user.get("internal_id") != sess_id and user.get("email") != sess_id and user.get("phone") != sess_id:
+            raise HTTPException(
+                status_code=400,
+                detail="⚠️ Security Error: You must be logged into your registered account in this browser to reset password."
+            )
+
     return {
-        "message": "✅ Account verified! Please upload or scan your Cloxel Security QR Code to reset password.",
+        "message": "✅ Account & Browser session verified! Please upload or scan your Cloxel Security QR Code to reset password.",
         "account_verified": True
     }
 
@@ -2191,6 +2203,15 @@ async def reset_password(req: ResetPasswordRequest):
     user = users_collection.find_one({"$or": query})
     if not user:
         raise HTTPException(status_code=400, detail="⚠️ Account Not Found.")
+
+    # Enforce Active Browser Session Check if provided
+    if req.current_session_user_id:
+        sess_id = req.current_session_user_id.strip()
+        if user.get("internal_id") != sess_id and user.get("email") != sess_id and user.get("phone") != sess_id:
+            raise HTTPException(
+                status_code=400,
+                detail="⚠️ Security Error: Account mismatch! You are logged into a different account in this browser."
+            )
         
     # Security QR Code Token Verification
     stored_qr_tok = user.get("security_qr_token")
@@ -2230,6 +2251,7 @@ async def reset_password(req: ResetPasswordRequest):
     )
     
     return {"message": "✅ Password reset successfully! You can now log in with your new password."}
+
 
 
 
