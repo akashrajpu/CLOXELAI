@@ -24,6 +24,83 @@ function Auth({ onLoginSuccess }) {
   const [showSupport, setShowSupport] = useState(false);
   const [showPrivacyPolicy, setShowPrivacyPolicy] = useState(false);
 
+  // Forgot Password States
+  const [showForgotPasswordModal, setShowForgotPasswordModal] = useState(false);
+  const [forgotStep, setForgotStep] = useState(1);
+  const [forgotIdentifier, setForgotIdentifier] = useState('');
+  const [forgotOtp, setForgotOtp] = useState('');
+  const [forgotNewPassword, setForgotNewPassword] = useState('');
+  const [forgotLoading, setForgotLoading] = useState(false);
+  const [forgotError, setForgotError] = useState(null);
+  const [forgotSuccess, setForgotSuccess] = useState(null);
+
+  const handleRequestOtp = async (e) => {
+    e.preventDefault();
+    setForgotError(null);
+    setForgotSuccess(null);
+    setForgotLoading(true);
+
+    try {
+      const response = await fetch(`${API_BASE}/forgot-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email_or_mobile: forgotIdentifier })
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.detail || data.error || 'Failed to request OTP');
+      }
+
+      setForgotSuccess(data.message || 'OTP generated successfully!');
+      if (data.otp) {
+        setForgotOtp(data.otp);
+      }
+      setForgotStep(2);
+    } catch (err) {
+      setForgotError(err.message);
+    } finally {
+      setForgotLoading(false);
+    }
+  };
+
+  const handleResetPassword = async (e) => {
+    e.preventDefault();
+    setForgotError(null);
+    setForgotSuccess(null);
+    setForgotLoading(true);
+
+    try {
+      const response = await fetch(`${API_BASE}/reset-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email_or_mobile: forgotIdentifier,
+          otp: forgotOtp,
+          new_password: forgotNewPassword
+        })
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.detail || data.error || 'Failed to reset password');
+      }
+
+      setForgotSuccess(data.message || 'Password reset successfully!');
+      setTimeout(() => {
+        setShowForgotPasswordModal(false);
+        setIsLogin(true);
+        setEmailOrMobile(forgotIdentifier);
+        setPassword(forgotNewPassword);
+      }, 1800);
+    } catch (err) {
+      setForgotError(err.message);
+    } finally {
+      setForgotLoading(false);
+    }
+  };
+
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError(null);
@@ -215,6 +292,28 @@ function Auth({ onLoginSuccess }) {
                 />
               </div>
 
+              {isLogin && (
+                <div style={{ textAlign: 'right', marginTop: '-6px', marginBottom: '14px' }}>
+                  <button 
+                    type="button" 
+                    onClick={() => {
+                      setShowForgotPasswordModal(true);
+                      setForgotStep(1);
+                      setForgotIdentifier(emailOrMobile || '');
+                      setForgotOtp('');
+                      setForgotNewPassword('');
+                      setForgotError(null);
+                      setForgotSuccess(null);
+                    }} 
+                    className="btn-link"
+                    style={{ fontSize: '0.85rem', color: '#c084fc' }}
+                  >
+                    🔑 Forgot Password?
+                  </button>
+                </div>
+              )}
+
+
               {!isLogin && (
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '14px', marginBottom: '16px' }}>
                   <input 
@@ -257,6 +356,96 @@ function Auth({ onLoginSuccess }) {
                 {isLogin ? 'Register here' : 'Login here'}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Forgot Password Modal */}
+      {showForgotPasswordModal && (
+        <div className="auth-modal-overlay" onClick={() => setShowForgotPasswordModal(false)}>
+          <div className="auth-modal-card" onClick={e => e.stopPropagation()} style={{ maxWidth: '440px' }}>
+            <button className="modal-close-btn" onClick={() => setShowForgotPasswordModal(false)}>×</button>
+            
+            <div className="modal-header" style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', width: '100%', marginBottom: '16px' }}>
+              <h2 style={{ textAlign: 'center', display: 'block', width: '100%', margin: '0 auto 6px auto' }}>🔑 Reset Password</h2>
+              <p style={{ textAlign: 'center', display: 'block', width: '100%', margin: '0 auto', fontSize: '0.88rem' }}>
+                {forgotStep === 1 ? 'Enter your registered Email or Mobile Number to receive a 6-digit OTP' : 'Enter the OTP and set your new password'}
+              </p>
+            </div>
+
+            {forgotError && <div className="auth-error">{forgotError}</div>}
+            {forgotSuccess && (
+              <div style={{ background: 'rgba(34, 197, 94, 0.15)', border: '1px solid #22c55e', color: '#4ade80', padding: '10px 14px', borderRadius: '10px', fontSize: '0.85rem', marginBottom: '14px', textAlign: 'center' }}>
+                {forgotSuccess}
+              </div>
+            )}
+
+            {forgotStep === 1 ? (
+              <form onSubmit={handleRequestOtp} className="auth-form">
+                <div className="form-group">
+                  <label>Email Address or Mobile Number *</label>
+                  <input 
+                    type="text" 
+                    placeholder="Enter registered Email or Mobile" 
+                    value={forgotIdentifier}
+                    onChange={(e) => setForgotIdentifier(e.target.value)}
+                    required 
+                  />
+                </div>
+                <button 
+                  type="submit" 
+                  disabled={forgotLoading} 
+                  className="btn-primary auth-submit"
+                  style={{ width: '100%', marginTop: '10px' }}
+                >
+                  {forgotLoading ? 'Generating OTP...' : 'Send Password Reset OTP →'}
+                </button>
+              </form>
+            ) : (
+              <form onSubmit={handleResetPassword} className="auth-form">
+                <div className="form-group">
+                  <label>6-Digit OTP *</label>
+                  <input 
+                    type="text" 
+                    placeholder="Enter 6-digit OTP" 
+                    value={forgotOtp}
+                    onChange={(e) => setForgotOtp(e.target.value)}
+                    required 
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label>New Password *</label>
+                  <input 
+                    type="password" 
+                    placeholder="Enter new secure password" 
+                    value={forgotNewPassword}
+                    onChange={(e) => setForgotNewPassword(e.target.value)}
+                    required 
+                  />
+                </div>
+
+                <button 
+                  type="submit" 
+                  disabled={forgotLoading} 
+                  className="btn-primary auth-submit"
+                  style={{ width: '100%', marginTop: '10px' }}
+                >
+                  {forgotLoading ? 'Resetting Password...' : 'Confirm & Reset Password →'}
+                </button>
+
+                <div style={{ textAlign: 'center', marginTop: '12px' }}>
+                  <button 
+                    type="button" 
+                    onClick={() => { setForgotStep(1); setForgotError(null); setForgotSuccess(null); }} 
+                    className="btn-link"
+                    style={{ fontSize: '0.8rem', color: '#94a3b8' }}
+                  >
+                    ← Back to Enter Email / Mobile
+                  </button>
+                </div>
+              </form>
+            )}
           </div>
         </div>
       )}

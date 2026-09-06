@@ -850,6 +850,15 @@ class UserLogin(BaseModel):
     email_or_mobile: str
     password: str
 
+class ForgotPasswordRequest(BaseModel):
+    email_or_mobile: str
+
+class ResetPasswordRequest(BaseModel):
+    email_or_mobile: str
+    otp: str
+    new_password: str
+
+
 class VideoRequest(BaseModel):
     scenes: List[Scene] = []
     user_id: Optional[str] = None
@@ -1992,6 +2001,94 @@ async def login_user(req: UserLogin):
         raise HTTPException(status_code=400, detail="⚠️ Incorrect Password: Please check your password and try again.")
         
     return {"message": "Login successful", "internal_id": user["internal_id"]}
+
+@app.post("/forgot-password")
+async def forgot_password(req: ForgotPasswordRequest):
+    if users_collection is None:
+        raise HTTPException(status_code=500, detail="Database not configured")
+        
+    raw_identifier = req.email_or_mobile.strip()
+    if not raw_identifier:
+        raise HTTPException(status_code=400, detail="⚠️ Please provide an Email or Mobile Number.")
+
+    clean_phone = "".join(filter(str.isdigit, raw_identifier))
+    import re
+    identifier_regex = re.compile(f"^{re.escape(raw_identifier.lower())}$", re.IGNORECASE)
+    
+    query = [
+        {"email": identifier_regex},
+        {"email_or_mobile": identifier_regex},
+        {"internal_id": raw_identifier}
+    ]
+    if clean_phone:
+        query.append({"phone": clean_phone})
+        query.append({"email_or_mobile": clean_phone})
+        
+    user = users_collection.find_one({"$or": query})
+    if not user:
+        raise HTTPException(status_code=400, detail="⚠️ Account Not Found: Please check your Email / Mobile Number.")
+        
+    import random
+    otp = str(random.randint(100000, 999999))
+    expires_at = datetime.utcnow() + timedelta(minutes=15)
+    
+    users_collection.update_one(
+        {"_id": user["_id"]},
+        {"$set": {"reset_otp": otp, "reset_otp_expires_at": expires_at}}
+    )
+    
+    return {
+        "message": f"🔑 Password reset OTP generated successfully! Your OTP is: {otp}",
+        "otp": otp
+    }
+
+@app.post("/reset-password")
+async def reset_password(req: ResetPasswordRequest):
+    if users_collection is None:
+        raise HTTPException(status_code=500, detail="Database not configured")
+        
+    raw_identifier = req.email_or_mobile.strip()
+    clean_phone = "".join(filter(str.isdigit, raw_identifier))
+    import re
+    identifier_regex = re.compile(f"^{re.escape(raw_identifier.lower())}$", re.IGNORECASE)
+    
+    query = [
+        {"email": identifier_regex},
+        {"email_or_mobile": identifier_regex},
+        {"internal_id": raw_identifier}
+    ]
+    if clean_phone:
+        query.append({"phone": clean_phone})
+        query.append({"email_or_mobile": clean_phone})
+        
+    user = users_collection.find_one({"$or": query})
+    if not user:
+        raise HTTPException(status_code=400, detail="⚠️ Account Not Found.")
+        
+    stored_otp = user.get("reset_otp")
+    expires_at = user.get("reset_otp_expires_at")
+    
+    if not stored_otp or stored_otp != req.otp.strip():
+        raise HTTPException(status_code=400, detail="⚠️ Invalid OTP. Please verify and try again.")
+        
+    if expires_at and datetime.utcnow() > expires_at:
+        raise HTTPException(status_code=400, detail="⚠️ OTP has expired. Please request a new one.")
+        
+    if not req.new_password or len(req.new_password.strip()) < 4:
+        raise HTTPException(status_code=400, detail="⚠️ New password must be at least 4 characters long.")
+
+    new_hash = safe_hash_password(req.new_password.strip())
+    
+    users_collection.update_one(
+        {"_id": user["_id"]},
+        {
+            "$set": {"password_hash": new_hash, "password": new_hash},
+            "$unset": {"reset_otp": "", "reset_otp_expires_at": ""}
+        }
+    )
+    
+    return {"message": "✅ Password reset successfully! You can now log in with your new password."}
+
 
 @app.get("/history/{internal_id}")
 async def get_video_history(internal_id: str):
