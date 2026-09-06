@@ -21,3 +21,4 @@ pymongo
 gTTS
 google-genai
 google-generativeai
+qrcode

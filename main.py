@@ -1947,7 +1947,18 @@ def generate_qr_base64(data_str: str) -> str:
         img.save(buffer, format="PNG")
         return base64.b64encode(buffer.getvalue()).decode('utf-8')
     except Exception as e:
-        print(f"⚠️ Error generating QR base64: {e}")
+        print(f"⚠️ Local qrcode module error: {e}. Falling back to QR Generator API...")
+        try:
+            import urllib.parse
+            import requests
+            import base64
+            encoded_data = urllib.parse.quote(data_str)
+            qr_api_url = f"https://api.qrserver.com/v1/create-qr-code/?size=300x300&data={encoded_data}"
+            res = requests.get(qr_api_url, timeout=5)
+            if res.status_code == 200 and res.content:
+                return base64.b64encode(res.content).decode('utf-8')
+        except Exception as _e_api:
+            print(f"⚠️ QR API Fallback error: {_e_api}")
         return ""
 
 def send_brevo_qr_email(user_email: str, user_name: str, security_qr_token: str, browser_token: str):
