@@ -2246,20 +2246,23 @@ async def forgot_password(req: ForgotPasswordRequest):
     user_phone = (user.get("phone") or "").strip()
     user_internal_id = (user.get("internal_id") or "").strip().lower()
 
-    # BROWSER SESSION CONFLICT CHECK (Blocks if browser is logged into a DIFFERENT account)
+    # MANDATORY STRICT BROWSER SESSION CHECK AT STEP 1
     client_sess_id = (req.current_session_user_id or "").strip().lower()
     client_sess_email = (req.current_session_user_email or "").strip().lower()
     client_sess_phone = (req.current_session_user_phone or "").strip()
 
-    if client_sess_email and client_sess_email not in [user_email, user_internal_id]:
+    is_session_valid = False
+    if client_sess_email and client_sess_email in [user_email, user_internal_id]:
+        is_session_valid = True
+    elif client_sess_phone and user_phone and client_sess_phone == user_phone:
+        is_session_valid = True
+    elif client_sess_id and client_sess_id in [user_email, user_phone, user_internal_id]:
+        is_session_valid = True
+
+    if not is_session_valid:
         raise HTTPException(
             status_code=400,
-            detail=f"⚠️ Security Error: Account Session Mismatch! This browser is logged into '{client_sess_email}'. You cannot reset password for '{raw_identifier}' from a different account session."
-        )
-    if client_sess_phone and user_phone and client_sess_phone != user_phone:
-        raise HTTPException(
-            status_code=400,
-            detail="⚠️ Security Error: Account Session Mismatch! This browser is currently logged into a different mobile number."
+            detail=f"⚠️ Security Error: Account Session Mismatch! Password reset is ONLY allowed if this browser is currently logged into '{user_email}'. Please log into this account in your browser first."
         )
 
     user_name = user.get("name") or "User"
@@ -2314,20 +2317,23 @@ async def reset_password(req: ResetPasswordRequest):
     user_phone = (user.get("phone") or "").strip()
     user_internal_id = (user.get("internal_id") or "").strip().lower()
 
-    # BROWSER SESSION CONFLICT CHECK AT STEP 2
+    # MANDATORY STRICT BROWSER SESSION CHECK AT STEP 2
     client_sess_id = (req.current_session_user_id or "").strip().lower()
     client_sess_email = (req.current_session_user_email or "").strip().lower()
     client_sess_phone = (req.current_session_user_phone or "").strip()
 
-    if client_sess_email and client_sess_email not in [user_email, user_internal_id]:
+    is_session_valid = False
+    if client_sess_email and client_sess_email in [user_email, user_internal_id]:
+        is_session_valid = True
+    elif client_sess_phone and user_phone and client_sess_phone == user_phone:
+        is_session_valid = True
+    elif client_sess_id and client_sess_id in [user_email, user_phone, user_internal_id]:
+        is_session_valid = True
+
+    if not is_session_valid:
         raise HTTPException(
             status_code=400,
-            detail=f"⚠️ Security Error: Account Session Mismatch! This browser is logged into '{client_sess_email}'."
-        )
-    if client_sess_phone and user_phone and client_sess_phone != user_phone:
-        raise HTTPException(
-            status_code=400,
-            detail="⚠️ Security Error: Account Session Mismatch! This browser is logged into a different mobile number."
+            detail=f"⚠️ Security Error: Account Session Mismatch! This browser is not logged into '{user_email}'."
         )
 
         
