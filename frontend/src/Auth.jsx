@@ -3,16 +3,8 @@ import jsQR from 'jsqr';
 
 const API_BASE = window.location.hostname === 'localhost' ? 'http://localhost:8000' : '';
 
-const getOrCreateBrowserToken = () => {
-  let token = localStorage.getItem('cloxel_browser_token');
-  if (!token) {
-    token = 'BRW-' + (window.crypto && window.crypto.randomUUID ? window.crypto.randomUUID() : (Math.random().toString(36).substring(2) + Date.now().toString(36)));
-    localStorage.setItem('cloxel_browser_token', token);
-  }
-  return token;
-};
-
 function Auth({ onLoginSuccess }) {
+
 
   const [isLogin, setIsLogin] = useState(false); // Default to register or landing view
   const [showAuthModal, setShowAuthModal] = useState(false);
@@ -152,7 +144,6 @@ function Auth({ onLoginSuccess }) {
     setError(null);
     setIsLoading(true);
 
-    const browserToken = getOrCreateBrowserToken();
     const endpoint = isLogin ? '/login' : '/register';
     const payload = isLogin ? {
       email_or_mobile: emailOrMobile,
@@ -163,9 +154,9 @@ function Auth({ onLoginSuccess }) {
       phone: phone,
       email: email,
       password: password,
-      email_or_mobile: email,
-      browser_token: browserToken
+      email_or_mobile: email
     };
+
 
 
     try {
