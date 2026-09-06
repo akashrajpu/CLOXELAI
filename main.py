@@ -1952,11 +1952,12 @@ def generate_qr_base64(data_str: str) -> str:
 
 def send_brevo_qr_email(user_email: str, user_name: str, security_qr_token: str, browser_token: str):
     try:
-        brevo_api_key = os.getenv("BREVO_API_KEY")
+        brevo_api_key = os.getenv("BREVO_API_KEY") or os.getenv("SMTP_KEY")
         smtp_login = os.getenv("SMTP_LOGIN", os.getenv("BREVO_SMTP_LOGIN", "9d55c8001@smtp-brevo.com"))
         smtp_key = os.getenv("SMTP_KEY", os.getenv("BREVO_SMTP_KEY", os.getenv("SMTP_PASSWORD")))
         sender_email = os.getenv("SENDER_EMAIL", "support@cloxel.ai")
         sender_name = os.getenv("SENDER_NAME", "Cloxel AI Security Engine")
+
         
         qr_payload = json.dumps({
             "security_token": security_qr_token,
