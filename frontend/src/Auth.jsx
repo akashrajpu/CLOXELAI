@@ -1,8 +1,19 @@
 import React, { useState } from 'react';
+import jsQR from 'jsqr';
 
 const API_BASE = window.location.hostname === 'localhost' ? 'http://localhost:8000' : '';
 
+const getOrCreateBrowserToken = () => {
+  let token = localStorage.getItem('cloxel_browser_token');
+  if (!token) {
+    token = 'BRW-' + (window.crypto && window.crypto.randomUUID ? window.crypto.randomUUID() : (Math.random().toString(36).substring(2) + Date.now().toString(36)));
+    localStorage.setItem('cloxel_browser_token', token);
+  }
+  return token;
+};
+
 function Auth({ onLoginSuccess }) {
+
   const [isLogin, setIsLogin] = useState(false); // Default to register or landing view
   const [showAuthModal, setShowAuthModal] = useState(false);
 
@@ -29,10 +40,40 @@ function Auth({ onLoginSuccess }) {
   const [forgotStep, setForgotStep] = useState(1);
   const [forgotIdentifier, setForgotIdentifier] = useState('');
   const [forgotOtp, setForgotOtp] = useState('');
+  const [forgotQrToken, setForgotQrToken] = useState('');
   const [forgotNewPassword, setForgotNewPassword] = useState('');
   const [forgotLoading, setForgotLoading] = useState(false);
   const [forgotError, setForgotError] = useState(null);
   const [forgotSuccess, setForgotSuccess] = useState(null);
+
+  const handleQrFileUpload = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setForgotError(null);
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = img.width;
+        canvas.height = img.height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0);
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const code = jsQR(imageData.data, imageData.width, imageData.height);
+
+        if (code && code.data) {
+          setForgotQrToken(code.data);
+          setForgotSuccess('✓ Cloxel Security QR Code detected & verified from uploaded image!');
+        } else {
+          setForgotError('⚠️ Could not decode QR code from image. Please ensure image is a clear Cloxel QR Code or enter token manually.');
+        }
+      };
+      img.src = event.target.result;
+    };
+    reader.readAsDataURL(file);
+  };
 
   const handleRequestOtp = async (e) => {
     e.preventDefault();
@@ -40,11 +81,16 @@ function Auth({ onLoginSuccess }) {
     setForgotSuccess(null);
     setForgotLoading(true);
 
+    const browserToken = getOrCreateBrowserToken();
+
     try {
       const response = await fetch(`${API_BASE}/forgot-password`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email_or_mobile: forgotIdentifier })
+        body: JSON.stringify({
+          email_or_mobile: forgotIdentifier,
+          browser_token: browserToken
+        })
       });
 
       const data = await response.json();
@@ -52,7 +98,7 @@ function Auth({ onLoginSuccess }) {
         throw new Error(data.detail || data.error || 'Failed to request OTP');
       }
 
-      setForgotSuccess(data.message || 'OTP generated successfully!');
+      setForgotSuccess(data.message || 'Browser verified! Please upload or scan your Cloxel Security QR Code.');
       if (data.otp) {
         setForgotOtp(data.otp);
       }
@@ -68,7 +114,14 @@ function Auth({ onLoginSuccess }) {
     e.preventDefault();
     setForgotError(null);
     setForgotSuccess(null);
+
+    if (!forgotQrToken || !forgotQrToken.trim()) {
+      setForgotError('⚠️ Security Error: Please upload your Cloxel Security QR Code image or enter the QR Token Code.');
+      return;
+    }
+
     setForgotLoading(true);
+    const browserToken = getOrCreateBrowserToken();
 
     try {
       const response = await fetch(`${API_BASE}/reset-password`, {
@@ -77,7 +130,9 @@ function Auth({ onLoginSuccess }) {
         body: JSON.stringify({
           email_or_mobile: forgotIdentifier,
           otp: forgotOtp,
-          new_password: forgotNewPassword
+          new_password: forgotNewPassword,
+          browser_token: browserToken,
+          qr_token: forgotQrToken
         })
       });
 
@@ -100,12 +155,12 @@ function Auth({ onLoginSuccess }) {
     }
   };
 
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError(null);
     setIsLoading(true);
 
+    const browserToken = getOrCreateBrowserToken();
     const endpoint = isLogin ? '/login' : '/register';
     const payload = isLogin ? {
       email_or_mobile: emailOrMobile,
@@ -116,8 +171,10 @@ function Auth({ onLoginSuccess }) {
       phone: phone,
       email: email,
       password: password,
-      email_or_mobile: email
+      email_or_mobile: email,
+      browser_token: browserToken
     };
+
 
     try {
       const response = await fetch(`${API_BASE}${endpoint}`, {
@@ -398,18 +455,33 @@ function Auth({ onLoginSuccess }) {
                   className="btn-primary auth-submit"
                   style={{ width: '100%', marginTop: '10px' }}
                 >
-                  {forgotLoading ? 'Generating OTP...' : 'Send Password Reset OTP →'}
+                  {forgotLoading ? 'Verifying Registered Browser...' : 'Verify Browser & Request OTP →'}
                 </button>
               </form>
             ) : (
               <form onSubmit={handleResetPassword} className="auth-form">
+                <div style={{ background: 'rgba(168,85,247,0.1)', border: '1px dashed rgba(168,85,247,0.4)', padding: '14px', borderRadius: '12px', marginBottom: '14px', textAlign: 'center' }}>
+                  <label style={{ display: 'block', color: '#c084fc', fontWeight: 'bold', fontSize: '0.85rem', marginBottom: '6px' }}>
+                    📷 Upload Cloxel Security QR Code Image *
+                  </label>
+                  <input 
+                    type="file" 
+                    accept="image/*"
+                    onChange={handleQrFileUpload}
+                    style={{ fontSize: '0.8rem', color: '#cbd5e1', cursor: 'pointer' }}
+                  />
+                  <p style={{ color: '#94a3b8', fontSize: '0.75rem', marginTop: '6px', margin: 0 }}>
+                    Select the Security QR Code image emailed to you upon registration.
+                  </p>
+                </div>
+
                 <div className="form-group">
-                  <label>6-Digit OTP *</label>
+                  <label>Security QR Token (Auto-filled from image or enter manually) *</label>
                   <input 
                     type="text" 
-                    placeholder="Enter 6-digit OTP" 
-                    value={forgotOtp}
-                    onChange={(e) => setForgotOtp(e.target.value)}
+                    placeholder="CLOXEL-SEC-..." 
+                    value={forgotQrToken}
+                    onChange={(e) => setForgotQrToken(e.target.value)}
                     required 
                   />
                 </div>
@@ -431,7 +503,7 @@ function Auth({ onLoginSuccess }) {
                   className="btn-primary auth-submit"
                   style={{ width: '100%', marginTop: '10px' }}
                 >
-                  {forgotLoading ? 'Resetting Password...' : 'Confirm & Reset Password →'}
+                  {forgotLoading ? 'Verifying Credentials...' : 'Confirm & Reset Password →'}
                 </button>
 
                 <div style={{ textAlign: 'center', marginTop: '12px' }}>
@@ -446,6 +518,7 @@ function Auth({ onLoginSuccess }) {
                 </div>
               </form>
             )}
+
           </div>
         </div>
       )}

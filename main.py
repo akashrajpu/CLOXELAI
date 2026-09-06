@@ -845,6 +845,7 @@ class UserRegister(BaseModel):
     email: str
     password: str
     email_or_mobile: Optional[str] = None
+    browser_token: Optional[str] = None
 
 class UserLogin(BaseModel):
     email_or_mobile: str
@@ -852,11 +853,15 @@ class UserLogin(BaseModel):
 
 class ForgotPasswordRequest(BaseModel):
     email_or_mobile: str
+    browser_token: Optional[str] = None
 
 class ResetPasswordRequest(BaseModel):
     email_or_mobile: str
-    otp: str
+    otp: Optional[str] = ""
     new_password: str
+    browser_token: Optional[str] = None
+    qr_token: Optional[str] = None
+
 
 
 class VideoRequest(BaseModel):
@@ -1918,6 +1923,118 @@ async def verify_razorpay_payment(req: VerifyPaymentRequest):
         "purchase_count": purchase_count
     }
 
+def generate_qr_base64(data_str: str) -> str:
+    try:
+        import qrcode
+        import io
+        import base64
+        qr = qrcode.QRCode(
+            version=1,
+            error_correction=qrcode.constants.ERROR_CORRECT_H,
+            box_size=10,
+            border=4,
+        )
+        qr.add_data(data_str)
+        qr.make(fit=True)
+        img = qr.make_image(fill_color="black", back_color="white")
+        buffer = io.BytesIO()
+        img.save(buffer, format="PNG")
+        return base64.b64encode(buffer.getvalue()).decode('utf-8')
+    except Exception as e:
+        print(f"⚠️ Error generating QR base64: {e}")
+        return ""
+
+def send_brevo_qr_email(user_email: str, user_name: str, security_qr_token: str, browser_token: str):
+    try:
+        brevo_api_key = os.getenv("BREVO_API_KEY")
+        sender_email = os.getenv("SENDER_EMAIL", "support@cloxel.ai")
+        sender_name = os.getenv("SENDER_NAME", "Cloxel AI Security Engine")
+        
+        qr_payload = json.dumps({
+            "security_token": security_qr_token,
+            "email": user_email,
+            "browser_token": browser_token,
+            "issuer": "Cloxel AI Security Engine"
+        })
+        
+        qr_b64 = generate_qr_base64(qr_payload)
+        
+        if not brevo_api_key:
+            print(f"⚠️ BREVO_API_KEY env variable not configured. QR Code generated for {user_email}: {security_qr_token}")
+            return False
+            
+        url = "https://api.brevo.com/v3/smtp/email"
+        headers = {
+            "accept": "application/json",
+            "api-key": brevo_api_key,
+            "content-type": "application/json"
+        }
+        
+        html_content = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <style>
+            body {{ font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #0b071a; color: #ffffff; padding: 20px; }}
+            .card {{ max-width: 550px; margin: 0 auto; background: #130d2a; border: 1px solid rgba(168,85,247,0.4); border-radius: 16px; padding: 30px; text-align: center; }}
+            .badge {{ background: rgba(168,85,247,0.2); color: #c084fc; border: 1px solid #a855f7; padding: 6px 14px; border-radius: 20px; font-weight: bold; display: inline-block; font-size: 0.85rem; }}
+            h2 {{ color: #ffffff; margin-top: 15px; }}
+            p {{ color: #cbd5e1; font-size: 0.95rem; line-height: 1.5; }}
+            .qr-container {{ background: #ffffff; padding: 20px; border-radius: 12px; display: inline-block; margin: 20px 0; }}
+            .qr-container img {{ width: 200px; height: 200px; display: block; margin: 0 auto; }}
+            .token-box {{ background: rgba(0,0,0,0.4); border: 1px dashed rgba(168,85,247,0.5); padding: 12px; border-radius: 8px; font-family: monospace; color: #38bdf8; word-break: break-all; margin-top: 15px; font-size: 0.9rem; }}
+            .warning {{ color: #f87171; font-size: 0.85rem; margin-top: 20px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 15px; }}
+          </style>
+        </head>
+        <body>
+          <div class="card">
+            <span class="badge">✦ CLOXEL AI SECURITY CREDENTIAL</span>
+            <h2>Welcome, {user_name}!</h2>
+            <p>Your Cloxel AI account registration is successful. Below is your official <strong>Security Reset QR Code</strong>.</p>
+            <p><strong>IMPORTANT:</strong> Keep this QR Code saved safely in your inbox or phone. You will need to upload or scan this QR Code whenever you reset your password from your registered browser.</p>
+            
+            <div class="qr-container">
+              <img src="data:image/png;base64,{qr_b64}" alt="Cloxel Security QR Code" />
+            </div>
+
+            <p style="font-size: 0.85rem; color: #94a3b8;">Security QR Token Code:</p>
+            <div class="token-box">{security_qr_token}</div>
+
+            <div class="warning">
+              🔒 <strong>Dual-Factor Security Policy:</strong> Password reset requests strictly require both your original registered browser session AND this QR Code credential. Never share this email or QR Code with anyone.
+            </div>
+          </div>
+        </body>
+        </html>
+        """
+        
+        payload = {
+            "sender": {"name": sender_name, "email": sender_email},
+            "to": [{"email": user_email, "name": user_name}],
+            "subject": "✦ Cloxel AI - Official Security QR Code Credential",
+            "htmlContent": html_content
+        }
+
+        if qr_b64:
+            payload["attachment"] = [
+                {
+                    "content": qr_b64,
+                    "name": "cloxel_security_qr.png"
+                }
+            ]
+        
+        res = requests.post(url, json=payload, headers=headers, timeout=10)
+        if res.status_code in [200, 201, 202]:
+            print(f"✅ Brevo QR Email sent successfully to {user_email}")
+            return True
+        else:
+            print(f"⚠️ Brevo API Response ({res.status_code}): {res.text}")
+            return False
+    except Exception as e:
+        print(f"❌ Error sending Brevo QR Email: {e}")
+        return False
+
+
 @app.post("/register")
 async def register_user(req: UserRegister):
     if users_collection is None:
@@ -1952,6 +2069,8 @@ async def register_user(req: UserRegister):
         
     hashed_password = safe_hash_password(req.password)
     internal_id = str(uuid.uuid4())
+    browser_tok = (req.browser_token or "").strip() or str(uuid.uuid4())
+    security_qr_tok = f"CLOXEL-SEC-{uuid.uuid4().hex[:12].upper()}"
     
     new_user = {
         "name": req.name.strip(),
@@ -1961,11 +2080,30 @@ async def register_user(req: UserRegister):
         "email_or_mobile": primary_email,
         "password_hash": hashed_password,
         "internal_id": internal_id,
+        "registration_browser_token": browser_tok,
+        "security_qr_token": security_qr_tok,
         "created_at": datetime.utcnow()
     }
     
     users_collection.insert_one(new_user)
-    return {"message": "User registered successfully", "internal_id": internal_id}
+
+    try:
+        send_brevo_qr_email(
+            user_email=primary_email,
+            user_name=req.name.strip(),
+            security_qr_token=security_qr_tok,
+            browser_token=browser_tok
+        )
+    except Exception as _e_qr:
+        print(f"⚠️ Brevo QR Email dispatch warning: {_e_qr}")
+
+    return {
+        "message": "User registered successfully",
+        "internal_id": internal_id,
+        "browser_token": browser_tok,
+        "security_qr_token": security_qr_tok
+    }
+
 
 @app.post("/login")
 async def login_user(req: UserLogin):
@@ -2027,6 +2165,15 @@ async def forgot_password(req: ForgotPasswordRequest):
     user = users_collection.find_one({"$or": query})
     if not user:
         raise HTTPException(status_code=400, detail="⚠️ Account Not Found: Please check your Email / Mobile Number.")
+
+    # 1. Enforce Browser Token Verification
+    stored_browser_tok = user.get("registration_browser_token")
+    client_browser_tok = (req.browser_token or "").strip()
+    if stored_browser_tok and client_browser_tok != stored_browser_tok:
+        raise HTTPException(
+            status_code=400,
+            detail="⚠️ Security Error: Password reset is strictly allowed only from your original registered browser/device. Different browser detected!"
+        )
         
     import random
     otp = str(random.randint(100000, 999999))
@@ -2038,8 +2185,9 @@ async def forgot_password(req: ForgotPasswordRequest):
     )
     
     return {
-        "message": f"🔑 Password reset OTP generated successfully! Your OTP is: {otp}",
-        "otp": otp
+        "message": f"🔑 Browser verified! Please upload or scan your Cloxel Security QR Code to reset password.",
+        "otp": otp,
+        "browser_verified": True
     }
 
 @app.post("/reset-password")
@@ -2065,14 +2213,39 @@ async def reset_password(req: ResetPasswordRequest):
     if not user:
         raise HTTPException(status_code=400, detail="⚠️ Account Not Found.")
         
-    stored_otp = user.get("reset_otp")
-    expires_at = user.get("reset_otp_expires_at")
-    
-    if not stored_otp or stored_otp != req.otp.strip():
-        raise HTTPException(status_code=400, detail="⚠️ Invalid OTP. Please verify and try again.")
+    # 1. Enforce Browser Token Verification
+    stored_browser_tok = user.get("registration_browser_token")
+    client_browser_tok = (req.browser_token or "").strip()
+    if stored_browser_tok and client_browser_tok != stored_browser_tok:
+        raise HTTPException(
+            status_code=400,
+            detail="⚠️ Security Error: Password reset is strictly allowed only from your original registered browser/device."
+        )
+
+    # 2. Enforce Security QR Code Token Verification
+    stored_qr_tok = user.get("security_qr_token")
+    client_qr_tok = (req.qr_token or "").strip()
+
+    if stored_qr_tok:
+        if not client_qr_tok:
+            raise HTTPException(
+                status_code=400,
+                detail="⚠️ Security Error: Please upload or scan your Cloxel Security QR Code to proceed."
+            )
         
-    if expires_at and datetime.utcnow() > expires_at:
-        raise HTTPException(status_code=400, detail="⚠️ OTP has expired. Please request a new one.")
+        extracted_token = client_qr_tok
+        if "security_token" in client_qr_tok:
+            try:
+                parsed = json.loads(client_qr_tok)
+                extracted_token = parsed.get("security_token", client_qr_tok)
+            except Exception:
+                pass
+        
+        if extracted_token.strip() != stored_qr_tok.strip():
+            raise HTTPException(
+                status_code=400,
+                detail="⚠️ Security Error: Invalid QR Code! The uploaded QR Code token does not match your registered account credential."
+            )
         
     if not req.new_password or len(req.new_password.strip()) < 4:
         raise HTTPException(status_code=400, detail="⚠️ New password must be at least 4 characters long.")
@@ -2088,6 +2261,7 @@ async def reset_password(req: ResetPasswordRequest):
     )
     
     return {"message": "✅ Password reset successfully! You can now log in with your new password."}
+
 
 
 @app.get("/history/{internal_id}")
