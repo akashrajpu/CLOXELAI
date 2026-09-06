@@ -2208,7 +2208,13 @@ async def login_user(req: UserLogin):
     if not is_valid:
         raise HTTPException(status_code=400, detail="⚠️ Incorrect Password: Please check your password and try again.")
         
-    return {"message": "Login successful", "internal_id": user["internal_id"]}
+    return {
+        "message": "Login successful",
+        "internal_id": user["internal_id"],
+        "email": (user.get("email") or "").strip().lower(),
+        "phone": user.get("phone") or "",
+        "name": user.get("name") or "User"
+    }
 
 @app.post("/forgot-password")
 async def forgot_password(req: ForgotPasswordRequest):
