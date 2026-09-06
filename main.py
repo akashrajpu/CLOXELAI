@@ -870,6 +870,10 @@ class ResetPasswordRequest(BaseModel):
     current_session_user_email: Optional[str] = None
     current_session_user_phone: Optional[str] = None
 
+class GoogleVerifyRequest(BaseModel):
+    credential: str
+    email_or_mobile: Optional[str] = None
+
 
 
 
@@ -2214,6 +2218,79 @@ async def login_user(req: UserLogin):
         "email": (user.get("email") or "").strip().lower(),
         "phone": user.get("phone") or "",
         "name": user.get("name") or "User"
+    }
+
+@app.post("/api/auth/google-verify")
+async def google_verify(req: GoogleVerifyRequest):
+    if users_collection is None:
+        raise HTTPException(status_code=500, detail="Database not configured")
+
+    token = req.credential
+    if not token:
+        raise HTTPException(status_code=400, detail="⚠️ Google verification credential missing.")
+
+    google_email = None
+    try:
+        from google.oauth2 import id_token
+        from google.auth.transport import requests as google_requests
+        id_info = id_token.verify_oauth2_token(token, google_requests.Request())
+        google_email = (id_info.get("email") or "").strip().lower()
+    except Exception:
+        try:
+            resp = requests.get(f"https://oauth2.googleapis.com/tokeninfo?id_token={token}", timeout=5)
+            if resp.status_code == 200:
+                data = resp.json()
+                google_email = (data.get("email") or "").strip().lower()
+        except Exception as _e_tok:
+            print(f"⚠️ Google tokeninfo error: {_e_tok}")
+
+    if not google_email:
+        raise HTTPException(status_code=400, detail="⚠️ Google Account Verification Failed. Unable to extract verified email from Google.")
+
+    raw_identifier = (req.email_or_mobile or google_email).strip().lower()
+    user = users_collection.find_one({
+        "$or": [
+            {"email": raw_identifier},
+            {"email_or_mobile": raw_identifier}
+        ]
+    })
+
+    if not user:
+        raise HTTPException(
+            status_code=400,
+            detail=f"⚠️ Account Not Found: No Cloxel AI account exists for email '{raw_identifier}'. Please register first."
+        )
+
+    target_email = (user.get("email") or "").strip().lower()
+
+    if google_email != target_email:
+        raise HTTPException(
+            status_code=400,
+            detail=f"⚠️ Google Account Mismatch! Your signed-in Google email is '{google_email}', but the account being reset is '{target_email}'. Please sign in with Google account '{target_email}'."
+        )
+
+    user_name = user.get("name") or "User"
+    security_qr_tok = user.get("security_qr_token")
+    if not security_qr_tok:
+        security_qr_tok = f"CLOXEL-SEC-{uuid.uuid4().hex[:12].upper()}"
+        users_collection.update_one({"_id": user["_id"]}, {"$set": {"security_qr_token": security_qr_tok}})
+
+    reg_browser_tok = user.get("registration_browser_token") or ""
+    try:
+        send_brevo_qr_email(
+            user_email=target_email,
+            user_name=user_name,
+            security_qr_token=security_qr_tok,
+            browser_token=reg_browser_tok
+        )
+    except Exception as _e_qr:
+        print(f"⚠️ Brevo QR Email dispatch error: {_e_qr}")
+
+    return {
+        "message": f"✅ Google Account '{google_email}' Verified! Security QR Code sent to your inbox. Please upload or scan your QR Code below.",
+        "google_verified_email": google_email,
+        "internal_id": user.get("internal_id"),
+        "account_verified": True
     }
 
 @app.post("/forgot-password")
