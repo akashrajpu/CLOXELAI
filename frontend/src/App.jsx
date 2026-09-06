@@ -513,9 +513,11 @@ function App() {
     }
   };
 
-  const handleLoginSuccess = (id) => {
+  const handleLoginSuccess = (id, userObj = {}) => {
     setUserId(id);
     localStorage.setItem('cloxel_user_id', id);
+    if (userObj.email) localStorage.setItem('cloxel_user_email', userObj.email.toLowerCase());
+    if (userObj.phone) localStorage.setItem('cloxel_user_phone', userObj.phone);
   };
 
   const handleLogout = () => {

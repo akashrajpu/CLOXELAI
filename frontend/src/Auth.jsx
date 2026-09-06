@@ -129,12 +129,17 @@ function Auth({ onLoginSuccess }) {
     setForgotLoading(true);
 
     let activeUserId = localStorage.getItem('cloxel_user_id') || '';
-    if (!activeUserId) {
+    let activeUserEmail = (localStorage.getItem('cloxel_user_email') || '').toLowerCase();
+    let activeUserPhone = localStorage.getItem('cloxel_user_phone') || '';
+
+    if (!activeUserId || !activeUserEmail) {
       try {
         const userDataStr = localStorage.getItem('user_data');
         if (userDataStr) {
           const parsed = JSON.parse(userDataStr);
-          activeUserId = parsed.email || parsed.internal_id || parsed.phone || '';
+          if (!activeUserId) activeUserId = parsed.internal_id || '';
+          if (!activeUserEmail) activeUserEmail = (parsed.email || '').toLowerCase();
+          if (!activeUserPhone) activeUserPhone = parsed.phone || '';
         }
       } catch (err) {}
     }
@@ -145,7 +150,9 @@ function Auth({ onLoginSuccess }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           email_or_mobile: forgotIdentifier,
-          current_session_user_id: activeUserId
+          current_session_user_id: activeUserId,
+          current_session_user_email: activeUserEmail,
+          current_session_user_phone: activeUserPhone
         })
       });
 
@@ -169,19 +176,24 @@ function Auth({ onLoginSuccess }) {
     setForgotSuccess(null);
 
     if (!forgotQrToken || !forgotQrToken.trim()) {
-      setForgotError('⚠️ Security Error: Please upload your Cloxel Security QR Code image or enter the QR Token Code.');
+      setForgotError('⚠️ Security Error: Please upload your Cloxel Security QR Code image or scan with camera.');
       return;
     }
 
     setForgotLoading(true);
 
     let activeUserId = localStorage.getItem('cloxel_user_id') || '';
-    if (!activeUserId) {
+    let activeUserEmail = (localStorage.getItem('cloxel_user_email') || '').toLowerCase();
+    let activeUserPhone = localStorage.getItem('cloxel_user_phone') || '';
+
+    if (!activeUserId || !activeUserEmail) {
       try {
         const userDataStr = localStorage.getItem('user_data');
         if (userDataStr) {
           const parsed = JSON.parse(userDataStr);
-          activeUserId = parsed.email || parsed.internal_id || parsed.phone || '';
+          if (!activeUserId) activeUserId = parsed.internal_id || '';
+          if (!activeUserEmail) activeUserEmail = (parsed.email || '').toLowerCase();
+          if (!activeUserPhone) activeUserPhone = parsed.phone || '';
         }
       } catch (err) {}
     }
@@ -194,7 +206,9 @@ function Auth({ onLoginSuccess }) {
           email_or_mobile: forgotIdentifier,
           new_password: forgotNewPassword,
           qr_token: forgotQrToken,
-          current_session_user_id: activeUserId
+          current_session_user_id: activeUserId,
+          current_session_user_email: activeUserEmail,
+          current_session_user_phone: activeUserPhone
         })
       });
 
@@ -254,7 +268,19 @@ function Auth({ onLoginSuccess }) {
       }
 
       if (data.internal_id) {
-        onLoginSuccess(data.internal_id);
+        const userEmail = (data.email || (isLogin ? emailOrMobile : email) || '').toLowerCase();
+        const userPhone = data.phone || (isLogin ? '' : phone);
+        localStorage.setItem('cloxel_user_id', data.internal_id);
+        if (userEmail) localStorage.setItem('cloxel_user_email', userEmail);
+        if (userPhone) localStorage.setItem('cloxel_user_phone', userPhone);
+        localStorage.setItem('user_data', JSON.stringify({
+          internal_id: data.internal_id,
+          email: userEmail,
+          phone: userPhone,
+          name: data.name || name
+        }));
+
+        onLoginSuccess(data.internal_id, { internal_id: data.internal_id, email: userEmail, phone: userPhone });
       } else {
         throw new Error("No internal ID received");
       }

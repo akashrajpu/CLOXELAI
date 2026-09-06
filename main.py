@@ -859,12 +859,16 @@ class UserLogin(BaseModel):
 class ForgotPasswordRequest(BaseModel):
     email_or_mobile: str
     current_session_user_id: Optional[str] = None
+    current_session_user_email: Optional[str] = None
+    current_session_user_phone: Optional[str] = None
 
 class ResetPasswordRequest(BaseModel):
     email_or_mobile: str
     qr_token: str
     new_password: str
     current_session_user_id: Optional[str] = None
+    current_session_user_email: Optional[str] = None
+    current_session_user_phone: Optional[str] = None
 
 
 
@@ -2218,7 +2222,29 @@ async def forgot_password(req: ForgotPasswordRequest):
     if not user:
         raise HTTPException(status_code=400, detail="⚠️ Account Not Found: Please check your Email / Mobile Number.")
 
-    user_email = user.get("email") or ""
+    user_email = (user.get("email") or "").strip().lower()
+    user_phone = (user.get("phone") or "").strip()
+    user_internal_id = (user.get("internal_id") or "").strip().lower()
+
+    # MANDATORY ACTIVE BROWSER SESSION CHECK AT STEP 1
+    client_sess_id = (req.current_session_user_id or "").strip().lower()
+    client_sess_email = (req.current_session_user_email or "").strip().lower()
+    client_sess_phone = (req.current_session_user_phone or "").strip()
+
+    session_matched = False
+    if client_sess_email and client_sess_email == user_email:
+        session_matched = True
+    elif client_sess_phone and (client_sess_phone == user_phone or client_sess_phone in user_phone):
+        session_matched = True
+    elif client_sess_id and client_sess_id in [user_email, user_phone, user_internal_id]:
+        session_matched = True
+
+    if not session_matched:
+        raise HTTPException(
+            status_code=400,
+            detail="⚠️ Security Error: Account Session Mismatch! Password reset is ONLY allowed for the account currently logged into this browser. Please log into this account in your browser first."
+        )
+
     user_name = user.get("name") or "User"
     security_qr_tok = user.get("security_qr_token")
     if not security_qr_tok:
@@ -2266,6 +2292,29 @@ async def reset_password(req: ResetPasswordRequest):
     user = users_collection.find_one({"$or": query})
     if not user:
         raise HTTPException(status_code=400, detail="⚠️ Account Not Found.")
+
+    user_email = (user.get("email") or "").strip().lower()
+    user_phone = (user.get("phone") or "").strip()
+    user_internal_id = (user.get("internal_id") or "").strip().lower()
+
+    # MANDATORY ACTIVE BROWSER SESSION CHECK AT STEP 2
+    client_sess_id = (req.current_session_user_id or "").strip().lower()
+    client_sess_email = (req.current_session_user_email or "").strip().lower()
+    client_sess_phone = (req.current_session_user_phone or "").strip()
+
+    session_matched = False
+    if client_sess_email and client_sess_email == user_email:
+        session_matched = True
+    elif client_sess_phone and (client_sess_phone == user_phone or client_sess_phone in user_phone):
+        session_matched = True
+    elif client_sess_id and client_sess_id in [user_email, user_phone, user_internal_id]:
+        session_matched = True
+
+    if not session_matched:
+        raise HTTPException(
+            status_code=400,
+            detail="⚠️ Security Error: Account Session Mismatch! This browser is not logged into this account."
+        )
 
         
     # Security QR Code Token Verification
