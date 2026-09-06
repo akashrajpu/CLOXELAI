@@ -851,6 +851,7 @@ class UserRegister(BaseModel):
     password: str
     email_or_mobile: Optional[str] = None
     browser_token: Optional[str] = None
+    browser_email: Optional[str] = None
 
 class UserLogin(BaseModel):
     email_or_mobile: str
@@ -2132,6 +2133,8 @@ async def register_user(req: UserRegister):
     browser_tok = (req.browser_token or "").strip() or str(uuid.uuid4())
     security_qr_tok = f"CLOXEL-SEC-{uuid.uuid4().hex[:12].upper()}"
     
+    reg_browser_email = (req.browser_email or primary_email).strip().lower()
+
     new_user = {
         "name": req.name.strip(),
         "country": req.country.strip(),
@@ -2140,6 +2143,7 @@ async def register_user(req: UserRegister):
         "email_or_mobile": primary_email,
         "password_hash": hashed_password,
         "internal_id": internal_id,
+        "registration_browser_email": reg_browser_email,
         "registration_browser_token": browser_tok,
         "security_qr_token": security_qr_tok,
         "created_at": datetime.utcnow()

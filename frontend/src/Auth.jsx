@@ -309,7 +309,8 @@ function Auth({ onLoginSuccess }) {
       phone: phone,
       email: email,
       password: password,
-      email_or_mobile: email
+      email_or_mobile: email,
+      browser_email: email.toLowerCase()
     };
 
 
