@@ -73,7 +73,16 @@ function Auth({ onLoginSuccess }) {
     setForgotSuccess(null);
     setForgotLoading(true);
 
-    const activeUserId = localStorage.getItem('cloxel_user_id');
+    let activeUserId = localStorage.getItem('cloxel_user_id') || '';
+    if (!activeUserId) {
+      try {
+        const userDataStr = localStorage.getItem('user_data');
+        if (userDataStr) {
+          const parsed = JSON.parse(userDataStr);
+          activeUserId = parsed.email || parsed.internal_id || parsed.phone || '';
+        }
+      } catch (err) {}
+    }
 
     try {
       const response = await fetch(`${API_BASE}/forgot-password`, {
@@ -110,7 +119,17 @@ function Auth({ onLoginSuccess }) {
     }
 
     setForgotLoading(true);
-    const activeUserId = localStorage.getItem('cloxel_user_id');
+
+    let activeUserId = localStorage.getItem('cloxel_user_id') || '';
+    if (!activeUserId) {
+      try {
+        const userDataStr = localStorage.getItem('user_data');
+        if (userDataStr) {
+          const parsed = JSON.parse(userDataStr);
+          activeUserId = parsed.email || parsed.internal_id || parsed.phone || '';
+        }
+      } catch (err) {}
+    }
 
     try {
       const response = await fetch(`${API_BASE}/reset-password`, {
@@ -142,6 +161,7 @@ function Auth({ onLoginSuccess }) {
       setForgotLoading(false);
     }
   };
+
 
 
 

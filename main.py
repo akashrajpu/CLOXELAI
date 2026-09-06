@@ -2167,14 +2167,23 @@ async def forgot_password(req: ForgotPasswordRequest):
     if not user:
         raise HTTPException(status_code=400, detail="⚠️ Account Not Found: Please check your Email / Mobile Number.")
 
-    # Enforce Active Browser Session Check if provided
-    if req.current_session_user_id:
-        sess_id = req.current_session_user_id.strip()
-        if user.get("internal_id") != sess_id and user.get("email") != sess_id and user.get("phone") != sess_id:
-            raise HTTPException(
-                status_code=400,
-                detail="⚠️ Security Error: You must be logged into your registered account in this browser to reset password."
-            )
+    # MANDATORY ACTIVE BROWSER ACCOUNT SESSION CHECK
+    client_sess_id = (req.current_session_user_id or "").strip().lower()
+    if not client_sess_id:
+        raise HTTPException(
+            status_code=400,
+            detail="⚠️ Security Error: You must be logged into this account in this browser to reset its password. Please log in first."
+        )
+
+    user_email = (user.get("email") or "").lower()
+    user_phone = (user.get("phone") or "").lower()
+    user_internal_id = (user.get("internal_id") or "").lower()
+
+    if client_sess_id not in [user_email, user_phone, user_internal_id]:
+        raise HTTPException(
+            status_code=400,
+            detail="⚠️ Security Error: Account Mismatch! You are not logged into this account in this browser."
+        )
 
     return {
         "message": "✅ Account & Browser session verified! Please upload or scan your Cloxel Security QR Code to reset password.",
@@ -2204,14 +2213,24 @@ async def reset_password(req: ResetPasswordRequest):
     if not user:
         raise HTTPException(status_code=400, detail="⚠️ Account Not Found.")
 
-    # Enforce Active Browser Session Check if provided
-    if req.current_session_user_id:
-        sess_id = req.current_session_user_id.strip()
-        if user.get("internal_id") != sess_id and user.get("email") != sess_id and user.get("phone") != sess_id:
-            raise HTTPException(
-                status_code=400,
-                detail="⚠️ Security Error: Account mismatch! You are logged into a different account in this browser."
-            )
+    # MANDATORY ACTIVE BROWSER ACCOUNT SESSION CHECK
+    client_sess_id = (req.current_session_user_id or "").strip().lower()
+    if not client_sess_id:
+        raise HTTPException(
+            status_code=400,
+            detail="⚠️ Security Error: You must be logged into your account in this browser to reset password."
+        )
+
+    user_email = (user.get("email") or "").lower()
+    user_phone = (user.get("phone") or "").lower()
+    user_internal_id = (user.get("internal_id") or "").lower()
+
+    if client_sess_id not in [user_email, user_phone, user_internal_id]:
+        raise HTTPException(
+            status_code=400,
+            detail="⚠️ Security Error: Account Mismatch! You are logged into a different account in this browser."
+        )
+
         
     # Security QR Code Token Verification
     stored_qr_tok = user.get("security_qr_token")
