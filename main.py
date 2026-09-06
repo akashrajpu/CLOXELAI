@@ -1976,7 +1976,7 @@ def send_brevo_qr_email(user_email: str, user_name: str, security_qr_token: str,
         
         qr_payload = json.dumps({
             "security_token": security_qr_token,
-            "cipher_signature": hashlib.sha256((security_qr_token + primary_email).encode('utf-8')).hexdigest()[:48].upper(),
+            "cipher_signature": hashlib.sha256((security_qr_token + user_email).encode('utf-8')).hexdigest()[:48].upper(),
             "email": user_email,
             "issuer": "Cloxel AI Security Engine"
         })
@@ -2141,21 +2141,35 @@ async def register_user(req: UserRegister):
         "created_at": datetime.utcnow()
     }
     
-    users_collection.insert_one(new_user)
-
+    # 1. Attempt sending Brevo Security QR Email FIRST
+    email_sent = False
     try:
-        send_brevo_qr_email(
+        email_sent = send_brevo_qr_email(
             user_email=primary_email,
             user_name=req.name.strip(),
             security_qr_token=security_qr_tok,
             browser_token=browser_tok
         )
     except Exception as _e_qr:
-        print(f"⚠️ Brevo QR Email dispatch warning: {_e_qr}")
+        print(f"❌ Brevo QR Email dispatch error: {_e_qr}")
+
+    # 2. Block registration if email delivery failed
+    brevo_key = os.getenv("BREVO_API_KEY") or os.getenv("SMTP_KEY")
+    if brevo_key and not email_sent:
+        raise HTTPException(
+            status_code=400,
+            detail=f"⚠️ Registration Blocked: Unable to send Security QR Code email to '{primary_email}'. Please verify your email address and try again."
+        )
+
+    # 3. Save new user into MongoDB ONLY if email was sent successfully!
+    users_collection.insert_one(new_user)
 
     return {
         "message": "User registered successfully",
         "internal_id": internal_id,
+        "email": primary_email,
+        "phone": primary_phone,
+        "name": req.name.strip(),
         "browser_token": browser_tok,
         "security_qr_token": security_qr_tok
     }
