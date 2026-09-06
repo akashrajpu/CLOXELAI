@@ -75,33 +75,27 @@ function Auth({ onLoginSuccess }) {
     reader.readAsDataURL(file);
   };
 
-  const handleRequestOtp = async (e) => {
+  const handleRequestAccountVerify = async (e) => {
     e.preventDefault();
     setForgotError(null);
     setForgotSuccess(null);
     setForgotLoading(true);
-
-    const browserToken = getOrCreateBrowserToken();
 
     try {
       const response = await fetch(`${API_BASE}/forgot-password`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          email_or_mobile: forgotIdentifier,
-          browser_token: browserToken
+          email_or_mobile: forgotIdentifier
         })
       });
 
       const data = await response.json();
       if (!response.ok) {
-        throw new Error(data.detail || data.error || 'Failed to request OTP');
+        throw new Error(data.detail || data.error || 'Failed to verify account');
       }
 
-      setForgotSuccess(data.message || 'Browser verified! Please upload or scan your Cloxel Security QR Code.');
-      if (data.otp) {
-        setForgotOtp(data.otp);
-      }
+      setForgotSuccess(data.message || 'Account verified! Please upload or scan your Cloxel Security QR Code.');
       setForgotStep(2);
     } catch (err) {
       setForgotError(err.message);
@@ -121,7 +115,6 @@ function Auth({ onLoginSuccess }) {
     }
 
     setForgotLoading(true);
-    const browserToken = getOrCreateBrowserToken();
 
     try {
       const response = await fetch(`${API_BASE}/reset-password`, {
@@ -129,9 +122,7 @@ function Auth({ onLoginSuccess }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           email_or_mobile: forgotIdentifier,
-          otp: forgotOtp,
           new_password: forgotNewPassword,
-          browser_token: browserToken,
           qr_token: forgotQrToken
         })
       });
@@ -154,6 +145,7 @@ function Auth({ onLoginSuccess }) {
       setForgotLoading(false);
     }
   };
+
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -438,7 +430,7 @@ function Auth({ onLoginSuccess }) {
             )}
 
             {forgotStep === 1 ? (
-              <form onSubmit={handleRequestOtp} className="auth-form">
+              <form onSubmit={handleRequestAccountVerify} className="auth-form">
                 <div className="form-group">
                   <label>Email Address or Mobile Number *</label>
                   <input 
@@ -455,10 +447,11 @@ function Auth({ onLoginSuccess }) {
                   className="btn-primary auth-submit"
                   style={{ width: '100%', marginTop: '10px' }}
                 >
-                  {forgotLoading ? 'Verifying Registered Browser...' : 'Verify Browser & Request OTP →'}
+                  {forgotLoading ? 'Verifying Account...' : 'Verify Account →'}
                 </button>
               </form>
             ) : (
+
               <form onSubmit={handleResetPassword} className="auth-form">
                 <div style={{ background: 'rgba(168,85,247,0.1)', border: '1px dashed rgba(168,85,247,0.4)', padding: '14px', borderRadius: '12px', marginBottom: '14px', textAlign: 'center' }}>
                   <label style={{ display: 'block', color: '#c084fc', fontWeight: 'bold', fontSize: '0.85rem', marginBottom: '6px' }}>

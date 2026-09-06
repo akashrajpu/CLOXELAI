@@ -853,14 +853,12 @@ class UserLogin(BaseModel):
 
 class ForgotPasswordRequest(BaseModel):
     email_or_mobile: str
-    browser_token: Optional[str] = None
 
 class ResetPasswordRequest(BaseModel):
     email_or_mobile: str
-    otp: Optional[str] = ""
+    qr_token: str
     new_password: str
-    browser_token: Optional[str] = None
-    qr_token: Optional[str] = None
+
 
 
 
@@ -2166,28 +2164,9 @@ async def forgot_password(req: ForgotPasswordRequest):
     if not user:
         raise HTTPException(status_code=400, detail="⚠️ Account Not Found: Please check your Email / Mobile Number.")
 
-    # 1. Enforce Browser Token Verification
-    stored_browser_tok = user.get("registration_browser_token")
-    client_browser_tok = (req.browser_token or "").strip()
-    if stored_browser_tok and client_browser_tok != stored_browser_tok:
-        raise HTTPException(
-            status_code=400,
-            detail="⚠️ Security Error: Password reset is strictly allowed only from your original registered browser/device. Different browser detected!"
-        )
-        
-    import random
-    otp = str(random.randint(100000, 999999))
-    expires_at = datetime.utcnow() + timedelta(minutes=15)
-    
-    users_collection.update_one(
-        {"_id": user["_id"]},
-        {"$set": {"reset_otp": otp, "reset_otp_expires_at": expires_at}}
-    )
-    
     return {
-        "message": f"🔑 Browser verified! Please upload or scan your Cloxel Security QR Code to reset password.",
-        "otp": otp,
-        "browser_verified": True
+        "message": "✅ Account verified! Please upload or scan your Cloxel Security QR Code to reset password.",
+        "account_verified": True
     }
 
 @app.post("/reset-password")
@@ -2213,39 +2192,29 @@ async def reset_password(req: ResetPasswordRequest):
     if not user:
         raise HTTPException(status_code=400, detail="⚠️ Account Not Found.")
         
-    # 1. Enforce Browser Token Verification
-    stored_browser_tok = user.get("registration_browser_token")
-    client_browser_tok = (req.browser_token or "").strip()
-    if stored_browser_tok and client_browser_tok != stored_browser_tok:
-        raise HTTPException(
-            status_code=400,
-            detail="⚠️ Security Error: Password reset is strictly allowed only from your original registered browser/device."
-        )
-
-    # 2. Enforce Security QR Code Token Verification
+    # Security QR Code Token Verification
     stored_qr_tok = user.get("security_qr_token")
     client_qr_tok = (req.qr_token or "").strip()
 
-    if stored_qr_tok:
-        if not client_qr_tok:
-            raise HTTPException(
-                status_code=400,
-                detail="⚠️ Security Error: Please upload or scan your Cloxel Security QR Code to proceed."
-            )
-        
-        extracted_token = client_qr_tok
-        if "security_token" in client_qr_tok:
-            try:
-                parsed = json.loads(client_qr_tok)
-                extracted_token = parsed.get("security_token", client_qr_tok)
-            except Exception:
-                pass
-        
-        if extracted_token.strip() != stored_qr_tok.strip():
-            raise HTTPException(
-                status_code=400,
-                detail="⚠️ Security Error: Invalid QR Code! The uploaded QR Code token does not match your registered account credential."
-            )
+    if not client_qr_tok:
+        raise HTTPException(
+            status_code=400,
+            detail="⚠️ Security Error: Please upload or scan your Cloxel Security QR Code to proceed."
+        )
+    
+    extracted_token = client_qr_tok
+    if "security_token" in client_qr_tok:
+        try:
+            parsed = json.loads(client_qr_tok)
+            extracted_token = parsed.get("security_token", client_qr_tok)
+        except Exception:
+            pass
+    
+    if stored_qr_tok and extracted_token.strip() != stored_qr_tok.strip():
+        raise HTTPException(
+            status_code=400,
+            detail="⚠️ Security Error: Invalid QR Code! The uploaded QR Code token does not match your registered account credential."
+        )
         
     if not req.new_password or len(req.new_password.strip()) < 4:
         raise HTTPException(status_code=400, detail="⚠️ New password must be at least 4 characters long.")
@@ -2261,6 +2230,7 @@ async def reset_password(req: ResetPasswordRequest):
     )
     
     return {"message": "✅ Password reset successfully! You can now log in with your new password."}
+
 
 
 
