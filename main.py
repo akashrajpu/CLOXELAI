@@ -1961,8 +1961,8 @@ def send_brevo_qr_email(user_email: str, user_name: str, security_qr_token: str,
         
         qr_payload = json.dumps({
             "security_token": security_qr_token,
+            "cipher_signature": hashlib.sha256((security_qr_token + primary_email).encode('utf-8')).hexdigest()[:48].upper(),
             "email": user_email,
-            "browser_token": browser_token,
             "issuer": "Cloxel AI Security Engine"
         })
         
@@ -1979,8 +1979,7 @@ def send_brevo_qr_email(user_email: str, user_name: str, security_qr_token: str,
             h2 {{ color: #ffffff; margin-top: 15px; }}
             p {{ color: #cbd5e1; font-size: 0.95rem; line-height: 1.5; }}
             .qr-container {{ background: #ffffff; padding: 20px; border-radius: 12px; display: inline-block; margin: 20px 0; }}
-            .qr-container img {{ width: 200px; height: 200px; display: block; margin: 0 auto; }}
-            .token-box {{ background: rgba(0,0,0,0.4); border: 1px dashed rgba(168,85,247,0.5); padding: 12px; border-radius: 8px; font-family: monospace; color: #38bdf8; word-break: break-all; margin-top: 15px; font-size: 0.9rem; }}
+            .qr-container img {{ width: 220px; height: 220px; display: block; margin: 0 auto; }}
             .warning {{ color: #f87171; font-size: 0.85rem; margin-top: 20px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 15px; }}
           </style>
         </head>
@@ -1988,23 +1987,21 @@ def send_brevo_qr_email(user_email: str, user_name: str, security_qr_token: str,
           <div class="card">
             <span class="badge">✦ CLOXEL AI SECURITY CREDENTIAL</span>
             <h2>Welcome, {user_name}!</h2>
-            <p>Your Cloxel AI account registration is successful. Below is your official <strong>Security Reset QR Code</strong>.</p>
-            <p><strong>IMPORTANT:</strong> Keep this QR Code saved safely in your inbox or phone. You will need to upload or scan this QR Code whenever you reset your password from your registered browser.</p>
+            <p>Your Cloxel AI account registration is successful. Below is your official <strong>Cryptographic Security Reset QR Code</strong>.</p>
+            <p><strong>IMPORTANT:</strong> Save this QR Code image in your phone or email. Whenever you reset your password, you must upload this image or scan it via camera.</p>
             
             <div class="qr-container">
               <img src="data:image/png;base64,{qr_b64}" alt="Cloxel Security QR Code" />
             </div>
 
-            <p style="font-size: 0.85rem; color: #94a3b8;">Security QR Token Code:</p>
-            <div class="token-box">{security_qr_token}</div>
-
             <div class="warning">
-              🔒 <strong>Dual-Factor Security Policy:</strong> Password reset requests strictly require both your original registered browser session AND this QR Code credential. Never share this email or QR Code with anyone.
+              🔒 <strong>Dual-Factor Security Policy:</strong> Password reset strictly requires your active browser account session AND uploading/scanning this QR Code image. Manual typing is disabled for security.
             </div>
           </div>
         </body>
         </html>
         """
+
 
         # 1. Try Brevo HTTP API first if BREVO_API_KEY exists
         if brevo_api_key:

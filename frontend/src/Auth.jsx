@@ -38,6 +38,60 @@ function Auth({ onLoginSuccess }) {
   const [forgotError, setForgotError] = useState(null);
   const [forgotSuccess, setForgotSuccess] = useState(null);
 
+  const [isScanningCamera, setIsScanningCamera] = useState(false);
+  const videoRef = React.useRef(null);
+  const animFrameRef = React.useRef(null);
+
+  const startCameraScan = async () => {
+    setIsScanningCamera(true);
+    setForgotError(null);
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        videoRef.current.setAttribute('playsinline', 'true');
+        await videoRef.current.play();
+        animFrameRef.current = requestAnimationFrame(tickScan);
+      }
+    } catch (err) {
+      setForgotError('⚠️ Camera Access Error: ' + err.message);
+      setIsScanningCamera(false);
+    }
+  };
+
+  const stopCameraScan = () => {
+    setIsScanningCamera(false);
+    if (animFrameRef.current) {
+      cancelAnimationFrame(animFrameRef.current);
+    }
+    if (videoRef.current && videoRef.current.srcObject) {
+      const stream = videoRef.current.srcObject;
+      const tracks = stream.getTracks();
+      tracks.forEach(track => track.stop());
+      videoRef.current.srcObject = null;
+    }
+  };
+
+  const tickScan = () => {
+    if (videoRef.current && videoRef.current.readyState === videoRef.current.HAVE_ENOUGH_DATA) {
+      const canvas = document.createElement('canvas');
+      canvas.width = videoRef.current.videoWidth;
+      canvas.height = videoRef.current.videoHeight;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const code = jsQR(imageData.data, imageData.width, imageData.height);
+
+      if (code && code.data) {
+        setForgotQrToken(code.data);
+        setForgotSuccess('✓ Cloxel Security QR Code scanned successfully via Camera!');
+        stopCameraScan();
+        return;
+      }
+    }
+    animFrameRef.current = requestAnimationFrame(tickScan);
+  };
+
   const handleQrFileUpload = (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -59,13 +113,14 @@ function Auth({ onLoginSuccess }) {
           setForgotQrToken(code.data);
           setForgotSuccess('✓ Cloxel Security QR Code detected & verified from uploaded image!');
         } else {
-          setForgotError('⚠️ Could not decode QR code from image. Please ensure image is a clear Cloxel QR Code or enter token manually.');
+          setForgotError('⚠️ Could not decode QR Code. Please select a valid Cloxel Security QR Code image.');
         }
       };
       img.src = event.target.result;
     };
     reader.readAsDataURL(file);
   };
+
 
   const handleRequestAccountVerify = async (e) => {
     e.preventDefault();
@@ -470,6 +525,7 @@ function Auth({ onLoginSuccess }) {
             ) : (
 
               <form onSubmit={handleResetPassword} className="auth-form">
+                {/* Method 1: Upload QR Image */}
                 <div style={{ background: 'rgba(168,85,247,0.1)', border: '1px dashed rgba(168,85,247,0.4)', padding: '14px', borderRadius: '12px', marginBottom: '14px', textAlign: 'center' }}>
                   <label style={{ display: 'block', color: '#c084fc', fontWeight: 'bold', fontSize: '0.85rem', marginBottom: '6px' }}>
                     📷 Upload Cloxel Security QR Code Image *
@@ -480,20 +536,43 @@ function Auth({ onLoginSuccess }) {
                     onChange={handleQrFileUpload}
                     style={{ fontSize: '0.8rem', color: '#cbd5e1', cursor: 'pointer' }}
                   />
-                  <p style={{ color: '#94a3b8', fontSize: '0.75rem', marginTop: '6px', margin: 0 }}>
-                    Select the Security QR Code image emailed to you upon registration.
-                  </p>
                 </div>
 
-                <div className="form-group">
-                  <label>Security QR Token (Auto-filled from image or enter manually) *</label>
-                  <input 
-                    type="text" 
-                    placeholder="CLOXEL-SEC-..." 
-                    value={forgotQrToken}
-                    onChange={(e) => setForgotQrToken(e.target.value)}
-                    required 
-                  />
+                {/* Method 2: Live Camera Scan */}
+                <div style={{ textAlign: 'center', marginBottom: '14px' }}>
+                  {!isScanningCamera ? (
+                    <button 
+                      type="button" 
+                      onClick={startCameraScan}
+                      style={{ background: 'rgba(56, 189, 248, 0.15)', border: '1px solid #38bdf8', color: '#38bdf8', padding: '8px 16px', borderRadius: '8px', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 'bold' }}
+                    >
+                      🎥 Scan QR Code with Camera
+                    </button>
+                  ) : (
+                    <div>
+                      <video ref={videoRef} style={{ width: '100%', maxHeight: '200px', borderRadius: '8px', border: '2px solid #38bdf8', marginBottom: '8px' }}></video>
+                      <button 
+                        type="button" 
+                        onClick={stopCameraScan}
+                        style={{ background: 'rgba(239, 68, 68, 0.2)', border: '1px solid #ef4444', color: '#f87171', padding: '4px 12px', borderRadius: '6px', cursor: 'pointer', fontSize: '0.8rem' }}
+                      >
+                        Stop Camera Scan
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {/* QR Credential Verified Status Indicator */}
+                <div style={{ textAlign: 'center', marginBottom: '14px' }}>
+                  {forgotQrToken ? (
+                    <div style={{ background: 'rgba(34, 197, 94, 0.15)', border: '1px solid #22c55e', color: '#4ade80', padding: '8px', borderRadius: '8px', fontSize: '0.8rem', fontWeight: 'bold' }}>
+                      ✓ Cryptographic QR Code Credential Loaded & Verified
+                    </div>
+                  ) : (
+                    <div style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px dashed rgba(239, 68, 68, 0.4)', color: '#fca5a5', padding: '8px', borderRadius: '8px', fontSize: '0.78rem' }}>
+                      ⚠️ QR Code Required: Upload QR Image or Scan via Camera above. (Manual typing disabled)
+                    </div>
+                  )}
                 </div>
 
                 <div className="form-group">
@@ -509,9 +588,9 @@ function Auth({ onLoginSuccess }) {
 
                 <button 
                   type="submit" 
-                  disabled={forgotLoading} 
+                  disabled={forgotLoading || !forgotQrToken} 
                   className="btn-primary auth-submit"
-                  style={{ width: '100%', marginTop: '10px' }}
+                  style={{ width: '100%', marginTop: '10px', opacity: !forgotQrToken ? 0.5 : 1, cursor: !forgotQrToken ? 'not-allowed' : 'pointer' }}
                 >
                   {forgotLoading ? 'Verifying Credentials...' : 'Confirm & Reset Password →'}
                 </button>
@@ -519,7 +598,7 @@ function Auth({ onLoginSuccess }) {
                 <div style={{ textAlign: 'center', marginTop: '12px' }}>
                   <button 
                     type="button" 
-                    onClick={() => { setForgotStep(1); setForgotError(null); setForgotSuccess(null); }} 
+                    onClick={() => { setForgotStep(1); setForgotError(null); setForgotSuccess(null); stopCameraScan(); }} 
                     className="btn-link"
                     style={{ fontSize: '0.8rem', color: '#94a3b8' }}
                   >
@@ -527,6 +606,7 @@ function Auth({ onLoginSuccess }) {
                   </button>
                 </div>
               </form>
+
             )}
 
           </div>
