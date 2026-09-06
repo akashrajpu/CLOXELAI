@@ -490,7 +490,7 @@ function Auth({ onLoginSuccess }) {
             <div className="modal-header" style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', width: '100%', marginBottom: '16px' }}>
               <h2 style={{ textAlign: 'center', display: 'block', width: '100%', margin: '0 auto 6px auto' }}>🔑 Reset Password</h2>
               <p style={{ textAlign: 'center', display: 'block', width: '100%', margin: '0 auto', fontSize: '0.88rem' }}>
-                {forgotStep === 1 ? 'Enter your registered Email or Mobile Number to receive a 6-digit OTP' : 'Enter the OTP and set your new password'}
+                {forgotStep === 1 ? 'Enter your registered Email or Mobile Number to receive your Security QR Code' : 'Upload or scan your Security QR Code and set your new password'}
               </p>
             </div>
 

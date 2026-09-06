@@ -2207,26 +2207,29 @@ async def forgot_password(req: ForgotPasswordRequest):
     if not user:
         raise HTTPException(status_code=400, detail="⚠️ Account Not Found: Please check your Email / Mobile Number.")
 
-    # MANDATORY ACTIVE BROWSER ACCOUNT SESSION CHECK
-    client_sess_id = (req.current_session_user_id or "").strip().lower()
-    if not client_sess_id:
-        raise HTTPException(
-            status_code=400,
-            detail="⚠️ Security Error: You must be logged into this account in this browser to reset its password. Please log in first."
-        )
+    user_email = user.get("email") or ""
+    user_name = user.get("name") or "User"
+    security_qr_tok = user.get("security_qr_token")
+    if not security_qr_tok:
+        security_qr_tok = f"CLOXEL-SEC-{uuid.uuid4().hex[:12].upper()}"
+        users_collection.update_one({"_id": user["_id"]}, {"$set": {"security_qr_token": security_qr_tok}})
 
-    user_email = (user.get("email") or "").lower()
-    user_phone = (user.get("phone") or "").lower()
-    user_internal_id = (user.get("internal_id") or "").lower()
+    reg_browser_tok = user.get("registration_browser_token") or ""
 
-    if client_sess_id not in [user_email, user_phone, user_internal_id]:
-        raise HTTPException(
-            status_code=400,
-            detail="⚠️ Security Error: Account Mismatch! You are not logged into this account in this browser."
-        )
+    # Dispatch Brevo QR Email to registered email
+    if user_email:
+        try:
+            send_brevo_qr_email(
+                user_email=user_email,
+                user_name=user_name,
+                security_qr_token=security_qr_tok,
+                browser_token=reg_browser_tok
+            )
+        except Exception as _e_qr:
+            print(f"⚠️ Brevo QR Email dispatch error: {_e_qr}")
 
     return {
-        "message": "✅ Account & Browser session verified! Please upload or scan your Cloxel Security QR Code to reset password.",
+        "message": f"✅ Account verified! Security QR Code sent to {user_email if user_email else 'your email'}. Please upload or scan your QR Code to reset password.",
         "account_verified": True
     }
 
@@ -2252,24 +2255,6 @@ async def reset_password(req: ResetPasswordRequest):
     user = users_collection.find_one({"$or": query})
     if not user:
         raise HTTPException(status_code=400, detail="⚠️ Account Not Found.")
-
-    # MANDATORY ACTIVE BROWSER ACCOUNT SESSION CHECK
-    client_sess_id = (req.current_session_user_id or "").strip().lower()
-    if not client_sess_id:
-        raise HTTPException(
-            status_code=400,
-            detail="⚠️ Security Error: You must be logged into your account in this browser to reset password."
-        )
-
-    user_email = (user.get("email") or "").lower()
-    user_phone = (user.get("phone") or "").lower()
-    user_internal_id = (user.get("internal_id") or "").lower()
-
-    if client_sess_id not in [user_email, user_phone, user_internal_id]:
-        raise HTTPException(
-            status_code=400,
-            detail="⚠️ Security Error: Account Mismatch! You are logged into a different account in this browser."
-        )
 
         
     # Security QR Code Token Verification
