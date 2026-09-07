@@ -2224,6 +2224,11 @@ async def login_user(req: UserLogin):
         "name": user.get("name") or "User"
     }
 
+@app.get("/api/auth/google-client-id")
+def get_google_client_id():
+    client_id = os.getenv("GOOGLE_CLIENT_ID") or os.getenv("YOUTUBE_CLIENT_ID") or ""
+    return {"google_client_id": client_id.strip()}
+
 @app.post("/api/auth/google-verify")
 async def google_verify(req: GoogleVerifyRequest):
     if users_collection is None:

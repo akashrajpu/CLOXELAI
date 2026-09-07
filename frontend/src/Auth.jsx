@@ -155,30 +155,46 @@ function Auth({ onLoginSuccess }) {
     }
   };
 
-  const triggerGoogleVerify = () => {
-    if (window.google?.accounts?.id) {
-      try {
+  const triggerGoogleVerify = async () => {
+    try {
+      let clientId = '';
+      const res = await fetch(`${API_BASE}/api/auth/google-client-id`);
+      if (res.ok) {
+        const data = await res.json();
+        clientId = data.google_client_id || '';
+      }
+
+      if (!clientId || clientId.includes('placeholder')) {
+        setForgotError("⚠️ Google OAuth Client ID is not configured on Render. Please add GOOGLE_CLIENT_ID to your Render Environment Variables.");
+        return;
+      }
+
+      if (window.google?.accounts?.id) {
         window.google.accounts.id.initialize({
-          client_id: '921124458514-placeholder.apps.googleusercontent.com',
+          client_id: clientId,
           callback: handleGoogleAuthCallback
         });
         window.google.accounts.id.prompt();
-      } catch (err) {
-        setForgotError("Google Sign-In is initializing. Please click again.");
+      } else {
+        setForgotError("Google Services loading... Please wait 2 seconds and click again.");
       }
-    } else {
-      setForgotError("Google Services loading... Please wait 2 seconds and click again.");
+    } catch (err) {
+      setForgotError("Failed to initialize Google Sign-In: " + err.message);
     }
   };
 
   useEffect(() => {
-    if (showForgotPasswordModal && window.google?.accounts?.id) {
-      try {
-        window.google.accounts.id.initialize({
-          client_id: '921124458514-placeholder.apps.googleusercontent.com',
-          callback: handleGoogleAuthCallback
-        });
-      } catch (e) {}
+    if (showForgotPasswordModal) {
+      fetch(`${API_BASE}/api/auth/google-client-id`)
+        .then(r => r.json())
+        .then(data => {
+          if (data.google_client_id && window.google?.accounts?.id && !data.google_client_id.includes('placeholder')) {
+            window.google.accounts.id.initialize({
+              client_id: data.google_client_id,
+              callback: handleGoogleAuthCallback
+            });
+          }
+        }).catch(() => {});
     }
   }, [showForgotPasswordModal]);
 
@@ -299,6 +315,8 @@ function Auth({ onLoginSuccess }) {
     setError(null);
     setIsLoading(true);
 
+    const activeBrowserEmail = (localStorage.getItem('cloxel_user_email') || localStorage.getItem('last_known_email') || '').toLowerCase().trim();
+
     const endpoint = isLogin ? '/login' : '/register';
     const payload = isLogin ? {
       email_or_mobile: emailOrMobile,
@@ -310,7 +328,7 @@ function Auth({ onLoginSuccess }) {
       email: email,
       password: password,
       email_or_mobile: email,
-      browser_email: email.toLowerCase()
+      browser_email: activeBrowserEmail || email.toLowerCase()
     };
 
 
