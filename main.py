@@ -1989,35 +1989,39 @@ def send_brevo_qr_email(user_email: str, user_name: str, security_qr_token: str)
         })
         
         qr_b64 = generate_qr_base64(qr_payload)
+
+        import urllib.parse
+        encoded_payload = urllib.parse.quote(qr_payload)
+        qr_api_url = f"https://api.qrserver.com/v1/create-qr-code/?size=250x250&data={encoded_payload}"
         
         html_content = f"""
         <!DOCTYPE html>
         <html>
         <head>
           <style>
-            body {{ font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #0b071a; color: #ffffff; padding: 20px; }}
+            body {{ font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #0b071a; color: #ffffff; padding: 20px; margin: 0; }}
             .card {{ max-width: 550px; margin: 0 auto; background: #130d2a; border: 1px solid rgba(168,85,247,0.4); border-radius: 16px; padding: 30px; text-align: center; }}
             .badge {{ background: rgba(168,85,247,0.2); color: #c084fc; border: 1px solid #a855f7; padding: 6px 14px; border-radius: 20px; font-weight: bold; display: inline-block; font-size: 0.85rem; }}
-            h2 {{ color: #ffffff; margin-top: 15px; }}
-            p {{ color: #cbd5e1; font-size: 0.95rem; line-height: 1.5; }}
-            .qr-container {{ background: #ffffff; padding: 20px; border-radius: 12px; display: inline-block; margin: 20px 0; }}
-            .qr-container img {{ width: 220px; height: 220px; display: block; margin: 0 auto; }}
-            .warning {{ color: #f87171; font-size: 0.85rem; margin-top: 20px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 15px; }}
+            h2 {{ color: #ffffff; margin-top: 15px; margin-bottom: 10px; }}
+            p {{ color: #cbd5e1; font-size: 0.95rem; line-height: 1.5; margin-bottom: 10px; }}
+            .qr-container {{ background: #ffffff; padding: 18px; border-radius: 14px; display: inline-block; margin: 20px auto; text-align: center; box-shadow: 0 4px 14px rgba(0,0,0,0.3); }}
+            .qr-container img {{ width: 220px; height: 220px; display: block; margin: 0 auto; border: 0; }}
+            .warning {{ color: #f87171; font-size: 0.85rem; margin-top: 20px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 15px; text-align: center; }}
           </style>
         </head>
         <body>
-          <div class="card">
+          <div class="card" align="center">
             <span class="badge">✦ CLOXEL AI SECURITY CREDENTIAL</span>
             <h2>Welcome, {user_name}!</h2>
-            <p>Your Cloxel AI account registration is successful. Below is your official <strong>Cryptographic Security Reset QR Code</strong>.</p>
-            <p><strong>IMPORTANT:</strong> Save this QR Code image in your phone or email. Whenever you reset your password, you must upload this image or scan it via camera.</p>
+            <p>Your Cloxel AI account credential setup is successful. Below is your official <strong>Cryptographic Security QR Code</strong>.</p>
+            <p><strong>IMPORTANT:</strong> Save or screenshot this QR Code. Whenever you reset your password, you must upload this QR image or scan it via camera.</p>
             
-            <div class="qr-container">
-              <img src="data:image/png;base64,{qr_b64}" alt="Cloxel Security QR Code" />
+            <div class="qr-container" align="center">
+              <img src="{qr_api_url}" alt="Cloxel Security QR Code" width="220" height="220" style="width: 220px; height: 220px; display: block; margin: 0 auto;" />
             </div>
 
             <div class="warning">
-              🔒 <strong>Dual-Factor Security Policy:</strong> Password reset strictly requires your active browser account session AND uploading/scanning this QR Code image. Manual typing is disabled for security.
+              🔒 <strong>Security Policy:</strong> Password reset requires scanning or uploading this Cloxel Security QR Code image. Keep this QR Code safe and private.
             </div>
           </div>
         </body>
