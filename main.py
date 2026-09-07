@@ -2099,10 +2099,9 @@ def send_brevo_qr_email(user_email: str, user_name: str, security_qr_token: str)
             except Exception as _r_err:
                 print(f"⚠️ Resend API error: {_r_err}")
 
-        # 3. Brevo HTTP API (Preserved in codebase, disabled by default until unsuspended)
-        enable_brevo = os.getenv("ENABLE_BREVO", "false").lower() == "true"
-        brevo_api_key = os.getenv("BREVO_API_KEY")
-        if enable_brevo and brevo_api_key:
+        # 3. Brevo HTTP API
+        brevo_api_key = os.getenv("BREVO_API_KEY") or os.getenv("SMTP_KEY")
+        if brevo_api_key:
             try:
                 url = "https://api.brevo.com/v3/smtp/email"
                 headers = {
