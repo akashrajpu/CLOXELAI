@@ -2029,7 +2029,75 @@ def send_brevo_qr_email(user_email: str, user_name: str, security_qr_token: str)
         """
 
 
-        # 1. Try Brevo HTTP API first if BREVO_API_KEY exists
+        # 1. Try Custom / Gmail SMTP Relay if SMTP_HOST is configured
+        smtp_host = os.getenv("SMTP_HOST")
+        smtp_port = int(os.getenv("SMTP_PORT", "587"))
+        smtp_user = os.getenv("SMTP_USER") or os.getenv("SMTP_LOGIN") or os.getenv("BREVO_SMTP_LOGIN")
+        smtp_password = os.getenv("SMTP_PASSWORD") or os.getenv("SMTP_KEY") or os.getenv("BREVO_SMTP_KEY")
+        resend_key = os.getenv("RESEND_API_KEY")
+
+        if smtp_host and smtp_user and smtp_password:
+            try:
+                import smtplib
+                from email.mime.multipart import MIMEMultipart
+                from email.mime.text import MIMEText
+                from email.mime.base import MIMEBase
+                from email import encoders
+
+                msg = MIMEMultipart('alternative')
+                msg['Subject'] = "✦ Cloxel AI - Official Security QR Code Credential"
+                msg['From'] = f"{sender_name} <{sender_email}>"
+                msg['To'] = user_email
+
+                part = MIMEText(html_content, 'html')
+                msg.attach(part)
+
+                if qr_b64:
+                    import base64
+                    attach_file = MIMEBase('image', 'png', name='cloxel_security_qr.png')
+                    attach_file.set_payload(base64.b64decode(qr_b64))
+                    encoders.encode_base64(attach_file)
+                    attach_file.add_header('Content-Disposition', 'attachment', filename='cloxel_security_qr.png')
+                    msg.attach(attach_file)
+
+                if smtp_port == 465:
+                    with smtplib.SMTP_SSL(smtp_host, smtp_port) as server:
+                        server.login(smtp_user, smtp_password)
+                        server.sendmail(sender_email, [user_email], msg.as_string())
+                else:
+                    with smtplib.SMTP(smtp_host, smtp_port) as server:
+                        server.starttls()
+                        server.login(smtp_user, smtp_password)
+                        server.sendmail(sender_email, [user_email], msg.as_string())
+                print(f"✅ Security QR Email sent successfully via SMTP ({smtp_host}) to {user_email}")
+                return True
+            except Exception as _smtp_err:
+                print(f"⚠️ SMTP error ({smtp_host}): {_smtp_err}")
+
+        # 2. Try Resend HTTP API if RESEND_API_KEY exists
+        if resend_key:
+            try:
+                resend_url = "https://api.resend.com/emails"
+                resend_headers = {
+                    "Authorization": f"Bearer {resend_key}",
+                    "Content-Type": "application/json"
+                }
+                resend_payload = {
+                    "from": f"{sender_name} <onboarding@resend.dev>",
+                    "to": [user_email],
+                    "subject": "✦ Cloxel AI - Official Security QR Code Credential",
+                    "html": html_content
+                }
+                res_r = requests.post(resend_url, json=resend_payload, headers=resend_headers, timeout=10)
+                if res_r.status_code in [200, 201]:
+                    print(f"✅ Security QR Email sent successfully via Resend API to {user_email}")
+                    return True
+                else:
+                    print(f"⚠️ Resend API Response ({res_r.status_code}): {res_r.text}")
+            except Exception as _r_err:
+                print(f"⚠️ Resend API error: {_r_err}")
+
+        # 3. Try Brevo HTTP API first if BREVO_API_KEY exists
         if brevo_api_key:
             url = "https://api.brevo.com/v3/smtp/email"
             headers = {
@@ -2060,7 +2128,7 @@ def send_brevo_qr_email(user_email: str, user_name: str, security_qr_token: str)
             else:
                 print(f"⚠️ Brevo API Response ({res.status_code}): {res.text}")
 
-        # 2. Try Brevo SMTP Relay if SMTP key exists
+        # 4. Try Brevo SMTP Relay if SMTP key exists
         if smtp_key and smtp_login:
             try:
                 import smtplib
