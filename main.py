@@ -2099,7 +2099,43 @@ def send_brevo_qr_email(user_email: str, user_name: str, security_qr_token: str)
             except Exception as _r_err:
                 print(f"⚠️ Resend API error: {_r_err}")
 
-        print(f"⚠️ No SMTP / Email service configured. Security QR Code for {user_email}: {security_qr_token}")
+        # 3. Brevo HTTP API (Preserved in codebase, disabled by default until unsuspended)
+        enable_brevo = os.getenv("ENABLE_BREVO", "false").lower() == "true"
+        brevo_api_key = os.getenv("BREVO_API_KEY")
+        if enable_brevo and brevo_api_key:
+            try:
+                url = "https://api.brevo.com/v3/smtp/email"
+                headers = {
+                    "accept": "application/json",
+                    "api-key": brevo_api_key,
+                    "content-type": "application/json"
+                }
+                
+                payload = {
+                    "sender": {"name": sender_name, "email": sender_email},
+                    "to": [{"email": user_email, "name": user_name}],
+                    "subject": "✦ Cloxel AI - Official Security QR Code Credential",
+                    "htmlContent": html_content
+                }
+
+                if qr_b64:
+                    payload["attachment"] = [
+                        {
+                            "content": qr_b64,
+                            "name": "cloxel_security_qr.png"
+                        }
+                    ]
+                
+                res = requests.post(url, json=payload, headers=headers, timeout=10)
+                if res.status_code in [200, 201, 202]:
+                    print(f"✅ Brevo QR Email sent successfully via API to {user_email}")
+                    return True
+                else:
+                    print(f"⚠️ Brevo API Response ({res.status_code}): {res.text}")
+            except Exception as _b_err:
+                print(f"⚠️ Brevo API error: {_b_err}")
+
+        print(f"⚠️ No active Email Provider configured. Security QR Code for {user_email}: {security_qr_token}")
         return False
     except Exception as e:
         print(f"❌ Error sending Security QR Email: {e}")
