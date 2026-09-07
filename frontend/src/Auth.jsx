@@ -204,31 +204,12 @@ function Auth({ onLoginSuccess }) {
     setForgotSuccess(null);
     setForgotLoading(true);
 
-    let activeUserId = localStorage.getItem('cloxel_user_id') || '';
-    let activeUserEmail = (localStorage.getItem('cloxel_user_email') || '').toLowerCase();
-    let activeUserPhone = localStorage.getItem('cloxel_user_phone') || '';
-
-    if (!activeUserId || !activeUserEmail) {
-      try {
-        const userDataStr = localStorage.getItem('user_data');
-        if (userDataStr) {
-          const parsed = JSON.parse(userDataStr);
-          if (!activeUserId) activeUserId = parsed.internal_id || '';
-          if (!activeUserEmail) activeUserEmail = (parsed.email || '').toLowerCase();
-          if (!activeUserPhone) activeUserPhone = parsed.phone || '';
-        }
-      } catch (err) {}
-    }
-
     try {
       const response = await fetch(`${API_BASE}/forgot-password`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          email_or_mobile: forgotIdentifier,
-          current_session_user_id: activeUserId,
-          current_session_user_email: activeUserEmail,
-          current_session_user_phone: activeUserPhone
+          email_or_mobile: forgotIdentifier
         })
       });
 
@@ -237,7 +218,7 @@ function Auth({ onLoginSuccess }) {
         throw new Error(data.detail || data.error || 'Failed to verify account');
       }
 
-      setForgotSuccess(data.message || 'Account & Browser session verified! Please upload or scan your Cloxel Security QR Code.');
+      setForgotSuccess(data.message || 'Account verified! Security QR Code sent to your email.');
       setForgotStep(2);
     } catch (err) {
       setForgotError(err.message);
@@ -258,22 +239,6 @@ function Auth({ onLoginSuccess }) {
 
     setForgotLoading(true);
 
-    let activeUserId = localStorage.getItem('cloxel_user_id') || '';
-    let activeUserEmail = (localStorage.getItem('cloxel_user_email') || '').toLowerCase();
-    let activeUserPhone = localStorage.getItem('cloxel_user_phone') || '';
-
-    if (!activeUserId || !activeUserEmail) {
-      try {
-        const userDataStr = localStorage.getItem('user_data');
-        if (userDataStr) {
-          const parsed = JSON.parse(userDataStr);
-          if (!activeUserId) activeUserId = parsed.internal_id || '';
-          if (!activeUserEmail) activeUserEmail = (parsed.email || '').toLowerCase();
-          if (!activeUserPhone) activeUserPhone = parsed.phone || '';
-        }
-      } catch (err) {}
-    }
-
     try {
       const response = await fetch(`${API_BASE}/reset-password`, {
         method: 'POST',
@@ -281,10 +246,7 @@ function Auth({ onLoginSuccess }) {
         body: JSON.stringify({
           email_or_mobile: forgotIdentifier,
           new_password: forgotNewPassword,
-          qr_token: forgotQrToken,
-          current_session_user_id: activeUserId,
-          current_session_user_email: activeUserEmail,
-          current_session_user_phone: activeUserPhone
+          qr_token: forgotQrToken
         })
       });
 

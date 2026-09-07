@@ -2332,25 +2332,6 @@ async def forgot_password(req: ForgotPasswordRequest):
     user_phone = (user.get("phone") or "").strip()
     user_internal_id = (user.get("internal_id") or "").strip().lower()
 
-    # MANDATORY STRICT BROWSER SESSION CHECK AT STEP 1
-    client_sess_id = (req.current_session_user_id or "").strip().lower()
-    client_sess_email = (req.current_session_user_email or "").strip().lower()
-    client_sess_phone = (req.current_session_user_phone or "").strip()
-
-    is_session_valid = False
-    if client_sess_email and client_sess_email in [user_email, user_internal_id]:
-        is_session_valid = True
-    elif client_sess_phone and user_phone and client_sess_phone == user_phone:
-        is_session_valid = True
-    elif client_sess_id and client_sess_id in [user_email, user_phone, user_internal_id]:
-        is_session_valid = True
-
-    if not is_session_valid:
-        raise HTTPException(
-            status_code=400,
-            detail=f"⚠️ Security Error: Account Session Mismatch! Password reset is ONLY allowed if this browser is currently logged into '{user_email}'. Please log into this account in your browser first."
-        )
-
     user_name = user.get("name") or "User"
     security_qr_tok = user.get("security_qr_token")
     if not security_qr_tok:
@@ -2403,26 +2384,6 @@ async def reset_password(req: ResetPasswordRequest):
     user_phone = (user.get("phone") or "").strip()
     user_internal_id = (user.get("internal_id") or "").strip().lower()
 
-    # MANDATORY STRICT BROWSER SESSION CHECK AT STEP 2
-    client_sess_id = (req.current_session_user_id or "").strip().lower()
-    client_sess_email = (req.current_session_user_email or "").strip().lower()
-    client_sess_phone = (req.current_session_user_phone or "").strip()
-
-    is_session_valid = False
-    if client_sess_email and client_sess_email in [user_email, user_internal_id]:
-        is_session_valid = True
-    elif client_sess_phone and user_phone and client_sess_phone == user_phone:
-        is_session_valid = True
-    elif client_sess_id and client_sess_id in [user_email, user_phone, user_internal_id]:
-        is_session_valid = True
-
-    if not is_session_valid:
-        raise HTTPException(
-            status_code=400,
-            detail=f"⚠️ Security Error: Account Session Mismatch! This browser is not logged into '{user_email}'."
-        )
-
-        
     # Security QR Code Token Verification
     stored_qr_tok = user.get("security_qr_token")
     client_qr_tok = (req.qr_token or "").strip()
