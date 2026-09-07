@@ -2029,14 +2029,14 @@ def send_brevo_qr_email(user_email: str, user_name: str, security_qr_token: str)
         """
 
 
-        # 1. Try Custom / Gmail SMTP Relay if SMTP_HOST is configured
-        smtp_host = os.getenv("SMTP_HOST")
+        # 1. Try Direct SMTP (Gmail / Custom SMTP) if SMTP_USER and SMTP_PASSWORD exist
+        smtp_user = os.getenv("SMTP_USER") or os.getenv("SMTP_LOGIN")
+        smtp_password = os.getenv("SMTP_PASSWORD") or os.getenv("SMTP_KEY")
+        smtp_host = os.getenv("SMTP_HOST") or ("smtp.gmail.com" if (smtp_user and "gmail" in smtp_user.lower()) else None)
         smtp_port = int(os.getenv("SMTP_PORT", "587"))
-        smtp_user = os.getenv("SMTP_USER") or os.getenv("SMTP_LOGIN") or os.getenv("BREVO_SMTP_LOGIN")
-        smtp_password = os.getenv("SMTP_PASSWORD") or os.getenv("SMTP_KEY") or os.getenv("BREVO_SMTP_KEY")
         resend_key = os.getenv("RESEND_API_KEY")
 
-        if smtp_host and smtp_user and smtp_password:
+        if smtp_user and smtp_password:
             try:
                 import smtplib
                 from email.mime.multipart import MIMEMultipart
@@ -2044,6 +2044,7 @@ def send_brevo_qr_email(user_email: str, user_name: str, security_qr_token: str)
                 from email.mime.base import MIMEBase
                 from email import encoders
 
+                target_host = smtp_host or "smtp.gmail.com"
                 msg = MIMEMultipart('alternative')
                 msg['Subject'] = "✦ Cloxel AI - Official Security QR Code Credential"
                 msg['From'] = f"{sender_name} <{sender_email}>"
@@ -2061,18 +2062,18 @@ def send_brevo_qr_email(user_email: str, user_name: str, security_qr_token: str)
                     msg.attach(attach_file)
 
                 if smtp_port == 465:
-                    with smtplib.SMTP_SSL(smtp_host, smtp_port) as server:
+                    with smtplib.SMTP_SSL(target_host, smtp_port) as server:
                         server.login(smtp_user, smtp_password)
                         server.sendmail(sender_email, [user_email], msg.as_string())
                 else:
-                    with smtplib.SMTP(smtp_host, smtp_port) as server:
+                    with smtplib.SMTP(target_host, smtp_port) as server:
                         server.starttls()
                         server.login(smtp_user, smtp_password)
                         server.sendmail(sender_email, [user_email], msg.as_string())
-                print(f"✅ Security QR Email sent successfully via SMTP ({smtp_host}) to {user_email}")
+                print(f"✅ Security QR Email sent successfully via SMTP ({target_host}) to {user_email}")
                 return True
             except Exception as _smtp_err:
-                print(f"⚠️ SMTP error ({smtp_host}): {_smtp_err}")
+                print(f"⚠️ SMTP error ({smtp_host or 'smtp.gmail.com'}): {_smtp_err}")
 
         # 2. Try Resend HTTP API if RESEND_API_KEY exists
         if resend_key:
@@ -2098,75 +2099,10 @@ def send_brevo_qr_email(user_email: str, user_name: str, security_qr_token: str)
             except Exception as _r_err:
                 print(f"⚠️ Resend API error: {_r_err}")
 
-        # 3. Try Brevo HTTP API first if BREVO_API_KEY exists
-        if brevo_api_key:
-            url = "https://api.brevo.com/v3/smtp/email"
-            headers = {
-                "accept": "application/json",
-                "api-key": brevo_api_key,
-                "content-type": "application/json"
-            }
-            
-            payload = {
-                "sender": {"name": sender_name, "email": sender_email},
-                "to": [{"email": user_email, "name": user_name}],
-                "subject": "✦ Cloxel AI - Official Security QR Code Credential",
-                "htmlContent": html_content
-            }
-
-            if qr_b64:
-                payload["attachment"] = [
-                    {
-                        "content": qr_b64,
-                        "name": "cloxel_security_qr.png"
-                    }
-                ]
-            
-            res = requests.post(url, json=payload, headers=headers, timeout=10)
-            if res.status_code in [200, 201, 202]:
-                print(f"✅ Brevo QR Email sent successfully via API to {user_email}")
-                return True
-            else:
-                print(f"⚠️ Brevo API Response ({res.status_code}): {res.text}")
-
-        # 4. Try Brevo SMTP Relay if SMTP key exists
-        if smtp_key and smtp_login:
-            try:
-                import smtplib
-                from email.mime.multipart import MIMEMultipart
-                from email.mime.text import MIMEText
-                from email.mime.base import MIMEBase
-                from email import encoders
-
-                msg = MIMEMultipart('alternative')
-                msg['Subject'] = "✦ Cloxel AI - Official Security QR Code Credential"
-                msg['From'] = f"{sender_name} <{sender_email}>"
-                msg['To'] = user_email
-
-                part = MIMEText(html_content, 'html')
-                msg.attach(part)
-
-                if qr_b64:
-                    import base64
-                    attach_file = MIMEBase('image', 'png', name='cloxel_security_qr.png')
-                    attach_file.set_payload(base64.b64decode(qr_b64))
-                    encoders.encode_base64(attach_file)
-                    attach_file.add_header('Content-Disposition', 'attachment', filename='cloxel_security_qr.png')
-                    msg.attach(attach_file)
-
-                with smtplib.SMTP('smtp-relay.brevo.com', 587) as server:
-                    server.starttls()
-                    server.login(smtp_login, smtp_key)
-                    server.sendmail(sender_email, [user_email], msg.as_string())
-                print(f"✅ Brevo QR Email sent successfully via SMTP Relay to {user_email}")
-                return True
-            except Exception as _smtp_err:
-                print(f"⚠️ Brevo SMTP error: {_smtp_err}")
-
-        print(f"⚠️ Neither BREVO_API_KEY nor SMTP_KEY configured. QR Code for {user_email}: {security_qr_token}")
+        print(f"⚠️ No SMTP / Email service configured. Security QR Code for {user_email}: {security_qr_token}")
         return False
     except Exception as e:
-        print(f"❌ Error sending Brevo QR Email: {e}")
+        print(f"❌ Error sending Security QR Email: {e}")
         return False
 
 
