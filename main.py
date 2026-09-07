@@ -2082,7 +2082,7 @@ def send_brevo_qr_email(user_email: str, user_name: str, security_qr_token: str)
                     "Authorization": f"Bearer {resend_key}",
                     "Content-Type": "application/json"
                 }
-                resend_from = f"{sender_name} <{sender_email}>" if (sender_email and "@" in sender_email and not sender_email.endswith("cloxel.ai")) else f"{sender_name} <onboarding@resend.dev>"
+                resend_from = os.getenv("RESEND_FROM_EMAIL", f"{sender_name} <onboarding@resend.dev>")
                 resend_payload = {
                     "from": resend_from,
                     "to": [user_email],
