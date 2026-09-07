@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import jsQR from 'jsqr';
 
 const API_BASE = window.location.hostname === 'localhost' ? 'http://localhost:8000' : '';
