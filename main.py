@@ -863,6 +863,10 @@ class ForgotPasswordRequest(BaseModel):
     current_session_user_email: Optional[str] = None
     current_session_user_phone: Optional[str] = None
 
+class VerifyQRRequest(BaseModel):
+    email_or_mobile: str
+    qr_token: str
+
 class ResetPasswordRequest(BaseModel):
     email_or_mobile: str
     qr_token: str
@@ -2355,6 +2359,60 @@ async def forgot_password(req: ForgotPasswordRequest):
     return {
         "message": f"✅ Account verified! Security QR Code sent to {user_email if user_email else 'your email'}. Please upload or scan your QR Code to reset password.",
         "account_verified": True
+    }
+
+@app.post("/verify-reset-qr")
+async def verify_reset_qr(req: VerifyQRRequest):
+    if users_collection is None:
+        raise HTTPException(status_code=500, detail="Database not configured")
+        
+    raw_identifier = req.email_or_mobile.strip()
+    if not raw_identifier:
+        raise HTTPException(status_code=400, detail="⚠️ Please provide an Email or Mobile Number.")
+
+    clean_phone = "".join(filter(str.isdigit, raw_identifier))
+    import re
+    identifier_regex = re.compile(f"^{re.escape(raw_identifier.lower())}$", re.IGNORECASE)
+    
+    query = [
+        {"email": identifier_regex},
+        {"email_or_mobile": identifier_regex},
+        {"internal_id": raw_identifier}
+    ]
+    if clean_phone:
+        query.append({"phone": clean_phone})
+        query.append({"email_or_mobile": clean_phone})
+        
+    user = users_collection.find_one({"$or": query})
+    if not user:
+        raise HTTPException(status_code=400, detail="⚠️ Account Not Found.")
+
+    stored_qr_tok = user.get("security_qr_token")
+    client_qr_tok = (req.qr_token or "").strip()
+
+    if not client_qr_tok:
+        raise HTTPException(
+            status_code=400,
+            detail="⚠️ Security Error: Please upload or scan your Cloxel Security QR Code to proceed."
+        )
+    
+    extracted_token = client_qr_tok
+    if "security_token" in client_qr_tok:
+        try:
+            parsed = json.loads(client_qr_tok)
+            extracted_token = parsed.get("security_token", client_qr_tok)
+        except Exception:
+            pass
+    
+    if stored_qr_tok and extracted_token.strip() != stored_qr_tok.strip():
+        raise HTTPException(
+            status_code=400,
+            detail="⚠️ Security Verification Failed: Invalid QR Code! The uploaded/scanned QR code does not belong to this account."
+        )
+
+    return {
+        "verified": True,
+        "message": "✅ Security QR Code verified successfully! Proceed to set new password."
     }
 
 @app.post("/reset-password")

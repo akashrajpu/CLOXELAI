@@ -34,6 +34,8 @@ function Auth({ onLoginSuccess }) {
   const [forgotOtp, setForgotOtp] = useState('');
   const [forgotQrToken, setForgotQrToken] = useState('');
   const [forgotNewPassword, setForgotNewPassword] = useState('');
+  const [forgotConfirmPassword, setForgotConfirmPassword] = useState('');
+  const [qrRetryCount, setQrRetryCount] = useState(0);
   const [forgotLoading, setForgotLoading] = useState(false);
   const [forgotError, setForgotError] = useState(null);
   const [forgotSuccess, setForgotSuccess] = useState(null);
@@ -72,6 +74,61 @@ function Auth({ onLoginSuccess }) {
     }
   };
 
+  const resetForgotModal = () => {
+    setShowForgotPasswordModal(false);
+    setForgotStep(1);
+    setForgotIdentifier('');
+    setForgotQrToken('');
+    setForgotNewPassword('');
+    setForgotConfirmPassword('');
+    setQrRetryCount(0);
+    setForgotError(null);
+    setForgotSuccess(null);
+    stopCameraScan();
+  };
+
+  const verifyQrTokenWithServer = async (qrData) => {
+    setForgotLoading(true);
+    setForgotError(null);
+    setForgotSuccess(null);
+    try {
+      const response = await fetch(`${API_BASE}/verify-reset-qr`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email_or_mobile: forgotIdentifier,
+          qr_token: qrData
+        })
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.detail || data.error || 'Invalid Security QR Code');
+      }
+
+      // Valid QR Token!
+      setForgotQrToken(qrData);
+      setForgotSuccess('✅ Security QR Code Verified! Step 3: Please set your new password.');
+      setForgotStep(3);
+    } catch (err) {
+      setForgotQrToken('');
+      setQrRetryCount(prevCount => {
+        const newRetry = prevCount + 1;
+        if (newRetry >= 2) {
+          setForgotError(`❌ Security Alert: Failed QR verification 2 times! Request terminated for safety.`);
+          setTimeout(() => {
+            resetForgotModal();
+          }, 2200);
+        } else {
+          setForgotError(`⚠️ Warning: Invalid Security QR Code! The scanned QR code does not belong to '${forgotIdentifier}'. Please upload/scan the correct QR code (Attempt 1/2).`);
+        }
+        return newRetry;
+      });
+    } finally {
+      setForgotLoading(false);
+    }
+  };
+
   const tickScan = () => {
     if (videoRef.current && videoRef.current.readyState === videoRef.current.HAVE_ENOUGH_DATA) {
       const canvas = document.createElement('canvas');
@@ -83,9 +140,8 @@ function Auth({ onLoginSuccess }) {
       const code = jsQR(imageData.data, imageData.width, imageData.height);
 
       if (code && code.data) {
-        setForgotQrToken(code.data);
-        setForgotSuccess('✓ Cloxel Security QR Code scanned successfully via Camera!');
         stopCameraScan();
+        verifyQrTokenWithServer(code.data);
         return;
       }
     }
@@ -110,8 +166,7 @@ function Auth({ onLoginSuccess }) {
         const code = jsQR(imageData.data, imageData.width, imageData.height);
 
         if (code && code.data) {
-          setForgotQrToken(code.data);
-          setForgotSuccess('✓ Cloxel Security QR Code detected & verified from uploaded image!');
+          verifyQrTokenWithServer(code.data);
         } else {
           setForgotError('⚠️ Could not decode QR Code. Please select a valid Cloxel Security QR Code image.');
         }
@@ -121,82 +176,6 @@ function Auth({ onLoginSuccess }) {
     reader.readAsDataURL(file);
   };
 
-
-  const handleGoogleAuthCallback = async (response) => {
-    if (!response || !response.credential) return;
-    setForgotLoading(true);
-    setForgotError(null);
-    try {
-      const res = await fetch(`${API_BASE}/api/auth/google-verify`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          credential: response.credential,
-          email_or_mobile: forgotIdentifier
-        })
-      });
-
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.detail || 'Google Account Verification failed');
-      }
-
-      const verifiedEmail = data.google_verified_email || forgotIdentifier;
-      localStorage.setItem('cloxel_user_email', verifiedEmail.toLowerCase());
-      localStorage.setItem('last_known_email', verifiedEmail.toLowerCase());
-
-      setForgotSuccess(data.message || `✅ Google Account '${verifiedEmail}' Verified! Security QR Code sent.`);
-      setForgotIdentifier(verifiedEmail);
-      setForgotStep(2);
-    } catch (err) {
-      setForgotError(err.message);
-    } finally {
-      setForgotLoading(false);
-    }
-  };
-
-  const triggerGoogleVerify = async () => {
-    try {
-      let clientId = '';
-      const res = await fetch(`${API_BASE}/api/auth/google-client-id`);
-      if (res.ok) {
-        const data = await res.json();
-        clientId = data.google_client_id || '';
-      }
-
-      if (!clientId || clientId.includes('placeholder')) {
-        setForgotError("⚠️ Google OAuth Client ID is not configured on Render. Please add GOOGLE_CLIENT_ID to your Render Environment Variables.");
-        return;
-      }
-
-      if (window.google?.accounts?.id) {
-        window.google.accounts.id.initialize({
-          client_id: clientId,
-          callback: handleGoogleAuthCallback
-        });
-        window.google.accounts.id.prompt();
-      } else {
-        setForgotError("Google Services loading... Please wait 2 seconds and click again.");
-      }
-    } catch (err) {
-      setForgotError("Failed to initialize Google Sign-In: " + err.message);
-    }
-  };
-
-  useEffect(() => {
-    if (showForgotPasswordModal) {
-      fetch(`${API_BASE}/api/auth/google-client-id`)
-        .then(r => r.json())
-        .then(data => {
-          if (data.google_client_id && window.google?.accounts?.id && !data.google_client_id.includes('placeholder')) {
-            window.google.accounts.id.initialize({
-              client_id: data.google_client_id,
-              callback: handleGoogleAuthCallback
-            });
-          }
-        }).catch(() => {});
-    }
-  }, [showForgotPasswordModal]);
 
   const handleRequestAccountVerify = async (e) => {
     e.preventDefault();
@@ -220,6 +199,7 @@ function Auth({ onLoginSuccess }) {
 
       setForgotSuccess(data.message || 'Account verified! Security QR Code sent to your email.');
       setForgotStep(2);
+      setQrRetryCount(0);
     } catch (err) {
       setForgotError(err.message);
     } finally {
@@ -232,8 +212,24 @@ function Auth({ onLoginSuccess }) {
     setForgotError(null);
     setForgotSuccess(null);
 
-    if (!forgotQrToken || !forgotQrToken.trim()) {
-      setForgotError('⚠️ Security Error: Please upload your Cloxel Security QR Code image or scan with camera.');
+    if (!forgotNewPassword || !forgotConfirmPassword) {
+      setForgotError('⚠️ Mandatory Field: Both New Password and Confirm Password are required!');
+      return;
+    }
+
+    if (forgotNewPassword.length < 6) {
+      setForgotError('⚠️ Password Length Error: New password must be at least 6 characters long!');
+      return;
+    }
+
+    if (forgotNewPassword !== forgotConfirmPassword) {
+      setForgotError('⚠️ Password Mismatch: New Password and Confirm Password do not match!');
+      return;
+    }
+
+    if (!forgotQrToken) {
+      setForgotError('⚠️ Security Error: Security QR Code not verified. Please scan/upload your QR code first.');
+      setForgotStep(2);
       return;
     }
 
@@ -255,9 +251,9 @@ function Auth({ onLoginSuccess }) {
         throw new Error(data.detail || data.error || 'Failed to reset password');
       }
 
-      setForgotSuccess(data.message || 'Password reset successfully!');
+      setForgotSuccess('✅ Password reset successfully! Redirecting to login...');
       setTimeout(() => {
-        setShowForgotPasswordModal(false);
+        resetForgotModal();
         setIsLogin(true);
         setEmailOrMobile(forgotIdentifier);
         setPassword(forgotNewPassword);
@@ -550,31 +546,36 @@ function Auth({ onLoginSuccess }) {
 
       {/* Forgot Password Modal */}
       {showForgotPasswordModal && (
-        <div className="auth-modal-overlay" onClick={() => setShowForgotPasswordModal(false)}>
+        <div className="auth-modal-overlay" onClick={resetForgotModal}>
           <div className="auth-modal-card" onClick={e => e.stopPropagation()} style={{ maxWidth: '440px' }}>
-            <button className="modal-close-btn" onClick={() => setShowForgotPasswordModal(false)}>×</button>
+            <button className="modal-close-btn" onClick={resetForgotModal}>×</button>
             
             <div className="modal-header" style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', width: '100%', marginBottom: '16px' }}>
-              <h2 style={{ textAlign: 'center', display: 'block', width: '100%', margin: '0 auto 6px auto' }}>🔑 Reset Password</h2>
-              <p style={{ textAlign: 'center', display: 'block', width: '100%', margin: '0 auto', fontSize: '0.88rem' }}>
-                {forgotStep === 1 ? 'Enter your registered Email or Mobile Number to receive your Security QR Code' : 'Upload or scan your Security QR Code and set your new password'}
+              <h2 style={{ textAlign: 'center', display: 'block', width: '100%', margin: '0 auto 6px auto' }}>
+                {forgotStep === 1 ? '🔐 Step 1: Account Verification' : forgotStep === 2 ? '📷 Step 2: Verify Security QR Code' : '🔑 Step 3: Set New Password'}
+              </h2>
+              <p style={{ textAlign: 'center', display: 'block', width: '100%', margin: '0 auto', fontSize: '0.85rem', color: '#cbd5e1' }}>
+                {forgotStep === 1 && 'Enter your registered Email or Mobile Number to verify account.'}
+                {forgotStep === 2 && 'Upload or scan the Cloxel Security QR Code sent to your registered email.'}
+                {forgotStep === 3 && 'Enter and confirm your new password below.'}
               </p>
             </div>
 
-            {forgotError && <div className="auth-error">{forgotError}</div>}
+            {forgotError && <div className="auth-error" style={{ whiteSpace: 'pre-line' }}>{forgotError}</div>}
             {forgotSuccess && (
               <div style={{ background: 'rgba(34, 197, 94, 0.15)', border: '1px solid #22c55e', color: '#4ade80', padding: '10px 14px', borderRadius: '10px', fontSize: '0.85rem', marginBottom: '14px', textAlign: 'center' }}>
                 {forgotSuccess}
               </div>
             )}
 
-            {forgotStep === 1 ? (
+            {/* STEP 1: Enter Email or Mobile */}
+            {forgotStep === 1 && (
               <form onSubmit={handleRequestAccountVerify} className="auth-form">
                 <div className="form-group">
-                  <label>Email Address or Mobile Number *</label>
+                  <label>Registered Email Address or Mobile Number *</label>
                   <input 
                     type="text" 
-                    placeholder="Enter registered Email or Mobile" 
+                    placeholder="e.g. user@example.com or 9876543210" 
                     value={forgotIdentifier}
                     onChange={(e) => setForgotIdentifier(e.target.value)}
                     required 
@@ -582,60 +583,29 @@ function Auth({ onLoginSuccess }) {
                 </div>
                 <button 
                   type="submit" 
-                  disabled={forgotLoading} 
+                  disabled={forgotLoading || !forgotIdentifier.trim()} 
                   className="btn-primary auth-submit"
                   style={{ width: '100%', marginTop: '10px' }}
                 >
-                  {forgotLoading ? 'Verifying Account...' : 'Verify Account →'}
-                </button>
-
-                <div style={{ textAlign: 'center', marginTop: '10px', marginBottom: '6px' }}>
-                  <span style={{ color: '#94a3b8', fontSize: '0.78rem' }}>— OR —</span>
-                </div>
-
-                <button 
-                  type="button" 
-                  onClick={triggerGoogleVerify}
-                  disabled={forgotLoading}
-                  style={{
-                    width: '100%',
-                    background: '#ffffff',
-                    color: '#1f2937',
-                    border: '1px solid #e5e7eb',
-                    borderRadius: '10px',
-                    padding: '10px 14px',
-                    fontWeight: 'bold',
-                    fontSize: '0.88rem',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '8px',
-                    boxShadow: '0 2px 8px rgba(0,0,0,0.15)'
-                  }}
-                >
-                  <svg width="18" height="18" viewBox="0 0 24 24">
-                    <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-                    <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-                    <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
-                    <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
-                  </svg>
-                  🌐 Verify with Google Account (1-Click)
+                  {forgotLoading ? 'Verifying Account...' : 'Verify Account & Continue →'}
                 </button>
               </form>
-            ) : (
+            )}
 
-              <form onSubmit={handleResetPassword} className="auth-form">
+            {/* STEP 2: Scan / Upload QR Code */}
+            {forgotStep === 2 && (
+              <div className="auth-form">
                 {/* Method 1: Upload QR Image */}
-                <div style={{ background: 'rgba(168,85,247,0.1)', border: '1px dashed rgba(168,85,247,0.4)', padding: '14px', borderRadius: '12px', marginBottom: '14px', textAlign: 'center' }}>
-                  <label style={{ display: 'block', color: '#c084fc', fontWeight: 'bold', fontSize: '0.85rem', marginBottom: '6px' }}>
-                    📷 Upload Cloxel Security QR Code Image *
+                <div style={{ background: 'rgba(168,85,247,0.1)', border: '1px dashed rgba(168,85,247,0.4)', padding: '16px', borderRadius: '12px', marginBottom: '14px', textAlign: 'center' }}>
+                  <label style={{ display: 'block', color: '#c084fc', fontWeight: 'bold', fontSize: '0.88rem', marginBottom: '6px' }}>
+                    📁 Upload Cloxel Security QR Code Image *
                   </label>
                   <input 
                     type="file" 
                     accept="image/*"
                     onChange={handleQrFileUpload}
-                    style={{ fontSize: '0.8rem', color: '#cbd5e1', cursor: 'pointer' }}
+                    disabled={forgotLoading}
+                    style={{ fontSize: '0.8rem', color: '#cbd5e1', cursor: 'pointer', margin: '0 auto' }}
                   />
                 </div>
 
@@ -645,7 +615,8 @@ function Auth({ onLoginSuccess }) {
                     <button 
                       type="button" 
                       onClick={startCameraScan}
-                      style={{ background: 'rgba(56, 189, 248, 0.15)', border: '1px solid #38bdf8', color: '#38bdf8', padding: '8px 16px', borderRadius: '8px', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 'bold' }}
+                      disabled={forgotLoading}
+                      style={{ background: 'rgba(56, 189, 248, 0.15)', border: '1px solid #38bdf8', color: '#38bdf8', padding: '10px 18px', borderRadius: '8px', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 'bold', width: '100%' }}
                     >
                       🎥 Scan QR Code with Camera
                     </button>
@@ -655,7 +626,7 @@ function Auth({ onLoginSuccess }) {
                       <button 
                         type="button" 
                         onClick={stopCameraScan}
-                        style={{ background: 'rgba(239, 68, 68, 0.2)', border: '1px solid #ef4444', color: '#f87171', padding: '4px 12px', borderRadius: '6px', cursor: 'pointer', fontSize: '0.8rem' }}
+                        style={{ background: 'rgba(239, 68, 68, 0.2)', border: '1px solid #ef4444', color: '#f87171', padding: '6px 14px', borderRadius: '6px', cursor: 'pointer', fontSize: '0.8rem' }}
                       >
                         Stop Camera Scan
                       </button>
@@ -663,40 +634,7 @@ function Auth({ onLoginSuccess }) {
                   )}
                 </div>
 
-                {/* QR Credential Verified Status Indicator */}
-                <div style={{ textAlign: 'center', marginBottom: '14px' }}>
-                  {forgotQrToken ? (
-                    <div style={{ background: 'rgba(34, 197, 94, 0.15)', border: '1px solid #22c55e', color: '#4ade80', padding: '8px', borderRadius: '8px', fontSize: '0.8rem', fontWeight: 'bold' }}>
-                      ✓ Cryptographic QR Code Credential Loaded & Verified
-                    </div>
-                  ) : (
-                    <div style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px dashed rgba(239, 68, 68, 0.4)', color: '#fca5a5', padding: '8px', borderRadius: '8px', fontSize: '0.78rem' }}>
-                      ⚠️ QR Code Required: Upload QR Image or Scan via Camera above. (Manual typing disabled)
-                    </div>
-                  )}
-                </div>
-
-                <div className="form-group">
-                  <label>New Password *</label>
-                  <input 
-                    type="password" 
-                    placeholder="Enter new secure password" 
-                    value={forgotNewPassword}
-                    onChange={(e) => setForgotNewPassword(e.target.value)}
-                    required 
-                  />
-                </div>
-
-                <button 
-                  type="submit" 
-                  disabled={forgotLoading || !forgotQrToken} 
-                  className="btn-primary auth-submit"
-                  style={{ width: '100%', marginTop: '10px', opacity: !forgotQrToken ? 0.5 : 1, cursor: !forgotQrToken ? 'not-allowed' : 'pointer' }}
-                >
-                  {forgotLoading ? 'Verifying Credentials...' : 'Confirm & Reset Password →'}
-                </button>
-
-                <div style={{ textAlign: 'center', marginTop: '12px' }}>
+                <div style={{ textAlign: 'center', marginTop: '14px' }}>
                   <button 
                     type="button" 
                     onClick={() => { setForgotStep(1); setForgotError(null); setForgotSuccess(null); stopCameraScan(); }} 
@@ -706,8 +644,54 @@ function Auth({ onLoginSuccess }) {
                     ← Back to Enter Email / Mobile
                   </button>
                 </div>
-              </form>
+              </div>
+            )}
 
+            {/* STEP 3: Set New Password & Confirm Password */}
+            {forgotStep === 3 && (
+              <form onSubmit={handleResetPassword} className="auth-form">
+                <div className="form-group" style={{ marginBottom: '12px' }}>
+                  <label>New Password *</label>
+                  <input 
+                    type="password" 
+                    placeholder="Enter new password (min. 6 characters)" 
+                    value={forgotNewPassword}
+                    onChange={(e) => setForgotNewPassword(e.target.value)}
+                    required 
+                  />
+                </div>
+
+                <div className="form-group" style={{ marginBottom: '14px' }}>
+                  <label>Confirm New Password *</label>
+                  <input 
+                    type="password" 
+                    placeholder="Re-enter new password to confirm" 
+                    value={forgotConfirmPassword}
+                    onChange={(e) => setForgotConfirmPassword(e.target.value)}
+                    required 
+                  />
+                </div>
+
+                <button 
+                  type="submit" 
+                  disabled={forgotLoading || !forgotNewPassword || !forgotConfirmPassword} 
+                  className="btn-primary auth-submit"
+                  style={{ width: '100%', marginTop: '10px' }}
+                >
+                  {forgotLoading ? 'Updating Password...' : 'Confirm & Set New Password →'}
+                </button>
+
+                <div style={{ textAlign: 'center', marginTop: '12px' }}>
+                  <button 
+                    type="button" 
+                    onClick={() => { setForgotStep(2); setForgotError(null); setForgotSuccess(null); }} 
+                    className="btn-link"
+                    style={{ fontSize: '0.8rem', color: '#94a3b8' }}
+                  >
+                    ← Back to QR Code Verification
+                  </button>
+                </div>
+              </form>
             )}
 
           </div>
