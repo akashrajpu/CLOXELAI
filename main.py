@@ -850,8 +850,6 @@ class UserRegister(BaseModel):
     email: str
     password: str
     email_or_mobile: Optional[str] = None
-    browser_token: Optional[str] = None
-    browser_email: Optional[str] = None
 
 class UserLogin(BaseModel):
     email_or_mobile: str
@@ -1974,7 +1972,7 @@ def generate_qr_base64(data_str: str) -> str:
             print(f"⚠️ QR API Fallback error: {_e_api}")
         return ""
 
-def send_brevo_qr_email(user_email: str, user_name: str, security_qr_token: str, browser_token: str):
+def send_brevo_qr_email(user_email: str, user_name: str, security_qr_token: str):
     try:
         brevo_api_key = os.getenv("BREVO_API_KEY") or os.getenv("SMTP_KEY")
         smtp_login = os.getenv("SMTP_LOGIN", os.getenv("BREVO_SMTP_LOGIN", "9d55c8001@smtp-brevo.com"))
@@ -2134,10 +2132,7 @@ async def register_user(req: UserRegister):
         
     hashed_password = safe_hash_password(req.password)
     internal_id = str(uuid.uuid4())
-    browser_tok = (req.browser_token or "").strip() or str(uuid.uuid4())
     security_qr_tok = f"CLOXEL-SEC-{uuid.uuid4().hex[:12].upper()}"
-    
-    reg_browser_email = (req.browser_email or primary_email).strip().lower()
 
     new_user = {
         "name": req.name.strip(),
@@ -2147,8 +2142,6 @@ async def register_user(req: UserRegister):
         "email_or_mobile": primary_email,
         "password_hash": hashed_password,
         "internal_id": internal_id,
-        "registration_browser_email": reg_browser_email,
-        "registration_browser_token": browser_tok,
         "security_qr_token": security_qr_tok,
         "created_at": datetime.utcnow()
     }
@@ -2159,8 +2152,7 @@ async def register_user(req: UserRegister):
         email_sent = send_brevo_qr_email(
             user_email=primary_email,
             user_name=req.name.strip(),
-            security_qr_token=security_qr_tok,
-            browser_token=browser_tok
+            security_qr_token=security_qr_tok
         )
     except Exception as _e_qr:
         print(f"❌ Brevo QR Email dispatch error: {_e_qr}")
@@ -2182,7 +2174,6 @@ async def register_user(req: UserRegister):
         "email": primary_email,
         "phone": primary_phone,
         "name": req.name.strip(),
-        "browser_token": browser_tok,
         "security_qr_token": security_qr_tok
     }
 
@@ -2342,16 +2333,13 @@ async def forgot_password(req: ForgotPasswordRequest):
         security_qr_tok = f"CLOXEL-SEC-{uuid.uuid4().hex[:12].upper()}"
         users_collection.update_one({"_id": user["_id"]}, {"$set": {"security_qr_token": security_qr_tok}})
 
-    reg_browser_tok = user.get("registration_browser_token") or ""
-
     # Dispatch Brevo QR Email to registered email
     if user_email:
         try:
             send_brevo_qr_email(
                 user_email=user_email,
                 user_name=user_name,
-                security_qr_token=security_qr_tok,
-                browser_token=reg_browser_tok
+                security_qr_token=security_qr_tok
             )
         except Exception as _e_qr:
             print(f"⚠️ Brevo QR Email dispatch error: {_e_qr}")

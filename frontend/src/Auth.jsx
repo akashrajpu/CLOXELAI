@@ -273,8 +273,6 @@ function Auth({ onLoginSuccess }) {
     setError(null);
     setIsLoading(true);
 
-    const activeBrowserEmail = (localStorage.getItem('cloxel_user_email') || localStorage.getItem('last_known_email') || '').toLowerCase().trim();
-
     const endpoint = isLogin ? '/login' : '/register';
     const payload = isLogin ? {
       email_or_mobile: emailOrMobile,
@@ -285,8 +283,7 @@ function Auth({ onLoginSuccess }) {
       phone: phone,
       email: email,
       password: password,
-      email_or_mobile: email,
-      browser_email: activeBrowserEmail || email.toLowerCase()
+      email_or_mobile: email
     };
 
 
