@@ -712,6 +712,7 @@ def process_single_user_schedule(user: dict, now_ist: datetime, today_str: str):
                     voice = schedule.get(f"{kind}_voice") or "hi-IN-MadhurNeural"
                     font = schedule.get(f"{kind}_font") or "Arial.ttf"
                     color = schedule.get(f"{kind}_color") or "yellow"
+                    aspect_ratio = schedule.get(f"{kind}_aspect_ratio") or ("16:9" if kind in ["long", "ultra"] else "9:16")
                     duration = int(schedule.get(f"{kind}_duration") or default_dur)
 
                     with render_queue_lock:
@@ -723,7 +724,8 @@ def process_single_user_schedule(user: dict, now_ist: datetime, today_str: str):
                             font_name=font,
                             font_color=color,
                             video_type=kind,
-                            requested_duration=duration
+                            requested_duration=duration,
+                            aspect_ratio=aspect_ratio
                         )
                     if res.get("status") == "completed":
                         video_file = res.get("file")
