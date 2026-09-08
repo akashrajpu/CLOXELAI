@@ -3,6 +3,8 @@ import sys
 import time
 import random
 import hashlib
+import base64
+import hmac
 import uuid
 import shutil
 import json
@@ -13,6 +15,7 @@ import urllib.request
 import cloudinary
 import cloudinary.uploader
 from dotenv import load_dotenv
+from cryptography.fernet import Fernet
 
 warnings.filterwarnings("ignore")
 from fastapi import FastAPI, BackgroundTasks, HTTPException, Request, Response
@@ -98,6 +101,8 @@ if MONGO_URI:
             users_collection.create_index("internal_id", unique=True, background=True)
             users_collection.create_index("email", background=True)
             users_collection.create_index("phone", background=True)
+            users_collection.create_index("email_hash", background=True)
+            users_collection.create_index("phone_hash", background=True)
             videos_collection.create_index([("internal_id", pymongo.ASCENDING), ("created_at", pymongo.DESCENDING)], background=True)
             videos_collection.create_index("job_id", background=True)
             rendering_jobs.create_index("job_id", unique=True, background=True)
@@ -789,6 +794,91 @@ def safe_hash_password(password: str) -> str:
         return _raw_bcrypt.hashpw(password.encode('utf-8'), salt).decode('utf-8')
     except Exception:
         return pwd_context.hash(password)
+
+# ------------------------------------------------------------------
+# MongoDB AES-256 Field-Level Encryption & SHA-256 Hash Helpers
+# ------------------------------------------------------------------
+def _get_cipher_suite():
+    secret = os.getenv("MONGO_ENCRYPTION_KEY") or os.getenv("JWT_SECRET_KEY") or "cloxel-mongo-aes256-secret-key-2026"
+    key_32 = hashlib.sha256(secret.encode('utf-8')).digest()
+    fernet_key = base64.urlsafe_b64encode(key_32)
+    return Fernet(fernet_key)
+
+def encrypt_field(val: str) -> str:
+    if not val or not isinstance(val, str):
+        return val
+    if val.startswith("ENC:"):
+        return val
+    try:
+        cipher = _get_cipher_suite()
+        encrypted = cipher.encrypt(val.encode('utf-8')).decode('utf-8')
+        return "ENC:" + encrypted
+    except Exception as e:
+        print(f"⚠️ Field encryption error: {e}")
+        return val
+
+def decrypt_field(val: str) -> str:
+    if not val or not isinstance(val, str):
+        return val
+    if not val.startswith("ENC:"):
+        return val
+    try:
+        raw = val[4:]
+        cipher = _get_cipher_suite()
+        return cipher.decrypt(raw.encode('utf-8')).decode('utf-8')
+    except Exception as e:
+        print(f"⚠️ Field decryption error: {e}")
+        return val
+
+def hash_identifier(val: str) -> str:
+    if not val or not isinstance(val, str):
+        return None
+    clean = val.strip().lower()
+    secret = os.getenv("MONGO_ENCRYPTION_KEY") or os.getenv("JWT_SECRET_KEY") or "cloxel-mongo-aes256-secret-key-2026"
+    return hmac.new(secret.encode('utf-8'), clean.encode('utf-8'), hashlib.sha256).hexdigest()
+
+def decrypt_user_doc(user_doc: dict) -> dict:
+    if not user_doc:
+        return user_doc
+    doc = dict(user_doc)
+    for field in ["name", "email", "phone", "email_or_mobile", "security_qr_token"]:
+        if field in doc and isinstance(doc[field], str):
+            doc[field] = decrypt_field(doc[field])
+    return doc
+
+def find_user_in_db(identifier: str) -> dict:
+    """
+    Finds user in MongoDB matching plaintext email, phone, internal_id, email_or_mobile,
+    or deterministic SHA-256 HMAC hashes (email_hash, phone_hash).
+    Returns the decrypted user document.
+    """
+    if users_collection is None or not identifier:
+        return None
+
+    raw_identifier = str(identifier).strip()
+    clean_phone = "".join(filter(str.isdigit, raw_identifier))
+    raw_hash = hash_identifier(raw_identifier)
+    phone_hash = hash_identifier(clean_phone) if clean_phone else None
+
+    import re
+    identifier_regex = re.compile(f"^{re.escape(raw_identifier.lower())}$", re.IGNORECASE)
+
+    or_conditions = [
+        {"email": identifier_regex},
+        {"email_or_mobile": identifier_regex},
+        {"internal_id": raw_identifier},
+        {"email_hash": raw_hash}
+    ]
+    if clean_phone:
+        or_conditions.extend([
+            {"phone": clean_phone},
+            {"email_or_mobile": clean_phone},
+            {"phone_hash": phone_hash}
+        ])
+
+    user = users_collection.find_one({"$or": or_conditions})
+    return decrypt_user_doc(user)
+
 
 from fastapi.middleware.gzip import GZipMiddleware
 
@@ -2153,22 +2243,29 @@ async def register_user(req: UserRegister):
     if not primary_email or not primary_phone or not req.name.strip() or not req.country.strip():
         raise HTTPException(status_code=400, detail="All fields (Name, Country, Phone, Email, Password) are mandatory.")
         
+    email_h = hash_identifier(primary_email)
+    phone_h = hash_identifier(primary_phone) if primary_phone else None
+
     import re
     email_regex = re.compile(f"^{re.escape(primary_email)}$", re.IGNORECASE)
     
-    existing_user = users_collection.find_one({
-        "$or": [
-            {"email": email_regex},
-            {"phone": primary_phone},
-            {"phone": req.phone.strip()},
-            {"email_or_mobile": email_regex},
-            {"email_or_mobile": primary_phone}
-        ]
-    })
+    or_query = [
+        {"email": email_regex},
+        {"phone": primary_phone},
+        {"phone": req.phone.strip()},
+        {"email_or_mobile": email_regex},
+        {"email_or_mobile": primary_phone},
+        {"email_hash": email_h}
+    ]
+    if phone_h:
+        or_query.append({"phone_hash": phone_h})
+
+    existing_user = users_collection.find_one({"$or": or_query})
     
     if existing_user:
-        ex_email = existing_user.get("email", "").lower()
-        ex_phone = existing_user.get("phone", "")
+        existing_user = decrypt_user_doc(existing_user)
+        ex_email = (existing_user.get("email") or "").lower()
+        ex_phone = existing_user.get("phone") or ""
         if ex_email == primary_email:
             raise HTTPException(status_code=400, detail="⚠️ Account Creation Failed: This Email ID is already registered! Please use a different Email or Login.")
         else:
@@ -2179,14 +2276,16 @@ async def register_user(req: UserRegister):
     security_qr_tok = f"CLOXEL-SEC-{uuid.uuid4().hex[:12].upper()}"
 
     new_user = {
-        "name": req.name.strip(),
+        "name": encrypt_field(req.name.strip()),
         "country": req.country.strip(),
-        "phone": primary_phone,
-        "email": primary_email,
-        "email_or_mobile": primary_email,
+        "phone": encrypt_field(primary_phone),
+        "email": encrypt_field(primary_email),
+        "email_or_mobile": encrypt_field(primary_email),
+        "email_hash": email_h,
+        "phone_hash": phone_h,
         "password_hash": hashed_password,
         "internal_id": internal_id,
-        "security_qr_token": security_qr_tok,
+        "security_qr_token": encrypt_field(security_qr_tok),
         "created_at": datetime.utcnow()
     }
     
@@ -2228,20 +2327,7 @@ async def login_user(req: UserLogin):
         raise HTTPException(status_code=500, detail="Database not configured")
         
     raw_identifier = req.email_or_mobile.strip()
-    clean_phone = "".join(filter(str.isdigit, raw_identifier))
-    import re
-    identifier_regex = re.compile(f"^{re.escape(raw_identifier.lower())}$", re.IGNORECASE)
-    
-    query = [
-        {"email": identifier_regex},
-        {"email_or_mobile": identifier_regex},
-        {"internal_id": raw_identifier}
-    ]
-    if clean_phone:
-        query.append({"phone": clean_phone})
-        query.append({"email_or_mobile": clean_phone})
-        
-    user = users_collection.find_one({"$or": query})
+    user = find_user_in_db(raw_identifier)
     
     if not user:
         raise HTTPException(status_code=400, detail="⚠️ Account Not Found: Please check your Email / Mobile Number or click Register.")
@@ -2296,12 +2382,7 @@ async def google_verify(req: GoogleVerifyRequest):
         raise HTTPException(status_code=400, detail="⚠️ Google Account Verification Failed. Unable to extract verified email from Google.")
 
     raw_identifier = (req.email_or_mobile or google_email).strip().lower()
-    user = users_collection.find_one({
-        "$or": [
-            {"email": raw_identifier},
-            {"email_or_mobile": raw_identifier}
-        ]
-    })
+    user = find_user_in_db(raw_identifier)
 
     if not user:
         raise HTTPException(
@@ -2321,7 +2402,7 @@ async def google_verify(req: GoogleVerifyRequest):
     security_qr_tok = user.get("security_qr_token")
     if not security_qr_tok:
         security_qr_tok = f"CLOXEL-SEC-{uuid.uuid4().hex[:12].upper()}"
-        users_collection.update_one({"_id": user["_id"]}, {"$set": {"security_qr_token": security_qr_tok}})
+        users_collection.update_one({"_id": user["_id"]}, {"$set": {"security_qr_token": encrypt_field(security_qr_tok)}})
 
     reg_browser_tok = user.get("registration_browser_token") or ""
     try:
@@ -2350,20 +2431,7 @@ async def forgot_password(req: ForgotPasswordRequest):
     if not raw_identifier:
         raise HTTPException(status_code=400, detail="⚠️ Please provide an Email or Mobile Number.")
 
-    clean_phone = "".join(filter(str.isdigit, raw_identifier))
-    import re
-    identifier_regex = re.compile(f"^{re.escape(raw_identifier.lower())}$", re.IGNORECASE)
-    
-    query = [
-        {"email": identifier_regex},
-        {"email_or_mobile": identifier_regex},
-        {"internal_id": raw_identifier}
-    ]
-    if clean_phone:
-        query.append({"phone": clean_phone})
-        query.append({"email_or_mobile": clean_phone})
-        
-    user = users_collection.find_one({"$or": query})
+    user = find_user_in_db(raw_identifier)
     if not user:
         raise HTTPException(status_code=400, detail="⚠️ Account Not Found: Please check your Email / Mobile Number.")
 
@@ -2375,7 +2443,7 @@ async def forgot_password(req: ForgotPasswordRequest):
     security_qr_tok = user.get("security_qr_token")
     if not security_qr_tok:
         security_qr_tok = f"CLOXEL-SEC-{uuid.uuid4().hex[:12].upper()}"
-        users_collection.update_one({"_id": user["_id"]}, {"$set": {"security_qr_token": security_qr_tok}})
+        users_collection.update_one({"_id": user["_id"]}, {"$set": {"security_qr_token": encrypt_field(security_qr_tok)}})
 
     return {
         "message": f"✅ Account verified! Please upload or scan your Cloxel Security QR Code (received during registration) to reset password.",
@@ -2391,20 +2459,7 @@ async def verify_reset_qr(req: VerifyQRRequest):
     if not raw_identifier:
         raise HTTPException(status_code=400, detail="⚠️ Please provide an Email or Mobile Number.")
 
-    clean_phone = "".join(filter(str.isdigit, raw_identifier))
-    import re
-    identifier_regex = re.compile(f"^{re.escape(raw_identifier.lower())}$", re.IGNORECASE)
-    
-    query = [
-        {"email": identifier_regex},
-        {"email_or_mobile": identifier_regex},
-        {"internal_id": raw_identifier}
-    ]
-    if clean_phone:
-        query.append({"phone": clean_phone})
-        query.append({"email_or_mobile": clean_phone})
-        
-    user = users_collection.find_one({"$or": query})
+    user = find_user_in_db(raw_identifier)
     if not user:
         raise HTTPException(status_code=400, detail="⚠️ Account Not Found.")
 
@@ -2442,20 +2497,7 @@ async def reset_password(req: ResetPasswordRequest):
         raise HTTPException(status_code=500, detail="Database not configured")
         
     raw_identifier = req.email_or_mobile.strip()
-    clean_phone = "".join(filter(str.isdigit, raw_identifier))
-    import re
-    identifier_regex = re.compile(f"^{re.escape(raw_identifier.lower())}$", re.IGNORECASE)
-    
-    query = [
-        {"email": identifier_regex},
-        {"email_or_mobile": identifier_regex},
-        {"internal_id": raw_identifier}
-    ]
-    if clean_phone:
-        query.append({"phone": clean_phone})
-        query.append({"email_or_mobile": clean_phone})
-        
-    user = users_collection.find_one({"$or": query})
+    user = find_user_in_db(raw_identifier)
     if not user:
         raise HTTPException(status_code=400, detail="⚠️ Account Not Found.")
 
