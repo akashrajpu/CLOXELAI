@@ -553,7 +553,7 @@ function Auth({ onLoginSuccess }) {
               </h2>
               <p style={{ textAlign: 'center', display: 'block', width: '100%', margin: '0 auto', fontSize: '0.85rem', color: '#cbd5e1' }}>
                 {forgotStep === 1 && 'Enter your registered Email or Mobile Number to verify account.'}
-                {forgotStep === 2 && 'Upload or scan the Cloxel Security QR Code sent to your registered email.'}
+                {forgotStep === 2 && 'Upload or scan your official Cloxel Security QR Code (received during registration).'}
                 {forgotStep === 3 && 'Enter and confirm your new password below.'}
               </p>
             </div>

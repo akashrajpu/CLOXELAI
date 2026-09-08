@@ -2377,19 +2377,8 @@ async def forgot_password(req: ForgotPasswordRequest):
         security_qr_tok = f"CLOXEL-SEC-{uuid.uuid4().hex[:12].upper()}"
         users_collection.update_one({"_id": user["_id"]}, {"$set": {"security_qr_token": security_qr_tok}})
 
-    # Dispatch Brevo QR Email to registered email
-    if user_email:
-        try:
-            send_brevo_qr_email(
-                user_email=user_email,
-                user_name=user_name,
-                security_qr_token=security_qr_tok
-            )
-        except Exception as _e_qr:
-            print(f"⚠️ Brevo QR Email dispatch error: {_e_qr}")
-
     return {
-        "message": f"✅ Account verified! Security QR Code sent to {user_email if user_email else 'your email'}. Please upload or scan your QR Code to reset password.",
+        "message": f"✅ Account verified! Please upload or scan your Cloxel Security QR Code (received during registration) to reset password.",
         "account_verified": True
     }
 
