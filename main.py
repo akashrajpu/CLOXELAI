@@ -820,14 +820,13 @@ def encrypt_field(val: str) -> str:
 def decrypt_field(val: str) -> str:
     if not val or not isinstance(val, str):
         return val
-    if not val.startswith("ENC:"):
-        return val
+    target = val
+    if target.startswith("ENC:"):
+        target = target[4:]
     try:
-        raw = val[4:]
         cipher = _get_cipher_suite()
-        return cipher.decrypt(raw.encode('utf-8')).decode('utf-8')
-    except Exception as e:
-        print(f"⚠️ Field decryption error: {e}")
+        return cipher.decrypt(target.encode('utf-8')).decode('utf-8')
+    except Exception:
         return val
 
 def hash_identifier(val: str) -> str:
@@ -841,7 +840,7 @@ def decrypt_user_doc(user_doc: dict) -> dict:
     if not user_doc:
         return user_doc
     doc = dict(user_doc)
-    for field in ["name", "email", "phone", "email_or_mobile", "security_qr_token"]:
+    for field in ["name", "email", "phone", "email_or_mobile", "full_name", "username", "security_qr_token"]:
         if field in doc and isinstance(doc[field], str):
             doc[field] = decrypt_field(doc[field])
     return doc
@@ -1444,6 +1443,7 @@ async def get_user_subscription(internal_id: str):
         return {"free_demo_count": 2, "has_active_subscription": False, "plan_type": "none"}
     try:
         user = users_collection.find_one({"internal_id": internal_id})
+        user = decrypt_user_doc(user)
         if not user:
             return {"free_demo_count": 2, "has_active_subscription": False, "plan_type": "none"}
             
