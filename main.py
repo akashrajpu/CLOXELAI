@@ -967,8 +967,6 @@ class GoogleVerifyRequest(BaseModel):
     credential: str
     email_or_mobile: Optional[str] = None
 
-class AdminDeleteUserRequest(BaseModel):
-    email_or_phone: str
 
 
 
@@ -1843,30 +1841,6 @@ def get_security_status():
         "total_banned_ips": len(waf.banned_ips)
     }
 
-@app.post("/api/admin/delete-user")
-async def admin_delete_user(req: AdminDeleteUserRequest):
-    """
-    Admin helper endpoint to delete an un-verified or stuck user account by email or phone,
-    allowing clean re-registration with fresh Security QR email delivery.
-    """
-    if users_collection is None:
-        raise HTTPException(status_code=500, detail="Database not configured")
-        
-    raw_identifier = req.email_or_phone.strip()
-    if not raw_identifier:
-        raise HTTPException(status_code=400, detail="Please provide an email or phone number to delete.")
-
-    user = find_user_in_db(raw_identifier)
-    if not user:
-        raise HTTPException(status_code=404, detail=f"No account found matching '{raw_identifier}'.")
-
-    target_email = user.get("email") or raw_identifier
-    users_collection.delete_one({"_id": user["_id"]})
-    
-    return {
-        "message": f"✅ User account '{target_email}' deleted successfully from database! You can now re-register with this email address.",
-        "deleted_email": target_email
-    }
 
 
 PLAN_RANKS = {"ultra": 1, "short": 2, "long": 3, "combo": 4}
