@@ -846,6 +846,15 @@ function App() {
 
   const handleBuyPlan = async (planType) => {
     if (planType === 'ultra') {
+      if (subStatus.has_active_ultra_subscription) {
+        triggerAlert(
+          "Ultra Mode Subscription Active",
+          `⚠️ You already have an active Ultra Cinematic subscription.\n\nUltra Mode subscription can only be purchased once a month and will be available to renew after your current 30-day plan expires.`,
+          "⚠️",
+          "danger"
+        );
+        return;
+      }
       executeCheckout('ultra');
       return;
     }
@@ -1590,7 +1599,7 @@ function App() {
                   }}
                   onClick={(e) => { e.stopPropagation(); setSelectedPlan('ultra'); handleBuyPlan('ultra'); }}
                 >
-                  {isPaymentProcessing && selectedPlan === 'ultra' ? '⏳ Connecting...' : (subStatus.has_active_ultra_subscription ? '✅ Ultra Active (Stack +30 Days ₹20)' : 'Subscribe for ₹20')}
+                  {isPaymentProcessing && selectedPlan === 'ultra' ? '⏳ Connecting...' : (subStatus.has_active_ultra_subscription ? '✅ Ultra Active (1 Month Limit)' : 'Subscribe for ₹20')}
                 </button>
               </div>
 

@@ -1878,6 +1878,26 @@ async def create_razorpay_order(req: CreateOrderRequest):
                 if isinstance(sub_expires, datetime) and sub_expires > datetime.utcnow():
                     is_active = True
 
+            if req.plan_type == "ultra":
+                existing_ultra = user.get("ultra_subscription", {}) if isinstance(user.get("ultra_subscription"), dict) else {}
+                ultra_exp = existing_ultra.get("expires_at")
+                is_ultra_active = False
+                if ultra_exp:
+                    if isinstance(ultra_exp, str):
+                        try:
+                            ultra_exp = datetime.fromisoformat(ultra_exp.replace('Z', '+00:00'))
+                        except Exception:
+                            ultra_exp = None
+                    if isinstance(ultra_exp, datetime) and ultra_exp.replace(tzinfo=None) > datetime.utcnow():
+                        is_ultra_active = True
+
+                if is_ultra_active:
+                    exp_date_str = ultra_exp.strftime("%b %d, %Y") if isinstance(ultra_exp, datetime) else "expiry"
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"⚠️ Ultra Plan Active! You already have an active Ultra Cinematic subscription (valid until {exp_date_str}). Ultra Mode subscription can only be purchased once a month and will be available to renew after your current plan expires."
+                    )
+
             if is_active and req.plan_type != "ultra":
                 curr_rank = PLAN_RANKS.get(current_plan, 0)
                 new_rank = PLAN_RANKS.get(req.plan_type, 0)
@@ -1948,22 +1968,26 @@ async def verify_razorpay_payment(req: VerifyPaymentRequest):
     existing_user = users_collection.find_one({"internal_id": req.internal_id})
 
     if req.plan_type == "ultra":
-        existing_ultra = existing_user.get("ultra_subscription", {}) if existing_user else {}
+        existing_ultra = existing_user.get("ultra_subscription", {}) if isinstance(existing_user.get("ultra_subscription"), dict) else {}
         ultra_exp = existing_ultra.get("expires_at")
         is_ultra_active = False
         if ultra_exp:
             if isinstance(ultra_exp, str):
                 try:
-                    ultra_exp = datetime.fromisoformat(ultra_exp)
+                    ultra_exp = datetime.fromisoformat(ultra_exp.replace('Z', '+00:00'))
                 except Exception:
                     ultra_exp = None
-            if isinstance(ultra_exp, datetime) and ultra_exp > datetime.utcnow():
+            if isinstance(ultra_exp, datetime) and ultra_exp.replace(tzinfo=None) > datetime.utcnow():
                 is_ultra_active = True
 
         if is_ultra_active:
-            expires_at = ultra_exp + timedelta(days=30)
-        else:
-            expires_at = datetime.utcnow() + timedelta(days=30)
+            exp_date_str = ultra_exp.strftime("%b %d, %Y") if isinstance(ultra_exp, datetime) else "expiry"
+            raise HTTPException(
+                status_code=400,
+                detail=f"⚠️ Ultra Plan Active! You already have an active Ultra Cinematic subscription (valid until {exp_date_str}). Ultra Mode subscription can only be purchased once a month."
+            )
+
+        expires_at = datetime.utcnow() + timedelta(days=30)
 
         ultra_data = {
             "plan_type": "ultra",
