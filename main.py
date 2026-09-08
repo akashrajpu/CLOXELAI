@@ -152,6 +152,13 @@ def ensure_db_alive():
 
 def update_job_status(job_id: str, status_data: dict):
     jobs[job_id] = status_data
+    if len(jobs) > 100:
+        try:
+            excess_keys = list(jobs.keys())[:-50]
+            for k in excess_keys:
+                jobs.pop(k, None)
+        except Exception:
+            pass
     if rendering_jobs is not None:
         try:
             status_copy = {k: v for k, v in status_data.items() if k not in ["file", "dir"]}
@@ -1190,6 +1197,11 @@ def full_process(req: VideoRequest, job_id: str):
                 print(f"🧹 Cleaned up temp scene directory: {job_dir}")
         except Exception as err:
             print(f"Temp cleanup warning: {err}")
+        try:
+            import gc
+            gc.collect()
+        except Exception:
+            pass
 
 def render_video_with_smart_fallback(user_id: str, topic: str, category: str, voice_id: str, font_name: str, font_color: str, video_type: str, requested_duration: int, bg_music: str = "cool.mp3", aspect_ratio: str = None):
     """
