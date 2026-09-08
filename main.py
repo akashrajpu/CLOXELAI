@@ -305,9 +305,21 @@ def upload_video_to_youtube_core(user_id: str, video_file: str, title: str, desc
     Automated YouTube Video Publisher (High-Scale 10,000+ User Ready):
     Uses user's stored OAuth credentials from MongoDB to publish video directly to YouTube with retry backoff & token refresh.
     """
-    if users_collection is None:
-        print("❌ MongoDB not configured for YouTube auto-upload")
-        return None
+    temp_dl_file = None
+    if video_file and (video_file.startswith("http://") or video_file.startswith("https://")):
+        try:
+            import tempfile
+            print(f"📥 Downloading pre-rendered video from Cloudinary: {video_file}...")
+            r = requests.get(video_file, stream=True, timeout=60)
+            tf = tempfile.NamedTemporaryFile(delete=False, suffix=".mp4")
+            for chunk in r.iter_content(chunk_size=1024*1024):
+                tf.write(chunk)
+            tf.close()
+            temp_dl_file = tf.name
+            video_file = temp_dl_file
+        except Exception as e_dl:
+            print(f"❌ Failed to download video from Cloudinary: {e_dl}")
+            return None
 
     if not video_file or not os.path.exists(video_file):
         print(f"⚠️ Video file does not exist on disk for YouTube upload: {video_file}")
@@ -445,6 +457,12 @@ def upload_video_to_youtube_core(user_id: str, video_file: str, title: str, desc
                     }}
                 )
         return None
+    finally:
+        if temp_dl_file and os.path.exists(temp_dl_file):
+            try:
+                os.remove(temp_dl_file)
+            except Exception:
+                pass
 
 def resolve_random_topic(topic: str = "", category: str = "Random") -> str:
     """Dynamically resolves random topics from a large diverse pool if user selected Random Topic or empty topic."""
@@ -657,6 +675,7 @@ def process_single_user_schedule(user: dict, now_ist: datetime, today_str: str):
 
                         staged_data = {
                             "file": video_file,
+                            "cloudinary_url": res.get("cloudinary_url"),
                             "title": topic,
                             "script": script_text,
                             "date": today_str,
@@ -667,7 +686,7 @@ def process_single_user_schedule(user: dict, now_ist: datetime, today_str: str):
                             {"internal_id": internal_id},
                             {"$set": {f"staged_auto_videos.{kind}": staged_data}}
                         )
-                        print(f"✅ [PREDICTIVE STAGING COMPLETE] {kind.upper()} video pre-rendered for user {internal_id}. Waiting for {time_str} IST to publish!")
+                        print(f"✅ [PREDICTIVE STAGING COMPLETE] {kind.upper()} video pre-rendered & saved to Cloudinary for user {internal_id}. Waiting for {time_str} IST to publish!")
                         staged_item = staged_data
 
             if diff_current <= 25 or mins_until >= 1420:
@@ -677,10 +696,11 @@ def process_single_user_schedule(user: dict, now_ist: datetime, today_str: str):
                     {"$set": {f"auto_schedule.{last_run_key}": today_str}}
                 )
 
-                if staged_item.get("date") == today_str and staged_item.get("file") and os.path.exists(staged_item.get("file")):
+                target_upload_src = staged_item.get("file") if (staged_item.get("file") and os.path.exists(staged_item.get("file", ""))) else staged_item.get("cloudinary_url")
+                if staged_item.get("date") == today_str and target_upload_src:
                     upload_video_to_youtube_core(
                         user_id=internal_id,
-                        video_file=staged_item.get("file"),
+                        video_file=target_upload_src,
                         title=staged_item.get("title"),
                         description=staged_item.get("script"),
                         is_short=is_short_flag
