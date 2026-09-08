@@ -2108,9 +2108,9 @@ def send_brevo_qr_email(user_email: str, user_name: str, security_qr_token: str)
         brevo_api_key = os.getenv("BREVO_API_KEY") or os.getenv("SMTP_KEY")
         smtp_login = os.getenv("SMTP_LOGIN", os.getenv("BREVO_SMTP_LOGIN", "9d55c8001@smtp-brevo.com"))
         smtp_key = os.getenv("SMTP_KEY", os.getenv("BREVO_SMTP_KEY", os.getenv("SMTP_PASSWORD")))
-        sender_email = os.getenv("SENDER_EMAIL", "support@cloxel.ai")
-        brevo_sender_email = os.getenv("BREVO_SENDER_EMAIL") or os.getenv("SENDER_EMAIL") or "zobbly.com@gmail.com"
-        sender_name = os.getenv("SENDER_NAME", "Cloxel AI Security Engine")
+        sender_email = os.getenv("SENDER_EMAIL") or "dr2829242627@gmail.com"
+        brevo_sender_email = os.getenv("BREVO_SENDER_EMAIL") or os.getenv("SENDER_EMAIL") or "dr2829242627@gmail.com"
+        sender_name = os.getenv("SENDER_NAME", "akash.com")
 
         
         qr_payload = json.dumps({
