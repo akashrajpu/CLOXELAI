@@ -3252,6 +3252,68 @@ async def get_sitemap_xml():
 </urlset>"""
     return Response(content=sitemap_content, media_type="application/xml")
 
+@app.get("/privacy-policy", response_class=Response)
+async def get_privacy_policy_page():
+    html_content = """<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Privacy Policy - Cloxel AI</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; line-height: 1.6; color: #f8fafc; background: #0f172a; padding: 40px 20px; max-width: 800px; margin: 0 auto; }
+        h1, h2 { color: #c084fc; }
+        a { color: #a855f7; }
+        .card { background: #1e293b; padding: 30px; border-radius: 12px; border: 1px solid #334155; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h1>Privacy Policy - Cloxel AI</h1>
+        <p>Effective Date: September 2026</p>
+        <h2>1. Information We Collect</h2>
+        <p>Cloxel AI collects user email, name, phone number, and OAuth tokens for YouTube account integration. Data is stored securely in encrypted databases.</p>
+        <h2>2. Use of YouTube API Services</h2>
+        <p>By using YouTube Integration, users agree to the <a href="https://www.youtube.com/t/terms" target="_blank">YouTube Terms of Service</a> and <a href="https://policies.google.com/privacy" target="_blank">Google Privacy Policy</a>. Cloxel AI uses YouTube API Services exclusively to upload user-generated short and long videos directly to the user's connected YouTube channel.</p>
+        <h2>3. Data Protection</h2>
+        <p>All sensitive tokens and user details are encrypted at rest using AES-256 field encryption. We do not sell or share user data with third parties.</p>
+        <h2>4. Contact Us</h2>
+        <p>For questions or data deletion requests, contact: <strong>support@cloxel.ai</strong></p>
+    </div>
+</body>
+</html>"""
+    return Response(content=html_content, media_type="text/html")
+
+@app.get("/terms-of-service", response_class=Response)
+async def get_terms_of_service_page():
+    html_content = """<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Terms of Service - Cloxel AI</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; line-height: 1.6; color: #f8fafc; background: #0f172a; padding: 40px 20px; max-width: 800px; margin: 0 auto; }
+        h1, h2 { color: #c084fc; }
+        a { color: #a855f7; }
+        .card { background: #1e293b; padding: 30px; border-radius: 12px; border: 1px solid #334155; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h1>Terms of Service - Cloxel AI</h1>
+        <p>Effective Date: September 2026</p>
+        <h2>1. Acceptance of Terms</h2>
+        <p>By accessing or using Cloxel AI video generation and YouTube publishing tools, you agree to these Terms of Service.</p>
+        <h2>2. User Content & YouTube Publishing</h2>
+        <p>Users retain ownership of generated videos. Users are responsible for ensuring published content complies with YouTube Community Guidelines.</p>
+        <h2>3. Service Availability</h2>
+        <p>Cloxel AI provides automated video rendering and publishing services. Rates and quota limits apply based on selected plans.</p>
+        <h2>4. Termination</h2>
+        <p>We reserve the right to suspend accounts violating system rules, spam policies, or YouTube API terms.</p>
+    </div>
+</body>
+</html>"""
+    return Response(content=html_content, media_type="text/html")
+
 @app.get("/googleaa929f03abece7ff.html", response_class=Response)
 async def get_google_verification_html():
     return Response(content="google-site-verification: googleaa929f03abece7ff.html", media_type="text/html")
