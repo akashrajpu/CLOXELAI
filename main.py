@@ -2062,12 +2062,50 @@ def generate_qr_base64(data_str: str) -> str:
             print(f"⚠️ QR API Fallback error: {_e_api}")
         return ""
 
+DISPOSABLE_EMAIL_DOMAINS = {
+    "mailinator.com", "tempmail.com", "10minutemail.com", "dispostable.com", 
+    "trashmail.com", "yopmail.com", "asdf.com", "test.com", "fake.com", 
+    "example.com", "guerrillamail.com", "sharklasers.com", "getnada.com", "throwawaymail.com"
+}
+
+_email_dispatch_log = {}
+
+def validate_and_rate_limit_email(email: str, cooldown_seconds: int = 60) -> Tuple[bool, str]:
+    """Validates email syntax & domain, and enforces per-email cooldown to protect Brevo account from bounces and spam bans."""
+    if not email or "@" not in email:
+        return False, "Invalid email address format."
+    clean_email = email.strip().lower()
+    parts = clean_email.split("@")
+    if len(parts) != 2 or not parts[0] or not parts[1]:
+        return False, "Invalid email address format."
+    domain = parts[1]
+    if domain in DISPOSABLE_EMAIL_DOMAINS or domain.endswith(".test") or domain.endswith(".invalid"):
+        return False, f"Disposable/fake email domain '@{domain}' is blocked."
+    if len(domain) < 3 or "." not in domain:
+        return False, "Invalid email domain structure."
+        
+    now = time.time()
+    last_sent = _email_dispatch_log.get(clean_email, 0)
+    if now - last_sent < cooldown_seconds:
+        rem = int(cooldown_seconds - (now - last_sent))
+        return False, f"Email rate limit active: Please wait {rem}s before requesting another email."
+    _email_dispatch_log[clean_email] = now
+    return True, "OK"
+
+
 def send_brevo_qr_email(user_email: str, user_name: str, security_qr_token: str):
     try:
+        # Pre-flight email deliverability & rate limit check to protect Brevo account reputation
+        is_valid_email, reason = validate_and_rate_limit_email(user_email)
+        if not is_valid_email:
+            print(f"⚠️ Brevo Protection Guard: Blocked email dispatch to '{user_email}' ({reason})")
+            return False
+
         brevo_api_key = os.getenv("BREVO_API_KEY") or os.getenv("SMTP_KEY")
         smtp_login = os.getenv("SMTP_LOGIN", os.getenv("BREVO_SMTP_LOGIN", "9d55c8001@smtp-brevo.com"))
         smtp_key = os.getenv("SMTP_KEY", os.getenv("BREVO_SMTP_KEY", os.getenv("SMTP_PASSWORD")))
         sender_email = os.getenv("SENDER_EMAIL", "support@cloxel.ai")
+        brevo_sender_email = os.getenv("BREVO_SENDER_EMAIL") or os.getenv("SENDER_EMAIL") or "zobbly.com@gmail.com"
         sender_name = os.getenv("SENDER_NAME", "Cloxel AI Security Engine")
 
         
@@ -2201,7 +2239,7 @@ def send_brevo_qr_email(user_email: str, user_name: str, security_qr_token: str)
                 }
                 
                 payload = {
-                    "sender": {"name": sender_name, "email": sender_email},
+                    "sender": {"name": sender_name, "email": brevo_sender_email},
                     "to": [{"email": user_email, "name": user_name}],
                     "subject": "✦ Cloxel AI - Official Security QR Code Credential",
                     "htmlContent": html_content
