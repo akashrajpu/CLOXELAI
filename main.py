@@ -543,10 +543,10 @@ def resolve_random_topic(topic: str = "", category: str = "Random") -> str:
 
     return topic_clean
 
-def get_daily_unique_subtopic(base_topic: str, today_str: str, user_id: str) -> str:
+def get_daily_unique_subtopic(base_topic: str, today_str: str, user_id: str, category: str = "Random") -> str:
     """Generates a non-repetitive daily subtopic angle for automated auto reels."""
     import random, hashlib
-    topic = resolve_random_topic(base_topic)
+    topic = resolve_random_topic(base_topic, category)
     if len(topic.split()) > 3:
         return topic
     sub_angles = [
@@ -645,9 +645,9 @@ def process_single_user_schedule(user: dict, now_ist: datetime, today_str: str):
             if mins_until <= 180 or diff_current <= 90:
                 if staged_item.get("date") != today_str or not staged_item.get("file") or not os.path.exists(staged_item.get("file", "")):
                     print(f"🚀 [PREDICTIVE AUTO-STAGING] Pre-rendering {kind.upper()} video ahead of time for user {internal_id} (Scheduled IST: {time_str}, Target in {mins_until} mins)...")
-                    raw_topic = schedule.get(f"{kind}_topic") or default_topic
-                    topic = get_daily_unique_subtopic(raw_topic, today_str, internal_id)
                     category = schedule.get(f"{kind}_category") or "Random"
+                    raw_topic = schedule.get(f"{kind}_topic") or default_topic
+                    topic = get_daily_unique_subtopic(raw_topic, today_str, internal_id, category)
                     voice = schedule.get(f"{kind}_voice") or "hi-IN-MadhurNeural"
                     font = schedule.get(f"{kind}_font") or "Arial.ttf"
                     color = schedule.get(f"{kind}_color") or "yellow"
@@ -706,9 +706,9 @@ def process_single_user_schedule(user: dict, now_ist: datetime, today_str: str):
                         is_short=is_short_flag
                     )
                 else:
-                    raw_topic = schedule.get(f"{kind}_topic") or default_topic
-                    topic = get_daily_unique_subtopic(raw_topic, today_str, internal_id)
                     category = schedule.get(f"{kind}_category") or "Random"
+                    raw_topic = schedule.get(f"{kind}_topic") or default_topic
+                    topic = get_daily_unique_subtopic(raw_topic, today_str, internal_id, category)
                     voice = schedule.get(f"{kind}_voice") or "hi-IN-MadhurNeural"
                     font = schedule.get(f"{kind}_font") or "Arial.ttf"
                     color = schedule.get(f"{kind}_color") or "yellow"
