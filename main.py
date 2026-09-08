@@ -2285,10 +2285,23 @@ async def register_user(req: UserRegister):
     if not primary_email or not primary_phone or not req.name.strip() or not req.country.strip():
         raise HTTPException(status_code=400, detail="All fields (Name, Country, Phone, Email, Password) are mandatory.")
         
+    if len(primary_phone) != 10:
+        raise HTTPException(
+            status_code=400,
+            detail="⚠️ Registration Failed: Mobile Number must be exactly 10 digits (e.g. 9876543210)."
+        )
+
+    import re
+    email_format_regex = re.compile(r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$")
+    if not email_format_regex.match(primary_email):
+        raise HTTPException(
+            status_code=400,
+            detail="⚠️ Registration Failed: Please enter a valid Email ID (e.g. name@domain.com)."
+        )
+
     email_h = hash_identifier(primary_email)
     phone_h = hash_identifier(primary_phone) if primary_phone else None
 
-    import re
     email_regex = re.compile(f"^{re.escape(primary_email)}$", re.IGNORECASE)
     
     or_query = [

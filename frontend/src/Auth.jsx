@@ -271,6 +271,20 @@ function Auth({ onLoginSuccess }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError(null);
+
+    if (!isLogin) {
+      const cleanPhone = phone.replace(/\D/g, '');
+      if (cleanPhone.length !== 10) {
+        setError('⚠️ Registration Failed: Mobile Number must be exactly 10 digits (e.g. 9876543210)!');
+        return;
+      }
+      const emailFormat = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+      if (!emailFormat.test(email.trim())) {
+        setError('⚠️ Registration Failed: Please enter a valid Email ID (e.g. name@domain.com)!');
+        return;
+      }
+    }
+
     setIsLoading(true);
 
     const endpoint = isLogin ? '/login' : '/register';
