@@ -2152,6 +2152,18 @@ function App() {
                           />
                         </div>
 
+                        <div>
+                          <label style={{ color: '#cbd5e1', display: 'block', marginBottom: '4px' }}>Ultra Duration (20s - 300s / 5m Max):</label>
+                          <input 
+                            type="number" 
+                            min="20" 
+                            max="300" 
+                            value={autoSchedule.ultra_duration || 60} 
+                            onChange={(e) => setAutoSchedule({ ...autoSchedule, ultra_duration: Math.min(300, Math.max(20, Number(e.target.value))) })}
+                            style={{ width: '100%', padding: '8px', background: '#1e1738', border: '1px solid rgba(255,255,255,0.15)', color: '#fff', borderRadius: '8px' }}
+                          />
+                        </div>
+
                         {(() => {
                           const catLow = (autoSchedule.ultra_category || '').toLowerCase();
                           const isCartoon = ['cartoon', 'anime', 'animation', 'character', 'comic'].some(k => catLow.includes(k));
