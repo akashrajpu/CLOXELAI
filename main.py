@@ -568,6 +568,18 @@ import threading
 
 auto_worker_executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="AutoRenderWorker")
 render_queue_lock = threading.Lock()
+manual_job_lock = threading.Lock()
+active_manual_jobs_count = 0
+
+def register_manual_job_start():
+    global active_manual_jobs_count
+    with manual_job_lock:
+        active_manual_jobs_count += 1
+
+def register_manual_job_end():
+    global active_manual_jobs_count
+    with manual_job_lock:
+        active_manual_jobs_count = max(0, active_manual_jobs_count - 1)
 
 def process_single_user_schedule(user: dict, now_ist: datetime, today_str: str):
     """
@@ -575,6 +587,10 @@ def process_single_user_schedule(user: dict, now_ist: datetime, today_str: str):
     Handles short, long, and ultra pre-rendering & instant YouTube auto-upload independently.
     Isolated per-user try-except prevents any error from affecting other users.
     """
+    if active_manual_jobs_count > 0:
+        print(f"⏸️ [PRIORITY CONTROLLER] Manual video generation active. Deferring background auto-staging...")
+        return
+
     internal_id = user.get("internal_id")
     if not internal_id:
         return
@@ -1026,6 +1042,7 @@ jobs = {}
 
 def full_process(req: VideoRequest, job_id: str):
     """Asli logic jo background mein chalega"""
+    register_manual_job_start()
     try:
         job_dir = f"temp_{job_id}"
         os.makedirs(job_dir, exist_ok=True)
@@ -1155,7 +1172,10 @@ def full_process(req: VideoRequest, job_id: str):
             output_file = f"acoumation_video_{job_id}.mp4"
             target_size = (1280, 720) if (req.video_type in ["long", "ultra"]) else (720, 1280)
             adjusted_font_size = int(req.font_size * 0.7) if (req.video_type in ["long", "ultra"]) else req.font_size
-            merge_and_export(taiyaar_scenes, output_file, font_path=f"./fonts/{req.font_name}", color=req.font_color, font_size=adjusted_font_size, target_size=target_size, bg_music=req.bg_music, mode=req.video_type, category=req.category or "Random") 
+            with render_queue_lock:
+                gc.collect()
+                merge_and_export(taiyaar_scenes, output_file, font_path=f"./fonts/{req.font_name}", color=req.font_color, font_size=adjusted_font_size, target_size=target_size, bg_music=req.bg_music, mode=req.video_type, category=req.category or "Random") 
+            gc.collect()
             
             print(f"\n☁️ [PROGRESS 90%] STEP 6/6: Uploading Completed Video to Cloudinary CDN...")
             cloudinary_url = None
@@ -1211,6 +1231,7 @@ def full_process(req: VideoRequest, job_id: str):
         traceback.print_exc()
         update_job_status(job_id, {"status": "failed", "error": str(e)})
     finally:
+        register_manual_job_end()
         try:
             if os.path.exists(job_dir):
                 shutil.rmtree(job_dir, ignore_errors=True)
