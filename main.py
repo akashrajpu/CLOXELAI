@@ -786,10 +786,10 @@ def process_single_user_schedule(user: dict, now_ist: datetime, today_str: str):
                      "$unset": {f"staged_auto_videos.{kind}": ""}}
                 )
 
-        if schedule.get("short_enabled", True) and is_active and plan_type in ["short", "combo"]:
+        if schedule.get("short_enabled", True) and is_active and plan_type in ["short", "combo", "ultra", "all"]:
             run_staged_auto_pipeline("short", True, "Space Exploration", 20)
 
-        if schedule.get("long_enabled", True) and is_active and plan_type in ["long", "combo"]:
+        if schedule.get("long_enabled", True) and is_active and plan_type in ["long", "combo", "ultra", "all"]:
             run_staged_auto_pipeline("long", False, "AI Innovations", 60)
 
         if schedule.get("ultra_enabled", False) and (is_active or has_ultra_sub):
