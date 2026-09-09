@@ -818,16 +818,29 @@ def merge_and_export(
             scene_output = os.path.join(job_dir, f"temp_rendered_scene_{i}.mp4")
 
             print(f"🎬 [FFMPEG RENDER] Stitching Ultra Cartoon Scene {i+1}/{len(scene_list)} (1-to-1 Sync Duration: {actual_a_dur:.1f}s)...")
-            scene_combined.write_videofile(
-                scene_output,
-                codec="libx264",
-                audio_codec="aac",
-                fps=15,
-                preset="ultrafast",
-                threads=4,
-                ffmpeg_params=["-crf", "26", "-pix_fmt", "yuv420p"],
-                logger=None
-            )
+            try:
+                scene_combined.write_videofile(
+                    scene_output,
+                    codec="libx264",
+                    audio_codec="aac",
+                    fps=15,
+                    preset="ultrafast",
+                    threads=2,
+                    ffmpeg_params=["-crf", "26", "-pix_fmt", "yuv420p"],
+                    logger=None
+                )
+            except Exception as e_stitch:
+                print(f"⚠️ Warning during Ultra scene {i+1} stitch: {e_stitch}. Retrying with single thread fallback...")
+                scene_combined.write_videofile(
+                    scene_output,
+                    codec="libx264",
+                    audio_codec="aac",
+                    fps=15,
+                    preset="ultrafast",
+                    threads=1,
+                    ffmpeg_params=["-crf", "28", "-pix_fmt", "yuv420p"],
+                    logger=None
+                )
 
             scene_combined.close()
             sub_vclip.close()
@@ -1002,16 +1015,29 @@ def merge_and_export(
         scene_output = os.path.join(job_dir, f"temp_rendered_scene_{i}.mp4")
         step_pct = int(((i + 1) / len(scene_list)) * 100)
         print(f"🎬 [FFMPEG RENDER {step_pct}%] Stitching Scene {i+1}/{len(scene_list)} (Duration: {clip_duration:.1f}s) -> {scene_output}...")
-        scene_combined.write_videofile(
-            scene_output, 
-            codec="libx264", 
-            audio_codec="aac", 
-            fps=15, 
-            preset="ultrafast", 
-            threads=4, 
-            ffmpeg_params=["-crf", "28", "-pix_fmt", "yuv420p"],
-            logger=None
-        )
+        try:
+            scene_combined.write_videofile(
+                scene_output, 
+                codec="libx264", 
+                audio_codec="aac", 
+                fps=15, 
+                preset="ultrafast", 
+                threads=2, 
+                ffmpeg_params=["-crf", "28", "-pix_fmt", "yuv420p"],
+                logger=None
+            )
+        except Exception as e_sc_stitch:
+            print(f"⚠️ Notice during scene {i+1} write: {e_sc_stitch}. Retrying with single thread...")
+            scene_combined.write_videofile(
+                scene_output, 
+                codec="libx264", 
+                audio_codec="aac", 
+                fps=15, 
+                preset="ultrafast", 
+                threads=1, 
+                ffmpeg_params=["-crf", "28", "-pix_fmt", "yuv420p"],
+                logger=None
+            )
         
         try: scene_combined.close()
         except Exception: pass
