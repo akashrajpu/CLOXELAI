@@ -1,5 +1,6 @@
 import os
 import sys
+import gc
 import time
 import random
 import hashlib
@@ -1239,7 +1240,6 @@ def full_process(req: VideoRequest, job_id: str):
         except Exception as err:
             print(f"Temp cleanup warning: {err}")
         try:
-            import gc
             gc.collect()
         except Exception:
             pass
