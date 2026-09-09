@@ -1125,7 +1125,8 @@ def full_process(req: VideoRequest, job_id: str):
                 print(f"   ⚠️ Voice synthesis warning (Scene {i+1}): {e_aud}")
 
             is_ultra = (req.video_type == "ultra")
-            orientation = "landscape" if (req.video_type in ["long", "ultra"]) else "portrait"
+            is_16_9 = (req.aspect_ratio == "16:9") if req.aspect_ratio else (req.video_type in ["long", "ultra"])
+            orientation = "landscape" if is_16_9 else "portrait"
             
             cat_lower_req = str(req.category).lower()
             is_cartoon_req = any(k in cat_lower_req for k in ["cartoon", "anime", "animation", "character", "comic"])
@@ -1177,7 +1178,7 @@ def full_process(req: VideoRequest, job_id: str):
                 if not v_paths:
                     fallback_img_path = os.path.join(job_dir, f"fallback_canvas_{i}.jpg")
                     from PIL import Image
-                    target_w, target_h = (1280, 720) if (req.video_type in ["long", "ultra"]) else (720, 1280)
+                    target_w, target_h = (1280, 720) if is_16_9 else (720, 1280)
                     blank_img = Image.new('RGB', (target_w, target_h), color=(15, 10, 35))
                     blank_img.save(fallback_img_path)
                     v_paths = [fallback_img_path]
@@ -1192,8 +1193,8 @@ def full_process(req: VideoRequest, job_id: str):
         if taiyaar_scenes:
             print(f"\n🎬 [PROGRESS 65%] STEP 4 & 5: Entering FFmpeg & 3D Motion Render Queue...")
             output_file = f"acoumation_video_{job_id}.mp4"
-            target_size = (1280, 720) if (req.video_type in ["long", "ultra"]) else (720, 1280)
-            adjusted_font_size = int(req.font_size * 0.7) if (req.video_type in ["long", "ultra"]) else req.font_size
+            target_size = (1280, 720) if is_16_9 else (720, 1280)
+            adjusted_font_size = int(req.font_size * 0.7) if is_16_9 else req.font_size
             with render_queue_lock:
                 gc.collect()
                 merge_and_export(taiyaar_scenes, output_file, font_path=f"./fonts/{req.font_name}", color=req.font_color, font_size=adjusted_font_size, target_size=target_size, bg_music=req.bg_music, mode=req.video_type, category=req.category or "Random") 
