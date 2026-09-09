@@ -2809,14 +2809,14 @@ def get_youtube_flow():
             "token_uri": "https://oauth2.googleapis.com/token",
             "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
             "client_secret": client_secret,
-            "redirect_uris": [os.getenv("YOUTUBE_REDIRECT_URI", "https://cloxel.onrender.com/youtube/callback")]
+            "redirect_uris": [os.getenv("YOUTUBE_REDIRECT_URI", "https://cloxelai.onrender.com/youtube/callback")]
         }
     }
     
     flow = google_auth_oauthlib.flow.Flow.from_client_config(
         client_config, scopes=YOUTUBE_SCOPES
     )
-    flow.redirect_uri = os.getenv("YOUTUBE_REDIRECT_URI", "https://cloxel.onrender.com/youtube/callback")
+    flow.redirect_uri = os.getenv("YOUTUBE_REDIRECT_URI", "https://cloxelai.onrender.com/youtube/callback")
     return flow
 
 class UnlinkRequest(BaseModel):
@@ -2852,7 +2852,7 @@ async def get_youtube_auth_url(internal_id: str):
     if not client_id:
         raise HTTPException(status_code=500, detail="YouTube Client ID/Secret not configured in environment.")
     
-    redirect_uri = os.getenv("YOUTUBE_REDIRECT_URI", "https://cloxel.onrender.com/youtube/callback")
+    redirect_uri = os.getenv("YOUTUBE_REDIRECT_URI", "https://cloxelai.onrender.com/youtube/callback")
     scope = " ".join(YOUTUBE_SCOPES)
     
     params = {
@@ -2873,7 +2873,7 @@ async def youtube_callback(state: str, code: str):
     internal_id = state
     client_id = os.getenv("YOUTUBE_CLIENT_ID")
     client_secret = os.getenv("YOUTUBE_CLIENT_SECRET")
-    redirect_uri = os.getenv("YOUTUBE_REDIRECT_URI", "https://cloxel.onrender.com/youtube/callback")
+    redirect_uri = os.getenv("YOUTUBE_REDIRECT_URI", "https://cloxelai.onrender.com/youtube/callback")
     
     if not client_id or not client_secret:
         raise HTTPException(status_code=500, detail="YouTube Client ID/Secret not configured.")
@@ -2893,7 +2893,7 @@ async def youtube_callback(state: str, code: str):
         if "error" in res_json:
             error_msg = res_json.get("error_description", res_json.get("error"))
             print(f"❌ Token exchange error: {error_msg}")
-            frontend_url = os.getenv("FRONTEND_URL", "https://cloxel.onrender.com")
+            frontend_url = os.getenv("FRONTEND_URL", "https://cloxelai.onrender.com")
             return RedirectResponse(url=f"{frontend_url}/?yt_error={error_msg}")
             
         user = users_collection.find_one({"internal_id": internal_id}) if users_collection is not None else None
@@ -2936,13 +2936,13 @@ async def youtube_callback(state: str, code: str):
                     except Exception as e_p:
                         print(f"⚠️ Error uploading pending video for {internal_id}: {e_p}")
             
-        frontend_url = os.getenv("FRONTEND_URL", "https://cloxel.onrender.com")
+        frontend_url = os.getenv("FRONTEND_URL", "https://cloxelai.onrender.com")
         return RedirectResponse(url=f"{frontend_url}/?yt_success=1")
     except Exception as e:
         print(f"❌ Error in youtube_callback: {e}")
         import traceback
         traceback.print_exc()
-        frontend_url = os.getenv("FRONTEND_URL", "https://cloxel.onrender.com")
+        frontend_url = os.getenv("FRONTEND_URL", "https://cloxelai.onrender.com")
         return RedirectResponse(url=f"{frontend_url}/?yt_error={str(e)}")
 
 @app.get("/youtube/status/{internal_id}")
