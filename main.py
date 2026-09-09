@@ -826,6 +826,8 @@ def check_and_run_auto_schedules():
             "auto_schedule.schedule_enabled": True,
             "youtube_credentials": {"$exists": True, "$ne": None}
         }, projection))
+        if users:
+            print(f"⏰ [AUTO SCHEDULER TICK] Scanned {len(users)} active user schedule(s) at {now_ist.strftime('%H:%M:%S')} IST")
         for user in users:
             auto_worker_executor.submit(process_single_user_schedule, user, now_ist, today_str)
     except Exception as e:
