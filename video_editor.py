@@ -856,13 +856,21 @@ def merge_and_export(
 
         full_vclip.close()
 
-        list_path = os.path.join(job_dir, "concat_list.txt")
-        with open(list_path, "w") as f:
-            for tf in temp_scene_files:
+        valid_temp_files = [tf for tf in temp_scene_files if os.path.exists(tf) and os.path.getsize(tf) > 500]
+        if not valid_temp_files:
+            raise RuntimeError("No valid scene video files generated for assembly!")
+
+        list_path = os.path.abspath(os.path.join(job_dir, "concat_list.txt"))
+        with open(list_path, "w", encoding="utf-8") as f:
+            for tf in valid_temp_files:
                 f.write(f"file '{os.path.abspath(tf)}'\n")
 
-        temp_merged = os.path.join(job_dir, "temp_merged_final.mp4")
-        subprocess.run(["ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i", list_path, "-c", "copy", temp_merged], check=True)
+        temp_merged = os.path.abspath(os.path.join(job_dir, "temp_merged_final.mp4"))
+        try:
+            subprocess.run(["ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i", list_path, "-c", "copy", temp_merged], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        except Exception as e_c_copy:
+            print(f"⚠️ Notice: FFmpeg concat copy mode failed ({e_c_copy}). Retrying with re-encode fallback...")
+            subprocess.run(["ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i", list_path, "-c:v", "libx264", "-preset", "ultrafast", "-c:a", "aac", temp_merged], check=True)
 
         if bg_music and str(bg_music).lower() != "none":
             bg_music_file = bg_music if os.path.exists(bg_music) else (os.path.join(".", bg_music) if os.path.exists(os.path.join(".", bg_music)) else None)
@@ -1059,13 +1067,21 @@ def merge_and_export(
             log_callback(msg, pct)
 
     print(f"\n🔗 [FFMPEG CONCAT] Merging all {len(temp_scene_files)} scenes + Background Music track...")
-    list_path = os.path.join(job_dir, "concat_list.txt")
-    with open(list_path, "w") as f:
-        for tf in temp_scene_files:
+    valid_temp_files = [tf for tf in temp_scene_files if os.path.exists(tf) and os.path.getsize(tf) > 500]
+    if not valid_temp_files:
+        raise RuntimeError("No valid scene video files generated for assembly!")
+
+    list_path = os.path.abspath(os.path.join(job_dir, "concat_list.txt"))
+    with open(list_path, "w", encoding="utf-8") as f:
+        for tf in valid_temp_files:
             f.write(f"file '{os.path.abspath(tf)}'\n")
             
-    temp_merged = os.path.join(job_dir, "temp_merged_final.mp4")
-    subprocess.run(["ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i", list_path, "-c", "copy", temp_merged], check=True)
+    temp_merged = os.path.abspath(os.path.join(job_dir, "temp_merged_final.mp4"))
+    try:
+        subprocess.run(["ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i", list_path, "-c", "copy", temp_merged], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    except Exception as e_c_copy:
+        print(f"⚠️ Notice: FFmpeg concat copy mode failed ({e_c_copy}). Retrying with re-encode fallback...")
+        subprocess.run(["ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i", list_path, "-c:v", "libx264", "-preset", "ultrafast", "-c:a", "aac", temp_merged], check=True)
 
     bg_music_file = None
     if bg_music and str(bg_music).lower() != "none":
