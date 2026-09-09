@@ -466,14 +466,15 @@ def upload_video_to_youtube_core(user_id: str, video_file: str, title: str, desc
                 pass
 
 def resolve_random_topic(topic: str = "", category: str = "Random") -> str:
-    """Dynamically resolves random topics from a large diverse pool if user selected Random Topic or empty topic."""
+    """Dynamically resolves random topics from a large diverse pool if user selected Random Topic, AI Auto Topic, or default topics."""
     import random
     topic_clean = (topic or "").strip()
     topic_low = topic_clean.lower()
 
     is_random_requested = (
         not topic_clean or
-        topic_low in ["random", "random topic", "default", "ai script", "generate script", "none"] or
+        topic_low in ["random", "random topic", "default", "ai script", "generate script", "none", "ai auto topic (daily dynamic)"] or
+        "ai auto topic" in topic_low or
         "space exploration" in topic_low or
         "history of ancient warriors" in topic_low or
         "ai innovations" in topic_low or
@@ -490,31 +491,42 @@ def resolve_random_topic(topic: str = "", category: str = "Random") -> str:
                 "Golu Ka Canteen Magic Samosa",
                 "Dhoolu aur Uski Bolne Wali Billi",
                 "Chatur Pandit Ka Magic Ladoo Test",
-                "Motu aur Chhotu Ka Jungle Adventure"
+                "Motu aur Chhotu Ka Jungle Adventure",
+                "Vicky Ka Time-Machine Bicycle",
+                "Super Naughty Chintu in School"
             ],
             "horror": [
                 "The Haunted House of Ghost Highway",
                 "The Unsolved Midnight Cry Mystery",
                 "Secret Horror Tale of Abandoned Fort",
-                "Dark Mirror Curse and Phantom Shadow"
+                "Dark Mirror Curse and Phantom Shadow",
+                "The Vanishing Train Passenger Mystery",
+                "Whispers from The Forgotten Graveyard"
             ],
             "tech": [
                 "How Future AI Robots Will Change 2030",
                 "Secret Flying Car Technology Miracles",
                 "Quantum Computer Secrets and AI Superpowers",
-                "Brain-Computer Chip Transplants in Humans"
+                "Brain-Computer Chip Transplants in Humans",
+                "Cybersecurity Battles of The Future Internet",
+                "How Autonomous AI Smart Cities Will Work"
             ],
             "history": [
                 "Unsolved Secrets of Great Pyramids",
                 "Lost Wealth of Ancient Emperor Empires",
                 "Mystery of The Lost City of Atlantis",
-                "War Tactics of Ancient Legendary Warriors"
+                "War Tactics of Ancient Legendary Warriors",
+                "The Untold Story of Maharana Pratap",
+                "The Secret Vaults of Padmanabhaswamy Temple",
+                "Rise and Fall of The Great Roman Empire"
             ],
             "science": [
                 "What If Earth Stopped Spinning for 5 Seconds?",
                 "Mysteries of Deep Sea Alien-like Monsters",
                 "Subconscious Mind Superpowers You Didn't Know",
-                "Secrets of Black Holes and Time Warp"
+                "Secrets of Black Holes and Time Warp",
+                "What If Humans Only Slept 1 Hour a Day?",
+                "Parallel Universes and Quantum Physics Mysteries"
             ],
             "general": [
                 "Top 5 Mind-Blowing Facts About Human Brain",
@@ -523,7 +535,10 @@ def resolve_random_topic(topic: str = "", category: str = "Random") -> str:
                 "The Great Million Dollar Bank Heist",
                 "Unsolved Cipher Case of 1920",
                 "Deep Sea Bioluminescent Creatures",
-                "Deadliest Animals of Amazon Jungle"
+                "Deadliest Animals of Amazon Jungle",
+                "Mind-Blowing Psychological Tricks That Work",
+                "Top 7 Secret Places People Are Forbidden To Visit",
+                "How The World's Richest Billionaires Built Empires"
             ]
         }
 
@@ -545,24 +560,29 @@ def resolve_random_topic(topic: str = "", category: str = "Random") -> str:
     return topic_clean
 
 def get_daily_unique_subtopic(base_topic: str, today_str: str, user_id: str, category: str = "Random") -> str:
-    """Generates a non-repetitive daily subtopic angle for automated auto reels."""
-    import random, hashlib
+    """Generates a 100% non-repetitive daily unique subtopic angle for automated auto reels."""
+    import random, hashlib, time
     topic = resolve_random_topic(base_topic, category)
-    if len(topic.split()) > 3:
-        return topic
+    
     sub_angles = [
-        "Unbelievable Secrets",
-        "Mystery and History",
-        "The Complete Story",
-        "Behind The Scenes",
-        "Top Facts and Mysteries",
+        "Unbelievable Secrets Revealed",
+        "Mystery and Shocking History",
+        "The Complete Untold Story",
+        "Behind The Scenes Truth",
+        "Top Facts and Deep Mysteries",
         "Unexpected Turn of Events",
-        "Shocking Truth Revealed",
-        "Amazing Adventure"
+        "Shocking Reality Exposed",
+        "Mind-Blowing Hidden Chronicles",
+        "Secrets Never Taught in School",
+        "The Dark Mystery Finally Uncovered"
     ]
-    seed = int(hashlib.md5(f"{today_str}_{user_id}_{topic}_{random.randint(100, 999)}".encode()).hexdigest(), 16)
+    
+    seed = int(hashlib.md5(f"{today_str}_{user_id}_{topic}_{time.time()}_{random.randint(1000, 9999)}".encode()).hexdigest(), 16)
     selected_angle = sub_angles[seed % len(sub_angles)]
-    return f"{topic}: {selected_angle}"
+    
+    if len(topic.split()) <= 4 or "ai auto topic" in topic.lower() or "random" in topic.lower():
+        return f"{topic} ({selected_angle})"
+    return topic
 
 from concurrent.futures import ThreadPoolExecutor
 import threading
