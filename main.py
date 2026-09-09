@@ -3341,27 +3341,50 @@ async def get_privacy_policy_page():
     <meta charset="utf-8">
     <title>Privacy Policy - Cloxel AI</title>
     <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; line-height: 1.6; color: #f8fafc; background: #0f172a; padding: 40px 20px; max-width: 800px; margin: 0 auto; }
-        h1, h2 { color: #c084fc; }
-        a { color: #a855f7; }
-        .card { background: #1e293b; padding: 30px; border-radius: 12px; border: 1px solid #334155; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; line-height: 1.6; color: #f8fafc; background: #0f172a; padding: 40px 20px; max-width: 850px; margin: 0 auto; }
+        h1, h2 { color: #c084fc; border-bottom: 1px solid #334155; padding-bottom: 8px; }
+        a { color: #a855f7; font-weight: bold; }
+        .card { background: #1e293b; padding: 35px; border-radius: 14px; border: 1px solid #334155; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        ul { padding-left: 20px; }
+        li { margin-bottom: 8px; }
     </style>
 </head>
 <body>
     <div class="card">
         <h1>Privacy Policy - Cloxel AI</h1>
-        <p>Effective Date: September 2026</p>
+        <p><strong>Effective Date:</strong> September 2026</p>
+        
         <h2>1. Information We Collect</h2>
-        <p>Cloxel AI collects user email, name, phone number, and OAuth tokens for YouTube account integration. Data is stored securely in encrypted databases.</p>
-        <h2>2. Use of YouTube API Services</h2>
-        <p>By using YouTube Integration, users agree to the <a href="https://www.youtube.com/t/terms" target="_blank">YouTube Terms of Service</a> and <a href="https://policies.google.com/privacy" target="_blank">Google Privacy Policy</a>. Cloxel AI uses YouTube API Services exclusively to upload user-generated short and long videos directly to the user's connected YouTube channel.</p>
-        <h2>3. Data Protection</h2>
-        <p>All sensitive tokens and user details are encrypted at rest using AES-256 field encryption. We do not sell or share user data with third parties.</p>
-        <h2>4. Contact Us</h2>
-        <p>For questions or data deletion requests, contact: <strong>support@cloxel.ai</strong></p>
+        <p>Cloxel AI collects user email address, name, phone number, and Google OAuth tokens for YouTube account integration. Sensitive personal information and OAuth tokens are encrypted at rest using AES-256 field encryption in our database.</p>
+        
+        <h2>2. Use of YouTube API Services & Scope Disclosures</h2>
+        <p>By using Cloxel AI's YouTube integration, users agree to be bound by the <a href="https://www.youtube.com/t/terms" target="_blank">YouTube Terms of Service</a> and the <a href="https://policies.google.com/privacy" target="_blank">Google Privacy Policy</a>.</p>
+        <p>Cloxel AI requests access to the following Google OAuth scope:</p>
+        <ul>
+            <li><code>https://www.googleapis.com/auth/youtube.upload</code>: Used exclusively to upload user-authorized AI-generated videos directly to the user's connected YouTube channel.</li>
+        </ul>
+
+        <h2>3. Google User Data Sharing, Transfer & Disclosure</h2>
+        <p><strong>We do NOT sell, share, transfer, or disclose Google user data</strong> (including YouTube OAuth tokens, profile information, or channel credentials) to any third parties, advertising networks, data brokers, or external entities under any circumstances. All Google user data is used solely internally to provide automated video rendering and publishing services requested by the user.</p>
+
+        <h2>4. Google User Data Retention & Deletion</h2>
+        <p><strong>Data Retention:</strong> Google OAuth tokens and associated credentials are retained only while your YouTube channel remains linked to Cloxel AI. We do not retain data longer than necessary for operational app functionality.</p>
+        <p><strong>Data Deletion & Unlinking:</strong> Users can revoke Cloxel AI's access and delete all stored tokens at any time through:</p>
+        <ul>
+            <li>Clicking <strong>"Unlink YouTube Channel"</strong> in the Cloxel AI Dashboard, which immediately purges all stored OAuth tokens from our database.</li>
+            <li>Revoking app access via <a href="https://security.google.com/settings/security/permissions" target="_blank">Google Security Permissions Settings</a>.</li>
+            <li>Emailing us directly at <a href="mailto:support@cloxel.ai">support@cloxel.ai</a> to request complete account and data erasure.</li>
+        </ul>
+
+        <h2>5. Data Security</h2>
+        <p>We employ industry-standard AES-256 field-level encryption, SHA-256 HMAC hashing, and HTTPS TLS 1.3 encryption to protect user data against unauthorized access, loss, or misuse.</p>
+
+        <h2>6. Contact Us</h2>
+        <p>If you have any questions regarding this Privacy Policy or your data, please contact our Data Protection Team at: <strong>support@cloxel.ai</strong></p>
     </div>
 </body>
 </html>"""
+    return Response(content=html_content, media_type="text/html")
     return Response(content=html_content, media_type="text/html")
 
 @app.get("/terms-of-service", response_class=Response)
