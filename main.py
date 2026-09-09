@@ -643,7 +643,8 @@ def process_single_user_schedule(user: dict, now_ist: datetime, today_str: str):
             staged_item = staged_map.get(kind, {})
 
             if mins_until <= 180 or diff_current <= 90:
-                if staged_item.get("date") != today_str or not staged_item.get("file") or not os.path.exists(staged_item.get("file", "")):
+                has_valid_staged = (staged_item.get("date") == today_str) and (bool(staged_item.get("cloudinary_url")) or (staged_item.get("file") and os.path.exists(staged_item.get("file", ""))))
+                if not has_valid_staged:
                     print(f"🚀 [PREDICTIVE AUTO-STAGING] Pre-rendering {kind.upper()} video ahead of time for user {internal_id} (Scheduled IST: {time_str}, Target in {mins_until} mins)...")
                     category = schedule.get(f"{kind}_category") or "Random"
                     raw_topic = schedule.get(f"{kind}_topic") or default_topic
@@ -695,7 +696,7 @@ def process_single_user_schedule(user: dict, now_ist: datetime, today_str: str):
                     {"$set": {f"auto_schedule.{last_run_key}": today_str}}
                 )
 
-                target_upload_src = staged_item.get("file") if (staged_item.get("file") and os.path.exists(staged_item.get("file", ""))) else staged_item.get("cloudinary_url")
+                target_upload_src = staged_item.get("cloudinary_url") or (staged_item.get("file") if (staged_item.get("file") and os.path.exists(staged_item.get("file", ""))) else None)
                 if staged_item.get("date") == today_str and target_upload_src:
                     upload_video_to_youtube_core(
                         user_id=internal_id,
