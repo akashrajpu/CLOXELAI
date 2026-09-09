@@ -792,8 +792,9 @@ def process_single_user_schedule(user: dict, now_ist: datetime, today_str: str):
         if schedule.get("long_enabled", True) and is_active and plan_type in ["long", "combo"]:
             run_staged_auto_pipeline("long", False, "AI Innovations", 60)
 
-        if schedule.get("ultra_enabled", False) and (has_ultra_sub or plan_type == "ultra"):
-            run_staged_auto_pipeline("ultra", False, "History of Ancient Warriors", 60)
+        if schedule.get("ultra_enabled", False) and (is_active or has_ultra_sub):
+            ultra_is_short = (schedule.get("ultra_aspect_ratio") == "9:16")
+            run_staged_auto_pipeline("ultra", ultra_is_short, "History of Ancient Warriors", 60)
 
     except Exception as e_user:
         print(f"❌ Worker error for user {internal_id}: {e_user}")
