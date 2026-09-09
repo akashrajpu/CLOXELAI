@@ -131,40 +131,6 @@ function YouTubeIntegration({ userId, hasActiveSubscription, onUpgradeClick, onS
     }
   };
 
-  const handleTestUpload = async () => {
-    setIsActionPending(true);
-    try {
-      const API_BASE = window.location.hostname === 'localhost' ? 'http://localhost:8000' : 'https://cloxelai.onrender.com';
-      const response = await fetch(`${API_BASE}/test-youtube-upload`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ internal_id: userId })
-      });
-      const data = await response.json();
-      if (response.ok && data.youtube_url) {
-        if (triggerAlert) {
-          triggerAlert("🎉 YouTube Demo Upload Successful!", `Video uploaded live to your channel!\n\nYouTube URL: ${data.youtube_url}`, "🎉", "success");
-        } else {
-          alert(`Demo Video uploaded to YouTube: ${data.youtube_url}`);
-        }
-      } else {
-        if (triggerAlert) {
-          triggerAlert("Upload Test Error", data.detail || "Failed to upload demo video.", "⚠️", "danger");
-        } else {
-          alert(data.detail || "Upload test failed.");
-        }
-      }
-    } catch (err) {
-      if (triggerAlert) {
-        triggerAlert("Error", "Error triggering test upload to YouTube.", "⚠️", "danger");
-      } else {
-        alert("Error triggering test upload");
-      }
-    } finally {
-      setIsActionPending(false);
-    }
-  };
-
   if (isLoading) return <div className="yt-card" style={{ padding: compact ? '10px' : '20px', fontSize: '0.85rem' }}>Checking YouTube connection...</div>;
 
   if (compact) {
@@ -194,14 +160,6 @@ function YouTubeIntegration({ userId, hasActiveSubscription, onUpgradeClick, onS
                 {isActionPending ? '⏳ Unlinking...' : 'Unlink'}
               </button>
             </div>
-            <button
-              type="button"
-              onClick={handleTestUpload}
-              disabled={isActionPending}
-              style={{ width: '100%', marginTop: '8px', padding: '6px', fontSize: '0.75rem', fontWeight: 'bold', background: 'linear-gradient(135deg, #059669 0%, #10b981 100%)', color: '#ffffff', border: 'none', borderRadius: '8px', cursor: isActionPending ? 'not-allowed' : 'pointer', opacity: isActionPending ? 0.6 : 1 }}
-            >
-              {isActionPending ? '⏳ Uploading Demo to YouTube...' : '⚡ Instant Demo Upload Test (For Video)'}
-            </button>
           </>
         ) : (
           <button 
