@@ -1877,6 +1877,38 @@ function App() {
                 <div><span style={{ color: '#94a3b8' }}>Total Stacked Plan Remaining:</span> <strong style={{ color: '#38bdf8' }}>{autoSchedule.remaining_plan_videos} / {autoSchedule.total_plan_allowance || (subStatus.plan_type === 'combo' ? 60 : 30)} Videos Left</strong></div>
               </div>
 
+              {/* LIVE ENGINES STATUS DASHBOARD */}
+              <div style={{ background: 'rgba(15, 23, 42, 0.6)', border: '1px solid rgba(148, 163, 184, 0.2)', borderRadius: '14px', padding: '16px', marginBottom: '20px' }}>
+                <h4 style={{ color: '#f8fafc', fontSize: '0.92rem', fontWeight: '800', margin: '0 0 12px 0', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  ⚡ Live Automation Engines Status Breakdown
+                </h4>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '10px' }}>
+                  {/* 1. Shorts Engine */}
+                  <div style={{ background: (isAutoScheduleActive && (subStatus.plan_type === 'short' || subStatus.plan_type === 'combo')) ? 'rgba(34, 197, 94, 0.1)' : 'rgba(239, 68, 68, 0.08)', border: (isAutoScheduleActive && (subStatus.plan_type === 'short' || subStatus.plan_type === 'combo')) ? '1px solid rgba(34, 197, 94, 0.3)' : '1px solid rgba(239, 68, 68, 0.2)', borderRadius: '10px', padding: '10px 12px' }}>
+                    <div style={{ fontSize: '0.8rem', fontWeight: 'bold', color: '#cbd5e1', marginBottom: '4px' }}>📱 9:16 Short Reels Engine</div>
+                    <div style={{ fontSize: '0.78rem', fontWeight: '800', color: (isAutoScheduleActive && (subStatus.plan_type === 'short' || subStatus.plan_type === 'combo')) ? '#4ade80' : '#f87171' }}>
+                      {(isAutoScheduleActive && (subStatus.plan_type === 'short' || subStatus.plan_type === 'combo')) ? `🟢 RUNNING (Daily @ ${autoSchedule.short_time || '10:00 AM'})` : '🔴 INACTIVE'}
+                    </div>
+                  </div>
+
+                  {/* 2. Long Engine */}
+                  <div style={{ background: (isAutoScheduleActive && (subStatus.plan_type === 'long' || subStatus.plan_type === 'combo')) ? 'rgba(34, 197, 94, 0.1)' : 'rgba(239, 68, 68, 0.08)', border: (isAutoScheduleActive && (subStatus.plan_type === 'long' || subStatus.plan_type === 'combo')) ? '1px solid rgba(34, 197, 94, 0.3)' : '1px solid rgba(239, 68, 68, 0.2)', borderRadius: '10px', padding: '10px 12px' }}>
+                    <div style={{ fontSize: '0.8rem', fontWeight: 'bold', color: '#cbd5e1', marginBottom: '4px' }}>📽️ 16:9 Long Video Engine</div>
+                    <div style={{ fontSize: '0.78rem', fontWeight: '800', color: (isAutoScheduleActive && (subStatus.plan_type === 'long' || subStatus.plan_type === 'combo')) ? '#4ade80' : '#f87171' }}>
+                      {(isAutoScheduleActive && (subStatus.plan_type === 'long' || subStatus.plan_type === 'combo')) ? `🟢 RUNNING (Daily @ ${autoSchedule.long_time || '06:00 PM'})` : '🔴 INACTIVE'}
+                    </div>
+                  </div>
+
+                  {/* 3. Ultra Engine */}
+                  <div style={{ background: (isAutoScheduleActive && autoSchedule.ultra_enabled) ? 'rgba(236, 72, 153, 0.15)' : 'rgba(239, 68, 68, 0.08)', border: (isAutoScheduleActive && autoSchedule.ultra_enabled) ? '1px solid rgba(236, 72, 153, 0.4)' : '1px solid rgba(239, 68, 68, 0.2)', borderRadius: '10px', padding: '10px 12px' }}>
+                    <div style={{ fontSize: '0.8rem', fontWeight: 'bold', color: '#cbd5e1', marginBottom: '4px' }}>🎬 Ultra 3D Motion Engine</div>
+                    <div style={{ fontSize: '0.78rem', fontWeight: '800', color: (isAutoScheduleActive && autoSchedule.ultra_enabled) ? '#f472b6' : '#f87171' }}>
+                      {(isAutoScheduleActive && autoSchedule.ultra_enabled) ? `🟢 RUNNING (Daily @ ${autoSchedule.ultra_time || '09:00 PM'} - 1/Mo)` : (autoSchedule.ultra_enabled ? '🟡 ENABLED (Main Switch Off)' : '🔴 TOGGLED OFF')}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
               {/* Auto Schedule Switch */}
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px', background: 'rgba(255,255,255,0.03)', padding: '12px 16px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.08)' }}>
                 <input 
@@ -2067,8 +2099,8 @@ function App() {
                 </div>
               )}
 
-              {/* 3. ULTRA CINEMATIC 3D MOTION SCHEDULE PROFILE (If Ultra Active) */}
-              {(subStatus.has_active_ultra_subscription || subStatus.plan_type === 'ultra') && (
+              {/* 3. ULTRA CINEMATIC 3D MOTION SCHEDULE PROFILE (If Ultra Active or Enabled) */}
+              {(subStatus.has_active_ultra_subscription || subStatus.plan_type === 'ultra' || subStatus.plan_type === 'combo' || autoSchedule.ultra_enabled) && (
                 <div style={{ background: 'rgba(236,72,153,0.08)', padding: '18px', borderRadius: '14px', border: '1px solid rgba(236,72,153,0.3)', marginBottom: '20px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
                     <h4 style={{ color: '#f472b6', margin: 0, fontSize: '1rem', display: 'flex', alignItems: 'center', gap: '8px' }}>

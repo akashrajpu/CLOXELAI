@@ -1849,6 +1849,18 @@ async def get_auto_schedule(internal_id: str):
         "long_time": schedule.get("long_time", "18:00"),
         "long_language": schedule.get("long_language", "hi"),
 
+        "ultra_enabled": schedule.get("ultra_enabled", False),
+        "ultra_auto_topic": schedule.get("ultra_auto_topic", True),
+        "ultra_topic": schedule.get("ultra_topic", "History of Ancient Warriors"),
+        "ultra_category": schedule.get("ultra_category", "Random"),
+        "ultra_aspect_ratio": schedule.get("ultra_aspect_ratio", "16:9"),
+        "ultra_voice": schedule.get("ultra_voice", "hi-IN-MadhurNeural"),
+        "ultra_font": schedule.get("ultra_font", "Arial.ttf"),
+        "ultra_color": schedule.get("ultra_color", "yellow"),
+        "ultra_duration": schedule.get("ultra_duration", 60),
+        "ultra_time": schedule.get("ultra_time", "21:00"),
+        "ultra_language": schedule.get("ultra_language", "hi"),
+
         "total_videos_created": used_videos,
         "remaining_plan_videos": remaining,
         "total_plan_allowance": total_allowance,
