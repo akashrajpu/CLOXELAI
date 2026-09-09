@@ -654,18 +654,17 @@ def process_single_user_schedule(user: dict, now_ist: datetime, today_str: str):
                     aspect_ratio = schedule.get(f"{kind}_aspect_ratio") or ("16:9" if kind in ["long", "ultra"] else "9:16")
                     duration = int(schedule.get(f"{kind}_duration") or default_dur)
 
-                    with render_queue_lock:
-                        res = render_video_with_smart_fallback(
-                            user_id=internal_id,
-                            topic=topic,
-                            category=category,
-                            voice_id=voice,
-                            font_name=font,
-                            font_color=color,
-                            video_type=kind,
-                            requested_duration=duration,
-                            aspect_ratio=aspect_ratio
-                        )
+                    res = render_video_with_smart_fallback(
+                        user_id=internal_id,
+                        topic=topic,
+                        category=category,
+                        voice_id=voice,
+                        font_name=font,
+                        font_color=color,
+                        video_type=kind,
+                        requested_duration=duration,
+                        aspect_ratio=aspect_ratio
+                    )
 
                     if res.get("status") == "completed":
                         video_file = res.get("file")
@@ -715,18 +714,17 @@ def process_single_user_schedule(user: dict, now_ist: datetime, today_str: str):
                     aspect_ratio = schedule.get(f"{kind}_aspect_ratio") or ("16:9" if kind in ["long", "ultra"] else "9:16")
                     duration = int(schedule.get(f"{kind}_duration") or default_dur)
 
-                    with render_queue_lock:
-                        res = render_video_with_smart_fallback(
-                            user_id=internal_id,
-                            topic=topic,
-                            category=category,
-                            voice_id=voice,
-                            font_name=font,
-                            font_color=color,
-                            video_type=kind,
-                            requested_duration=duration,
-                            aspect_ratio=aspect_ratio
-                        )
+                    res = render_video_with_smart_fallback(
+                        user_id=internal_id,
+                        topic=topic,
+                        category=category,
+                        voice_id=voice,
+                        font_name=font,
+                        font_color=color,
+                        video_type=kind,
+                        requested_duration=duration,
+                        aspect_ratio=aspect_ratio
+                    )
                     if res.get("status") == "completed":
                         video_file = res.get("file")
                         script_text = res.get("script", "")
@@ -1156,8 +1154,7 @@ def full_process(req: VideoRequest, job_id: str):
             output_file = f"acoumation_video_{job_id}.mp4"
             target_size = (1280, 720) if (req.video_type in ["long", "ultra"]) else (720, 1280)
             adjusted_font_size = int(req.font_size * 0.7) if (req.video_type in ["long", "ultra"]) else req.font_size
-            with render_queue_lock:
-                merge_and_export(taiyaar_scenes, output_file, font_path=f"./fonts/{req.font_name}", color=req.font_color, font_size=adjusted_font_size, target_size=target_size, bg_music=req.bg_music, mode=req.video_type, category=req.category or "Random") 
+            merge_and_export(taiyaar_scenes, output_file, font_path=f"./fonts/{req.font_name}", color=req.font_color, font_size=adjusted_font_size, target_size=target_size, bg_music=req.bg_music, mode=req.video_type, category=req.category or "Random") 
             
             print(f"\n☁️ [PROGRESS 90%] STEP 6/6: Uploading Completed Video to Cloudinary CDN...")
             cloudinary_url = None
