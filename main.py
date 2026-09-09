@@ -3020,6 +3020,53 @@ async def unlink_youtube(req: UnlinkRequest):
     
     return {"message": "YouTube account unlinked successfully. Auto-publishing stopped and all schedule settings reset."}
 
+class TestUploadRequest(BaseModel):
+    internal_id: str
+
+@app.post("/test-youtube-upload")
+async def test_youtube_upload(req: TestUploadRequest):
+    if users_collection is None:
+        raise HTTPException(status_code=500, detail="Database not configured")
+        
+    user = users_collection.find_one({"internal_id": req.internal_id})
+    if not user or "youtube_credentials" not in user:
+        raise HTTPException(status_code=400, detail="No YouTube channel linked! Please link YouTube channel first.")
+
+    latest_vid = videos_collection.find_one({"internal_id": req.internal_id}, sort=[("created_at", -1)]) if videos_collection is not None else None
+    
+    if latest_vid and (latest_vid.get("cloudinary_url") or latest_vid.get("file")):
+        video_src = latest_vid.get("cloudinary_url") or latest_vid.get("file")
+        title = latest_vid.get("topic") or latest_vid.get("title") or "Cloxel AI Test Video"
+        script = latest_vid.get("description") or "AI generated video upload test"
+    else:
+        res = render_video_with_smart_fallback(
+            user_id=req.internal_id,
+            topic="Space Discoveries and Future AI",
+            category="Technology",
+            voice_id="hi-IN-MadhurNeural",
+            font_name="Arial.ttf",
+            font_color="yellow",
+            video_type="short",
+            requested_duration=20
+        )
+        if res.get("status") != "completed":
+            raise HTTPException(status_code=500, detail="Failed to prepare demo test video")
+        video_src = res.get("cloudinary_url") or res.get("file")
+        title = "Space Discoveries and Future AI"
+        script = res.get("script", "Space exploration brings incredible technology")
+
+    yt_url = upload_video_to_youtube_core(
+        user_id=req.internal_id,
+        video_file=video_src,
+        title=title,
+        description=script,
+        is_short=True
+    )
+    if yt_url:
+        return {"status": "success", "youtube_url": yt_url, "message": f"Demo Video uploaded to YouTube: {yt_url}"}
+    else:
+        raise HTTPException(status_code=500, detail="YouTube upload failed. Check channel authorization.")
+
 
 class AIScriptRequest(BaseModel):
     topic: str
