@@ -669,8 +669,13 @@ def process_single_user_schedule(user: dict, now_ist: datetime, today_str: str):
             time_str = schedule.get(f"{kind}_time", "10:00" if kind == "short" else ("18:00" if kind == "long" else "21:00"))
             last_run_key = f"last_{kind}_run"
 
+            # GUARD 1: If already published today, STOP!
             if schedule.get(last_run_key) == today_str:
                 return # Already published today
+
+            upload_lock_check = user.get("auto_locks", {}).get(f"upload_{kind}", {})
+            if upload_lock_check.get("date") == today_str:
+                return # Upload lock already held for today
 
             target_minutes = parse_time_to_minutes(time_str) or (600 if kind == "short" else (1080 if kind == "long" else 1260))
             mins_until = (target_minutes - current_ist_minutes) % 1440
@@ -679,8 +684,8 @@ def process_single_user_schedule(user: dict, now_ist: datetime, today_str: str):
             staged_map = user.get("staged_auto_videos", {})
             staged_item = staged_map.get(kind, {})
 
-            # STAGE 1: PREDICTIVE AUTO-STAGING LOCK (Pre-rendering ahead of time)
-            if mins_until <= 180 or diff_current <= 90:
+            # STAGE 1: PREDICTIVE AUTO-STAGING LOCK (Pre-rendering ahead of time - ONLY if target is 25+ mins away)
+            if 25 < mins_until <= 180:
                 has_valid_staged = (staged_item.get("date") == today_str) and (bool(staged_item.get("cloudinary_url")) or (staged_item.get("file") and os.path.exists(staged_item.get("file", ""))))
                 if not has_valid_staged:
                     lock_field = f"auto_locks.staging_{kind}"
@@ -757,7 +762,7 @@ def process_single_user_schedule(user: dict, now_ist: datetime, today_str: str):
                                 {"$unset": {lock_field: ""}}
                             )
 
-            # STAGE 2: INSTANT BATCH UPLOAD LOCK (Publishing to YouTube)
+            # STAGE 2: INSTANT BATCH UPLOAD LOCK (Publishing to YouTube at target time)
             if diff_current <= 25 or mins_until >= 1420:
                 upload_lock_field = f"auto_locks.upload_{kind}"
                 node_name = os.getenv("RENDER_SERVICE_NAME", "cluster_node")
@@ -786,13 +791,17 @@ def process_single_user_schedule(user: dict, now_ist: datetime, today_str: str):
 
                 print(f"💥 [INSTANT BATCH UPLOAD - Node: {node_name}] Publishing {kind.upper()} video for user {internal_id} to YouTube (Scheduled IST: {time_str})...")
 
-                target_upload_src = staged_item.get("cloudinary_url") or (staged_item.get("file") if (staged_item.get("file") and os.path.exists(staged_item.get("file", ""))) else None)
-                if staged_item.get("date") == today_str and target_upload_src:
+                # RE-CHECK fresh staged item from DB so we reuse pre-rendered video
+                fresh_user = users_collection.find_one({"internal_id": internal_id}) or {}
+                fresh_staged = fresh_user.get("staged_auto_videos", {}).get(kind, {})
+
+                target_upload_src = fresh_staged.get("cloudinary_url") or (fresh_staged.get("file") if (fresh_staged.get("file") and os.path.exists(fresh_staged.get("file", ""))) else None)
+                if fresh_staged.get("date") == today_str and target_upload_src:
                     upload_video_to_youtube_core(
                         user_id=internal_id,
                         video_file=target_upload_src,
-                        title=staged_item.get("title"),
-                        description=staged_item.get("script"),
+                        title=fresh_staged.get("title"),
+                        description=fresh_staged.get("script"),
                         is_short=is_short_flag
                     )
                 else:
@@ -829,7 +838,7 @@ def process_single_user_schedule(user: dict, now_ist: datetime, today_str: str):
                             is_short=is_short_flag
                         )
 
-                auto_usage = user.get("auto_daily_usage", {})
+                auto_usage = fresh_user.get("auto_daily_usage", {})
                 if auto_usage.get("date") != today_str:
                     auto_usage = {"date": today_str, "auto_short_count": 0, "auto_long_count": 0, "auto_ultra_count": 0}
                 auto_usage[f"auto_{kind}_count"] = auto_usage.get(f"auto_{kind}_count", 0) + 1
