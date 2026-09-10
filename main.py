@@ -684,18 +684,24 @@ def process_single_user_schedule(user: dict, now_ist: datetime, today_str: str):
             staged_map = user.get("staged_auto_videos", {})
             staged_item = staged_map.get(kind, {})
 
-            # STAGE 1: PREDICTIVE AUTO-STAGING LOCK (Pre-rendering ahead of time - ONLY if target is 25+ mins away)
-            if 25 < mins_until <= 180:
+            # STAGE 1: PREDICTIVE AUTO-STAGING LOCK (Pre-rendering ahead of time - prioritized by earliest target)
+            if 25 < mins_until <= 360:
                 has_valid_staged = (staged_item.get("date") == today_str) and (bool(staged_item.get("cloudinary_url")) or (staged_item.get("file") and os.path.exists(staged_item.get("file", ""))))
                 if not has_valid_staged:
                     lock_field = f"auto_locks.staging_{kind}"
                     node_name = os.getenv("RENDER_SERVICE_NAME", "cluster_node")
+                    twenty_mins_ago = (datetime.utcnow() - timedelta(minutes=20)).isoformat()
                     
                     claim_result = users_collection.find_one_and_update(
                         {
                             "internal_id": internal_id,
-                            f"{lock_field}.date": {"$ne": today_str},
-                            f"staged_auto_videos.{kind}.date": {"$ne": today_str}
+                            "$or": [
+                                {f"{lock_field}.date": {"$ne": today_str}},
+                                {
+                                    f"staged_auto_videos.{kind}.date": {"$ne": today_str},
+                                    f"{lock_field}.claimed_at": {"$lt": twenty_mins_ago}
+                                }
+                            ]
                         },
                         {
                             "$set": {
@@ -865,7 +871,7 @@ def process_single_user_schedule(user: dict, now_ist: datetime, today_str: str):
 def check_and_run_auto_schedules():
     """
     Crash-Proof Predictive Pre-Rendering & Multi-Thread Worker Scheduler Engine (200+ User Scale).
-    Scans schedules and dispatches rendering jobs to ThreadPoolExecutor pool.
+    Scans schedules and dispatches rendering jobs to ThreadPoolExecutor pool sorted by earliest target IST.
     """
     if users_collection is None:
         return
@@ -873,6 +879,7 @@ def check_and_run_auto_schedules():
     now_utc = datetime.utcnow()
     now_ist = now_utc + timedelta(hours=5, minutes=30)
     today_str = now_ist.strftime("%Y-%m-%d")
+    current_ist_minutes = now_ist.hour * 60 + now_ist.minute
 
     try:
         projection = {
@@ -888,8 +895,23 @@ def check_and_run_auto_schedules():
             "auto_schedule.schedule_enabled": True,
             "youtube_credentials": {"$exists": True, "$ne": None}
         }, projection))
+
         if users:
-            print(f"⏰ [AUTO SCHEDULER TICK] Scanned {len(users)} active user schedule(s) at {now_ist.strftime('%H:%M:%S')} IST")
+            def calculate_user_priority(user_doc):
+                sched = user_doc.get("auto_schedule", {})
+                min_until_next = 9999
+                for k in ["short", "long", "ultra"]:
+                    if sched.get(f"{k}_enabled", True if k == "short" else False):
+                        t_str = sched.get(f"{k}_time", "10:00" if k == "short" else ("18:00" if k == "long" else "21:00"))
+                        t_min = parse_time_to_minutes(t_str) or 600
+                        diff = (t_min - current_ist_minutes) % 1440
+                        if diff < min_until_next:
+                            min_until_next = diff
+                return min_until_next
+
+            users.sort(key=calculate_user_priority)
+            print(f"⏰ [AUTO SCHEDULER TICK] Scanned & priority-queued {len(users)} active user schedule(s) at {now_ist.strftime('%H:%M:%S')} IST")
+
         for user in users:
             auto_worker_executor.submit(process_single_user_schedule, user, now_ist, today_str)
     except Exception as e:
