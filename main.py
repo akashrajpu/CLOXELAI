@@ -679,59 +679,112 @@ def process_single_user_schedule(user: dict, now_ist: datetime, today_str: str):
             staged_map = user.get("staged_auto_videos", {})
             staged_item = staged_map.get(kind, {})
 
+            # STAGE 1: PREDICTIVE AUTO-STAGING LOCK (Pre-rendering ahead of time)
             if mins_until <= 180 or diff_current <= 90:
                 has_valid_staged = (staged_item.get("date") == today_str) and (bool(staged_item.get("cloudinary_url")) or (staged_item.get("file") and os.path.exists(staged_item.get("file", ""))))
                 if not has_valid_staged:
-                    print(f"🚀 [PREDICTIVE AUTO-STAGING] Pre-rendering {kind.upper()} video ahead of time for user {internal_id} (Scheduled IST: {time_str}, Target in {mins_until} mins)...")
-                    category = schedule.get(f"{kind}_category") or "Random"
-                    raw_topic = schedule.get(f"{kind}_topic") or default_topic
-                    topic = get_daily_unique_subtopic(raw_topic, today_str, internal_id, category)
-                    voice = schedule.get(f"{kind}_voice") or "hi-IN-MadhurNeural"
-                    font = schedule.get(f"{kind}_font") or "Arial.ttf"
-                    color = schedule.get(f"{kind}_color") or "yellow"
-                    aspect_ratio = schedule.get(f"{kind}_aspect_ratio") or ("16:9" if kind in ["long", "ultra"] else "9:16")
-                    duration = int(schedule.get(f"{kind}_duration") or default_dur)
-
-                    res = render_video_with_smart_fallback(
-                        user_id=internal_id,
-                        topic=topic,
-                        category=category,
-                        voice_id=voice,
-                        font_name=font,
-                        font_color=color,
-                        video_type=kind,
-                        requested_duration=duration,
-                        aspect_ratio=aspect_ratio
-                    )
-
-                    if res.get("status") == "completed":
-                        video_file = res.get("file")
-                        script_text = res.get("script", "")
-                        if is_short_flag:
-                            script_text = " ".join(script_text.split()[:120])
-
-                        staged_data = {
-                            "file": video_file,
-                            "cloudinary_url": res.get("cloudinary_url"),
-                            "title": topic,
-                            "script": script_text,
-                            "date": today_str,
-                            "staged_at": datetime.utcnow().isoformat()
+                    lock_field = f"auto_locks.staging_{kind}"
+                    node_name = os.getenv("RENDER_SERVICE_NAME", "cluster_node")
+                    
+                    claim_result = users_collection.find_one_and_update(
+                        {
+                            "internal_id": internal_id,
+                            f"{lock_field}.date": {"$ne": today_str},
+                            f"staged_auto_videos.{kind}.date": {"$ne": today_str}
+                        },
+                        {
+                            "$set": {
+                                lock_field: {
+                                    "date": today_str,
+                                    "claimed_at": datetime.utcnow().isoformat(),
+                                    "node": node_name
+                                }
+                            }
                         }
-                        staged_map[kind] = staged_data
-                        users_collection.update_one(
-                            {"internal_id": internal_id},
-                            {"$set": {f"staged_auto_videos.{kind}": staged_data}}
-                        )
-                        print(f"✅ [PREDICTIVE STAGING COMPLETE] {kind.upper()} video pre-rendered & saved to Cloudinary for user {internal_id}. Waiting for {time_str} IST to publish!")
-                        staged_item = staged_data
+                    )
+                    
+                    if claim_result is None:
+                        # Peer server node already claimed or finished staging today! Skip duplicate render.
+                        pass
+                    else:
+                        print(f"🚀 [PREDICTIVE AUTO-STAGING - Node: {node_name}] Pre-rendering {kind.upper()} video for user {internal_id} (Scheduled IST: {time_str}, Target in {mins_until} mins)...")
+                        category = schedule.get(f"{kind}_category") or "Random"
+                        raw_topic = schedule.get(f"{kind}_topic") or default_topic
+                        topic = get_daily_unique_subtopic(raw_topic, today_str, internal_id, category)
+                        voice = schedule.get(f"{kind}_voice") or "hi-IN-MadhurNeural"
+                        font = schedule.get(f"{kind}_font") or "Arial.ttf"
+                        color = schedule.get(f"{kind}_color") or "yellow"
+                        aspect_ratio = schedule.get(f"{kind}_aspect_ratio") or ("16:9" if kind in ["long", "ultra"] else "9:16")
+                        duration = int(schedule.get(f"{kind}_duration") or default_dur)
 
+                        res = render_video_with_smart_fallback(
+                            user_id=internal_id,
+                            topic=topic,
+                            category=category,
+                            voice_id=voice,
+                            font_name=font,
+                            font_color=color,
+                            video_type=kind,
+                            requested_duration=duration,
+                            aspect_ratio=aspect_ratio
+                        )
+
+                        if res.get("status") == "completed":
+                            video_file = res.get("file")
+                            script_text = res.get("script", "")
+                            if is_short_flag:
+                                script_text = " ".join(script_text.split()[:120])
+
+                            staged_data = {
+                                "file": video_file,
+                                "cloudinary_url": res.get("cloudinary_url"),
+                                "title": topic,
+                                "script": script_text,
+                                "date": today_str,
+                                "staged_at": datetime.utcnow().isoformat()
+                            }
+                            staged_map[kind] = staged_data
+                            users_collection.update_one(
+                                {"internal_id": internal_id},
+                                {"$set": {f"staged_auto_videos.{kind}": staged_data}}
+                            )
+                            print(f"✅ [PREDICTIVE STAGING COMPLETE - Node: {node_name}] {kind.upper()} video pre-rendered & saved to Cloudinary for user {internal_id}. Waiting for {time_str} IST to publish!")
+                            staged_item = staged_data
+                        else:
+                            # If rendering failed, clear lock so retry engine or peer node can attempt
+                            users_collection.update_one(
+                                {"internal_id": internal_id},
+                                {"$unset": {lock_field: ""}}
+                            )
+
+            # STAGE 2: INSTANT BATCH UPLOAD LOCK (Publishing to YouTube)
             if diff_current <= 25 or mins_until >= 1420:
-                print(f"💥 [INSTANT BATCH UPLOAD] Publishing {kind.upper()} video for user {internal_id} to YouTube (Scheduled IST: {time_str})...")
-                users_collection.update_one(
-                    {"internal_id": internal_id},
-                    {"$set": {f"auto_schedule.{last_run_key}": today_str}}
+                upload_lock_field = f"auto_locks.upload_{kind}"
+                node_name = os.getenv("RENDER_SERVICE_NAME", "cluster_node")
+
+                claim_upload = users_collection.find_one_and_update(
+                    {
+                        "internal_id": internal_id,
+                        f"auto_schedule.{last_run_key}": {"$ne": today_str},
+                        f"{upload_lock_field}.date": {"$ne": today_str}
+                    },
+                    {
+                        "$set": {
+                            f"auto_schedule.{last_run_key}": today_str,
+                            upload_lock_field: {
+                                "date": today_str,
+                                "claimed_at": datetime.utcnow().isoformat(),
+                                "node": node_name
+                            }
+                        }
+                    }
                 )
+
+                if claim_upload is None:
+                    # Peer server node already claimed or published today! Skip duplicate upload.
+                    return
+
+                print(f"💥 [INSTANT BATCH UPLOAD - Node: {node_name}] Publishing {kind.upper()} video for user {internal_id} to YouTube (Scheduled IST: {time_str})...")
 
                 target_upload_src = staged_item.get("cloudinary_url") or (staged_item.get("file") if (staged_item.get("file") and os.path.exists(staged_item.get("file", ""))) else None)
                 if staged_item.get("date") == today_str and target_upload_src:
