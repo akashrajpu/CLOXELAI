@@ -1490,7 +1490,7 @@ function App() {
                 </div>
 
                 <div style={{ textAlign: 'left', flex: 1, overflow: 'hidden' }}>
-                  <h4 style={{ margin: '0 0 2px 0', fontSize: '1.05rem', color: '#ffffff', fontWeight: '800', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  <h4 className="sidebar-profile-name" style={{ margin: '0 0 2px 0', fontSize: '1.05rem', fontWeight: '800', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                     {subStatus?.name || 'Account Active'}
                   </h4>
                   <div style={{ fontSize: '0.78rem', color: subStatus?.has_active_subscription ? '#34d399' : '#c084fc', fontWeight: 'bold' }}>

@@ -782,16 +782,16 @@ body.theme-pastel .history-card-topic {
   width: 340px;
   max-width: 85vw;
   height: 100%;
-  background: rgba(255, 255, 255, 0.94);
+  background: rgba(19, 13, 42, 0.96);
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
-  border-right: 1.5px solid rgba(255, 255, 255, 0.95);
+  border-right: 1px solid rgba(168, 85, 247, 0.35);
   display: flex;
   flex-direction: column;
   padding: 24px;
-  box-shadow: 10px 0 40px rgba(168, 85, 247, 0.2);
+  box-shadow: 10px 0 40px rgba(0, 0, 0, 0.7);
   animation: slideIn 0.3s ease-out;
-  color: #1e1b4b;
+  color: #f8fafc;
 }
 
 @keyframes slideIn {
@@ -803,7 +803,7 @@ body.theme-pastel .history-card-topic {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  border-bottom: 1px solid rgba(192, 132, 252, 0.3);
+  border-bottom: 1px solid rgba(168, 85, 247, 0.3);
   padding-bottom: 15px;
   margin-bottom: 20px;
 }
@@ -811,33 +811,34 @@ body.theme-pastel .history-card-topic {
 .sidebar-header h3 {
   margin: 0;
   font-size: 1.2rem;
-  color: #3b0764;
+  color: #ffffff;
   font-weight: 800;
 }
 
 .sidebar-close-btn {
   background: none;
   border: none;
-  color: #6b21a8;
+  color: #c084fc;
   font-size: 1.8rem;
   cursor: pointer;
   line-height: 1;
 }
 
 .sidebar-close-btn:hover {
-  color: #a855f7;
+  color: #ffffff;
 }
 
 .sidebar-profile {
   display: flex;
   align-items: center;
   gap: 12px;
-  background: rgba(255, 255, 255, 0.9);
+  background: rgba(255, 255, 255, 0.05);
   padding: 14px 18px;
   border-radius: 18px;
   margin-bottom: 20px;
-  border: 1.5px solid rgba(192, 132, 252, 0.4);
-  box-shadow: 0 4px 15px rgba(168, 85, 247, 0.08);
+  border: 1px solid rgba(168, 85, 247, 0.35);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+  color: #ffffff;
 }
 
 .profile-avatar {
@@ -853,13 +854,13 @@ body.theme-pastel .history-card-topic {
   margin: 0;
   font-weight: 800;
   font-size: 0.95rem;
-  color: #7e22ce;
+  color: #c084fc;
 }
 
 .profile-id {
   margin: 2px 0 0 0;
   font-size: 0.75rem;
-  color: #6b21a8;
+  color: #94a3b8;
   font-weight: 600;
 }
 
@@ -873,12 +874,12 @@ body.theme-pastel .history-card-topic {
 .sidebar-history-section h4 {
   margin: 0 0 12px 0;
   font-size: 1rem;
-  color: #3b0764;
+  color: #ffffff;
   font-weight: 800;
 }
 
 .no-history-msg {
-  color: #6b21a8;
+  color: #c084fc;
   font-size: 0.85rem;
   font-style: italic;
 }
@@ -893,28 +894,29 @@ body.theme-pastel .history-card-topic {
 }
 
 .sidebar-history-card {
-  background: rgba(255, 255, 255, 0.92);
-  border: 1.5px solid rgba(192, 132, 252, 0.35);
+  background: rgba(15, 23, 42, 0.75);
+  border: 1px solid rgba(168, 85, 247, 0.3);
   padding: 12px 14px;
   border-radius: 16px;
   display: flex;
   flex-direction: column;
   gap: 4px;
-  box-shadow: 0 4px 12px rgba(168, 85, 247, 0.06);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
   transition: all 0.2s ease;
+  color: #f8fafc;
 }
 
 .sidebar-history-card:hover {
-  border-color: #a855f7;
+  border-color: #c084fc;
   transform: translateY(-1px);
-  box-shadow: 0 6px 16px rgba(168, 85, 247, 0.14);
+  box-shadow: 0 6px 16px rgba(168, 85, 247, 0.25);
 }
 
 .history-card-topic {
   margin: 0;
   font-weight: 700;
   font-size: 0.85rem;
-  color: #1e1b4b;
+  color: #f8fafc;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
