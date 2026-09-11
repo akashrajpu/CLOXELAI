@@ -673,9 +673,10 @@ def process_single_user_schedule(user: dict, now_ist: datetime, today_str: str):
             if schedule.get(last_run_key) == today_str:
                 return # Already published today
 
+            fifteen_mins_ago = (datetime.utcnow() - timedelta(minutes=15)).isoformat()
             upload_lock_check = user.get("auto_locks", {}).get(f"upload_{kind}", {})
-            if upload_lock_check.get("date") == today_str:
-                return # Upload lock already held for today
+            if upload_lock_check.get("date") == today_str and upload_lock_check.get("status") == "success":
+                return # Upload already confirmed successful today
 
             target_minutes = parse_time_to_minutes(time_str) or (600 if kind == "short" else (1080 if kind == "long" else 1260))
             mins_until = (target_minutes - current_ist_minutes) % 1440
@@ -773,17 +774,24 @@ def process_single_user_schedule(user: dict, now_ist: datetime, today_str: str):
                 upload_lock_field = f"auto_locks.upload_{kind}"
                 node_name = os.getenv("RENDER_SERVICE_NAME", "cluster_node")
 
+                # Claim upload lock with in_progress status (re-claimable if claimed >15m ago without success)
                 claim_upload = users_collection.find_one_and_update(
                     {
                         "internal_id": internal_id,
                         f"auto_schedule.{last_run_key}": {"$ne": today_str},
-                        f"{upload_lock_field}.date": {"$ne": today_str}
+                        "$or": [
+                            {f"{upload_lock_field}.date": {"$ne": today_str}},
+                            {
+                                f"{upload_lock_field}.status": {"$ne": "success"},
+                                f"{upload_lock_field}.claimed_at": {"$lt": fifteen_mins_ago}
+                            }
+                        ]
                     },
                     {
                         "$set": {
-                            f"auto_schedule.{last_run_key}": today_str,
                             upload_lock_field: {
                                 "date": today_str,
+                                "status": "in_progress",
                                 "claimed_at": datetime.utcnow().isoformat(),
                                 "node": node_name
                             }
@@ -802,14 +810,18 @@ def process_single_user_schedule(user: dict, now_ist: datetime, today_str: str):
                 fresh_staged = fresh_user.get("staged_auto_videos", {}).get(kind, {})
 
                 target_upload_src = fresh_staged.get("cloudinary_url") or (fresh_staged.get("file") if (fresh_staged.get("file") and os.path.exists(fresh_staged.get("file", ""))) else None)
+                upload_success = False
+
                 if fresh_staged.get("date") == today_str and target_upload_src:
-                    upload_video_to_youtube_core(
+                    yt_res = upload_video_to_youtube_core(
                         user_id=internal_id,
                         video_file=target_upload_src,
                         title=fresh_staged.get("title"),
                         description=fresh_staged.get("script"),
                         is_short=is_short_flag
                     )
+                    if yt_res:
+                        upload_success = True
                 else:
                     category = schedule.get(f"{kind}_category") or "Random"
                     raw_topic = schedule.get(f"{kind}_topic") or default_topic
@@ -836,23 +848,40 @@ def process_single_user_schedule(user: dict, now_ist: datetime, today_str: str):
                         script_text = res.get("script", "")
                         if is_short_flag:
                             script_text = " ".join(script_text.split()[:120])
-                        upload_video_to_youtube_core(
+                        yt_res = upload_video_to_youtube_core(
                             user_id=internal_id,
                             video_file=video_file,
                             title=topic,
                             description=script_text,
                             is_short=is_short_flag
                         )
+                        if yt_res:
+                            upload_success = True
 
-                auto_usage = fresh_user.get("auto_daily_usage", {})
-                if auto_usage.get("date") != today_str:
-                    auto_usage = {"date": today_str, "auto_short_count": 0, "auto_long_count": 0, "auto_ultra_count": 0}
-                auto_usage[f"auto_{kind}_count"] = auto_usage.get(f"auto_{kind}_count", 0) + 1
-                users_collection.update_one(
-                    {"internal_id": internal_id},
-                    {"$set": {"auto_daily_usage": auto_usage},
-                     "$unset": {f"staged_auto_videos.{kind}": ""}}
-                )
+                if upload_success:
+                    auto_usage = fresh_user.get("auto_daily_usage", {})
+                    if auto_usage.get("date") != today_str:
+                        auto_usage = {"date": today_str, "auto_short_count": 0, "auto_long_count": 0, "auto_ultra_count": 0}
+                    auto_usage[f"auto_{kind}_count"] = auto_usage.get(f"auto_{kind}_count", 0) + 1
+                    
+                    users_collection.update_one(
+                        {"internal_id": internal_id},
+                        {
+                            "$set": {
+                                f"auto_schedule.{last_run_key}": today_str,
+                                f"{upload_lock_field}.status": "success",
+                                "auto_daily_usage": auto_usage
+                            },
+                            "$unset": {f"staged_auto_videos.{kind}": ""}
+                        }
+                    )
+                    print(f"🎉 [AUTO PUBLISH SUCCESS - Node: {node_name}] {kind.upper()} video published to YouTube for user {internal_id}!")
+                else:
+                    print(f"⚠️ [AUTO PUBLISH WARNING] Upload failed or container interrupted for {kind.upper()}. Clearing upload lock for automatic retry...")
+                    users_collection.update_one(
+                        {"internal_id": internal_id},
+                        {"$unset": {upload_lock_field: ""}}
+                    )
 
         if schedule.get("short_enabled", True) and is_active and plan_type in ["short", "combo", "ultra", "all"]:
             run_staged_auto_pipeline("short", True, "Space Exploration", 20)
