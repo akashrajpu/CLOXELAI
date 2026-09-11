@@ -156,10 +156,20 @@ function CustomSelect({ value, onChange, options }) {
 
 function App() {
   const [ytStatus, setYtStatus] = useState(null);
+  const [theme, setTheme] = useState(() => localStorage.getItem('cloxel_theme') || 'dark');
   const [topic, setTopic] = useState('Space Exploration');
   const [duration, setDuration] = useState(20);
   const [videoType, setVideoType] = useState('short'); // 'short' or 'long'
   const [fullScript, setFullScript] = useState('');
+
+  useEffect(() => {
+    document.body.className = theme === 'pastel' ? 'theme-pastel' : 'theme-dark';
+    localStorage.setItem('cloxel_theme', theme);
+  }, [theme]);
+
+  const toggleTheme = () => {
+    setTheme(prev => (prev === 'pastel' ? 'dark' : 'pastel'));
+  };
   
   // Customization Settings
   const [fontName, setFontName] = useState('Arial.ttf');
@@ -919,6 +929,28 @@ function App() {
               <span>Auto-Upload: 🟢 ACTIVE</span>
             </div>
           )}
+          <button 
+            className="theme-toggle-btn" 
+            onClick={toggleTheme} 
+            title="Toggle Dashboard Theme"
+            style={{
+              background: theme === 'pastel' ? 'linear-gradient(135deg, #fce7f3 0%, #e0e7ff 100%)' : 'rgba(255, 255, 255, 0.08)',
+              border: theme === 'pastel' ? '1.5px solid #c084fc' : '1px solid rgba(168, 85, 247, 0.4)',
+              color: theme === 'pastel' ? '#6b21a8' : '#e2e8f0',
+              padding: '7px 15px',
+              borderRadius: '9999px',
+              fontWeight: '800',
+              fontSize: '0.85rem',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              boxShadow: theme === 'pastel' ? '0 4px 14px rgba(168, 85, 247, 0.15)' : '0 4px 14px rgba(0, 0, 0, 0.2)',
+              transition: 'all 0.25s ease'
+            }}
+          >
+            {theme === 'pastel' ? '✨ Pastel Theme' : '🌙 Classic Dark'}
+          </button>
           <button className="btn-upgrade-pill" onClick={() => openPricingModal()}>
             💎 Upgrade Plan
           </button>
@@ -1413,6 +1445,25 @@ function App() {
             <div className="sidebar-header">
               <h3>Menu & Profile</h3>
               <button className="sidebar-close-btn" onClick={() => setIsSidebarOpen(false)}>×</button>
+            </div>
+
+            <div style={{ marginBottom: '14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', borderRadius: '14px', background: theme === 'pastel' ? 'rgba(168, 85, 247, 0.1)' : 'rgba(255, 255, 255, 0.04)', border: '1px solid rgba(168, 85, 247, 0.25)' }}>
+              <span style={{ fontSize: '0.88rem', fontWeight: '700' }}>🎨 Theme Mode</span>
+              <button 
+                onClick={toggleTheme}
+                style={{
+                  background: theme === 'pastel' ? 'linear-gradient(135deg, #a855f7 0%, #d946ef 100%)' : 'linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%)',
+                  color: '#ffffff',
+                  border: 'none',
+                  padding: '6px 14px',
+                  borderRadius: '20px',
+                  fontWeight: 'bold',
+                  fontSize: '0.8rem',
+                  cursor: 'pointer'
+                }}
+              >
+                {theme === 'pastel' ? '✨ Pastel Theme' : '🌙 Classic Dark'}
+              </button>
             </div>
 
             <div className="sidebar-profile" style={{ display: 'flex', flexDirection: 'column', gap: '10px', background: 'rgba(255,255,255,0.04)', padding: '14px', borderRadius: '16px', border: '1px solid rgba(168,85,247,0.3)', marginBottom: '12px' }}>
