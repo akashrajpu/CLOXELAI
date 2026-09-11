@@ -136,7 +136,7 @@ body {
 
 .profile-pill-btn {
   background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(168, 85, 247, 0.4);
+  border: 2px solid #a855f7;
   color: #e2e8f0;
   padding: 8px 18px;
   border-radius: 9999px;
@@ -147,26 +147,43 @@ body {
   align-items: center;
   gap: 6px;
   transition: all 0.2s ease;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 4px 14px rgba(168, 85, 247, 0.2);
 }
 
 .profile-pill-btn:hover {
-  background: rgba(255, 255, 255, 0.15);
-  border-color: #a855f7;
+  background: rgba(255, 255, 255, 0.18);
+  border-color: #c084fc;
   color: #ffffff;
   transform: translateY(-1px);
 }
 
 .theme-toggle-btn {
-  padding: 8px 16px;
+  padding: 8px 18px;
   border-radius: 9999px;
   font-weight: 800;
-  font-size: 0.85rem;
+  font-size: 0.88rem;
   cursor: pointer;
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
+  border: 2px solid #a855f7;
   transition: all 0.25s ease;
+}
+
+.hamburger-btn {
+  background: transparent;
+  border: 2px solid rgba(168, 85, 247, 0.4);
+  color: var(--text);
+  font-size: 1.5rem;
+  cursor: pointer;
+  padding: 6px 12px;
+  border-radius: 14px;
+  transition: all 0.2s ease;
+}
+
+.hamburger-btn:hover {
+  background-color: rgba(168, 85, 247, 0.15);
+  border-color: #a855f7;
 }
 
 .dashboard {
@@ -179,7 +196,7 @@ body {
   background: rgba(19, 13, 42, 0.65);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(168, 85, 247, 0.25);
+  border: 2px solid rgba(168, 85, 247, 0.3);
   border-radius: 24px;
   padding: 2rem;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
@@ -215,8 +232,8 @@ input, select, textarea {
   width: 100%;
   padding: 0.85rem 1.1rem;
   background: rgba(15, 23, 42, 0.7);
-  border: 1px solid rgba(168, 85, 247, 0.35);
-  border-radius: 16px;
+  border: 2px solid rgba(168, 85, 247, 0.4);
+  border-radius: 20px;
   color: #ffffff;
   font-size: 0.95rem;
   font-family: inherit;
@@ -246,7 +263,7 @@ select option {
 }
 
 input:hover, select:hover, textarea:hover {
-  border-color: #a855f7;
+  border-color: #c084fc;
   background: rgba(15, 23, 42, 0.85);
 }
 
@@ -260,11 +277,11 @@ input:focus, select:focus, textarea:focus {
 .button {
   background: linear-gradient(135deg, #a855f7 0%, #d946ef 100%);
   color: white;
-  border: none;
+  border: 2px solid #7e22ce;
   padding: 0.85rem 1.6rem;
-  border-radius: 16px;
+  border-radius: 20px;
   font-size: 0.98rem;
-  font-weight: 700;
+  font-weight: 800;
   letter-spacing: 0.02em;
   cursor: pointer;
   transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
@@ -273,14 +290,15 @@ input:focus, select:focus, textarea:focus {
   justify-content: center;
   align-items: center;
   gap: 0.5rem;
-  box-shadow: 0 6px 22px rgba(168, 85, 247, 0.35);
+  box-shadow: 0 6px 22px rgba(168, 85, 247, 0.4);
   position: relative;
   overflow: hidden;
 }
 
 .button:hover {
   transform: translateY(-2px);
-  box-shadow: 0 10px 28px rgba(168, 85, 247, 0.5);
+  border-color: #c084fc;
+  box-shadow: 0 10px 28px rgba(168, 85, 247, 0.6);
 }
 
 .button:active {
@@ -289,14 +307,14 @@ input:focus, select:focus, textarea:focus {
 
 .button.secondary {
   background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  border: 2px solid rgba(168, 85, 247, 0.5);
   color: #ffffff;
   box-shadow: none;
 }
 
 .button.secondary:hover {
   background: rgba(255, 255, 255, 0.12);
-  border-color: rgba(255, 255, 255, 0.25);
+  border-color: #a855f7;
   color: #ffffff;
 }
 
@@ -304,7 +322,7 @@ input:focus, select:focus, textarea:focus {
   background: rgba(15, 23, 42, 0.7);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(168, 85, 247, 0.3);
+  border: 2px solid rgba(168, 85, 247, 0.35);
   border-left: 4px solid #a855f7;
   border-radius: 20px;
   padding: 1.5rem;
@@ -342,6 +360,7 @@ input:focus, select:focus, textarea:focus {
 
 /* ==========================================================================
    Pastel Theme Overrides (Activated via Theme Toggle Button)
+   Matches User Design Mockup Photo (Vibrant Soft Pastel Background & Distinct Pill Borders)
    ========================================================================== */
 body.theme-pastel {
   background-color: #f3e8ff;
@@ -354,9 +373,9 @@ body.theme-pastel {
 }
 
 body.theme-pastel .app-header {
-  background: rgba(255, 255, 255, 0.88);
-  border: 1.5px solid rgba(255, 255, 255, 0.95);
-  box-shadow: 0 14px 40px rgba(168, 85, 247, 0.14), 0 4px 15px rgba(0, 0, 0, 0.04);
+  background: rgba(255, 255, 255, 0.9);
+  border: 2px solid rgba(255, 255, 255, 0.98);
+  box-shadow: 0 14px 40px rgba(168, 85, 247, 0.16), 0 4px 15px rgba(0, 0, 0, 0.04);
 }
 
 body.theme-pastel .header-left h1 {
@@ -366,16 +385,24 @@ body.theme-pastel .header-left h1 {
 }
 
 body.theme-pastel .profile-pill-btn {
-  background: rgba(255, 255, 255, 0.92);
-  border: 1.5px solid rgba(192, 132, 252, 0.45);
-  color: #6b21a8;
-  box-shadow: 0 4px 14px rgba(168, 85, 247, 0.12);
+  background: rgba(255, 255, 255, 0.95);
+  border: 2px solid #9333ea;
+  color: #581c87;
+  font-weight: 800;
+  box-shadow: 0 4px 15px rgba(147, 51, 234, 0.15);
+}
+
+body.theme-pastel .hamburger-btn {
+  border: 2px solid #a855f7;
+  color: #581c87;
+  background: rgba(255, 255, 255, 0.9);
 }
 
 body.theme-pastel .panel {
-  background: rgba(255, 255, 255, 0.88);
-  border: 1.5px solid rgba(255, 255, 255, 0.95);
-  box-shadow: 0 15px 45px rgba(168, 85, 247, 0.14), 0 4px 18px rgba(0, 0, 0, 0.04);
+  background: rgba(255, 255, 255, 0.92);
+  border: 2px solid rgba(255, 255, 255, 0.98);
+  border-radius: 28px;
+  box-shadow: 0 20px 50px rgba(168, 85, 247, 0.15), 0 4px 18px rgba(0, 0, 0, 0.04);
   color: #1e1b4b;
 }
 
@@ -393,23 +420,45 @@ body.theme-pastel input,
 body.theme-pastel select, 
 body.theme-pastel textarea {
   background: rgba(255, 255, 255, 0.95);
-  border: 1.5px solid rgba(192, 132, 252, 0.4);
+  border: 2px solid #9333ea;
+  border-radius: 24px;
   color: #1e1b4b;
-  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.02), 0 2px 8px rgba(168, 85, 247, 0.06);
+  font-weight: 700;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.02), 0 4px 15px rgba(147, 51, 234, 0.12);
+}
+
+body.theme-pastel input:focus, 
+body.theme-pastel select:focus, 
+body.theme-pastel textarea:focus {
+  border-color: #7e22ce;
+  box-shadow: 0 0 0 4px rgba(147, 51, 234, 0.25), 0 6px 20px rgba(168, 85, 247, 0.2);
+}
+
+body.theme-pastel .button {
+  background: linear-gradient(135deg, #a855f7 0%, #d946ef 100%);
+  border: 2px solid #7e22ce;
+  color: white;
+  border-radius: 24px;
+  font-weight: 800;
+  box-shadow: 0 8px 25px rgba(168, 85, 247, 0.35);
 }
 
 body.theme-pastel .button.secondary {
   background: rgba(255, 255, 255, 0.95);
-  border: 1.5px solid rgba(192, 132, 252, 0.45);
+  border: 2px solid #9333ea;
   color: #6b21a8;
-  box-shadow: 0 4px 15px rgba(168, 85, 247, 0.1);
+  border-radius: 24px;
+  font-weight: 800;
+  box-shadow: 0 4px 15px rgba(147, 51, 234, 0.12);
 }
 
 body.theme-pastel .scene-card {
-  background: rgba(255, 255, 255, 0.9);
-  border: 1.5px solid rgba(255, 255, 255, 0.95);
+  background: rgba(255, 255, 255, 0.92);
+  border: 2px solid rgba(255, 255, 255, 0.98);
+  border-left: 5px solid #a855f7;
+  border-radius: 24px;
   color: #1e1b4b;
-  box-shadow: 0 10px 30px rgba(168, 85, 247, 0.12), 0 4px 12px rgba(0, 0, 0, 0.03);
+  box-shadow: 0 10px 30px rgba(168, 85, 247, 0.14), 0 4px 12px rgba(0, 0, 0, 0.03);
 }
 
 body.theme-pastel .scene-header {
@@ -417,8 +466,8 @@ body.theme-pastel .scene-header {
 }
 
 body.theme-pastel .sidebar-drawer {
-  background: rgba(255, 255, 255, 0.95);
-  border-right: 1.5px solid rgba(255, 255, 255, 0.95);
+  background: rgba(255, 255, 255, 0.96);
+  border-right: 2px solid rgba(255, 255, 255, 0.98);
   color: #1e1b4b;
 }
 
@@ -429,8 +478,9 @@ body.theme-pastel .sidebar-history-section h4 {
 
 body.theme-pastel .sidebar-profile,
 body.theme-pastel .sidebar-history-card {
-  background: rgba(255, 255, 255, 0.92);
-  border: 1.5px solid rgba(192, 132, 252, 0.35);
+  background: rgba(255, 255, 255, 0.94);
+  border: 2px solid #c084fc;
+  border-radius: 20px;
   color: #1e1b4b;
 }
 

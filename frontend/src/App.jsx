@@ -156,7 +156,7 @@ function CustomSelect({ value, onChange, options }) {
 
 function App() {
   const [ytStatus, setYtStatus] = useState(null);
-  const [theme, setTheme] = useState(() => localStorage.getItem('cloxel_theme') || 'dark');
+  const [theme, setTheme] = useState(() => localStorage.getItem('cloxel_theme') || 'pastel');
   const [topic, setTopic] = useState('Space Exploration');
   const [duration, setDuration] = useState(20);
   const [videoType, setVideoType] = useState('short'); // 'short' or 'long'
@@ -934,22 +934,22 @@ function App() {
             onClick={toggleTheme} 
             title="Toggle Dashboard Theme"
             style={{
-              background: theme === 'pastel' ? 'linear-gradient(135deg, #fce7f3 0%, #e0e7ff 100%)' : 'rgba(255, 255, 255, 0.08)',
-              border: theme === 'pastel' ? '1.5px solid #c084fc' : '1px solid rgba(168, 85, 247, 0.4)',
-              color: theme === 'pastel' ? '#6b21a8' : '#e2e8f0',
-              padding: '7px 15px',
+              background: theme === 'pastel' ? 'linear-gradient(135deg, #ffffff 0%, #f3e8ff 100%)' : 'rgba(255, 255, 255, 0.08)',
+              border: theme === 'pastel' ? '2.5px solid #a855f7' : '2.5px solid rgba(168, 85, 247, 0.6)',
+              color: theme === 'pastel' ? '#581c87' : '#e2e8f0',
+              padding: '8px 18px',
               borderRadius: '9999px',
-              fontWeight: '800',
-              fontSize: '0.85rem',
+              fontWeight: '900',
+              fontSize: '0.88rem',
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
               gap: '6px',
-              boxShadow: theme === 'pastel' ? '0 4px 14px rgba(168, 85, 247, 0.15)' : '0 4px 14px rgba(0, 0, 0, 0.2)',
+              boxShadow: theme === 'pastel' ? '0 4px 15px rgba(168, 85, 247, 0.25)' : '0 4px 14px rgba(0, 0, 0, 0.2)',
               transition: 'all 0.25s ease'
             }}
           >
-            {theme === 'pastel' ? '✨ Pastel Theme' : '🌙 Classic Dark'}
+            {theme === 'pastel' ? '✨ Theme: Pastel Glass 🎨' : '🌙 Theme: Classic Dark 🌌'}
           </button>
           <button className="btn-upgrade-pill" onClick={() => openPricingModal()}>
             💎 Upgrade Plan
@@ -2460,6 +2460,37 @@ function App() {
           </div>
         </div>
       )}
+
+      {/* Permanent Floating Theme Switcher Button */}
+      <button
+        onClick={toggleTheme}
+        className="theme-toggle-floating"
+        title="Click to toggle theme mode (Pastel Glass / Classic Dark)"
+        style={{
+          position: 'fixed',
+          bottom: '24px',
+          right: '24px',
+          zIndex: 9999,
+          background: theme === 'pastel' 
+            ? 'linear-gradient(135deg, #ffffff 0%, #f3e8ff 100%)' 
+            : 'linear-gradient(135deg, #130d2a 0%, #0b071a 100%)',
+          border: theme === 'pastel' ? '2.5px solid #a855f7' : '2.5px solid #38bdf8',
+          color: theme === 'pastel' ? '#581c87' : '#38bdf8',
+          padding: '12px 22px',
+          borderRadius: '9999px',
+          fontWeight: '900',
+          fontSize: '0.95rem',
+          cursor: 'pointer',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px',
+          boxShadow: theme === 'pastel' ? '0 8px 30px rgba(168, 85, 247, 0.45)' : '0 8px 30px rgba(56, 189, 248, 0.45)',
+          transition: 'all 0.25s ease'
+        }}
+      >
+        <span style={{ fontSize: '1.2rem' }}>{theme === 'pastel' ? '🎨' : '🌙'}</span>
+        <span>{theme === 'pastel' ? '✨ Theme: Pastel Glass (Click to Switch)' : '🌙 Theme: Classic Dark (Click to Switch)'}</span>
+      </button>
     </div>
   );
 }
