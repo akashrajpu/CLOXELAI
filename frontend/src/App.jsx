@@ -41,6 +41,7 @@ const CATEGORIES = [
 
 function CustomSelect({ value, onChange, options }) {
   const [isOpen, setIsOpen] = useState(false);
+  const isPastel = typeof document !== 'undefined' && document.body.classList.contains('theme-pastel');
 
   const selectedOption = options.find(opt => (typeof opt === 'object' ? opt.value : opt) === value);
   const selectedLabel = selectedOption 
@@ -56,24 +57,30 @@ function CustomSelect({ value, onChange, options }) {
         style={{
           width: '100%',
           padding: '0.85rem 1.1rem',
-          background: isOpen ? 'rgba(24, 18, 55, 0.95)' : 'rgba(15, 23, 42, 0.7)',
-          border: isOpen ? '1px solid #c084fc' : '1px solid rgba(168, 85, 247, 0.35)',
-          borderRadius: '14px',
-          color: '#ffffff',
+          background: isPastel 
+            ? (isOpen ? 'rgba(255, 255, 255, 0.98)' : 'rgba(255, 255, 255, 0.94)') 
+            : (isOpen ? 'rgba(24, 18, 55, 0.95)' : 'rgba(15, 23, 42, 0.7)'),
+          border: isPastel 
+            ? '2px solid #9333ea' 
+            : (isOpen ? '2px solid #c084fc' : '2px solid rgba(168, 85, 247, 0.4)'),
+          borderRadius: '20px',
+          color: isPastel ? '#1e1b4b' : '#ffffff',
           fontSize: '0.95rem',
-          fontWeight: '600',
+          fontWeight: '700',
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
           cursor: 'pointer',
-          boxShadow: isOpen ? '0 0 0 3px rgba(192, 132, 252, 0.35), 0 8px 25px rgba(0,0,0,0.5)' : 'inset 0 2px 4px rgba(0,0,0,0.3)',
+          boxShadow: isPastel 
+            ? '0 4px 15px rgba(147, 51, 234, 0.12)' 
+            : (isOpen ? '0 0 0 3px rgba(192, 132, 252, 0.35), 0 8px 25px rgba(0,0,0,0.5)' : 'inset 0 2px 4px rgba(0,0,0,0.3)'),
           transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)'
         }}
       >
         <span style={{ display: 'flex', alignItems: 'center', gap: '8px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontFamily: selectedFontFamily || 'inherit' }}>
           {selectedLabel}
         </span>
-        <span style={{ transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.25s ease', color: '#c084fc', fontSize: '0.8rem', fontWeight: 'bold' }}>
+        <span style={{ transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.25s ease', color: isPastel ? '#7e22ce' : '#c084fc', fontSize: '0.8rem', fontWeight: 'bold' }}>
           ▼
         </span>
       </div>
@@ -90,12 +97,12 @@ function CustomSelect({ value, onChange, options }) {
               width: '100%',
               maxHeight: '260px',
               overflowY: 'auto',
-              background: 'rgba(19, 13, 42, 0.96)',
+              background: isPastel ? 'rgba(255, 255, 255, 0.98)' : 'rgba(19, 13, 42, 0.96)',
               backdropFilter: 'blur(20px)',
               WebkitBackdropFilter: 'blur(20px)',
-              border: '1px solid rgba(168, 85, 247, 0.45)',
-              borderRadius: '16px',
-              boxShadow: '0 15px 40px rgba(0, 0, 0, 0.7), 0 0 20px rgba(168, 85, 247, 0.25)',
+              border: isPastel ? '2px solid #9333ea' : '2px solid rgba(168, 85, 247, 0.45)',
+              borderRadius: '20px',
+              boxShadow: isPastel ? '0 15px 40px rgba(147, 51, 234, 0.2)' : '0 15px 40px rgba(0, 0, 0, 0.7), 0 0 20px rgba(168, 85, 247, 0.25)',
               zIndex: 999,
               padding: '6px'
             }}
@@ -115,15 +122,19 @@ function CustomSelect({ value, onChange, options }) {
                   }}
                   style={{
                     padding: '10px 14px',
-                    borderRadius: '10px',
+                    borderRadius: '12px',
                     margin: '2px 0',
                     cursor: 'pointer',
-                    fontSize: '1.05rem',
-                    fontWeight: isSelected ? '700' : '500',
+                    fontSize: '1rem',
+                    fontWeight: isSelected ? '800' : '600',
                     fontFamily: optFontFamily || 'inherit',
-                    color: isSelected ? '#ffffff' : '#cbd5e1',
-                    background: isSelected ? 'linear-gradient(135deg, rgba(168, 85, 247, 0.4) 0%, rgba(6, 182, 212, 0.3) 100%)' : 'transparent',
-                    border: isSelected ? '1px solid rgba(192, 132, 252, 0.4)' : '1px solid transparent',
+                    color: isSelected 
+                      ? (isPastel ? '#581c87' : '#ffffff') 
+                      : (isPastel ? '#334155' : '#cbd5e1'),
+                    background: isSelected 
+                      ? (isPastel ? 'linear-gradient(135deg, rgba(168, 85, 247, 0.25) 0%, rgba(217, 70, 239, 0.2) 100%)' : 'linear-gradient(135deg, rgba(168, 85, 247, 0.4) 0%, rgba(6, 182, 212, 0.3) 100%)') 
+                      : 'transparent',
+                    border: isSelected ? (isPastel ? '1px solid #c084fc' : '1px solid rgba(192, 132, 252, 0.4)') : '1px solid transparent',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'space-between',
@@ -131,19 +142,19 @@ function CustomSelect({ value, onChange, options }) {
                   }}
                   onMouseEnter={(e) => {
                     if (!isSelected) {
-                      e.currentTarget.style.background = 'rgba(255, 255, 255, 0.08)';
-                      e.currentTarget.style.color = '#ffffff';
+                      e.currentTarget.style.background = isPastel ? 'rgba(168, 85, 247, 0.12)' : 'rgba(255, 255, 255, 0.08)';
+                      e.currentTarget.style.color = isPastel ? '#1e1b4b' : '#ffffff';
                     }
                   }}
                   onMouseLeave={(e) => {
                     if (!isSelected) {
                       e.currentTarget.style.background = 'transparent';
-                      e.currentTarget.style.color = '#cbd5e1';
+                      e.currentTarget.style.color = isPastel ? '#334155' : '#cbd5e1';
                     }
                   }}
                 >
                   <span style={{ fontFamily: optFontFamily || 'inherit' }}>{optLabel}</span>
-                  {isSelected && <span style={{ color: '#c084fc', fontWeight: 'bold' }}>✓</span>}
+                  {isSelected && <span style={{ color: isPastel ? '#7e22ce' : '#c084fc', fontWeight: 'bold' }}>✓</span>}
                 </div>
               );
             })}
@@ -929,28 +940,43 @@ function App() {
               <span>Auto-Upload: 🟢 ACTIVE</span>
             </div>
           )}
-          <button 
-            className="theme-toggle-btn" 
-            onClick={toggleTheme} 
-            title="Toggle Dashboard Theme"
+          {/* Animated Toggle Switch */}
+          <div 
+            onClick={toggleTheme}
+            title={theme === 'pastel' ? 'Pastel Theme Active (Click to switch to Dark)' : 'Dark Theme Active (Click to switch to Pastel)'}
             style={{
-              background: theme === 'pastel' ? 'linear-gradient(135deg, #ffffff 0%, #f3e8ff 100%)' : 'rgba(255, 255, 255, 0.08)',
-              border: theme === 'pastel' ? '2.5px solid #a855f7' : '2.5px solid rgba(168, 85, 247, 0.6)',
-              color: theme === 'pastel' ? '#581c87' : '#e2e8f0',
-              padding: '8px 18px',
+              width: '54px',
+              height: '28px',
               borderRadius: '9999px',
-              fontWeight: '900',
-              fontSize: '0.88rem',
+              padding: '2px',
               cursor: 'pointer',
+              background: theme === 'pastel' ? 'linear-gradient(135deg, #a855f7 0%, #d946ef 100%)' : '#1e1b4b',
+              border: theme === 'pastel' ? '2px solid #7e22ce' : '2px solid #38bdf8',
+              boxShadow: theme === 'pastel' ? '0 0 10px rgba(168, 85, 247, 0.4)' : '0 0 10px rgba(56, 189, 248, 0.4)',
               display: 'flex',
               alignItems: 'center',
-              gap: '6px',
-              boxShadow: theme === 'pastel' ? '0 4px 15px rgba(168, 85, 247, 0.25)' : '0 4px 14px rgba(0, 0, 0, 0.2)',
-              transition: 'all 0.25s ease'
+              position: 'relative',
+              transition: 'all 0.3s ease'
             }}
           >
-            {theme === 'pastel' ? '✨ Theme: Pastel Glass 🎨' : '🌙 Theme: Classic Dark 🌌'}
-          </button>
+            <div 
+              style={{
+                width: '20px',
+                height: '20px',
+                borderRadius: '50%',
+                background: '#ffffff',
+                boxShadow: '0 2px 4px rgba(0, 0, 0, 0.3)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '0.7rem',
+                transform: theme === 'pastel' ? 'translateX(26px)' : 'translateX(0px)',
+                transition: 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
+              }}
+            >
+              {theme === 'pastel' ? '✨' : '🌙'}
+            </div>
+          </div>
           <button className="btn-upgrade-pill" onClick={() => openPricingModal()}>
             💎 Upgrade Plan
           </button>
@@ -1445,25 +1471,6 @@ function App() {
             <div className="sidebar-header">
               <h3>Menu & Profile</h3>
               <button className="sidebar-close-btn" onClick={() => setIsSidebarOpen(false)}>×</button>
-            </div>
-
-            <div style={{ marginBottom: '14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', borderRadius: '14px', background: theme === 'pastel' ? 'rgba(168, 85, 247, 0.1)' : 'rgba(255, 255, 255, 0.04)', border: '1px solid rgba(168, 85, 247, 0.25)' }}>
-              <span style={{ fontSize: '0.88rem', fontWeight: '700' }}>🎨 Theme Mode</span>
-              <button 
-                onClick={toggleTheme}
-                style={{
-                  background: theme === 'pastel' ? 'linear-gradient(135deg, #a855f7 0%, #d946ef 100%)' : 'linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%)',
-                  color: '#ffffff',
-                  border: 'none',
-                  padding: '6px 14px',
-                  borderRadius: '20px',
-                  fontWeight: 'bold',
-                  fontSize: '0.8rem',
-                  cursor: 'pointer'
-                }}
-              >
-                {theme === 'pastel' ? '✨ Pastel Theme' : '🌙 Classic Dark'}
-              </button>
             </div>
 
             <div className="sidebar-profile" style={{ display: 'flex', flexDirection: 'column', gap: '10px', background: 'rgba(255,255,255,0.04)', padding: '14px', borderRadius: '16px', border: '1px solid rgba(168,85,247,0.3)', marginBottom: '12px' }}>
@@ -2460,37 +2467,6 @@ function App() {
           </div>
         </div>
       )}
-
-      {/* Permanent Floating Theme Switcher Button */}
-      <button
-        onClick={toggleTheme}
-        className="theme-toggle-floating"
-        title="Click to toggle theme mode (Pastel Glass / Classic Dark)"
-        style={{
-          position: 'fixed',
-          bottom: '24px',
-          right: '24px',
-          zIndex: 9999,
-          background: theme === 'pastel' 
-            ? 'linear-gradient(135deg, #ffffff 0%, #f3e8ff 100%)' 
-            : 'linear-gradient(135deg, #130d2a 0%, #0b071a 100%)',
-          border: theme === 'pastel' ? '2.5px solid #a855f7' : '2.5px solid #38bdf8',
-          color: theme === 'pastel' ? '#581c87' : '#38bdf8',
-          padding: '12px 22px',
-          borderRadius: '9999px',
-          fontWeight: '900',
-          fontSize: '0.95rem',
-          cursor: 'pointer',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '8px',
-          boxShadow: theme === 'pastel' ? '0 8px 30px rgba(168, 85, 247, 0.45)' : '0 8px 30px rgba(56, 189, 248, 0.45)',
-          transition: 'all 0.25s ease'
-        }}
-      >
-        <span style={{ fontSize: '1.2rem' }}>{theme === 'pastel' ? '🎨' : '🌙'}</span>
-        <span>{theme === 'pastel' ? '✨ Theme: Pastel Glass (Click to Switch)' : '🌙 Theme: Classic Dark (Click to Switch)'}</span>
-      </button>
     </div>
   );
 }
