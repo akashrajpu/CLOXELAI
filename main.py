@@ -769,8 +769,9 @@ def process_single_user_schedule(user: dict, now_ist: datetime, today_str: str):
                                 {"$unset": {lock_field: ""}}
                             )
 
-            # STAGE 2: INSTANT BATCH UPLOAD LOCK (Publishing to YouTube at target time)
-            if diff_current <= 25 or mins_until >= 1420:
+            # STAGE 2: INSTANT BATCH UPLOAD LOCK (Publishing to YouTube at target time OR Catch-Up if target time passed today)
+            is_time_to_upload = (diff_current <= 25) or (mins_until >= 1420) or (current_ist_minutes >= target_minutes and schedule.get(last_run_key) != today_str)
+            if is_time_to_upload:
                 upload_lock_field = f"auto_locks.upload_{kind}"
                 node_name = os.getenv("RENDER_SERVICE_NAME", "cluster_node")
 
