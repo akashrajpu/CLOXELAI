@@ -363,13 +363,13 @@ input:focus, select:focus, textarea:focus {
    Matches User Design Mockup Photo (Vibrant Soft Pastel Background & Distinct Pill Borders)
    ========================================================================== */
 body.theme-pastel {
-  background-color: #f3e8ff;
-  color: #1e1b4b;
-  background-image: url('/dashboard_bg.png'), linear-gradient(135deg, #fce7f3 0%, #e0e7ff 50%, #f3e8ff 100%);
-  background-size: cover;
-  background-position: center center;
-  background-repeat: no-repeat;
-  background-attachment: fixed;
+  background-color: #c084fc !important;
+  color: #1e1b4b !important;
+  background-image: radial-gradient(circle at 10% 25%, #d946ef 0%, #c084fc 25%, #e879f9 50%, #e0e7ff 75%, #fdf4ff 100%), linear-gradient(135deg, #a855f7 0%, #ec4899 50%, #8b5cf6 100%) !important;
+  background-size: cover !important;
+  background-position: center center !important;
+  background-repeat: no-repeat !important;
+  background-attachment: fixed !important;
 }
 
 body.theme-pastel .app-header {

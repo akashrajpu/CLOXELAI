@@ -1008,11 +1008,17 @@ function App() {
                   style={{ 
                     flex: 1, 
                     padding: '12px 10px',
-                    background: videoType === 'short' ? 'linear-gradient(135deg, #a855f7 0%, #7e22ce 100%)' : 'rgba(255, 255, 255, 0.05)',
-                    border: videoType === 'short' ? '1px solid #c084fc' : '1px solid rgba(255, 255, 255, 0.12)',
-                    color: '#ffffff',
+                    background: videoType === 'short' 
+                      ? 'linear-gradient(135deg, #a855f7 0%, #7e22ce 100%)' 
+                      : (theme === 'pastel' ? 'rgba(255, 255, 255, 0.94)' : 'rgba(15, 23, 42, 0.6)'),
+                    border: videoType === 'short' 
+                      ? '2px solid #c084fc' 
+                      : (theme === 'pastel' ? '2px solid #8b5cf6' : '1px solid rgba(255, 255, 255, 0.12)'),
+                    color: videoType === 'short' 
+                      ? '#ffffff' 
+                      : (theme === 'pastel' ? '#581c87' : '#ffffff'),
                     fontWeight: '800',
-                    borderRadius: '14px',
+                    borderRadius: '16px',
                     boxShadow: videoType === 'short' ? '0 4px 18px rgba(168, 85, 247, 0.45)' : 'none',
                     display: 'flex',
                     alignItems: 'center',
@@ -1030,11 +1036,17 @@ function App() {
                   style={{ 
                     flex: 1, 
                     padding: '12px 10px',
-                    background: videoType === 'long' ? 'linear-gradient(135deg, #06b6d4 0%, #0284c7 100%)' : 'rgba(255, 255, 255, 0.05)',
-                    border: videoType === 'long' ? '1px solid #38bdf8' : '1px solid rgba(255, 255, 255, 0.12)',
-                    color: '#ffffff',
+                    background: videoType === 'long' 
+                      ? 'linear-gradient(135deg, #06b6d4 0%, #0284c7 100%)' 
+                      : (theme === 'pastel' ? 'rgba(255, 255, 255, 0.94)' : 'rgba(15, 23, 42, 0.6)'),
+                    border: videoType === 'long' 
+                      ? '2px solid #38bdf8' 
+                      : (theme === 'pastel' ? '2px solid #8b5cf6' : '1px solid rgba(255, 255, 255, 0.12)'),
+                    color: videoType === 'long' 
+                      ? '#ffffff' 
+                      : (theme === 'pastel' ? '#581c87' : '#ffffff'),
                     fontWeight: '800',
-                    borderRadius: '14px',
+                    borderRadius: '16px',
                     boxShadow: videoType === 'long' ? '0 4px 18px rgba(6, 182, 212, 0.45)' : 'none',
                     display: 'flex',
                     alignItems: 'center',
@@ -1052,11 +1064,17 @@ function App() {
                   style={{ 
                     flex: 1, 
                     padding: '12px 10px',
-                    background: videoType === 'ultra' ? 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)' : 'rgba(255, 255, 255, 0.05)',
-                    border: videoType === 'ultra' ? '1px solid #fbbf24' : '1px solid rgba(255, 255, 255, 0.12)',
-                    color: '#ffffff',
+                    background: videoType === 'ultra' 
+                      ? 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)' 
+                      : (theme === 'pastel' ? 'rgba(255, 255, 255, 0.94)' : 'rgba(15, 23, 42, 0.6)'),
+                    border: videoType === 'ultra' 
+                      ? '2px solid #fbbf24' 
+                      : (theme === 'pastel' ? '2px solid #8b5cf6' : '1px solid rgba(255, 255, 255, 0.12)'),
+                    color: videoType === 'ultra' 
+                      ? '#ffffff' 
+                      : (theme === 'pastel' ? '#581c87' : '#ffffff'),
                     fontWeight: '800',
-                    borderRadius: '14px',
+                    borderRadius: '16px',
                     boxShadow: videoType === 'ultra' ? '0 4px 18px rgba(245, 158, 11, 0.45)' : 'none',
                     display: 'flex',
                     alignItems: 'center',
@@ -1192,7 +1210,7 @@ function App() {
           <h2>⚙️ Video Settings</h2>
 
           <div className="form-group" style={{ marginBottom: '1.2rem' }}>
-            <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: '700', color: '#c084fc' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: '800' }}>
               <span>✨ Engine Generation Mode</span>
             </label>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginTop: '6px' }}>
@@ -1201,15 +1219,21 @@ function App() {
                 onClick={() => setGenerationMode('ultra')}
                 style={{
                   padding: '10px 12px',
-                  borderRadius: '12px',
-                  border: generationMode === 'ultra' ? '2px solid #c084fc' : '1px solid rgba(255,255,255,0.1)',
-                  background: generationMode === 'ultra' ? 'rgba(192, 132, 252, 0.25)' : 'rgba(15, 23, 42, 0.6)',
-                  color: generationMode === 'ultra' ? '#ffffff' : '#94a3b8',
+                  borderRadius: '16px',
+                  border: generationMode === 'ultra' 
+                    ? '2px solid #a855f7' 
+                    : (theme === 'pastel' ? '2px solid #8b5cf6' : '1px solid rgba(255,255,255,0.12)'),
+                  background: generationMode === 'ultra' 
+                    ? 'linear-gradient(135deg, #a855f7 0%, #7e22ce 100%)' 
+                    : (theme === 'pastel' ? 'rgba(255, 255, 255, 0.94)' : 'rgba(15, 23, 42, 0.6)'),
+                  color: generationMode === 'ultra' 
+                    ? '#ffffff' 
+                    : (theme === 'pastel' ? '#581c87' : '#94a3b8'),
                   fontSize: '0.82rem',
-                  fontWeight: '700',
+                  fontWeight: '800',
                   cursor: 'pointer',
                   textAlign: 'center',
-                  boxShadow: generationMode === 'ultra' ? '0 0 15px rgba(192, 132, 252, 0.4)' : 'none',
+                  boxShadow: generationMode === 'ultra' ? '0 4px 15px rgba(168, 85, 247, 0.4)' : 'none',
                   transition: 'all 0.2s ease'
                 }}
               >
@@ -1220,14 +1244,21 @@ function App() {
                 onClick={() => setGenerationMode('standard')}
                 style={{
                   padding: '10px 12px',
-                  borderRadius: '12px',
-                  border: generationMode === 'standard' ? '2px solid #c084fc' : '1px solid rgba(255,255,255,0.1)',
-                  background: generationMode === 'standard' ? 'rgba(192, 132, 252, 0.25)' : 'rgba(15, 23, 42, 0.6)',
-                  color: generationMode === 'standard' ? '#ffffff' : '#94a3b8',
+                  borderRadius: '16px',
+                  border: generationMode === 'standard' 
+                    ? '2px solid #a855f7' 
+                    : (theme === 'pastel' ? '2px solid #8b5cf6' : '1px solid rgba(255,255,255,0.12)'),
+                  background: generationMode === 'standard' 
+                    ? 'linear-gradient(135deg, #a855f7 0%, #7e22ce 100%)' 
+                    : (theme === 'pastel' ? 'rgba(255, 255, 255, 0.94)' : 'rgba(15, 23, 42, 0.6)'),
+                  color: generationMode === 'standard' 
+                    ? '#ffffff' 
+                    : (theme === 'pastel' ? '#581c87' : '#94a3b8'),
                   fontSize: '0.82rem',
-                  fontWeight: '700',
+                  fontWeight: '800',
                   cursor: 'pointer',
                   textAlign: 'center',
+                  boxShadow: generationMode === 'standard' ? '0 4px 15px rgba(168, 85, 247, 0.4)' : 'none',
                   transition: 'all 0.2s ease'
                 }}
               >
@@ -1237,7 +1268,7 @@ function App() {
           </div>
 
           <div className="form-group" style={{ marginBottom: '1.2rem' }}>
-            <label style={{ fontWeight: '700', color: '#e2e8f0' }}>📐 Aspect Ratio</label>
+            <label style={{ fontWeight: '800' }}>📐 Aspect Ratio</label>
             <CustomSelect 
               value={aspectRatio} 
               onChange={(val) => setAspectRatio(val)}
@@ -1250,7 +1281,7 @@ function App() {
           </div>
 
           <div className="form-group" style={{ marginBottom: '1.2rem' }}>
-            <label style={{ fontWeight: '700', color: '#e2e8f0' }}>🎨 Cinematic Filter & Style</label>
+            <label style={{ fontWeight: '800' }}>🎨 Cinematic Filter & Style</label>
             <CustomSelect 
               value={filterStyle} 
               onChange={(val) => setFilterStyle(val)}
