@@ -13,6 +13,123 @@ from PIL import Image, ImageDraw, ImageFont
 warnings.filterwarnings("ignore")
 logging.getLogger("google_genai").setLevel(logging.ERROR)
 
+class SafeImageDraw:
+    def __init__(self, draw_obj):
+        self._draw = draw_obj
+
+    def _clean_xy(self, xy):
+        if isinstance(xy, (list, tuple)):
+            res = []
+            for item in xy:
+                if isinstance(item, (list, tuple)):
+                    res.append(tuple(int(v) for v in item))
+                elif isinstance(item, (int, float)):
+                    res.append(int(item))
+                else:
+                    res.append(item)
+            return tuple(res) if isinstance(xy, tuple) else res
+        return xy
+
+    def line(self, xy, *args, **kwargs):
+        try:
+            xy = self._clean_xy(xy)
+            if 'fill' in kwargs and len(args) > 0:
+                args = ()
+            return self._draw.line(xy, *args, **kwargs)
+        except Exception:
+            try:
+                fill = kwargs.get('fill', (255, 255, 255))
+                width = int(kwargs.get('width', 1))
+                return self._draw.line(xy, fill=fill, width=width)
+            except Exception:
+                pass
+
+    def rectangle(self, xy, *args, **kwargs):
+        try:
+            xy = self._clean_xy(xy)
+            if 'fill' in kwargs and len(args) > 0:
+                args = ()
+            return self._draw.rectangle(xy, *args, **kwargs)
+        except Exception:
+            try:
+                fill = kwargs.get('fill', (100, 100, 100))
+                return self._draw.rectangle(xy, fill=fill)
+            except Exception:
+                pass
+
+    def ellipse(self, xy, *args, **kwargs):
+        try:
+            xy = self._clean_xy(xy)
+            if 'fill' in kwargs and len(args) > 0:
+                args = ()
+            return self._draw.ellipse(xy, *args, **kwargs)
+        except Exception:
+            try:
+                fill = kwargs.get('fill', (200, 200, 200))
+                return self._draw.ellipse(xy, fill=fill)
+            except Exception:
+                pass
+
+    def polygon(self, xy, *args, **kwargs):
+        try:
+            xy = self._clean_xy(xy)
+            if 'fill' in kwargs and len(args) > 0:
+                args = ()
+            return self._draw.polygon(xy, *args, **kwargs)
+        except Exception:
+            try:
+                fill = kwargs.get('fill', (150, 150, 150))
+                return self._draw.polygon(xy, fill=fill)
+            except Exception:
+                pass
+
+    def text(self, xy, text, *args, **kwargs):
+        try:
+            xy = self._clean_xy(xy)
+            return self._draw.text(xy, str(text), *args, **kwargs)
+        except Exception:
+            try:
+                return self._draw.text(xy, str(text), fill=(255, 255, 255))
+            except Exception:
+                pass
+
+    def arc(self, xy, start, end, *args, **kwargs):
+        try:
+            xy = self._clean_xy(xy)
+            return self._draw.arc(xy, int(start), int(end), *args, **kwargs)
+        except Exception:
+            pass
+
+    def chord(self, xy, start, end, *args, **kwargs):
+        try:
+            xy = self._clean_xy(xy)
+            return self._draw.chord(xy, int(start), int(end), *args, **kwargs)
+        except Exception:
+            pass
+
+    def pieslice(self, xy, start, end, *args, **kwargs):
+        try:
+            xy = self._clean_xy(xy)
+            return self._draw.pieslice(xy, int(start), int(end), *args, **kwargs)
+        except Exception:
+            pass
+
+    def __getattr__(self, name):
+        return getattr(self._draw, name)
+
+
+class SafeImageDrawModule:
+    def __init__(self, original_mod):
+        self._mod = original_mod
+
+    def Draw(self, im, mode=None):
+        raw_draw = self._mod.Draw(im, mode=mode)
+        return SafeImageDraw(raw_draw)
+
+    def __getattr__(self, name):
+        return getattr(self._mod, name)
+
+
 def generate_gemini_cartoon_animation(user_prompt: str, output_mp4: str, duration: float = 5.0, target_size: tuple = (640, 360), fps: int = 15) -> str:
     """
     Generates a frame-by-frame 2D Cartoon / Anime Animation MP4 video using Gemini AI code generation.
@@ -135,7 +252,7 @@ def generate_gemini_cartoon_animation(user_prompt: str, output_mp4: str, duratio
 
     exec_globals = {
         "Image": Image,
-        "ImageDraw": ImageDraw,
+        "ImageDraw": SafeImageDrawModule(ImageDraw),
         "ImageFont": ImageFont,
         "math": __import__("math"),
         "imageio": imageio,
