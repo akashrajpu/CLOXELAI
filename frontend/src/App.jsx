@@ -174,9 +174,13 @@ function App() {
   const [fullScript, setFullScript] = useState('');
 
   useEffect(() => {
-    document.body.className = theme === 'pastel' ? 'theme-pastel' : 'theme-dark';
+    if (!userId) {
+      document.body.className = 'theme-dark';
+    } else {
+      document.body.className = theme === 'pastel' ? 'theme-pastel' : 'theme-dark';
+    }
     localStorage.setItem('cloxel_theme', theme);
-  }, [theme]);
+  }, [theme, userId]);
 
   const toggleTheme = () => {
     setTheme(prev => (prev === 'pastel' ? 'dark' : 'pastel'));
