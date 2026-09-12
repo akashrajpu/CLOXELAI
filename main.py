@@ -686,7 +686,7 @@ def process_single_user_schedule(user: dict, now_ist: datetime, today_str: str):
             staged_item = staged_map.get(kind, {})
 
             # STAGE 1: PREDICTIVE AUTO-STAGING LOCK (Pre-rendering ahead of time - prioritized by earliest target)
-            if 25 < mins_until <= 360:
+            if 5 < mins_until <= 360:
                 has_valid_staged = (staged_item.get("date") == today_str) and (bool(staged_item.get("cloudinary_url")) or (staged_item.get("file") and os.path.exists(staged_item.get("file", ""))))
                 if not has_valid_staged:
                     lock_field = f"auto_locks.staging_{kind}"
@@ -884,14 +884,18 @@ def process_single_user_schedule(user: dict, now_ist: datetime, today_str: str):
                         {"$unset": {upload_lock_field: ""}}
                     )
 
+        import time
         if schedule.get("short_enabled", True) and is_active and plan_type in ["short", "combo", "ultra", "all"]:
             run_staged_auto_pipeline("short", True, "Space Exploration", 20)
 
         if schedule.get("long_enabled", True) and is_active and plan_type in ["long", "combo", "ultra", "all"]:
+            time.sleep(3)
             run_staged_auto_pipeline("long", False, "AI Innovations", 60)
 
         if schedule.get("ultra_enabled", False) and (is_active or has_ultra_sub):
-            ultra_is_short = (schedule.get("ultra_aspect_ratio") == "9:16")
+            time.sleep(3)
+            ultra_aspect = schedule.get("ultra_aspect_ratio", "16:9")
+            ultra_is_short = (ultra_aspect == "9:16")
             run_staged_auto_pipeline("ultra", ultra_is_short, "History of Ancient Warriors", 60)
 
     except Exception as e_user:
