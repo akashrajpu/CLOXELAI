@@ -166,6 +166,15 @@ function CustomSelect({ value, onChange, options }) {
 }
 
 function App() {
+  const [userId, setUserId] = useState(() => {
+    try {
+      const stored = localStorage.getItem('cloxel_user_id');
+      if (stored && stored !== 'null' && stored !== 'undefined' && stored.trim() !== '') {
+        return stored.trim();
+      }
+    } catch(e) {}
+    return null;
+  });
   const [ytStatus, setYtStatus] = useState(null);
   const [theme, setTheme] = useState(() => localStorage.getItem('cloxel_theme') || 'pastel');
   const [topic, setTopic] = useState('Space Exploration');
@@ -173,19 +182,6 @@ function App() {
   const [videoType, setVideoType] = useState('short'); // 'short' or 'long'
   const [fullScript, setFullScript] = useState('');
 
-  useEffect(() => {
-    if (!userId) {
-      document.body.className = 'theme-dark';
-    } else {
-      document.body.className = theme === 'pastel' ? 'theme-pastel' : 'theme-dark';
-    }
-    localStorage.setItem('cloxel_theme', theme);
-  }, [theme, userId]);
-
-  const toggleTheme = () => {
-    setTheme(prev => (prev === 'pastel' ? 'dark' : 'pastel'));
-  };
-  
   // Customization Settings
   const [fontName, setFontName] = useState('Arial.ttf');
   const [fontList, setFontList] = useState(['Arial.ttf', 'AgentOrange.ttf', 'BetsyFlanagan.ttf', 'CarbonBlock.ttf', 'Cartoon Blocks.ttf', 'GrapeSoda.ttf', 'HighLevel.ttf', 'RaceFlow.ttf']);
@@ -233,19 +229,6 @@ function App() {
   const [showStopScheduleWarningModal, setShowStopScheduleWarningModal] = useState(false);
   const [customAlert, setCustomAlert] = useState(null);
   const [playingHistoryVideo, setPlayingHistoryVideo] = useState(null);
-
-  const triggerAlert = (title, message, icon = '⚠️', type = 'info', onConfirm = null, confirmText = 'OK', cancelText = 'Cancel') => {
-    setCustomAlert({
-      title,
-      message,
-      icon,
-      type,
-      onConfirm,
-      confirmText,
-      cancelText
-    });
-  };
-
   const [selectedPlan, setSelectedPlan] = useState('long'); // 'short', 'long', 'combo'
   const [subStatus, setSubStatus] = useState(() => {
     const defaultSub = { free_demo_count: 2, has_active_subscription: false, plan_type: 'none' };
@@ -261,18 +244,6 @@ function App() {
     } catch (e) {}
     return defaultSub;
   });
-
-  const openPricingModal = (plan = 'long') => {
-    if (plan && typeof setSelectedPlan === 'function') {
-      setSelectedPlan(plan);
-    }
-    setIsSidebarOpen(false);
-    setShowAutoUploadModal(false);
-    setShowStopScheduleWarningModal(false);
-    setCustomAlert(null);
-    setShowPricingModal(true);
-  };
-
   const [isPaymentProcessing, setIsPaymentProcessing] = useState(false);
   const [enableCheckbox, setEnableCheckbox] = useState(false);
   const [autoSchedule, setAutoSchedule] = useState({
@@ -300,19 +271,45 @@ function App() {
     remaining_plan_videos: 60,
     next_scheduled_run: 'Short: Daily at 10:00 | Long: Daily at 18:00'
   });
-  
-  const [userId, setUserId] = useState(() => {
-    try {
-      const stored = localStorage.getItem('cloxel_user_id');
-      if (stored && stored !== 'null' && stored !== 'undefined' && stored.trim() !== '') {
-        return stored.trim();
-      }
-    } catch(e) {}
-    return null;
-  });
   const [isGeneratingVideo, setIsGeneratingVideo] = useState(false);
   const [isSavingSchedule, setIsSavingSchedule] = useState(false);
   const [isUploadingPic, setIsUploadingPic] = useState(false);
+
+  useEffect(() => {
+    if (!userId) {
+      document.body.className = 'theme-dark';
+    } else {
+      document.body.className = theme === 'pastel' ? 'theme-pastel' : 'theme-dark';
+    }
+    localStorage.setItem('cloxel_theme', theme);
+  }, [theme, userId]);
+
+  const toggleTheme = () => {
+    setTheme(prev => (prev === 'pastel' ? 'dark' : 'pastel'));
+  };
+
+  const triggerAlert = (title, message, icon = '⚠️', type = 'info', onConfirm = null, confirmText = 'OK', cancelText = 'Cancel') => {
+    setCustomAlert({
+      title,
+      message,
+      icon,
+      type,
+      onConfirm,
+      confirmText,
+      cancelText
+    });
+  };
+
+  const openPricingModal = (plan = 'long') => {
+    if (plan && typeof setSelectedPlan === 'function') {
+      setSelectedPlan(plan);
+    }
+    setIsSidebarOpen(false);
+    setShowAutoUploadModal(false);
+    setShowStopScheduleWarningModal(false);
+    setCustomAlert(null);
+    setShowPricingModal(true);
+  };
 
   const fetchWithTimeout = async (url, options = {}, timeoutMs = 12000) => {
     const controller = new AbortController();
