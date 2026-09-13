@@ -604,14 +604,9 @@ def register_manual_job_end():
 
 def process_single_user_schedule(user: dict, now_ist: datetime, today_str: str):
     """
-    Crash-Proof Thread Worker for Single User Schedule Execution:
-    Handles short, long, and ultra pre-rendering & instant YouTube auto-upload independently.
-    Isolated per-user try-except prevents any error from affecting other users.
+    Worker processing pipeline for a single user's schedule.
+    Handles predictive pre-rendering (Stage 1) and instant YouTube publishing (Stage 2).
     """
-    if active_manual_jobs_count > 0:
-        print(f"⏸️ [PRIORITY CONTROLLER] Manual video generation active. Deferring background auto-staging...")
-        return
-
     internal_id = user.get("internal_id")
     if not internal_id:
         return
