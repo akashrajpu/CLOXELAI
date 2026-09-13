@@ -1585,6 +1585,8 @@ async def generate_custom_video(req: VideoRequest, background_tasks: BackgroundT
 
             # 2. Quota Check (Demo vs Active Subscription)
             if not is_active and not (v_type == "ultra" and has_active_ultra):
+                if user and "free_demo_count" not in user:
+                    users_collection.update_one({"internal_id": user_id}, {"$set": {"free_demo_count": 2}})
                 res = users_collection.update_one(
                     {"internal_id": user_id, "free_demo_count": {"$gt": 0}},
                     {"$inc": {"free_demo_count": -1}}
@@ -1666,7 +1668,10 @@ async def get_user_subscription(internal_id: str):
         if not user:
             return {"free_demo_count": 2, "has_active_subscription": False, "plan_type": "none"}
             
-        free_demo = user.get("free_demo_count", 2)
+        free_demo = user.get("free_demo_count")
+        if free_demo is None:
+            free_demo = 2
+            users_collection.update_one({"internal_id": internal_id}, {"$set": {"free_demo_count": 2}})
         subscription = user.get("subscription", {})
         sub_status = subscription.get("status")
         sub_expires = subscription.get("expires_at")
@@ -2596,6 +2601,7 @@ async def register_user(req: UserRegister):
         "password_hash": hashed_password,
         "internal_id": internal_id,
         "security_qr_token": encrypt_field(security_qr_tok),
+        "free_demo_count": 2,
         "created_at": datetime.utcnow()
     }
     
@@ -3480,7 +3486,12 @@ async def generate_script(req: ScriptRequest):
                 if sub_expires and sub_expires > datetime.utcnow():
                     is_active = True
             
-            if not is_active and user.get("free_demo_count", 0) <= 0:
+            free_demo = user.get("free_demo_count")
+            if free_demo is None:
+                free_demo = 2
+                users_collection.update_one({"internal_id": user_id}, {"$set": {"free_demo_count": 2}})
+
+            if not is_active and free_demo <= 0:
                 raise HTTPException(
                     status_code=402, 
                     detail="Demo quota exhausted! You have used your 2 free demo videos & scripts. Please upgrade your plan to continue generating AI scripts & videos."
