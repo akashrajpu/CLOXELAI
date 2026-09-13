@@ -823,6 +823,12 @@ def process_single_user_schedule(user: dict, now_ist: datetime, today_str: str):
                     )
                     if yt_res:
                         upload_success = True
+                    else:
+                        print(f"⚠️ [STAGED UPLOAD FAILED] Clearing stale staged video reference for {kind.upper()} so retry engine can render a fresh video...")
+                        users_collection.update_one(
+                            {"internal_id": internal_id},
+                            {"$unset": {f"staged_auto_videos.{kind}": ""}}
+                        )
                 else:
                     category = schedule.get(f"{kind}_category") or "Random"
                     raw_topic = schedule.get(f"{kind}_topic") or default_topic
@@ -889,11 +895,11 @@ def process_single_user_schedule(user: dict, now_ist: datetime, today_str: str):
             run_staged_auto_pipeline("short", True, "Space Exploration", 20)
 
         if schedule.get("long_enabled", True) and is_active and plan_type in ["long", "combo", "ultra", "all"]:
-            time.sleep(3)
+            time.sleep(15)
             run_staged_auto_pipeline("long", False, "AI Innovations", 60)
 
         if schedule.get("ultra_enabled", False) and (is_active or has_ultra_sub):
-            time.sleep(3)
+            time.sleep(15)
             ultra_aspect = schedule.get("ultra_aspect_ratio", "16:9")
             ultra_is_short = (ultra_aspect == "9:16")
             run_staged_auto_pipeline("ultra", ultra_is_short, "History of Ancient Warriors", 60)
