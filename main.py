@@ -1749,8 +1749,10 @@ async def get_user_subscription(internal_id: str):
             "ultra_expires_at": ultra_expires.isoformat() if has_ultra and isinstance(ultra_expires, datetime) else None,
             "today_short_count": daily_usage.get("short_count", 0),
             "today_long_count": daily_usage.get("long_count", 0),
+            "today_ultra_count": daily_usage.get("ultra_count", 0),
             "today_auto_short_count": auto_daily_usage.get("auto_short_count", 0),
             "today_auto_long_count": auto_daily_usage.get("auto_long_count", 0),
+            "today_auto_ultra_count": auto_daily_usage.get("auto_ultra_count", 0),
             "daily_limit_text": limit_text
         }
     except Exception as e:
