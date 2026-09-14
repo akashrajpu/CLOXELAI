@@ -663,7 +663,8 @@ def process_single_user_schedule(user: dict, now_ist: datetime, today_str: str):
         def run_staged_auto_pipeline(kind: str, is_short_flag: bool, default_topic: str, default_dur: int):
             fresh_user = users_collection.find_one({"internal_id": internal_id}) or user
             fresh_sched = fresh_user.get("auto_schedule", {})
-            time_str = fresh_sched.get(f"{kind}_time", "10:00" if kind == "short" else ("18:00" if kind == "long" else "21:00"))
+            default_scheduled_time = fresh_sched.get("short_time", "03:00") if kind in ["short", "ultra"] else "18:00"
+            time_str = fresh_sched.get(f"{kind}_time") or default_scheduled_time
             last_run_key = f"last_{kind}_run"
 
             # GUARD 1: If already published today, STOP!
@@ -675,7 +676,7 @@ def process_single_user_schedule(user: dict, now_ist: datetime, today_str: str):
             if upload_lock_check.get("date") == today_str and upload_lock_check.get("status") == "success":
                 return # Upload already confirmed successful today
 
-            target_minutes = parse_time_to_minutes(time_str) or (600 if kind == "short" else (1080 if kind == "long" else 1260))
+            target_minutes = parse_time_to_minutes(time_str) or (180 if kind in ["short", "ultra"] else 1080)
             mins_until = (target_minutes - current_ist_minutes) % 1440
             diff_current = min(abs(current_ist_minutes - target_minutes), 1440 - abs(current_ist_minutes - target_minutes))
 
@@ -787,7 +788,8 @@ def process_single_user_schedule(user: dict, now_ist: datetime, today_str: str):
                             )
 
             # STAGE 2: INSTANT BATCH UPLOAD (Publish to YouTube using pre-staged Cloudinary video OR generate fast fallback)
-            is_time_to_upload = (diff_current <= 30) or (mins_until >= 1410) or (current_ist_minutes >= target_minutes and fresh_sched.get(last_run_key) != today_str)
+            has_pre_staged = bool(staged_item.get("cloudinary_url")) or (staged_item.get("file") and os.path.exists(staged_item.get("file", "")))
+            is_time_to_upload = has_pre_staged or (diff_current <= 30) or (mins_until >= 1410) or (current_ist_minutes >= target_minutes and fresh_sched.get(last_run_key) != today_str)
             if is_time_to_upload:
                 upload_lock_field = f"auto_locks.upload_{kind}"
                 node_name = os.getenv("RENDER_SERVICE_NAME", "cluster_node")
