@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef } from 'react';
 import jsQR from 'jsqr';
 import lottie from 'lottie-web';
 import heroAnimationData from './lottie_hero.json';
-import heroRightAnimationData from './lottie_hero_right.json';
 
 const API_BASE = window.location.hostname === 'localhost' ? 'http://localhost:8000' : '';
 
@@ -18,33 +17,6 @@ function LottieHeroAnimation() {
       loop: true,
       autoplay: true,
       animationData: heroAnimationData,
-    });
-
-    return () => {
-      anim.destroy();
-    };
-  }, []);
-
-  return (
-    <div 
-      ref={containerRef} 
-      className="lottie-hero-wrapper" 
-    />
-  );
-}
-
-function LottieHeroRightAnimation() {
-  const containerRef = useRef(null);
-
-  useEffect(() => {
-    if (!containerRef.current) return;
-    containerRef.current.innerHTML = '';
-    const anim = lottie.loadAnimation({
-      container: containerRef.current,
-      renderer: 'svg',
-      loop: true,
-      autoplay: true,
-      animationData: heroRightAnimationData,
     });
 
     return () => {
@@ -428,11 +400,6 @@ function Auth({ onLoginSuccess }) {
         {/* Floating Left Side Lottie Animation */}
         <div className="hero-lottie-side-left">
           <LottieHeroAnimation />
-        </div>
-
-        {/* Floating Right Side Lottie Animation */}
-        <div className="hero-lottie-side-right">
-          <LottieHeroRightAnimation />
         </div>
 
         <div className="hero-badge">✨ NEXT-GEN FACELESS VIDEO GENERATOR</div>
