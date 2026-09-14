@@ -894,14 +894,13 @@ def process_single_user_schedule(user: dict, now_ist: datetime, today_str: str):
             run_staged_auto_pipeline("short", True, "Space Exploration", 20)
 
         if schedule.get("long_enabled", True) and is_active and plan_type in ["long", "combo", "ultra", "all"]:
-            time.sleep(15)
             run_staged_auto_pipeline("long", False, "AI Innovations", 60)
 
-        if schedule.get("ultra_enabled", False) and (is_active or has_ultra_sub):
-            time.sleep(15)
-            ultra_aspect = schedule.get("ultra_aspect_ratio", "16:9")
+        if schedule.get("ultra_enabled", True) and (is_active or has_ultra_sub or plan_type in ["ultra", "combo", "all"]):
+            ultra_aspect = schedule.get("ultra_aspect_ratio", "9:16")
             ultra_is_short = (ultra_aspect == "9:16")
-            run_staged_auto_pipeline("ultra", ultra_is_short, "History of Ancient Warriors", 60)
+            default_dur = 25 if ultra_is_short else 60
+            run_staged_auto_pipeline("ultra", ultra_is_short, "Funny Cartoon Adventures", default_dur)
 
     except Exception as e_user:
         print(f"❌ Worker error for user {internal_id}: {e_user}")
@@ -1399,7 +1398,11 @@ def render_video_with_smart_fallback(user_id: str, topic: str, category: str, vo
     55s -> 45s -> 30s -> 20s -> 10s for short reels, retrying until 100% success!
     """
     import uuid
-    if video_type in ["long", "ultra"]:
+    if aspect_ratio == "9:16" or video_type == "short":
+        target_max = min(requested_duration, 30) if aspect_ratio == "9:16" else requested_duration
+        duration_steps = [target_max, 25, 20, 15, 10]
+        duration_steps = sorted(list(set([d for d in duration_steps if d <= target_max])), reverse=True)
+    elif video_type in ["long", "ultra"]:
         duration_steps = [requested_duration, 3600, 1800, 1200, 900, 600, 300, 240, 180, 120, 60, 30]
         duration_steps = sorted(list(set([d for d in duration_steps if d <= requested_duration])), reverse=True)
     else:
