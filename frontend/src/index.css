@@ -1094,8 +1094,8 @@ body.theme-pastel .history-card-topic {
   z-index: 10;
 }
 
-/* Floating Lottie animation on left side while hero text remains 100% centered */
-.hero-lottie-side {
+/* Floating Lottie animations on Left & Right sides while hero text remains 100% centered */
+.hero-lottie-side-left {
   position: absolute;
   left: -355px;
   top: 48px;
@@ -1108,14 +1108,34 @@ body.theme-pastel .history-card-topic {
   filter: drop-shadow(0 0 30px rgba(168, 85, 247, 0.25));
 }
 
-.hero-lottie-side .lottie-hero-wrapper {
+.hero-lottie-side-right {
+  position: absolute;
+  right: -355px;
+  top: 48px;
+  width: 420px;
+  height: 420px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 5;
+  filter: drop-shadow(0 0 30px rgba(168, 85, 247, 0.25));
+}
+
+.hero-lottie-side-left .lottie-hero-wrapper,
+.hero-lottie-side-right .lottie-hero-wrapper {
   width: 100%;
   height: 100%;
 }
 
 @media (max-width: 1400px) {
-  .hero-lottie-side {
+  .hero-lottie-side-left {
     left: -260px;
+    top: 35px;
+    width: 340px;
+    height: 340px;
+  }
+  .hero-lottie-side-right {
+    right: -260px;
     top: 35px;
     width: 340px;
     height: 340px;
@@ -1123,9 +1143,11 @@ body.theme-pastel .history-card-topic {
 }
 
 @media (max-width: 1180px) {
-  .hero-lottie-side {
+  .hero-lottie-side-left,
+  .hero-lottie-side-right {
     position: relative;
     left: auto;
+    right: auto;
     top: auto;
     margin: 0 auto 20px auto;
     width: 100%;
