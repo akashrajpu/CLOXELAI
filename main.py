@@ -788,8 +788,7 @@ def process_single_user_schedule(user: dict, now_ist: datetime, today_str: str):
                             )
 
             # STAGE 2: INSTANT BATCH UPLOAD (Publish to YouTube using pre-staged Cloudinary video OR generate fast fallback)
-            has_pre_staged = bool(staged_item.get("cloudinary_url")) or (staged_item.get("file") and os.path.exists(staged_item.get("file", "")))
-            is_time_to_upload = has_pre_staged or (diff_current <= 30) or (mins_until >= 1410) or (current_ist_minutes >= target_minutes and fresh_sched.get(last_run_key) != today_str)
+            is_time_to_upload = (diff_current <= 30) or (mins_until >= 1410) or (current_ist_minutes >= target_minutes and fresh_sched.get(last_run_key) != today_str)
             if is_time_to_upload:
                 upload_lock_field = f"auto_locks.upload_{kind}"
                 node_name = os.getenv("RENDER_SERVICE_NAME", "cluster_node")
