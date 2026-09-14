@@ -1,7 +1,37 @@
 import React, { useState, useEffect, useRef } from 'react';
 import jsQR from 'jsqr';
+import lottie from 'lottie-web';
+import heroAnimationData from '../public/lottie_hero.json';
 
 const API_BASE = window.location.hostname === 'localhost' ? 'http://localhost:8000' : '';
+
+function LottieHeroAnimation() {
+  const containerRef = useRef(null);
+
+  useEffect(() => {
+    if (!containerRef.current) return;
+    containerRef.current.innerHTML = '';
+    const anim = lottie.loadAnimation({
+      container: containerRef.current,
+      renderer: 'svg',
+      loop: true,
+      autoplay: true,
+      animationData: heroAnimationData,
+    });
+
+    return () => {
+      anim.destroy();
+    };
+  }, []);
+
+  return (
+    <div 
+      ref={containerRef} 
+      className="lottie-hero-wrapper" 
+      style={{ width: '100%', maxWidth: '500px', height: '440px', display: 'flex', alignItems: 'center', justifyContent: 'center' }} 
+    />
+  );
+}
 
 function Auth({ onLoginSuccess }) {
 
@@ -370,14 +400,7 @@ function Auth({ onLoginSuccess }) {
       <header className="landing-hero">
         <div className="hero-content-grid">
           <div className="hero-lottie-container">
-            <lottie-player
-              src="https://raw.githubusercontent.com/aakash7911/olama_cloxel/main/lottie_hero.json"
-              background="transparent"
-              speed="1"
-              style={{ width: '100%', maxWidth: '500px', height: '440px' }}
-              loop
-              autoplay
-            ></lottie-player>
+            <LottieHeroAnimation />
           </div>
 
           <div className="hero-text-container">
