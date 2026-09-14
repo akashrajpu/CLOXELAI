@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import jsQR from 'jsqr';
 import lottie from 'lottie-web';
-import heroAnimationData from '../public/lottie_hero.json';
+import heroAnimationData from './lottie_hero.json';
 
 const API_BASE = window.location.hostname === 'localhost' ? 'http://localhost:8000' : '';
 
@@ -28,7 +28,6 @@ function LottieHeroAnimation() {
     <div 
       ref={containerRef} 
       className="lottie-hero-wrapper" 
-      style={{ width: '100%', maxWidth: '500px', height: '440px', display: 'flex', alignItems: 'center', justifyContent: 'center' }} 
     />
   );
 }
@@ -398,38 +397,34 @@ function Auth({ onLoginSuccess }) {
 
       {/* Hero Section */}
       <header className="landing-hero">
-        <div className="hero-content-grid">
-          <div className="hero-lottie-container">
-            <LottieHeroAnimation />
+        <div className="hero-lottie-top">
+          <LottieHeroAnimation />
+        </div>
+
+        <div className="hero-badge">✨ NEXT-GEN FACELESS VIDEO GENERATOR</div>
+        <h1 className="hero-title">
+          See your videos come to life <span>before your next move.</span>
+        </h1>
+        <p className="hero-subtitle">
+          AI connects your script, voiceovers, video scenes, and subtitles before you make a move. Fully automated 100% cloud video engine.
+        </p>
+
+        <div className="hero-cta-box">
+          <button className="btn-hero-cta" onClick={() => { setIsLogin(false); setShowAuthModal(true); setError(null); }}>
+            Create Account & Generate Free Video →
+          </button>
+          <p className="hero-cta-subtext">No credit card required. Instant AI video creation.</p>
+        </div>
+
+        {/* Floating Feature Badges */}
+        <div className="hero-stats">
+          <div className="stat-card">
+            <h3>24/7</h3>
+            <p>Automated AI Video Processing</p>
           </div>
-
-          <div className="hero-text-container">
-            <div className="hero-badge">✨ NEXT-GEN FACELESS VIDEO GENERATOR</div>
-            <h1 className="hero-title">
-              See your videos come to life <span>before your next move.</span>
-            </h1>
-            <p className="hero-subtitle">
-              AI connects your script, voiceovers, video scenes, and subtitles before you make a move. Fully automated 100% cloud video engine.
-            </p>
-
-            <div className="hero-cta-box">
-              <button className="btn-hero-cta" onClick={() => { setIsLogin(false); setShowAuthModal(true); setError(null); }}>
-                Create Account & Generate Free Video →
-              </button>
-              <p className="hero-cta-subtext">No credit card required. Instant AI video creation.</p>
-            </div>
-
-            {/* Floating Feature Badges */}
-            <div className="hero-stats">
-              <div className="stat-card">
-                <h3>24/7</h3>
-                <p>Automated AI Video Processing</p>
-              </div>
-              <div className="stat-card">
-                <h3>100%</h3>
-                <p>Cloud Based & Secure Data</p>
-              </div>
-            </div>
+          <div className="stat-card">
+            <h3>100%</h3>
+            <p>Cloud Based & Secure Data</p>
           </div>
         </div>
       </header>
