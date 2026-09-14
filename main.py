@@ -685,9 +685,9 @@ def process_single_user_schedule(user: dict, now_ist: datetime, today_str: str):
             staged_map = fresh_user.get("staged_auto_videos", {})
             staged_item = staged_map.get(kind, {})
 
-            # STAGE 1: PREDICTIVE AUTO-STAGING LOCK (Pre-rendering ahead of time - prioritized by earliest target)
+            # STAGE 1: PREDICTIVE AUTO-STAGING (Pre-render ahead of upload time & save to Cloudinary + MongoDB)
             if 5 < mins_until <= 720:
-                has_valid_staged = (staged_item.get("date") in valid_dates) and (bool(staged_item.get("cloudinary_url")) or (staged_item.get("file") and os.path.exists(staged_item.get("file", ""))))
+                has_valid_staged = bool(staged_item.get("cloudinary_url")) or (staged_item.get("file") and os.path.exists(staged_item.get("file", "")))
                 if not has_valid_staged:
                     lock_field = f"auto_locks.staging_{kind}"
                     node_name = os.getenv("RENDER_SERVICE_NAME", "cluster_node")
@@ -697,10 +697,7 @@ def process_single_user_schedule(user: dict, now_ist: datetime, today_str: str):
                             "internal_id": internal_id,
                             "$or": [
                                 {f"{lock_field}.date": {"$nin": valid_dates}},
-                                {
-                                    f"staged_auto_videos.{kind}.date": {"$nin": valid_dates},
-                                    f"{lock_field}.claimed_at": {"$lt": five_mins_ago}
-                                }
+                                {f"{lock_field}.claimed_at": {"$lt": five_mins_ago}}
                             ]
                         },
                         {
@@ -709,23 +706,25 @@ def process_single_user_schedule(user: dict, now_ist: datetime, today_str: str):
                                     "date": target_run_date,
                                     "claimed_at": datetime.utcnow().isoformat(),
                                     "node": node_name
+                                },
+                                f"auto_schedule_status.{kind}": {
+                                    "status": "STAGING_IN_PROGRESS",
+                                    "target_time": time_str,
+                                    "updated_at": datetime.utcnow().isoformat()
                                 }
                             }
                         }
                     )
                     
-                    if claim_result is None:
-                        # Peer server node already claimed or finished staging today! Skip duplicate render.
-                        pass
-                    else:
+                    if claim_result is not None:
                         print(f"🚀 [PREDICTIVE AUTO-STAGING - Node: {node_name}] Pre-rendering {kind.upper()} video for user {internal_id} (Scheduled IST: {time_str}, Target in {mins_until} mins)...")
-                        category = fresh_sched.get(f"{kind}_category") or "Random"
+                        category = fresh_sched.get(f"{kind}_category") or ("Cartoon & Animation" if kind == "ultra" else "Random")
                         raw_topic = fresh_sched.get(f"{kind}_topic") or default_topic
                         topic = get_daily_unique_subtopic(raw_topic, today_str, internal_id, category)
                         voice = fresh_sched.get(f"{kind}_voice") or "hi-IN-MadhurNeural"
                         font = fresh_sched.get(f"{kind}_font") or "Arial.ttf"
                         color = fresh_sched.get(f"{kind}_color") or "yellow"
-                        aspect_ratio = fresh_sched.get(f"{kind}_aspect_ratio") or ("16:9" if kind in ["long", "ultra"] else "9:16")
+                        aspect_ratio = fresh_sched.get(f"{kind}_aspect_ratio") or ("16:9" if kind in ["long"] else "9:16")
                         duration = int(fresh_sched.get(f"{kind}_duration") or default_dur)
 
                         res = render_video_with_smart_fallback(
@@ -757,24 +756,42 @@ def process_single_user_schedule(user: dict, now_ist: datetime, today_str: str):
                             staged_map[kind] = staged_data
                             users_collection.update_one(
                                 {"internal_id": internal_id},
-                                {"$set": {f"staged_auto_videos.{kind}": staged_data}}
+                                {
+                                    "$set": {
+                                        f"staged_auto_videos.{kind}": staged_data,
+                                        f"auto_schedule_status.{kind}": {
+                                            "status": "STAGED_READY",
+                                            "title": topic,
+                                            "cloudinary_url": res.get("cloudinary_url"),
+                                            "target_time": time_str,
+                                            "staged_at": datetime.utcnow().isoformat()
+                                        }
+                                    }
+                                }
                             )
                             print(f"✅ [PREDICTIVE STAGING COMPLETE - Node: {node_name}] {kind.upper()} video pre-rendered & saved to Cloudinary for user {internal_id}. Waiting for {time_str} IST to publish!")
                             staged_item = staged_data
                         else:
-                            # If rendering failed, clear lock so retry engine or peer node can attempt
                             users_collection.update_one(
                                 {"internal_id": internal_id},
-                                {"$unset": {lock_field: ""}}
+                                {
+                                    "$unset": {lock_field: ""},
+                                    "$set": {
+                                        f"auto_schedule_status.{kind}": {
+                                            "status": "STAGING_FAILED",
+                                            "error": res.get("error", "Rendering failed"),
+                                            "updated_at": datetime.utcnow().isoformat()
+                                        }
+                                    }
+                                }
                             )
 
-            # STAGE 2: INSTANT BATCH UPLOAD LOCK (Publishing to YouTube at target time OR Catch-Up if target time passed today)
-            is_time_to_upload = (diff_current <= 25) or (mins_until >= 1420) or (current_ist_minutes >= target_minutes and fresh_sched.get(last_run_key) != today_str)
+            # STAGE 2: INSTANT BATCH UPLOAD (Publish to YouTube using pre-staged Cloudinary video OR generate fast fallback)
+            is_time_to_upload = (diff_current <= 30) or (mins_until >= 1410) or (current_ist_minutes >= target_minutes and fresh_sched.get(last_run_key) != today_str)
             if is_time_to_upload:
                 upload_lock_field = f"auto_locks.upload_{kind}"
                 node_name = os.getenv("RENDER_SERVICE_NAME", "cluster_node")
 
-                # Claim upload lock with in_progress status (re-claimable if claimed >5m ago without success)
                 claim_upload = users_collection.find_one_and_update(
                     {
                         "internal_id": internal_id,
@@ -794,48 +811,59 @@ def process_single_user_schedule(user: dict, now_ist: datetime, today_str: str):
                                 "status": "in_progress",
                                 "claimed_at": datetime.utcnow().isoformat(),
                                 "node": node_name
+                            },
+                            f"auto_schedule_status.{kind}": {
+                                "status": "UPLOADING",
+                                "target_time": time_str,
+                                "started_at": datetime.utcnow().isoformat()
                             }
                         }
                     }
                 )
 
                 if claim_upload is None:
-                    # Peer server node already claimed or published today! Skip duplicate upload.
                     return
 
                 print(f"💥 [INSTANT BATCH UPLOAD - Node: {node_name}] Publishing {kind.upper()} video for user {internal_id} to YouTube (Scheduled IST: {time_str})...")
 
-                # RE-CHECK fresh staged item from DB so we reuse pre-rendered video
                 fresh_user = users_collection.find_one({"internal_id": internal_id}) or {}
                 fresh_staged = fresh_user.get("staged_auto_videos", {}).get(kind, {})
 
                 target_upload_src = fresh_staged.get("cloudinary_url") or (fresh_staged.get("file") if (fresh_staged.get("file") and os.path.exists(fresh_staged.get("file", ""))) else None)
                 upload_success = False
+                final_yt_url = ""
+                final_title = fresh_staged.get("title", "")
 
-                if (fresh_staged.get("date") in valid_dates) and target_upload_src:
+                if target_upload_src:
+                    print(f"⚡ Reusing pre-rendered Cloudinary video for instant YouTube upload: {target_upload_src}")
                     yt_res = upload_video_to_youtube_core(
                         user_id=internal_id,
                         video_file=target_upload_src,
-                        title=fresh_staged.get("title"),
-                        description=fresh_staged.get("script"),
+                        title=fresh_staged.get("title", f"Auto {kind.upper()} Video"),
+                        description=fresh_staged.get("script", ""),
                         is_short=is_short_flag
                     )
                     if yt_res:
                         upload_success = True
+                        yt_id = yt_res if isinstance(yt_res, str) else ""
+                        final_yt_url = f"https://www.youtube.com/watch?v={yt_id}" if (yt_id and not yt_id.startswith("http")) else yt_id
                     else:
-                        print(f"⚠️ [STAGED UPLOAD FAILED] Clearing stale staged video reference for {kind.upper()} so retry engine can render a fresh video...")
+                        print(f"⚠️ [STAGED UPLOAD FAILED] Clearing stale staged reference for {kind.upper()} to retry...")
                         users_collection.update_one(
                             {"internal_id": internal_id},
                             {"$unset": {f"staged_auto_videos.{kind}": ""}}
                         )
-                else:
-                    category = fresh_sched.get(f"{kind}_category") or "Random"
+
+                if not upload_success:
+                    print(f"🎨 Pre-rendered video not available. Generating fast cartoon video on-the-fly for {kind.upper()}...")
+                    category = fresh_sched.get(f"{kind}_category") or ("Cartoon & Animation" if kind == "ultra" else "Random")
                     raw_topic = fresh_sched.get(f"{kind}_topic") or default_topic
                     topic = get_daily_unique_subtopic(raw_topic, today_str, internal_id, category)
+                    final_title = topic
                     voice = fresh_sched.get(f"{kind}_voice") or "hi-IN-MadhurNeural"
                     font = fresh_sched.get(f"{kind}_font") or "Arial.ttf"
                     color = fresh_sched.get(f"{kind}_color") or "yellow"
-                    aspect_ratio = fresh_sched.get(f"{kind}_aspect_ratio") or ("16:9" if kind in ["long", "ultra"] else "9:16")
+                    aspect_ratio = fresh_sched.get(f"{kind}_aspect_ratio") or ("16:9" if kind in ["long"] else "9:16")
                     duration = int(fresh_sched.get(f"{kind}_duration") or default_dur)
 
                     res = render_video_with_smart_fallback(
@@ -863,6 +891,8 @@ def process_single_user_schedule(user: dict, now_ist: datetime, today_str: str):
                         )
                         if yt_res:
                             upload_success = True
+                            yt_id = yt_res if isinstance(yt_res, str) else ""
+                            final_yt_url = f"https://www.youtube.com/watch?v={yt_id}" if (yt_id and not yt_id.startswith("http")) else yt_id
 
                 if upload_success:
                     auto_usage = fresh_user.get("auto_daily_usage", {})
@@ -876,17 +906,34 @@ def process_single_user_schedule(user: dict, now_ist: datetime, today_str: str):
                             "$set": {
                                 f"auto_schedule.{last_run_key}": today_str,
                                 f"{upload_lock_field}.status": "success",
+                                f"{upload_lock_field}.completed_at": datetime.utcnow().isoformat(),
+                                f"{upload_lock_field}.youtube_url": final_yt_url,
+                                f"auto_schedule_status.{kind}": {
+                                    "status": "PUBLISHED",
+                                    "last_run_date": today_str,
+                                    "youtube_url": final_yt_url,
+                                    "title": final_title,
+                                    "published_at": datetime.utcnow().isoformat()
+                                },
                                 "auto_daily_usage": auto_usage
                             },
                             "$unset": {f"staged_auto_videos.{kind}": ""}
                         }
                     )
-                    print(f"🎉 [AUTO PUBLISH SUCCESS - Node: {node_name}] {kind.upper()} video published to YouTube for user {internal_id}!")
+                    print(f"🎉 [AUTO PUBLISH SUCCESS - Node: {node_name}] {kind.upper()} video published to YouTube: {final_yt_url}")
                 else:
-                    print(f"⚠️ [AUTO PUBLISH WARNING] Upload failed or container interrupted for {kind.upper()}. Clearing upload lock for automatic retry...")
+                    print(f"⚠️ [AUTO PUBLISH WARNING] Upload failed for {kind.upper()}. Clearing lock for automatic retry...")
                     users_collection.update_one(
                         {"internal_id": internal_id},
-                        {"$unset": {upload_lock_field: ""}}
+                        {
+                            "$unset": {upload_lock_field: ""},
+                            "$set": {
+                                f"auto_schedule_status.{kind}": {
+                                    "status": "UPLOAD_FAILED",
+                                    "updated_at": datetime.utcnow().isoformat()
+                                }
+                            }
+                        }
                     )
 
         import time
