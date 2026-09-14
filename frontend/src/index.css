@@ -1097,10 +1097,10 @@ body.theme-pastel .history-card-topic {
 /* Floating Lottie animation on left side while hero text remains 100% centered */
 .hero-lottie-side {
   position: absolute;
-  left: -380px;
-  top: 10px;
-  width: 400px;
-  height: 400px;
+  left: -355px;
+  top: 48px;
+  width: 420px;
+  height: 420px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1115,9 +1115,10 @@ body.theme-pastel .history-card-topic {
 
 @media (max-width: 1400px) {
   .hero-lottie-side {
-    left: -280px;
-    width: 320px;
-    height: 320px;
+    left: -260px;
+    top: 35px;
+    width: 340px;
+    height: 340px;
   }
 }
 
