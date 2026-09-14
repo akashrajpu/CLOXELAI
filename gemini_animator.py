@@ -258,11 +258,18 @@ def generate_gemini_cartoon_animation(user_prompt: str, output_mp4: str, duratio
     clean_code = re.sub(r"^```\n?", "", clean_code, flags=re.MULTILINE)
     clean_code = clean_code.strip()
 
+    import random, sys, colorsys, copy
     exec_globals = {
         "Image": Image,
         "ImageDraw": SafeImageDrawModule(ImageDraw),
         "ImageFont": ImageFont,
-        "math": __import__("math"),
+        "math": math,
+        "random": random,
+        "sys": sys,
+        "time": time,
+        "re": re,
+        "colorsys": colorsys,
+        "copy": copy,
         "imageio": imageio,
         "np": np,
         "os": os
@@ -285,105 +292,147 @@ def generate_gemini_cartoon_animation(user_prompt: str, output_mp4: str, duratio
         return create_pro_cartoon_canvas_mp4(user_prompt, output_mp4, duration, target_size, fps)
 
 
+def render_pil_frames_to_mp4(frames: list, output_mp4: str, w: int, h: int, fps: int = 15) -> bool:
+    """Pipes PIL Image frames directly into FFmpeg rawvideo stdin to guarantee zero-dependency MP4 creation."""
+    try:
+        cmd = [
+            "ffmpeg", "-y",
+            "-f", "rawvideo",
+            "-vcodec", "rawvideo",
+            "-s", f"{w}x{h}",
+            "-pix_fmt", "rgb24",
+            "-r", str(fps),
+            "-i", "-",
+            "-c:v", "libx264",
+            "-pix_fmt", "yuv420p",
+            output_mp4
+        ]
+        proc = subprocess.Popen(cmd, stdin=subprocess.PIPE, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        for img in frames:
+            proc.stdin.write(img.convert("RGB").tobytes())
+        proc.stdin.close()
+        proc.wait()
+        return os.path.exists(output_mp4) and os.path.getsize(output_mp4) > 1000
+    except Exception as e_pipe:
+        print(f"⚠️ FFmpeg rawvideo pipe error: {e_pipe}")
+        return False
+
+
 def create_pro_cartoon_canvas_mp4(user_prompt: str, output_mp4: str, duration: float = 5.0, target_size: tuple = (640, 360), fps: int = 15) -> str:
     """
     Guaranteed Local 2D Cartoon Animation Generator:
     Generates a 2D animated cartoon scene with smooth character motions, speech bubbles,
     and vibrant cartoon backgrounds when Gemini AI is offline or 503.
     """
-    try:
-        if target_size and len(target_size) == 2:
-            if target_size[1] > target_size[0]:
-                w, h = (360, 640)
-            else:
-                w, h = (640, 360)
+    if target_size and len(target_size) == 2:
+        if target_size[1] > target_size[0]:
+            w, h = (360, 640)
         else:
             w, h = (640, 360)
+    else:
+        w, h = (640, 360)
 
-        total_frames = max(15, int(duration * fps))
+    total_frames = max(15, int(duration * fps))
+
+    prompt_lower = user_prompt.lower()
+    is_night = any(k in prompt_lower for k in ["night", "space", "moon", "star", "dark"])
+    bg_top = (15, 15, 45) if is_night else (100, 180, 255)
+
+    frames = []
+    try:
         writer = imageio.get_writer(output_mp4, fps=fps, macro_block_size=1)
+    except Exception:
+        writer = None
 
-        prompt_lower = user_prompt.lower()
-        is_night = any(k in prompt_lower for k in ["night", "space", "moon", "star", "dark"])
+    for frame_idx in range(total_frames):
+        img = Image.new('RGB', (w, h), bg_top)
+        draw = ImageDraw.Draw(img)
+
+        # Draw Ground / Hill
+        ground_y = int(h * 0.7)
+        draw.rectangle([(0, ground_y), (w, h)], fill=(40, 160, 80) if not is_night else (20, 50, 40))
+
+        # Animated Sun/Moon
+        sun_x = int(w * 0.8 - (frame_idx / float(total_frames)) * (w * 0.4))
+        sun_y = int(h * 0.2)
+        draw.ellipse([(sun_x - 30, sun_y - 30), (sun_x + 30, sun_y + 30)], fill=(255, 220, 50) if not is_night else (220, 230, 255))
+
+        # Animated Character 1 (Walking Boy/Hero)
+        char1_x = int(w * 0.1 + (frame_idx / float(total_frames)) * (w * 0.35))
+        char1_y = int(ground_y - 110)
+        leg_bounce = int(math.sin(frame_idx * 0.5) * 8)
+
+        # Head
+        draw.ellipse([(char1_x, char1_y), (char1_x + 45, char1_y + 45)], fill=(255, 205, 148), outline=(0, 0, 0), width=3)
+        # Eyes & Smile
+        draw.ellipse([(char1_x + 28, char1_y + 14), (char1_x + 34, char1_y + 22)], fill=(0, 0, 0))
+        draw.arc([(char1_x + 18, char1_y + 22), (char1_x + 35, char1_y + 35)], start=0, end=180, fill=(200, 0, 0), width=3)
+        # Body (Shirt)
+        draw.rectangle([(char1_x + 8, char1_y + 45), (char1_x + 37, char1_y + 90)], fill=(255, 80, 80), outline=(0, 0, 0), width=3)
+        # Legs
+        draw.line([(char1_x + 15, char1_y + 90), (char1_x + 8 + leg_bounce, char1_y + 115)], fill=(30, 30, 150), width=5)
+        draw.line([(char1_x + 30, char1_y + 90), (char1_x + 37 - leg_bounce, char1_y + 115)], fill=(30, 30, 150), width=5)
+
+        # Animated Character 2 (Cute Puppy / Friend)
+        char2_x = min(int(w - 75), char1_x + int(w * 0.25) + int(math.sin(frame_idx * 0.3) * 10))
+        char2_y = ground_y - 50
+        # Body
+        draw.ellipse([(char2_x, char2_y), (char2_x + 50, char2_y + 35)], fill=(210, 140, 70), outline=(0, 0, 0), width=3)
+        # Head
+        draw.ellipse([(char2_x - 12, char2_y - 15), (char2_x + 20, char2_y + 15)], fill=(210, 140, 70), outline=(0, 0, 0), width=3)
+        # Ear
+        draw.ellipse([(char2_x - 8, char2_y - 20), (char2_x + 4, char2_y - 4)], fill=(120, 70, 30))
+        # Tail (Wagging)
+        tail_swing = int(math.sin(frame_idx * 0.8) * 10)
+        draw.line([(char2_x + 45, char2_y + 8), (char2_x + 60, char2_y - 8 + tail_swing)], fill=(210, 140, 70), width=4)
+
+        # Speech Bubble
+        bubble_x = max(5, char1_x - 15)
+        bubble_y = max(5, char1_y - 55)
+        bubble_w = min(150, w - bubble_x - 5)
+        draw.ellipse([(bubble_x, bubble_y), (bubble_x + bubble_w, bubble_y + 40)], fill=(255, 255, 255), outline=(0, 0, 0), width=2)
         
-        bg_top = (15, 15, 45) if is_night else (100, 180, 255)
+        try:
+            fnt = ImageFont.truetype("./fonts/Arial.ttf", 14)
+        except Exception:
+            fnt = ImageFont.load_default()
+        short_text = user_prompt[:18] + "..." if len(user_prompt) > 18 else user_prompt
+        draw.text((bubble_x + 10, bubble_y + 10), short_text, fill=(0, 0, 0), font=fnt)
 
-        for frame_idx in range(total_frames):
-            img = Image.new('RGB', (w, h), bg_top)
-            draw = ImageDraw.Draw(img)
-
-            # Draw Ground / Hill
-            ground_y = int(h * 0.7)
-            draw.rectangle([(0, ground_y), (w, h)], fill=(40, 160, 80) if not is_night else (20, 50, 40))
-
-            # Animated Sun/Moon
-            sun_x = int(w * 0.8 - (frame_idx / float(total_frames)) * (w * 0.4))
-            sun_y = int(h * 0.2)
-            draw.ellipse([(sun_x - 30, sun_y - 30), (sun_x + 30, sun_y + 30)], fill=(255, 220, 50) if not is_night else (220, 230, 255))
-
-            # Animated Character 1 (Walking Boy/Hero)
-            char1_x = int(w * 0.1 + (frame_idx / float(total_frames)) * (w * 0.35))
-            char1_y = int(ground_y - 110)
-            leg_bounce = int(math.sin(frame_idx * 0.5) * 8)
-
-            # Head
-            draw.ellipse([(char1_x, char1_y), (char1_x + 45, char1_y + 45)], fill=(255, 205, 148), outline=(0, 0, 0), width=3)
-            # Eyes & Smile
-            draw.ellipse([(char1_x + 28, char1_y + 14), (char1_x + 34, char1_y + 22)], fill=(0, 0, 0))
-            draw.arc([(char1_x + 18, char1_y + 22), (char1_x + 35, char1_y + 35)], start=0, end=180, fill=(200, 0, 0), width=3)
-            # Body (Shirt)
-            draw.rectangle([(char1_x + 8, char1_y + 45), (char1_x + 37, char1_y + 90)], fill=(255, 80, 80), outline=(0, 0, 0), width=3)
-            # Legs
-            draw.line([(char1_x + 15, char1_y + 90), (char1_x + 8 + leg_bounce, char1_y + 115)], fill=(30, 30, 150), width=5)
-            draw.line([(char1_x + 30, char1_y + 90), (char1_x + 37 - leg_bounce, char1_y + 115)], fill=(30, 30, 150), width=5)
-
-            # Animated Character 2 (Cute Puppy / Friend)
-            char2_x = min(int(w - 75), char1_x + int(w * 0.25) + int(math.sin(frame_idx * 0.3) * 10))
-            char2_y = ground_y - 50
-            # Body
-            draw.ellipse([(char2_x, char2_y), (char2_x + 50, char2_y + 35)], fill=(210, 140, 70), outline=(0, 0, 0), width=3)
-            # Head
-            draw.ellipse([(char2_x - 12, char2_y - 15), (char2_x + 20, char2_y + 15)], fill=(210, 140, 70), outline=(0, 0, 0), width=3)
-            # Ear
-            draw.ellipse([(char2_x - 8, char2_y - 20), (char2_x + 4, char2_y - 4)], fill=(120, 70, 30))
-            # Tail (Wagging)
-            tail_swing = int(math.sin(frame_idx * 0.8) * 10)
-            draw.line([(char2_x + 45, char2_y + 8), (char2_x + 60, char2_y - 8 + tail_swing)], fill=(210, 140, 70), width=4)
-
-            # Speech Bubble
-            bubble_x = max(5, char1_x - 15)
-            bubble_y = max(5, char1_y - 55)
-            bubble_w = min(150, w - bubble_x - 5)
-            draw.ellipse([(bubble_x, bubble_y), (bubble_x + bubble_w, bubble_y + 40)], fill=(255, 255, 255), outline=(0, 0, 0), width=2)
-            
+        if writer:
             try:
-                fnt = ImageFont.truetype("./fonts/Arial.ttf", 14)
+                writer.append_data(np.array(img.convert('RGB')))
             except Exception:
-                fnt = ImageFont.load_default()
-            short_text = user_prompt[:18] + "..." if len(user_prompt) > 18 else user_prompt
-            draw.text((bubble_x + 10, bubble_y + 10), short_text, fill=(0, 0, 0), font=fnt)
+                pass
+        frames.append(img)
 
-            writer.append_data(np.array(img.convert('RGB')))
+    if writer:
+        try:
+            writer.close()
+        except Exception:
+            pass
 
-        writer.close()
-        
-        if os.path.exists(output_mp4) and os.path.getsize(output_mp4) > 1000:
-            print(f"🎨 [Local 2D Cartoon Engine] Successfully rendered 2D Cartoon MP4: {output_mp4}")
-            return output_mp4
-    except Exception as e_canvas:
-        print(f"⚠️ Canvas Cartoon generator notice: {e_canvas}. Generating direct FFmpeg canvas...")
+    if os.path.exists(output_mp4) and os.path.getsize(output_mp4) > 1000:
+        print(f"🎨 [Local 2D Cartoon Engine] Successfully rendered 2D Cartoon MP4 via ImageIO: {output_mp4}")
+        return output_mp4
 
+    # Direct FFmpeg rawvideo stdin pipe fallback
+    print("🎨 Rendering 2D Cartoon Canvas MP4 via FFmpeg rawvideo pipe...")
+    if render_pil_frames_to_mp4(frames, output_mp4, w, h, fps):
+        print(f"🎨 [FFmpeg Raw Pipe Canvas] Created valid 2D cartoon animation MP4: {output_mp4}")
+        return output_mp4
+
+    # Final colorful scene fallback with text (NEVER solid purple)
     try:
         dur_str = str(max(2.0, duration))
         cmd = [
             "ffmpeg", "-y", "-f", "lavfi",
-            "-i", f"color=c=0x19192d:s={w}x{h}:r={fps}",
+            "-i", f"color=c=0x64b4ff:s={w}x{h}:r={fps}",
+            "-vf", "drawtext=text='2D Cartoon Scene':fontcolor=white:fontsize=24:x=(w-text_w)/2:y=(h-text_h)/2",
             "-t", dur_str, "-c:v", "libx264", "-pix_fmt", "yuv420p", output_mp4
         ]
         subprocess.run(cmd, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        if os.path.exists(output_mp4) and os.path.getsize(output_mp4) > 500:
-            print(f"🎨 [FFmpeg Direct Canvas Fallback] Created valid cartoon canvas MP4: {output_mp4}")
-            return output_mp4
+        return output_mp4
     except Exception as e_ff:
         print(f"❌ Ultimate Canvas Fallback Failed: {e_ff}")
 

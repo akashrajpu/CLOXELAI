@@ -782,14 +782,15 @@ def merge_and_export(
             )
 
         if not anim_result or not os.path.exists(anim_result) or os.path.getsize(anim_result) < 500:
-            print(f"⚠️ Generating emergency FFmpeg cartoon canvas MP4 -> {full_anim_mp4}...")
-            cmd = [
-                "ffmpeg", "-y", "-f", "lavfi",
-                "-i", f"color=c=0x19192d:s={target_size[0]}x{target_size[1]}:r=15",
-                "-t", str(total_audio_duration), "-c:v", "libx264", "-pix_fmt", "yuv420p", full_anim_mp4
-            ]
-            subprocess.run(cmd, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-            anim_result = full_anim_mp4
+            print(f"⚠️ Generating emergency cartoon 2D canvas MP4 -> {full_anim_mp4}...")
+            from gemini_animator import create_pro_cartoon_canvas_mp4
+            anim_result = create_pro_cartoon_canvas_mp4(
+                user_prompt=full_prompt_story,
+                output_mp4=full_anim_mp4,
+                duration=total_audio_duration,
+                target_size=target_size,
+                fps=15
+            )
 
         full_vclip = VideoFileClip(anim_result)
 
@@ -944,13 +945,15 @@ def merge_and_export(
                         fps=15
                     )
                 if not anim_result or not os.path.exists(anim_result) or os.path.getsize(anim_result) < 500:
-                    cmd = [
-                        "ffmpeg", "-y", "-f", "lavfi",
-                        "-i", f"color=c=0x19192d:s={target_size[0]}x{target_size[1]}:r=15",
-                        "-t", str(clip_duration), "-c:v", "libx264", "-pix_fmt", "yuv420p", ai_mp4_path
-                    ]
-                    subprocess.run(cmd, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-                    anim_result = ai_mp4_path
+                    print(f"🎨 Scene {i+1}: Running Guaranteed Local 2D Cartoon Canvas Renderer...")
+                    from gemini_animator import create_pro_cartoon_canvas_mp4
+                    anim_result = create_pro_cartoon_canvas_mp4(
+                        user_prompt=scene.get("text", "Cartoon animation scene"),
+                        output_mp4=ai_mp4_path,
+                        duration=clip_duration,
+                        target_size=target_size,
+                        fps=15
+                    )
 
                 v_clip = VideoFileClip(anim_result)
             else:
