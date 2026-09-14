@@ -397,7 +397,7 @@ function Auth({ onLoginSuccess }) {
 
       {/* Hero Section */}
       <header className="landing-hero">
-        <div className="hero-lottie-top">
+        <div className="hero-lottie-side">
           <LottieHeroAnimation />
         </div>
 

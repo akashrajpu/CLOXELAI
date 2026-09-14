@@ -1086,30 +1086,51 @@ body.theme-pastel .history-card-topic {
 
 /* Landing Hero Section */
 .landing-hero {
-  max-width: 900px;
-  margin: 40px auto 40px auto;
+  max-width: 850px;
+  margin: 50px auto 40px auto;
   text-align: center;
   padding: 0 20px;
   position: relative;
   z-index: 10;
 }
 
-.hero-lottie-top {
+/* Floating Lottie animation on left side while hero text remains 100% centered */
+.hero-lottie-side {
+  position: absolute;
+  left: -380px;
+  top: 10px;
+  width: 400px;
+  height: 400px;
   display: flex;
-  justify-content: center;
   align-items: center;
-  width: 100%;
-  margin-bottom: 10px;
+  justify-content: center;
+  z-index: 5;
+  filter: drop-shadow(0 0 30px rgba(168, 85, 247, 0.25));
 }
 
-.lottie-hero-wrapper {
+.hero-lottie-side .lottie-hero-wrapper {
   width: 100%;
-  max-width: 440px;
-  height: 350px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  filter: drop-shadow(0 0 30px rgba(168, 85, 247, 0.3));
+  height: 100%;
+}
+
+@media (max-width: 1400px) {
+  .hero-lottie-side {
+    left: -280px;
+    width: 320px;
+    height: 320px;
+  }
+}
+
+@media (max-width: 1180px) {
+  .hero-lottie-side {
+    position: relative;
+    left: auto;
+    top: auto;
+    margin: 0 auto 20px auto;
+    width: 100%;
+    max-width: 320px;
+    height: 280px;
+  }
 }
 
 .hero-badge {
