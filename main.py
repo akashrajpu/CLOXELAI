@@ -677,12 +677,15 @@ def process_single_user_schedule(user: dict, now_ist: datetime, today_str: str):
             mins_until = (target_minutes - current_ist_minutes) % 1440
             diff_current = min(abs(current_ist_minutes - target_minutes), 1440 - abs(current_ist_minutes - target_minutes))
 
+            target_run_date = (now_ist + timedelta(minutes=mins_until)).strftime("%Y-%m-%d") if mins_until <= 720 else today_str
+            valid_dates = [today_str, target_run_date]
+
             staged_map = user.get("staged_auto_videos", {})
             staged_item = staged_map.get(kind, {})
 
             # STAGE 1: PREDICTIVE AUTO-STAGING LOCK (Pre-rendering ahead of time - prioritized by earliest target)
-            if 5 < mins_until <= 360:
-                has_valid_staged = (staged_item.get("date") == today_str) and (bool(staged_item.get("cloudinary_url")) or (staged_item.get("file") and os.path.exists(staged_item.get("file", ""))))
+            if 5 < mins_until <= 720:
+                has_valid_staged = (staged_item.get("date") in valid_dates) and (bool(staged_item.get("cloudinary_url")) or (staged_item.get("file") and os.path.exists(staged_item.get("file", ""))))
                 if not has_valid_staged:
                     lock_field = f"auto_locks.staging_{kind}"
                     node_name = os.getenv("RENDER_SERVICE_NAME", "cluster_node")
@@ -692,9 +695,9 @@ def process_single_user_schedule(user: dict, now_ist: datetime, today_str: str):
                         {
                             "internal_id": internal_id,
                             "$or": [
-                                {f"{lock_field}.date": {"$ne": today_str}},
+                                {f"{lock_field}.date": {"$nin": valid_dates}},
                                 {
-                                    f"staged_auto_videos.{kind}.date": {"$ne": today_str},
+                                    f"staged_auto_videos.{kind}.date": {"$nin": valid_dates},
                                     f"{lock_field}.claimed_at": {"$lt": twenty_mins_ago}
                                 }
                             ]
@@ -702,7 +705,7 @@ def process_single_user_schedule(user: dict, now_ist: datetime, today_str: str):
                         {
                             "$set": {
                                 lock_field: {
-                                    "date": today_str,
+                                    "date": target_run_date,
                                     "claimed_at": datetime.utcnow().isoformat(),
                                     "node": node_name
                                 }
@@ -747,7 +750,7 @@ def process_single_user_schedule(user: dict, now_ist: datetime, today_str: str):
                                 "cloudinary_url": res.get("cloudinary_url"),
                                 "title": topic,
                                 "script": script_text,
-                                "date": today_str,
+                                "date": target_run_date,
                                 "staged_at": datetime.utcnow().isoformat()
                             }
                             staged_map[kind] = staged_data
@@ -808,7 +811,7 @@ def process_single_user_schedule(user: dict, now_ist: datetime, today_str: str):
                 target_upload_src = fresh_staged.get("cloudinary_url") or (fresh_staged.get("file") if (fresh_staged.get("file") and os.path.exists(fresh_staged.get("file", ""))) else None)
                 upload_success = False
 
-                if fresh_staged.get("date") == today_str and target_upload_src:
+                if (fresh_staged.get("date") in valid_dates) and target_upload_src:
                     yt_res = upload_video_to_youtube_core(
                         user_id=internal_id,
                         video_file=target_upload_src,

@@ -141,8 +141,16 @@ def generate_gemini_cartoon_animation(user_prompt: str, output_mp4: str, duratio
         print("⚠️ GEMINI_API_KEY / GOOGLE_API_KEY environment variable not set. Skipping AI animation generation.")
         return None
 
-    w, h = (640, 360)  # Ultra-lightweight canvas for 100% zero-OOM stability
+    if target_size and len(target_size) == 2:
+        if target_size[1] > target_size[0]:
+            w, h = (360, 640)
+        else:
+            w, h = (640, 360)
+    else:
+        w, h = (640, 360)
+
     total_frames = max(15, int(duration * fps))
+    aspect_desc = "Vertical Shorts (9:16 aspect ratio)" if h > w else "Horizontal Video (16:9 aspect ratio)"
 
     system_instruction = f"""
     You are an expert Python Developer, Animator, and Movie Director. 
@@ -160,7 +168,7 @@ def generate_gemini_cartoon_animation(user_prompt: str, output_mp4: str, duratio
     3. SCENE BY SCENE LOGIC: Break the story into logical scenes based on frames (e.g., if frame < 40: Scene 1 logic... elif frame < 80: Scene 2 logic...). 
        - Dynamically change background colors (night to day), object positions, and character actions ('walk', 'run', 'shoot', 'idle') based on the scene.
        
-    4. SIZE & FRAMES: Canvas size MUST be {w}x{h}. Generate {total_frames} frames depending on the story length.
+    4. SIZE & FRAMES: Canvas size MUST be {w}x{h} ({aspect_desc}). Generate {total_frames} frames depending on the story length.
     
     5. VERY IMPORTANT MATH RULE: All coordinates (x, y) passed to ImageDraw functions MUST be integers using int(). No floats. (e.g., draw.ellipse((int(x), int(y), int(x+20), int(y+20))))
     
@@ -284,7 +292,14 @@ def create_pro_cartoon_canvas_mp4(user_prompt: str, output_mp4: str, duration: f
     and vibrant cartoon backgrounds when Gemini AI is offline or 503.
     """
     try:
-        w, h = (640, 360)
+        if target_size and len(target_size) == 2:
+            if target_size[1] > target_size[0]:
+                w, h = (360, 640)
+            else:
+                w, h = (640, 360)
+        else:
+            w, h = (640, 360)
+
         total_frames = max(15, int(duration * fps))
         writer = imageio.get_writer(output_mp4, fps=fps, macro_block_size=1)
 
@@ -302,50 +317,51 @@ def create_pro_cartoon_canvas_mp4(user_prompt: str, output_mp4: str, duration: f
             draw.rectangle([(0, ground_y), (w, h)], fill=(40, 160, 80) if not is_night else (20, 50, 40))
 
             # Animated Sun/Moon
-            sun_x = int(w * 0.8 - frame_idx * 1.5)
+            sun_x = int(w * 0.8 - (frame_idx / float(total_frames)) * (w * 0.4))
             sun_y = int(h * 0.2)
-            draw.ellipse([(sun_x - 40, sun_y - 40), (sun_x + 40, sun_y + 40)], fill=(255, 220, 50) if not is_night else (220, 230, 255))
+            draw.ellipse([(sun_x - 30, sun_y - 30), (sun_x + 30, sun_y + 30)], fill=(255, 220, 50) if not is_night else (220, 230, 255))
 
             # Animated Character 1 (Walking Boy/Hero)
-            char1_x = int(w * 0.15 + (frame_idx / float(total_frames)) * (w * 0.4))
-            char1_y = int(ground_y - 120)
-            leg_bounce = int(math.sin(frame_idx * 0.5) * 10)
+            char1_x = int(w * 0.1 + (frame_idx / float(total_frames)) * (w * 0.35))
+            char1_y = int(ground_y - 110)
+            leg_bounce = int(math.sin(frame_idx * 0.5) * 8)
 
             # Head
-            draw.ellipse([(char1_x, char1_y), (char1_x + 50, char1_y + 50)], fill=(255, 205, 148), outline=(0, 0, 0), width=3)
+            draw.ellipse([(char1_x, char1_y), (char1_x + 45, char1_y + 45)], fill=(255, 205, 148), outline=(0, 0, 0), width=3)
             # Eyes & Smile
-            draw.ellipse([(char1_x + 30, char1_y + 15), (char1_x + 36, char1_y + 23)], fill=(0, 0, 0))
-            draw.arc([(char1_x + 20, char1_y + 25), (char1_x + 38, char1_y + 38)], start=0, end=180, fill=(200, 0, 0), width=3)
+            draw.ellipse([(char1_x + 28, char1_y + 14), (char1_x + 34, char1_y + 22)], fill=(0, 0, 0))
+            draw.arc([(char1_x + 18, char1_y + 22), (char1_x + 35, char1_y + 35)], start=0, end=180, fill=(200, 0, 0), width=3)
             # Body (Shirt)
-            draw.rectangle([(char1_x + 10, char1_y + 50), (char1_x + 40, char1_y + 100)], fill=(255, 80, 80), outline=(0, 0, 0), width=3)
+            draw.rectangle([(char1_x + 8, char1_y + 45), (char1_x + 37, char1_y + 90)], fill=(255, 80, 80), outline=(0, 0, 0), width=3)
             # Legs
-            draw.line([(char1_x + 18, char1_y + 100), (char1_x + 10 + leg_bounce, char1_y + 130)], fill=(30, 30, 150), width=6)
-            draw.line([(char1_x + 32, char1_y + 100), (char1_x + 40 - leg_bounce, char1_y + 130)], fill=(30, 30, 150), width=6)
+            draw.line([(char1_x + 15, char1_y + 90), (char1_x + 8 + leg_bounce, char1_y + 115)], fill=(30, 30, 150), width=5)
+            draw.line([(char1_x + 30, char1_y + 90), (char1_x + 37 - leg_bounce, char1_y + 115)], fill=(30, 30, 150), width=5)
 
             # Animated Character 2 (Cute Puppy / Friend)
-            char2_x = char1_x + 120 + int(math.sin(frame_idx * 0.3) * 15)
-            char2_y = ground_y - 60
+            char2_x = min(int(w - 75), char1_x + int(w * 0.25) + int(math.sin(frame_idx * 0.3) * 10))
+            char2_y = ground_y - 50
             # Body
-            draw.ellipse([(char2_x, char2_y), (char2_x + 60, char2_y + 40)], fill=(210, 140, 70), outline=(0, 0, 0), width=3)
+            draw.ellipse([(char2_x, char2_y), (char2_x + 50, char2_y + 35)], fill=(210, 140, 70), outline=(0, 0, 0), width=3)
             # Head
-            draw.ellipse([(char2_x - 15, char2_y - 20), (char2_x + 25, char2_y + 20)], fill=(210, 140, 70), outline=(0, 0, 0), width=3)
+            draw.ellipse([(char2_x - 12, char2_y - 15), (char2_x + 20, char2_y + 15)], fill=(210, 140, 70), outline=(0, 0, 0), width=3)
             # Ear
-            draw.ellipse([(char2_x - 10, char2_y - 25), (char2_x + 5, char2_y - 5)], fill=(120, 70, 30))
+            draw.ellipse([(char2_x - 8, char2_y - 20), (char2_x + 4, char2_y - 4)], fill=(120, 70, 30))
             # Tail (Wagging)
-            tail_swing = int(math.sin(frame_idx * 0.8) * 15)
-            draw.line([(char2_x + 55, char2_y + 10), (char2_x + 75, char2_y - 10 + tail_swing)], fill=(210, 140, 70), width=5)
+            tail_swing = int(math.sin(frame_idx * 0.8) * 10)
+            draw.line([(char2_x + 45, char2_y + 8), (char2_x + 60, char2_y - 8 + tail_swing)], fill=(210, 140, 70), width=4)
 
             # Speech Bubble
-            bubble_x = max(10, char1_x - 20)
-            bubble_y = max(10, char1_y - 60)
-            draw.ellipse([(bubble_x, bubble_y), (bubble_x + 160, bubble_y + 45)], fill=(255, 255, 255), outline=(0, 0, 0), width=2)
+            bubble_x = max(5, char1_x - 15)
+            bubble_y = max(5, char1_y - 55)
+            bubble_w = min(150, w - bubble_x - 5)
+            draw.ellipse([(bubble_x, bubble_y), (bubble_x + bubble_w, bubble_y + 40)], fill=(255, 255, 255), outline=(0, 0, 0), width=2)
             
             try:
-                fnt = ImageFont.truetype("./fonts/Arial.ttf", 16)
+                fnt = ImageFont.truetype("./fonts/Arial.ttf", 14)
             except Exception:
                 fnt = ImageFont.load_default()
-            short_text = user_prompt[:20] + "..." if len(user_prompt) > 20 else user_prompt
-            draw.text((bubble_x + 12, bubble_y + 12), short_text, fill=(0, 0, 0), font=fnt)
+            short_text = user_prompt[:18] + "..." if len(user_prompt) > 18 else user_prompt
+            draw.text((bubble_x + 10, bubble_y + 10), short_text, fill=(0, 0, 0), font=fnt)
 
             writer.append_data(np.array(img.convert('RGB')))
 
@@ -361,7 +377,7 @@ def create_pro_cartoon_canvas_mp4(user_prompt: str, output_mp4: str, duration: f
         dur_str = str(max(2.0, duration))
         cmd = [
             "ffmpeg", "-y", "-f", "lavfi",
-            "-i", f"color=c=0x19192d:s={target_size[0]}x{target_size[1]}:r={fps}",
+            "-i", f"color=c=0x19192d:s={w}x{h}:r={fps}",
             "-t", dur_str, "-c:v", "libx264", "-pix_fmt", "yuv420p", output_mp4
         ]
         subprocess.run(cmd, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
