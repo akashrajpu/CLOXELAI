@@ -923,6 +923,7 @@ def process_single_user_schedule(user: dict, now_ist: datetime, today_str: str):
                         }
                     )
                     print(f"🎉 [AUTO PUBLISH SUCCESS - Node: {node_name}] {kind.upper()} video published to YouTube: {final_yt_url}")
+                    return "published"
                 else:
                     print(f"⚠️ [AUTO PUBLISH WARNING] Upload failed for {kind.upper()}. Clearing lock for automatic retry...")
                     users_collection.update_one(
@@ -937,13 +938,23 @@ def process_single_user_schedule(user: dict, now_ist: datetime, today_str: str):
                             }
                         }
                     )
+                    return "failed"
 
         import time
+        res_short = None
+        res_long = None
+
         if schedule.get("short_enabled", True) and is_active and plan_type in ["short", "combo", "ultra", "all"]:
-            run_staged_auto_pipeline("short", True, "Space Exploration", 20)
+            res_short = run_staged_auto_pipeline("short", True, "Space Exploration", 20)
+            if res_short == "published":
+                print("⏳ 5-minute gap initiated after SHORT Reel publish. Waiting 300 seconds before next upload...")
+                time.sleep(300)
 
         if schedule.get("long_enabled", True) and is_active and plan_type in ["long", "combo", "ultra", "all"]:
-            run_staged_auto_pipeline("long", False, "AI Innovations", 60)
+            res_long = run_staged_auto_pipeline("long", False, "AI Innovations", 60)
+            if res_long == "published":
+                print("⏳ 5-minute gap initiated after LONG video publish. Waiting 300 seconds before next upload...")
+                time.sleep(300)
 
         if schedule.get("ultra_enabled", True) and (is_active or has_ultra_sub or plan_type in ["ultra", "combo", "all"]):
             ultra_aspect = schedule.get("ultra_aspect_ratio", "9:16")
