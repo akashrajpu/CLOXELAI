@@ -3573,6 +3573,18 @@ async def get_robots_txt():
     robots_content = "User-agent: *\nAllow: /\n\nSitemap: https://cloxelai.onrender.com/sitemap.xml\n"
     return Response(content=robots_content, media_type="text/plain")
 
+@app.get("/.well-known/security.txt", response_class=Response)
+@app.get("/security.txt", response_class=Response)
+async def get_security_txt():
+    sec_txt = (
+        "Contact: mailto:security@cloxelai.com\n"
+        "Expires: 2027-12-31T23:59:59.000Z\n"
+        "Preferred-Languages: en, hi\n"
+        "Canonical: https://cloxelai.onrender.com/.well-known/security.txt\n"
+        "Policy: https://cloxelai.onrender.com/privacy-policy\n"
+    )
+    return Response(content=sec_txt, media_type="text/plain; charset=utf-8")
+
 @app.get("/sitemap.xml", response_class=Response)
 async def get_sitemap_xml():
     sitemap_content = """<?xml version="1.0" encoding="UTF-8"?>

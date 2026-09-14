@@ -368,14 +368,34 @@ class FirewallMiddleware(BaseHTTPMiddleware):
             )
 
         response.headers["X-Content-Type-Options"] = "nosniff"
-        response.headers["X-Frame-Options"] = "DENY"
+        response.headers["X-Frame-Options"] = "SAMEORIGIN"
         response.headers["X-XSS-Protection"] = "1; mode=block"
         response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
-        response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
-        response.headers["Content-Security-Policy"] = "default-src 'self' https: data: 'unsafe-inline' 'unsafe-eval';"
+        response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=(), payment=(), usb=(), display-capture=()"
         response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains; preload"
-        response.headers["Server"] = "Cloxel-Fortress-Shield/3.0"
-        
+        response.headers["Cross-Origin-Opener-Policy"] = "same-origin-allow-popups"
+        response.headers["Cross-Origin-Resource-Policy"] = "same-origin"
+        response.headers["Cross-Origin-Embedder-Policy"] = "credentialless"
+
+        csp_policy = (
+            "default-src 'self' https: data: blob:; "
+            "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://accounts.google.com https://checkout.razorpay.com https://unpkg.com; "
+            "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; "
+            "font-src 'self' https://fonts.gstatic.com https://cdn.jsdelivr.net data:; "
+            "img-src 'self' data: https: blob:; "
+            "connect-src 'self' https: wss:; "
+            "media-src 'self' https: blob: data:; "
+            "object-src 'none'; "
+            "base-uri 'self'; "
+            "frame-src 'self' https://accounts.google.com https://api.razorpay.com https://checkout.razorpay.com; "
+            "form-action 'self';"
+        )
+        response.headers["Content-Security-Policy"] = csp_policy
+
+        if "Server" in response.headers:
+            del response.headers["Server"]
+        if "server" in response.headers:
+            del response.headers["server"]
         if "X-Powered-By" in response.headers:
             del response.headers["X-Powered-By"]
 
