@@ -661,15 +661,17 @@ def process_single_user_schedule(user: dict, now_ist: datetime, today_str: str):
                 has_ultra_sub = True
 
         def run_staged_auto_pipeline(kind: str, is_short_flag: bool, default_topic: str, default_dur: int):
-            time_str = schedule.get(f"{kind}_time", "10:00" if kind == "short" else ("18:00" if kind == "long" else "21:00"))
+            fresh_user = users_collection.find_one({"internal_id": internal_id}) or user
+            fresh_sched = fresh_user.get("auto_schedule", {})
+            time_str = fresh_sched.get(f"{kind}_time", "10:00" if kind == "short" else ("18:00" if kind == "long" else "21:00"))
             last_run_key = f"last_{kind}_run"
 
             # GUARD 1: If already published today, STOP!
-            if schedule.get(last_run_key) == today_str:
+            if fresh_sched.get(last_run_key) == today_str:
                 return # Already published today
 
-            fifteen_mins_ago = (datetime.utcnow() - timedelta(minutes=15)).isoformat()
-            upload_lock_check = user.get("auto_locks", {}).get(f"upload_{kind}", {})
+            five_mins_ago = (datetime.utcnow() - timedelta(minutes=5)).isoformat()
+            upload_lock_check = fresh_user.get("auto_locks", {}).get(f"upload_{kind}", {})
             if upload_lock_check.get("date") == today_str and upload_lock_check.get("status") == "success":
                 return # Upload already confirmed successful today
 
@@ -680,7 +682,7 @@ def process_single_user_schedule(user: dict, now_ist: datetime, today_str: str):
             target_run_date = (now_ist + timedelta(minutes=mins_until)).strftime("%Y-%m-%d") if mins_until <= 720 else today_str
             valid_dates = [today_str, target_run_date]
 
-            staged_map = user.get("staged_auto_videos", {})
+            staged_map = fresh_user.get("staged_auto_videos", {})
             staged_item = staged_map.get(kind, {})
 
             # STAGE 1: PREDICTIVE AUTO-STAGING LOCK (Pre-rendering ahead of time - prioritized by earliest target)
@@ -689,7 +691,6 @@ def process_single_user_schedule(user: dict, now_ist: datetime, today_str: str):
                 if not has_valid_staged:
                     lock_field = f"auto_locks.staging_{kind}"
                     node_name = os.getenv("RENDER_SERVICE_NAME", "cluster_node")
-                    twenty_mins_ago = (datetime.utcnow() - timedelta(minutes=20)).isoformat()
                     
                     claim_result = users_collection.find_one_and_update(
                         {
@@ -698,7 +699,7 @@ def process_single_user_schedule(user: dict, now_ist: datetime, today_str: str):
                                 {f"{lock_field}.date": {"$nin": valid_dates}},
                                 {
                                     f"staged_auto_videos.{kind}.date": {"$nin": valid_dates},
-                                    f"{lock_field}.claimed_at": {"$lt": twenty_mins_ago}
+                                    f"{lock_field}.claimed_at": {"$lt": five_mins_ago}
                                 }
                             ]
                         },
@@ -718,14 +719,14 @@ def process_single_user_schedule(user: dict, now_ist: datetime, today_str: str):
                         pass
                     else:
                         print(f"🚀 [PREDICTIVE AUTO-STAGING - Node: {node_name}] Pre-rendering {kind.upper()} video for user {internal_id} (Scheduled IST: {time_str}, Target in {mins_until} mins)...")
-                        category = schedule.get(f"{kind}_category") or "Random"
-                        raw_topic = schedule.get(f"{kind}_topic") or default_topic
+                        category = fresh_sched.get(f"{kind}_category") or "Random"
+                        raw_topic = fresh_sched.get(f"{kind}_topic") or default_topic
                         topic = get_daily_unique_subtopic(raw_topic, today_str, internal_id, category)
-                        voice = schedule.get(f"{kind}_voice") or "hi-IN-MadhurNeural"
-                        font = schedule.get(f"{kind}_font") or "Arial.ttf"
-                        color = schedule.get(f"{kind}_color") or "yellow"
-                        aspect_ratio = schedule.get(f"{kind}_aspect_ratio") or ("16:9" if kind in ["long", "ultra"] else "9:16")
-                        duration = int(schedule.get(f"{kind}_duration") or default_dur)
+                        voice = fresh_sched.get(f"{kind}_voice") or "hi-IN-MadhurNeural"
+                        font = fresh_sched.get(f"{kind}_font") or "Arial.ttf"
+                        color = fresh_sched.get(f"{kind}_color") or "yellow"
+                        aspect_ratio = fresh_sched.get(f"{kind}_aspect_ratio") or ("16:9" if kind in ["long", "ultra"] else "9:16")
+                        duration = int(fresh_sched.get(f"{kind}_duration") or default_dur)
 
                         res = render_video_with_smart_fallback(
                             user_id=internal_id,
@@ -768,12 +769,12 @@ def process_single_user_schedule(user: dict, now_ist: datetime, today_str: str):
                             )
 
             # STAGE 2: INSTANT BATCH UPLOAD LOCK (Publishing to YouTube at target time OR Catch-Up if target time passed today)
-            is_time_to_upload = (diff_current <= 25) or (mins_until >= 1420) or (current_ist_minutes >= target_minutes and schedule.get(last_run_key) != today_str)
+            is_time_to_upload = (diff_current <= 25) or (mins_until >= 1420) or (current_ist_minutes >= target_minutes and fresh_sched.get(last_run_key) != today_str)
             if is_time_to_upload:
                 upload_lock_field = f"auto_locks.upload_{kind}"
                 node_name = os.getenv("RENDER_SERVICE_NAME", "cluster_node")
 
-                # Claim upload lock with in_progress status (re-claimable if claimed >15m ago without success)
+                # Claim upload lock with in_progress status (re-claimable if claimed >5m ago without success)
                 claim_upload = users_collection.find_one_and_update(
                     {
                         "internal_id": internal_id,
@@ -782,7 +783,7 @@ def process_single_user_schedule(user: dict, now_ist: datetime, today_str: str):
                             {f"{upload_lock_field}.date": {"$ne": today_str}},
                             {
                                 f"{upload_lock_field}.status": {"$ne": "success"},
-                                f"{upload_lock_field}.claimed_at": {"$lt": fifteen_mins_ago}
+                                f"{upload_lock_field}.claimed_at": {"$lt": five_mins_ago}
                             }
                         ]
                     },
@@ -828,14 +829,14 @@ def process_single_user_schedule(user: dict, now_ist: datetime, today_str: str):
                             {"$unset": {f"staged_auto_videos.{kind}": ""}}
                         )
                 else:
-                    category = schedule.get(f"{kind}_category") or "Random"
-                    raw_topic = schedule.get(f"{kind}_topic") or default_topic
+                    category = fresh_sched.get(f"{kind}_category") or "Random"
+                    raw_topic = fresh_sched.get(f"{kind}_topic") or default_topic
                     topic = get_daily_unique_subtopic(raw_topic, today_str, internal_id, category)
-                    voice = schedule.get(f"{kind}_voice") or "hi-IN-MadhurNeural"
-                    font = schedule.get(f"{kind}_font") or "Arial.ttf"
-                    color = schedule.get(f"{kind}_color") or "yellow"
-                    aspect_ratio = schedule.get(f"{kind}_aspect_ratio") or ("16:9" if kind in ["long", "ultra"] else "9:16")
-                    duration = int(schedule.get(f"{kind}_duration") or default_dur)
+                    voice = fresh_sched.get(f"{kind}_voice") or "hi-IN-MadhurNeural"
+                    font = fresh_sched.get(f"{kind}_font") or "Arial.ttf"
+                    color = fresh_sched.get(f"{kind}_color") or "yellow"
+                    aspect_ratio = fresh_sched.get(f"{kind}_aspect_ratio") or ("16:9" if kind in ["long", "ultra"] else "9:16")
+                    duration = int(fresh_sched.get(f"{kind}_duration") or default_dur)
 
                     res = render_video_with_smart_fallback(
                         user_id=internal_id,
