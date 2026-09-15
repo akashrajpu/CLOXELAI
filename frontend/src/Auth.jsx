@@ -881,7 +881,7 @@ function Auth({ onLoginSuccess }) {
                 <h4 style={{ color: '#c084fc', marginBottom: '10px' }}>✉️ Direct Email Support</h4>
                 <p style={{ color: '#cbd5e1', fontSize: '0.85rem', marginBottom: '8px' }}>Email us anytime for account or payment queries:</p>
                 <a href="mailto:support@cloxel.com" style={{ color: '#ec4899', fontWeight: 'bold', fontSize: '0.95rem', display: 'block' }}>support@cloxel.com</a>
-                <a href="mailto:contact@zobbly.com" style={{ color: '#a855f7', fontWeight: 'bold', fontSize: '0.85rem', display: 'block', marginTop: '4px' }}>contact@zobbly.com</a>
+                <a href="mailto:zobbly.com@gmail.com" style={{ color: '#a855f7', fontWeight: 'bold', fontSize: '0.85rem', display: 'block', marginTop: '4px' }}>zobbly.com@gmail.com</a>
               </div>
 
               <div style={{ background: 'rgba(255,255,255,0.04)', padding: '20px', borderRadius: '16px', border: '1px solid rgba(168,85,247,0.3)' }}>
@@ -949,7 +949,7 @@ function Auth({ onLoginSuccess }) {
                 <ul style={{ paddingLeft: '20px', marginTop: '6px' }}>
                   <li><strong>Founder & Managing Director:</strong> Akash Raj</li>
                   <li><strong>Official Entity:</strong> Cloxel AI Technologies India</li>
-                  <li><strong>Primary Contact Email:</strong> contact@zobbly.com</li>
+                  <li><strong>Primary Contact Email:</strong> zobbly.com@gmail.com</li>
                   <li><strong>Support Desk Email:</strong> support@cloxel.com</li>
                 </ul>
               </section>
