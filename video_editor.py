@@ -48,6 +48,18 @@ warnings.filterwarnings("ignore")
 if not hasattr(Image, 'ANTIALIAS'):
     Image.ANTIALIAS = Image.LANCZOS
 
+def release_system_memory():
+    """
+    Forces Python Garbage Collection + Linux C-heap memory reclamation (malloc_trim).
+    Prevents Render 512MB RAM Out-Of-Memory (OOM) crashes.
+    """
+    gc.collect()
+    try:
+        import ctypes
+        ctypes.CDLL('libc.so.6').malloc_trim(0)
+    except Exception:
+        pass
+
 try:
     from bg_remover import remove_background
 except ImportError:
@@ -619,6 +631,9 @@ def create_ultra_photo_motion_clip(
             return np.array(bg_pil.convert("RGB"))
         return VideoClip(get_fallback_frame, duration=duration).set_fps(fps)
 
+    if orig_pil.width > 1280 or orig_pil.height > 1280:
+        orig_pil.thumbnail((1280, 1280), Image.LANCZOS)
+
     bg_pil = apply_color_filter(orig_pil.convert("RGB"), filter_style=filter_style)
     aspect_bg = bg_pil.width / bg_pil.height
     canvas_aspect = w / h
@@ -637,6 +652,8 @@ def create_ultra_photo_motion_clip(
     if remove_background and cutout_src_path:
         try:
             char_orig = Image.open(cutout_src_path).convert("RGBA")
+            if char_orig.width > 1280 or char_orig.height > 1280:
+                char_orig.thumbnail((1280, 1280), Image.LANCZOS)
             fg_pil = remove_background(char_orig)
             if fg_pil.mode == "RGBA" and fg_pil.getextrema()[3][0] < 255:
                 fg_filtered = apply_color_filter(fg_pil.convert("RGB"), filter_style=filter_style)
@@ -1060,7 +1077,7 @@ def merge_and_export(
             if 'txt_clip' in locals() and txt_clip:
                 txt_clip.close()
         except Exception: pass
-        gc.collect()
+        release_system_memory()
         
         temp_scene_files.append(scene_output)
         msg = f"✅ [Scene {i+1}/{len(scene_list)}] Encoded HD scene clip successfully!"

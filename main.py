@@ -19,6 +19,19 @@ from dotenv import load_dotenv
 from cryptography.fernet import Fernet
 
 warnings.filterwarnings("ignore")
+
+def release_system_memory():
+    """
+    Forces Python Garbage Collection + Linux C-heap memory reclamation (malloc_trim).
+    Prevents Render 512MB RAM Out-Of-Memory (OOM) crashes.
+    """
+    gc.collect()
+    try:
+        import ctypes
+        ctypes.CDLL('libc.so.6').malloc_trim(0)
+    except Exception:
+        pass
+
 from fastapi import FastAPI, BackgroundTasks, HTTPException, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, RedirectResponse
@@ -1445,7 +1458,7 @@ def full_process(req: VideoRequest, job_id: str):
         except Exception as err:
             print(f"Temp cleanup warning: {err}")
         try:
-            gc.collect()
+            release_system_memory()
         except Exception:
             pass
 

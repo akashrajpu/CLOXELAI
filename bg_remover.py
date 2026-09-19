@@ -35,11 +35,29 @@ try:
 except ImportError:
     REQUESTS_AVAILABLE = False
 
-try:
-    from rembg import remove, new_session
-    REMBG_AVAILABLE = True
-except ImportError:
-    REMBG_AVAILABLE = False
+def release_system_memory():
+    """
+    Forces Python Garbage Collection + Linux C-heap memory reclamation (malloc_trim).
+    Prevents Render 512MB RAM Out-Of-Memory (OOM) crashes.
+    """
+    import gc
+    gc.collect()
+    try:
+        import ctypes
+        ctypes.CDLL('libc.so.6').malloc_trim(0)
+    except Exception:
+        pass
+
+# Avoid loading 400MB rembg ONNX model on Render 512MB RAM tier unless explicitly requested
+USE_REMBG = os.getenv("USE_REMBG", "false").lower() in ["true", "1"]
+REMBG_AVAILABLE = False
+
+if USE_REMBG:
+    try:
+        from rembg import remove, new_session
+        REMBG_AVAILABLE = True
+    except ImportError:
+        REMBG_AVAILABLE = False
 
 
 def remove_bg_removebg_api(img_bytes: bytes, api_key: str) -> Image.Image:

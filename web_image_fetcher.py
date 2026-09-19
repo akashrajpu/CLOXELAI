@@ -45,6 +45,18 @@ def clean_search_term(text: str) -> str:
     words = [w for w in text.split() if w.lower() not in stops]
     return " ".join(words) if words else text
 
+def optimize_image_for_ram(file_path: str):
+    """Resizes downloaded web photo to max 1280x1280 to save server RAM memory."""
+    try:
+        from PIL import Image
+        if os.path.exists(file_path):
+            with Image.open(file_path) as img:
+                if img.width > 1280 or img.height > 1280:
+                    img.thumbnail((1280, 1280), Image.LANCZOS)
+                    img.save(file_path, quality=88, optimize=True)
+    except Exception:
+        pass
+
 def fetch_web_image(query: str, save_path: str) -> bool:
     """
     Searches and downloads a high-resolution photo for any topic/character query using Pexels Photo API, Unsplash HD, Google Images, Wikimedia & Pollinations AI.
@@ -68,6 +80,7 @@ def fetch_web_image(query: str, save_path: str) -> bool:
                         if img_req.status_code == 200 and len(img_req.content) > 15000:
                             with open(save_path, "wb") as f:
                                 f.write(img_req.content)
+                            optimize_image_for_ram(save_path)
                             print(f"✅ [Pexels HD Photo API] Successfully downloaded: {save_path}")
                             return True
         except Exception as e_pex:
@@ -80,6 +93,7 @@ def fetch_web_image(query: str, save_path: str) -> bool:
         if u_res.status_code == 200 and len(u_res.content) > 15000:
             with open(save_path, "wb") as f:
                 f.write(u_res.content)
+            optimize_image_for_ram(save_path)
             print(f"✅ [Pollinations HD Engine] Successfully downloaded: {save_path}")
             return True
     except Exception as e_u:
@@ -102,6 +116,7 @@ def fetch_web_image(query: str, save_path: str) -> bool:
                     if img_req.status_code == 200 and len(img_req.content) > 15000:
                         with open(save_path, "wb") as f:
                             f.write(img_req.content)
+                        optimize_image_for_ram(save_path)
                         print(f"✅ [Google Images HD] Successfully downloaded: {save_path}")
                         return True
                 except Exception:
@@ -123,6 +138,7 @@ def fetch_web_image(query: str, save_path: str) -> bool:
                         if len(img_data) > 12000:
                             with open(save_path, "wb") as f:
                                 f.write(img_data)
+                            optimize_image_for_ram(save_path)
                             print(f"✅ [Wikimedia] Downloaded image: {save_path}")
                             return True
     except Exception as e_w:

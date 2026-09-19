@@ -37,9 +37,12 @@ def fetch_pexels_videos(keyword, job_id, count=1, orientation="portrait"):
                 base_name = os.path.basename(job_id)
                 filename = os.path.join(dir_name, f"clip_{base_name}_{i}.mp4") if dir_name else f"clip_{base_name}_{i}.mp4"
                 
-                vid_data = requests.get(video_url, timeout=15).content
-                with open(filename, "wb") as f:
-                    f.write(vid_data)
+                with requests.get(video_url, stream=True, timeout=20) as r_vid:
+                    r_vid.raise_for_status()
+                    with open(filename, "wb") as f:
+                        for chunk in r_vid.iter_content(chunk_size=64*1024):
+                            if chunk:
+                                f.write(chunk)
                 video_paths.append(filename)
                 print(f"✅ [Pexels] Video clip downloaded: {filename}")
             return video_paths
@@ -74,9 +77,12 @@ def fetch_pixabay_videos(keyword, job_id, count=1, orientation="portrait"):
                 base_name = os.path.basename(job_id)
                 filename = os.path.join(dir_name, f"pixabay_{base_name}_{i}.mp4") if dir_name else f"pixabay_{base_name}_{i}.mp4"
                 
-                vid_data = requests.get(video_url, timeout=15).content
-                with open(filename, "wb") as f:
-                    f.write(vid_data)
+                with requests.get(video_url, stream=True, timeout=20) as r_vid:
+                    r_vid.raise_for_status()
+                    with open(filename, "wb") as f:
+                        for chunk in r_vid.iter_content(chunk_size=64*1024):
+                            if chunk:
+                                f.write(chunk)
                 video_paths.append(filename)
                 print(f"✅ [Pixabay] Video clip downloaded: {filename}")
             return video_paths
