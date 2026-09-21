@@ -958,12 +958,16 @@ def process_single_user_schedule(user: dict, now_ist: datetime, today_str: str):
 
         if schedule.get("short_enabled", True) and is_active and plan_type in ["short", "combo", "ultra", "all"]:
             res_short = run_staged_auto_pipeline("short", True, "Space Exploration", 20)
+            release_system_memory()
+            time.sleep(2)
             if res_short == "published":
                 print("⏳ 5-minute gap initiated after SHORT Reel publish. Waiting 300 seconds before next upload...")
                 time.sleep(300)
 
         if schedule.get("long_enabled", True) and is_active and plan_type in ["long", "combo", "ultra", "all"]:
             res_long = run_staged_auto_pipeline("long", False, "AI Innovations", 60)
+            release_system_memory()
+            time.sleep(2)
             if res_long == "published":
                 print("⏳ 5-minute gap initiated after LONG video publish. Waiting 300 seconds before next upload...")
                 time.sleep(300)
@@ -973,6 +977,10 @@ def process_single_user_schedule(user: dict, now_ist: datetime, today_str: str):
             ultra_is_short = (ultra_aspect == "9:16")
             default_dur = 25 if ultra_is_short else 60
             run_staged_auto_pipeline("ultra", ultra_is_short, "Funny Cartoon Adventures", default_dur)
+            release_system_memory()
+            time.sleep(2)
+
+        release_system_memory()
 
     except Exception as e_user:
         print(f"❌ Worker error for user {internal_id}: {e_user}")

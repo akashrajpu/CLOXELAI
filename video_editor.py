@@ -83,6 +83,60 @@ COLOR_PALETTES = [
 POSITIONS = ["center", "bottom", "top"]
 
 
+_FONT_CACHE = {}
+
+
+def get_font(font_path_arg: str, fs: int, has_devanagari: bool):
+    cache_key = (font_path_arg, fs, has_devanagari)
+    if cache_key in _FONT_CACHE:
+        return _FONT_CACHE[cache_key]
+
+    font_obj = None
+    devanagari_font_candidates = [
+        "./fonts/NotoSansDevanagari-Bold.ttf",
+        "./fonts/NotoSansDevanagari-Regular.ttf",
+        "/System/Library/Fonts/Supplemental/ITFDevanagari.ttc",
+        "/System/Library/Fonts/Supplemental/DevanagariMT.ttc",
+        "/System/Library/Fonts/Supplemental/Devanagari Sangam MN.ttc",
+        "/usr/share/fonts/truetype/noto/NotoSansDevanagari-Bold.ttf"
+    ]
+
+    if has_devanagari:
+        for df_path in devanagari_font_candidates:
+            if os.path.exists(df_path):
+                try:
+                    font_obj = ImageFont.truetype(df_path, fs)
+                    break
+                except Exception:
+                    pass
+
+    if font_obj is None:
+        try:
+            font_obj = ImageFont.truetype(font_path_arg, fs)
+        except Exception:
+            pass
+
+    if font_obj is None:
+        fallback_candidates = devanagari_font_candidates + [
+            "arial.ttf",
+            "/Library/Fonts/Arial.ttf",
+            "/System/Library/Fonts/Supplemental/Arial.ttf"
+        ]
+        for font_candidate in fallback_candidates:
+            if os.path.exists(font_candidate):
+                try:
+                    font_obj = ImageFont.truetype(font_candidate, fs)
+                    break
+                except Exception:
+                    pass
+
+    if font_obj is None:
+        font_obj = ImageFont.load_default()
+
+    _FONT_CACHE[cache_key] = font_obj
+    return font_obj
+
+
 def create_dynamic_animated_text(
     full_text: str,
     size: tuple,
@@ -117,41 +171,7 @@ def create_dynamic_animated_text(
     ultra_side_mode = "center"
 
     def load_font(fs):
-        devanagari_font_candidates = [
-            "./fonts/NotoSansDevanagari-Bold.ttf",
-            "./fonts/NotoSansDevanagari-Regular.ttf",
-            "/System/Library/Fonts/Supplemental/ITFDevanagari.ttc",
-            "/System/Library/Fonts/Supplemental/DevanagariMT.ttc",
-            "/System/Library/Fonts/Supplemental/Devanagari Sangam MN.ttc",
-            "/usr/share/fonts/truetype/noto/NotoSansDevanagari-Bold.ttf"
-        ]
-        
-        if has_devanagari:
-            for df_path in devanagari_font_candidates:
-                if os.path.exists(df_path):
-                    try:
-                        return ImageFont.truetype(df_path, fs)
-                    except Exception:
-                        pass
-                        
-        try:
-            return ImageFont.truetype(font_path, fs)
-        except Exception:
-            pass
-
-        fallback_candidates = devanagari_font_candidates + [
-            "arial.ttf",
-            "/Library/Fonts/Arial.ttf",
-            "/System/Library/Fonts/Supplemental/Arial.ttf"
-        ]
-        for font_candidate in fallback_candidates:
-            if os.path.exists(font_candidate):
-                try:
-                    return ImageFont.truetype(font_candidate, fs)
-                except Exception:
-                    pass
-                    
-        return ImageFont.load_default()
+        return get_font(font_path, fs, has_devanagari)
 
     cache = {'t': -1, 'img': None}
 
