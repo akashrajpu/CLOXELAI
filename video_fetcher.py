@@ -91,12 +91,33 @@ def fetch_pixabay_videos(keyword, job_id, count=1, orientation="portrait"):
     return []
 
 def fetch_pinterest_pins(keyword, job_id, count=1, orientation="portrait"):
-    """Pinterest API se HD Pins media download karta hai (100% Optional & Fail-Safe)"""
+    """Pinterest HD Pins media download karta hai using gallery-dl & fail-safe API/scraper"""
+    dir_name = os.path.dirname(job_id) if job_id else ""
+    base_name = os.path.basename(job_id) if job_id else "pinterest_media"
+    target_dir = dir_name if dir_name else "."
+
+    try:
+        from pinterest_downloader import fetch_pinterest_photos_via_gallery_dl
+        downloaded = fetch_pinterest_photos_via_gallery_dl(keyword, limit=count, output_dir=target_dir)
+        if downloaded:
+            media_paths = []
+            for i, p_file in enumerate(downloaded):
+                ext = os.path.splitext(p_file)[1] or ".jpg"
+                target_filename = os.path.join(target_dir, f"pinterest_{base_name}_{i}{ext}") if target_dir != "." else f"pinterest_{base_name}_{i}{ext}"
+                if p_file != target_filename:
+                    import shutil
+                    shutil.move(p_file, target_filename)
+                media_paths.append(target_filename)
+                print(f"✅ [Pinterest gallery-dl] Pin media saved: {target_filename}")
+            return media_paths
+    except Exception as e_dl:
+        print(f"⚠️ [Pinterest gallery-dl fallback]: {e_dl}")
+
     token = os.getenv("PINTEREST_ACCESS_TOKEN") or PINTEREST_ACCESS_TOKEN
     if not token or str(token).strip() == "":
         return []
         
-    print(f"📥 [Pinterest] '{keyword}' ke liye Pins search kar rahe hain...")
+    print(f"📥 [Pinterest API] '{keyword}' ke liye Pins search kar rahe hain...")
     headers = {"Authorization": f"Bearer {token}"}
     url = f"https://api.pinterest.com/v5/search/pins?query={requests.utils.quote(keyword)}&page_size=5"
     
@@ -113,15 +134,13 @@ def fetch_pinterest_pins(keyword, job_id, count=1, orientation="portrait"):
                 images = pin.get('images', {})
                 img_url = (images.get('originals') or {}).get('url') or (images.get('1200x') or {}).get('url')
                 if not img_url: continue
-                dir_name = os.path.dirname(job_id)
-                base_name = os.path.basename(job_id)
                 filename = os.path.join(dir_name, f"pinterest_{base_name}_{i}.jpg") if dir_name else f"pinterest_{base_name}_{i}.jpg"
                 
                 img_data = requests.get(img_url, timeout=10).content
                 with open(filename, "wb") as f:
                     f.write(img_data)
                 media_paths.append(filename)
-                print(f"✅ [Pinterest] Pin media downloaded: {filename}")
+                print(f"✅ [Pinterest API] Pin media downloaded: {filename}")
             return media_paths
     except Exception as e:
         print(f"⚠️ [Pinterest Non-Blocking Warning]: {e}. Falling back to next provider...")

@@ -59,11 +59,25 @@ def optimize_image_for_ram(file_path: str):
 
 def fetch_web_image(query: str, save_path: str) -> bool:
     """
-    Searches and downloads a high-resolution photo for any topic/character query using Pexels Photo API, Unsplash HD, Google Images, Wikimedia & Pollinations AI.
+    Searches and downloads a high-resolution photo for any topic/character query using Pinterest HD, Pexels Photo API, Unsplash HD, Google Images, Wikimedia & Pollinations AI.
     """
+    import shutil
     english_query = translate_query(query)
     clean_q_term = clean_search_term(english_query)
     print(f"🔎 [Web Image Search Engine] Searching HD Photos for: '{clean_q_term}' (Original Query: '{query}')...")
+
+    # Priority 1: Pinterest HD Photos (No API key needed, high aesthetic quality)
+    try:
+        from pinterest_downloader import fetch_pinterest_photos_via_gallery_dl
+        temp_p_dir = os.path.join(os.path.dirname(save_path) or ".", "pinterest_temp")
+        p_files = fetch_pinterest_photos_via_gallery_dl(clean_q_term, limit=1, output_dir=temp_p_dir)
+        if p_files and os.path.exists(p_files[0]):
+            shutil.copy(p_files[0], save_path)
+            optimize_image_for_ram(save_path)
+            print(f"✅ [Pinterest HD Engine] Successfully downloaded: {save_path}")
+            return True
+    except Exception as e_pin:
+        print(f"⚠️ Pinterest HD search skip: {e_pin}")
 
     if PEXELS_API_KEY:
         try:
