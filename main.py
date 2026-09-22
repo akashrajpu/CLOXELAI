@@ -1478,12 +1478,15 @@ def render_video_with_smart_fallback(user_id: str, topic: str, category: str, vo
     55s -> 45s -> 30s -> 20s -> 10s for short reels, retrying until 100% success!
     """
     import uuid
-    if video_type == "short":
-        duration_steps = [requested_duration, 55, 45, 30, 20, 10]
-        duration_steps = sorted(list(set([d for d in duration_steps if d <= requested_duration])), reverse=True)
-    else:  # long or ultra (whether 9:16 vertical or 16:9 landscape)
-        duration_steps = [requested_duration, 300, 240, 180, 120, 90, 60, 45, 30, 20, 10]
-        duration_steps = sorted(list(set([d for d in duration_steps if d <= requested_duration])), reverse=True)
+    if video_type == "short" or (video_type == "ultra" and aspect_ratio == "9:16"):
+        max_allowed = 60 if (video_type == "ultra" and aspect_ratio == "9:16") else 55
+        target_dur = min(requested_duration, max_allowed)
+        duration_steps = [target_dur, 55, 45, 30, 20, 10]
+        duration_steps = sorted(list(set([d for d in duration_steps if d <= target_dur])), reverse=True)
+    else:  # long or ultra (16:9 landscape)
+        target_dur = min(requested_duration, 300)
+        duration_steps = [target_dur, 300, 240, 180, 120, 90, 60, 45, 30, 20, 10]
+        duration_steps = sorted(list(set([d for d in duration_steps if d <= target_dur])), reverse=True)
 
     last_error = None
     for attempt_idx, dur in enumerate(duration_steps):
@@ -1871,6 +1874,10 @@ async def save_auto_schedule(req: AutoScheduleRequest):
 
     req.short_duration = max(10, min(55, req.short_duration))
     req.long_duration = max(20, min(300, req.long_duration))
+    if req.ultra_aspect_ratio == "9:16":
+        req.ultra_duration = max(10, min(60, req.ultra_duration))
+    else:
+        req.ultra_duration = max(20, min(300, req.ultra_duration))
 
     existing_schedule = user.get("auto_schedule", {})
     existing_started_at = existing_schedule.get("schedule_started_at")
