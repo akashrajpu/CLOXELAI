@@ -1478,15 +1478,11 @@ def render_video_with_smart_fallback(user_id: str, topic: str, category: str, vo
     55s -> 45s -> 30s -> 20s -> 10s for short reels, retrying until 100% success!
     """
     import uuid
-    if aspect_ratio == "9:16" or video_type == "short":
-        target_max = min(requested_duration, 30) if aspect_ratio == "9:16" else requested_duration
-        duration_steps = [target_max, 25, 20, 15, 10]
-        duration_steps = sorted(list(set([d for d in duration_steps if d <= target_max])), reverse=True)
-    elif video_type in ["long", "ultra"]:
-        duration_steps = [requested_duration, 3600, 1800, 1200, 900, 600, 300, 240, 180, 120, 60, 30]
-        duration_steps = sorted(list(set([d for d in duration_steps if d <= requested_duration])), reverse=True)
-    else:
+    if video_type == "short":
         duration_steps = [requested_duration, 55, 45, 30, 20, 10]
+        duration_steps = sorted(list(set([d for d in duration_steps if d <= requested_duration])), reverse=True)
+    else:  # long or ultra (whether 9:16 vertical or 16:9 landscape)
+        duration_steps = [requested_duration, 300, 240, 180, 120, 60, 45, 30]
         duration_steps = sorted(list(set([d for d in duration_steps if d <= requested_duration])), reverse=True)
 
     last_error = None
@@ -3311,7 +3307,7 @@ def generate_ai_script_core(topic: str, duration: int, video_type: str = "short"
     ai_server_urls = [u for u in candidate_urls if u and not (u in seen or seen.add(u))]
 
     scene_count = max(1, duration // 10)
-    word_count = int(duration * 2.8) if video_type == "short" else int(duration * 2.5)
+    word_count = int(duration * 2.7)
 
     cat_niche = f" in the '{category}' category" if category and str(category).lower() != "random" else ""
 
@@ -3510,11 +3506,13 @@ def generate_ai_script_core(topic: str, duration: int, video_type: str = "short"
     
     for i in range(scene_count):
         if i == 0:
-            text = random.choice(intro_templates)
+            text = f"{random.choice(intro_templates)} {body_templates[0]}"
         elif i == scene_count - 1 and scene_count > 1:
-            text = random.choice(outro_templates)
+            text = f"{body_templates[(i - 1) % len(body_templates)]} {random.choice(outro_templates)}"
         else:
-            text = body_templates[(i - 1) % len(body_templates)]
+            b1 = body_templates[(i - 1) % len(body_templates)]
+            b2 = body_templates[i % len(body_templates)]
+            text = f"{b1} {b2}" if b1 != b2 else b1
             
         scenes.append({"text": text, "keyword": main_kw})
         full_text_list.append(text)
