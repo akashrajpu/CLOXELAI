@@ -1482,7 +1482,7 @@ def render_video_with_smart_fallback(user_id: str, topic: str, category: str, vo
         duration_steps = [requested_duration, 55, 45, 30, 20, 10]
         duration_steps = sorted(list(set([d for d in duration_steps if d <= requested_duration])), reverse=True)
     else:  # long or ultra (whether 9:16 vertical or 16:9 landscape)
-        duration_steps = [requested_duration, 300, 240, 180, 120, 60, 45, 30]
+        duration_steps = [requested_duration, 300, 240, 180, 120, 90, 60, 45, 30, 20, 10]
         duration_steps = sorted(list(set([d for d in duration_steps if d <= requested_duration])), reverse=True)
 
     last_error = None
