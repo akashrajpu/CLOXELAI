@@ -3446,8 +3446,7 @@ def generate_ai_script_core(topic: str, duration: int, video_type: str = "short"
                         "title": title_gen,
                         "description": desc_gen
                     }
-            except Exception as err_g:
-                print(f"⚠️ Cloxel AI Engine Notice ({g_model} fallback): {err_g}")
+            except Exception:
                 continue
 
     stop_words = {"aur", "ek", "hai", "ki", "ke", "ka", "jo", "se", "me", "ko", "hi", "to", "ye", "wo", "tha", "thi"}
