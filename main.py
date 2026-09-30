@@ -3471,7 +3471,11 @@ def generate_ai_script_core(topic: str, duration: int, video_type: str = "short"
                 f"Modi Ji ne apni chaturai aur Digital India ke master plan se mohalle ki sabse badi samasya ko chutkiyon mein solve kar diya.",
                 f"Sabhi cartoon dost unki samajhdaari aur Swachh Bharat ke naye jugaad ko dekh kar hairan reh gaye.",
                 f"Inki kootniti aur hard work ne poore cartoon gaon ko ekjut karke ek nayi disha dikhayi.",
-                f"Aakhirkar sabhi cartoon characters ne milkar Modi Ji ke is nayi vision ka swagat kiya aur khushi se jhoom uthe."
+                f"Aakhirkar sabhi cartoon characters ne milkar Modi Ji ke is nayi vision ka swagat kiya aur khushi se jhoom uthe.",
+                f"Gaon ke cartoon elders ne Modi Ji ke is Jugaad Master plan par khush hokar shabaashi di.",
+                f"Dekhte hi dekhte poore gaon mein digital cleanliness aur smart work ka celebration shuru ho gaya.",
+                f"Sabhi cartoon dosto ne milkar vada kiya ki wo har din gaon ko clean aur smart banaye rakhne mein madad karenge.",
+                f"Is mazedar cartoon journey ne poore mohalle ko ekta aur samajhdaari ka sabse bada paigham diya."
             ]
             outro_templates = [
                 f"Toh ye thi Modi Ji ki cartoon duniya ki sabse mazedar aur prernadayak kahani! Video pasand aayi toh like aur follow karein!",
@@ -3486,7 +3490,11 @@ def generate_ai_script_core(topic: str, duration: int, video_type: str = "short"
                 f"{topic} ne apna super-dimag lagakar ek aisa dhasu jugaad kiya ki poore mohalle ke hosh ud gaye.",
                 f"Dekhte hi dekhte {topic} ka ye jugaad ek mazedar comedy mistake ban gaya aur sabhi cartoon dost pet pakad kar hasne lage.",
                 f"Lekin {topic} ne haar nahi maani aur apni chalaki se aakhiri minute mein situation ko poori tarah sambhal kiya.",
-                f"Is thrilling mod par sabhi characters ne ek doosre ki madad ki aur har mushkil ko aasan bana diya."
+                f"Is thrilling mod par sabhi characters ne ek doosre ki madad ki aur har mushkil ko aasan bana diya.",
+                f"{topic} ki is samajhdaari par gaon ke sabhi dosto ne josh mein aakar taaliyan bajayi.",
+                f"Comedy aur hungame se bhara ye din poore cartoon gaon ke liye sabse yaadgar din ban gaya.",
+                f"{topic} ne apne dosto ko ek anokha surprise gift dekar poore mahaul ko khushgawar bana diya.",
+                f"Sabhi dosto ne milkar is kamyabi ko celebrate kiya aur agli nayi adventure ki tayyari shuru kar di."
             ]
             outro_templates = [
                 f"Aur is tarah {topic} ke is funny kissey ne sabko lothpoth kar diya! Video ko like aur subscribe karein!",
@@ -3501,7 +3509,11 @@ def generate_ai_script_core(topic: str, duration: int, video_type: str = "short"
                 f"Kahani mein mukhya cartoon character ne apni samajhdaari aur chalaki se ek badi chunauti ka samna kiya.",
                 f"Dekhte hi dekhte kahani mein ek mazedar twist aaya jahan sabhi cartoon dosto ne milkar ek anokha hal nikala.",
                 f"Is thrilling cartoon mod par sabhi characters ne ek doosre ki madad ki aur har mushkil ko aasan bana diya.",
-                f"Sabhi characters ki ekta aur mehnat ne poore gaon ko khushiyon se bhar diya."
+                f"Sabhi characters ki ekta aur mehnat ne poore gaon ko khushiyon se bhar diya.",
+                f"Gaon ke cartoon elders ne inki chaturai par taaliyan bajayi aur dhasu party celebrate ki.",
+                f"Is mazedar adventure mein har ek character ne apni special superpower aur comedy skill ka kamaal dikhaya.",
+                f"Trouble dene wale cartoon villain ne bhi aakhirkar apni galti mani aur sabhi characters dost ban gaye.",
+                f"Ek anokhi seekh aur dosti ke paigham ke sath ye mazedar animated kahani aage badhti chali gayi."
             ]
             outro_templates = [
                 f"Aakhirkar, ye pyaari kahani hume sikhaati hai ki mehnat aur dosti se har mushkil aasan ho jaati hai. Channel ko subscribe karein!",
@@ -3516,7 +3528,11 @@ def generate_ai_script_core(topic: str, duration: int, video_type: str = "short"
             f"Pehli sabse badi baat — inka safar ek aam chai bechne wale ladke se lekar desh ke Pradhan Mantri banne tak ka raha hai, jo mehnat aur determination ka prateek hai.",
             f"Doosri baat — inka vision Digital India, Make in India aur Infrastructure expansion par kendrit hai, jisse Bharat ki global standing poori duniya mein majboot hui hai.",
             f"Teesri baat — inka disciplined lifestyle, daily yoga routine aur continuous work-ethic unhe 70+ saal ki umar mein bhi hamesha active aur energetic rakhta hai.",
-            f"Inke prabhavshali bhashan aur janta ke sath direct connect ne inki popularity ko desh aur videsh mein ek alag uanchai par pahuncha diya hai."
+            f"Inke prabhavshali bhashan aur janta ke sath direct connect ne inki popularity ko desh aur videsh mein ek alag uanchai par pahuncha diya hai.",
+            f"Iske alawa, inki strategic foreign policy aur bilateral trade relations ne global diplomacy mein Bharat ka dabdaba tayyar kiya hai.",
+            f"Clean energy, solar power aur indigenous technology ke kshetra mein inke dwar liye gaye bold steps aaj duniya ke liye benchmark ban rahe hain.",
+            f"Administrative reforms aur e-governance ke zariye sarkari yojnaon ka seedha laabh croron logon tak pahunchana inka sabse bada achievement mana jata hai.",
+            f"Inki decision-making speed aur crisis management capability ne mushkil se mushkil rashtriya chunautiyon mein bhi desh ko aage badhaya hai."
         ]
         outro_templates = [
             f"Toh ye thi PM Modi Ji ki safalta aur unke leadership style se judi sabse important baatein. Video acchi lagi ho toh like aur subscribe zaroor karein!",
@@ -3531,7 +3547,11 @@ def generate_ai_script_core(topic: str, duration: int, video_type: str = "short"
             f"Pehli sabse badi baat — inhone kabhi sirf monthly salary par depend rehne ke bajaye scalable systems aur monopoly assets create kiye.",
             f"Doosri baat — inka sabse bada secret hai compounding aur calculated risk taking — jahan aam log darte hain, wahin ye game-changing opportunities ko pakadte hain.",
             f"Teesra sabse bada factor hai customer value aur aggressive expansion. Inka har ek decision long-term market dominance ko dhyan mein rakh kar liya jata hai.",
-            f"Iske sath hi, ye log apne cashflow ko passive assets aur futuristic technology mein reinvest karke apne empire ko untouchable bana dete hain."
+            f"Iske sath hi, ye log apne cashflow ko passive assets aur futuristic technology mein reinvest karke apne empire ko untouchable bana dete hain.",
+            f"High-net-worth investors aur founders hamesha product-market fit aur network effects par dhyan dete hain taaki competitor inhe replace na kar sakein.",
+            f"Cashflow management aur capital allocation inki sabse badi superpower hoti hai jiske zariye ye recession ke samay bhi saste daam par businesses acquire karte hain.",
+            f"Visionary leadership aur relentless execution ke zariye inka brand identity global market mein trusted status haasil kar leta hai.",
+            f"Inki daily habits mein continuous learning, high-value networking aur rigorous time-management sabse important pillar hote hain."
         ]
         outro_templates = [
             f"Toh ye the wealth creation aur business empire ke wo golden rules jinhe samajhkar koi bhi aage badh sakta hai. Video acchi lagi ho toh like aur subscribe zaroor karein!",
@@ -3546,7 +3566,11 @@ def generate_ai_script_core(topic: str, duration: int, video_type: str = "short"
             f"Ranbhoomi aur itihaas ke shastron ke mutabiq, yoddhaon ne matribhumi aur swabhiman ke liye aakhiri saans tak abhootpoorv sangharsh kiya.",
             f"Inki kootniti aur sena ki tayyari ne dushmano ke chakke chhudaye aur ranbhoomi mein aisi shikast di jise saadiyon tak yaad rakha jayega.",
             f"Is aitihasik kaal mein banaye gaye kila, sthapatya aur ranneeti aaj ke modern commanders ke liye bhi prerna ka srot hain.",
-            f"Inki veerta aur swabhiman ne itihas ki dhara ko poori tarah badal diya aur apna naam hamesha ke liye swarnim aksharon mein amar kar diya."
+            f"Inki veerta aur swabhiman ne itihas ki dhara ko poori tarah badal diya aur apna naam hamesha ke liye swarnim aksharon mein amar kar diya.",
+            f"Guptchar tantra aur bhugol ki barik jankari ka upayog karke inhone vishalkaye dushman senaon ko chote sainik dalon se dhool chatayi.",
+            f"Matribhumi ki raksha ke liye sainiko aur praja ka aatmviswas itna buland tha ki dushman ka har aakraman nishfal sabhit hua.",
+            f"Kile ke suraksha kavach aur guerilla warfare ki ranniti ne ranbhoomi mein inki sena ko asambhav jeet dilayi.",
+            f"Inki Amar veergatha aaj bhi har bhartiya ke dil mein garv aur swabhiman ki bhavna jagrut karti hai."
         ]
         outro_templates = [
             f"Yahi wajah hai ki ye veer gatha aaj bhi har peedhi ke liye prerna ka srot hai. Aise hi durlabh aitihasik kisse dekhne ke liye channel ko subscribe karein!",
@@ -3561,7 +3585,11 @@ def generate_ai_script_core(topic: str, duration: int, video_type: str = "short"
             f"Recent research aur scientific analysis ke mutabiq, ye futuristic advancement hamari daily efficiency ko 10 guna tak badha sakti hai.",
             f"Is technology ke peeche complex algorithms aur advanced neural networks kaam kar rahe hain jo insani dimaag se bhi tez decision lete hain.",
             f"Global tech companies aur researchers is field mein billions of dollars invest kar rahe hain taaki naye automated solutions taiyaar kiye ja sakein.",
-            f"Agli kuch saalon mein ye innovation hamare transport, healthcare aur digital communication ka sabse important hissa ban jayegi."
+            f"Agli kuch saalon mein ye innovation hamare transport, healthcare aur digital communication ka sabse important hissa ban jayegi.",
+            f"Quantum computing aur high-speed data processing ke aane se purane traditional software models poori tarah obsolete ho rahe hain.",
+            f"Automation aur AI agents human productivity ko double karke complex problem solving ko seconds mein execute kar rahe hain.",
+            f"Cybersecurity aur decentralized data networks in naye technological platforms ko ultra-secure aur fail-safe banati hain.",
+            f"Tech giants aur innovative startups is breakthrough revolution mein sabse aage rehne ke liye continuous R&D kar rahe hain."
         ]
         outro_templates = [
             f"Toh ye tha future technology ka sabse bada update! Aise hi viral science aur tech content ke liye hume zaroor follow karein.",
@@ -3576,7 +3604,11 @@ def generate_ai_script_core(topic: str, duration: int, video_type: str = "short"
             f"Sabse pehla mukhya kaaran ye hai ki {topic} hamari daily life aur modern strategy par seedha prabhav daalta hai.",
             f"Experts aur researchers ke vishleshan se pata chalta hai ki iska prabhav long-term growth aur development par padta hai.",
             f"Iske alawa, {topic} ki barikiyo ko samajhna aur sahi tareeqe se implement karna hi kamyabi ki kunjhi hai.",
-            f"Aaj ke daur mein har din hazaron log {topic} se judi nayi jaankariyon ko seekhne ki koshish kar rahe hain."
+            f"Aaj ke daur mein har din hazaron log {topic} se judi nayi jaankariyon ko seekhne ki koshish kar rahe hain.",
+            f"Social scientists aur industry analysts ke mutabiq {topic} ka prabhav future trend ko tay kar raha hai.",
+            f"Sahi planning aur strategic awareness se koi bhi {topic} ke is pehlu se maximum advantage haasil kar sakta hai.",
+            f"Continuous innovation aur adaptability hi is kshetra mein long-term dominance banaye rakhne ka sabse bada secret hai.",
+            f"Deep understanding aur structured execution ke zariye logon ne is kshetra mein remarkable growth dekhi hai."
         ]
         outro_templates = [
             f"Toh ye the {topic} se jude sabse important facts! Video pasand aayi ho toh like aur share zaroor karein.",
