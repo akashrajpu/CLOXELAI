@@ -3456,24 +3456,41 @@ def generate_ai_script_core(topic: str, duration: int, video_type: str = "short"
     cat_lower = str(category).lower()
     topic_lower = str(topic).lower()
     
+    is_leader_personality = any(k in topic_lower or k in cat_lower for k in ["modi", "narendra modi", "pm modi", "leader", "prime minister", "president", "politician", "celebrity", "actor", "cricketer", "virat", "dhoni", "srk", "elon", "trump", "biden", "putin", "obama"])
     is_business_topic = any(k in topic_lower or k in cat_lower for k in ["richest", "billionaire", "empire", "money", "business", "wealth", "company", "startup", "ceo", "market", "trade", "investment", "finance"])
-    is_history_topic = any(k in topic_lower or k in cat_lower for k in ["history", "warrior", "king", "empire", "battle", "emperor", "ancient", "war", "fort", "ruler", "dynasty"])
+    is_history_topic = any(k in topic_lower or k in cat_lower for k in ["history", "warrior", "king", "empire", "battle", "emperor", "ancient", "war", "fort", "ruler", "dynasty", "mythology"])
     is_tech_topic = any(k in topic_lower or k in cat_lower for k in ["ai", "tech", "technology", "space", "science", "future", "robot", "galaxy", "nasa", "computer", "digital"])
 
-    if video_type == "ultra" and is_cartoon_cat:
-        if is_single_character_name:
+    if is_cartoon_cat:
+        if is_leader_personality:
             intro_templates = [
-                f"Dosto! Aapko milate hain humare cartoon hero {topic} se, jinki zindagi mein har din ek naya aur mazedar hungama hota hai!",
+                f"Dosto! Cartoon duniya mein aaj humare Pradhan Mantri Modi Ji ek nayi aur mazedar mission par nikal pade hain!",
+                f"PM Modi Ji ke cartoon gaon mein ek aisa dilchasp kissa hua jise dekh kar aap sabhi hasne lagenge!"
+            ]
+            body_templates = [
+                f"Modi Ji ne apni chaturai aur Digital India ke master plan se mohalle ki sabse badi samasya ko chutkiyon mein solve kar diya.",
+                f"Sabhi cartoon dost unki samajhdaari aur Swachh Bharat ke naye jugaad ko dekh kar hairan reh gaye.",
+                f"Inki kootniti aur hard work ne poore cartoon gaon ko ekjut karke ek nayi disha dikhayi.",
+                f"Aakhirkar sabhi cartoon characters ne milkar Modi Ji ke is nayi vision ka swagat kiya aur khushi se jhoom uthe."
+            ]
+            outro_templates = [
+                f"Toh ye thi Modi Ji ki cartoon duniya ki sabse mazedar aur prernadayak kahani! Video pasand aayi toh like aur follow karein!",
+                f"Aise hi aur dilchasp cartoon kisse dekhne ke liye channel ko subscribe karna na bhulein!"
+            ]
+        elif is_single_character_name:
+            intro_templates = [
+                f"Dosto! Aapko milate hain humare cartoon hero {topic} se, jinki zindagi mein har din ek naya hungama hota hai!",
                 f"Ek din {topic} ne socha ki aaj kuch toofani karte hain, aur bas wahin se shuru hua sabse mazedar kissa!"
             ]
             body_templates = [
                 f"{topic} ne apna super-dimag lagakar ek aisa dhasu jugaad kiya ki poore mohalle ke hosh ud gaye.",
                 f"Dekhte hi dekhte {topic} ka ye jugaad ek mazedar comedy mistake ban gaya aur sabhi cartoon dost pet pakad kar hasne lage.",
-                f"Lekin {topic} ne haar nahi maani aur apni chalaki se aakhiri minute mein situation ko poori tarah sambhal kiya."
+                f"Lekin {topic} ne haar nahi maani aur apni chalaki se aakhiri minute mein situation ko poori tarah sambhal kiya.",
+                f"Is thrilling mod par sabhi characters ne ek doosre ki madad ki aur har mushkil ko aasan bana diya."
             ]
             outro_templates = [
-                f"Aur is tarah {topic} ke is funny kissey ne sabko hasa-hasa kar lothpoth kar diya! Agar {topic} ki kahani pasand aayi toh video ko like aur channel ko subscribe karein!",
-                f"Yahi toh khas baat hai {topic} ki! Aise hi aur mazedar cartoon kisse dekhne ke liye video ko share zaroor karein!"
+                f"Aur is tarah {topic} ke is funny kissey ne sabko lothpoth kar diya! Video ko like aur subscribe karein!",
+                f"Yahi toh khas baat hai {topic} ki! Aise hi aur mazedar cartoon kisse dekhne ke liye follow karein!"
             ]
         else:
             intro_templates = [
@@ -3481,14 +3498,30 @@ def generate_ai_script_core(topic: str, duration: int, video_type: str = "short"
                 f"Chhote se cartoon gaon mein {topic} ke characters ke beech ek anokhi kahani ghati, aaiye is mazedar kahani ko jaante hain."
             ]
             body_templates = [
-                f"Kahani mein mukhya cartoon character ne apni samajhdaari aur chalaki se ek badi chunauti ka samna kiya aur dosto ko chaunkaya.",
+                f"Kahani mein mukhya cartoon character ne apni samajhdaari aur chalaki se ek badi chunauti ka samna kiya.",
                 f"Dekhte hi dekhte kahani mein ek mazedar twist aaya jahan sabhi cartoon dosto ne milkar ek anokha hal nikala.",
-                f"Is thrilling cartoon mod par sabhi characters ne ek doosre ki madad ki aur har mushkil ko aasan bana diya."
+                f"Is thrilling cartoon mod par sabhi characters ne ek doosre ki madad ki aur har mushkil ko aasan bana diya.",
+                f"Sabhi characters ki ekta aur mehnat ne poore gaon ko khushiyon se bhar diya."
             ]
             outro_templates = [
-                f"Aakhirkar, ye pyaari kahani hume sikhaati hai ki mehnat aur dosti se har mushkil aasan ho jaati hai. Kahani pasand aayi toh video ko like aur follow karein!",
-                f"Aur is tarah {topic} ki ye mazedar cartoon kahani ek khushgawar ant ke sath poori hui. Channel ko subscribe karein!"
+                f"Aakhirkar, ye pyaari kahani hume sikhaati hai ki mehnat aur dosti se har mushkil aasan ho jaati hai. Channel ko subscribe karein!",
+                f"Aur is tarah {topic} ki ye mazedar cartoon kahani ek khushgawar ant ke sath poori hui. Video ko share zaroor karein!"
             ]
+    elif is_leader_personality:
+        intro_templates = [
+            f"Dosto! Aaj hum Bharat ke Pradhan Mantri Narendra Modi Ji se judi wo mukhya aur dilchasp baatein jaaninge jo har kisi ko pata honi chahiye.",
+            f"Kya aap jante hain PM Modi Ji ki safalta aur unke leadership style ke peeche 3 sabse bade aur prabhavshali karann?"
+        ]
+        body_templates = [
+            f"Pehli sabse badi baat — inka safar ek aam chai bechne wale ladke se lekar desh ke Pradhan Mantri banne tak ka raha hai, jo mehnat aur determination ka prateek hai.",
+            f"Doosri baat — inka vision Digital India, Make in India aur Infrastructure expansion par kendrit hai, jisse Bharat ki global standing poori duniya mein majboot hui hai.",
+            f"Teesri baat — inka disciplined lifestyle, daily yoga routine aur continuous work-ethic unhe 70+ saal ki umar mein bhi hamesha active aur energetic rakhta hai.",
+            f"Inke prabhavshali bhashan aur janta ke sath direct connect ne inki popularity ko desh aur videsh mein ek alag uanchai par pahuncha diya hai."
+        ]
+        outro_templates = [
+            f"Toh ye thi PM Modi Ji ki safalta aur unke leadership style se judi sabse important baatein. Video acchi lagi ho toh like aur subscribe zaroor karein!",
+            f"Aise hi viral aur informative content ke liye hume zaroor follow karein!"
+        ]
     elif is_business_topic:
         intro_templates = [
             f"Dosto! Kya aapne kabhi socha hai ki duniya ke top billionaires aur business tycoons aakhir aam logon se alag kaise sochte hain?",
@@ -3496,7 +3529,7 @@ def generate_ai_script_core(topic: str, duration: int, video_type: str = "short"
         ]
         body_templates = [
             f"Pehli sabse badi baat — inhone kabhi sirf monthly salary par depend rehne ke bajaye scalable systems aur monopoly assets create kiye.",
-            f"Doosri baat, inka sabse bada secret hai compounding aur calculated risk taking — jahan aam log darte hain, wahin ye game-changing opportunities ko pakadte hain.",
+            f"Doosri baat — inka sabse bada secret hai compounding aur calculated risk taking — jahan aam log darte hain, wahin ye game-changing opportunities ko pakadte hain.",
             f"Teesra sabse bada factor hai customer value aur aggressive expansion. Inka har ek decision long-term market dominance ko dhyan mein rakh kar liya jata hai.",
             f"Iske sath hi, ye log apne cashflow ko passive assets aur futuristic technology mein reinvest karke apne empire ko untouchable bana dete hain."
         ]
@@ -3504,7 +3537,7 @@ def generate_ai_script_core(topic: str, duration: int, video_type: str = "short"
             f"Toh ye the wealth creation aur business empire ke wo golden rules jinhe samajhkar koi bhi aage badh sakta hai. Video acchi lagi ho toh like aur subscribe zaroor karein!",
             f"Yahi wajah hai ki inka business empire din-ba-din bada hota chala jata hai. Aise hi viral business insights ke liye channel ko abhi follow karein!"
         ]
-    elif is_history_topic or any(k in cat_lower for k in ["history", "mythology", "ancient"]):
+    elif is_history_topic:
         intro_templates = [
             f"Itihas ke pannon mein darj {topic} ki ye veergatha aur ranniti aaj bhi har kisi ke hosh uda deti hai.",
             f"Kya aap jante hain {topic} se judi wo aitihasik baatein jo aaj bhi har kisi ko garv aur aashcharya se bhar deti hain? Aaiye vistaar se samajhte hain."
@@ -3519,7 +3552,7 @@ def generate_ai_script_core(topic: str, duration: int, video_type: str = "short"
             f"Yahi wajah hai ki ye veer gatha aaj bhi har peedhi ke liye prerna ka srot hai. Aise hi durlabh aitihasik kisse dekhne ke liye channel ko subscribe karein!",
             f"Swabhiman aur veerta ki is kahani ne itihaas ko mahan bana diya. Video ko share aur follow zaroor karein!"
         ]
-    elif is_tech_topic or any(k in cat_lower for k in ["science", "tech", "technology", "ai"]):
+    elif is_tech_topic:
         intro_templates = [
             f"Dosto! Science aur modern technology ki duniya mein ek aisa revolution aa chuka hai jo aane wale samay mein hamari zindagi poori tarah badal dega.",
             f"Kya aapko pata hai ki {topic} ke kshetra mein hue naye breakthrough ne duniya ke sabse bade experts aur scientists ko bhi chaunka diya hai?"
@@ -3536,35 +3569,43 @@ def generate_ai_script_core(topic: str, duration: int, video_type: str = "short"
         ]
     else:
         intro_templates = [
-            f"Dosto! Aaj hum {topic} se jude sabse dilchasp aur hairatangez pehluon ko vistaar se samajhne wale hain.",
-            f"Kya aap jante hain {topic} ke peeche ki wo asli kahani jo aamtaur par logon ko pata nahi hoti? Aaiye iske sabhi mukhya baaton ko jaante hain."
+            f"Dosto! Aaj hum {topic} se jude sabse dilchasp aur mukhya pehluon ko vistaar se samajhne wale hain.",
+            f"Kya aap jante hain {topic} se judi wo mukhya kahani jo aamtaur par logon ko pata nahi hoti? Aaiye iske sabhi baaton ko jaante hain."
         ]
         body_templates = [
-            f"Sabse pehla mukhya kaaran ye hai ki iske peeche deep psychological aur strategic factors kaam karte hain jo sabko prabhavit karte hain.",
-            f"Experts aur researchers ke dwara kiye gaye vishleshan se pata chalta hai ki iska prabhav long-term growth aur development par seedha padta hai.",
-            f"Iske alawa, iski barikiyo ko samajhna aur sahi direction mein implement karna hi sabse badi kamyabi ki kunjhi mana jata hai.",
-            f"Aaj ke daur mein har din hazaron log is pehlu se judi nayi jaankariyon ko samajhne aur seekhne ki koshish kar rahe hain."
+            f"Sabse pehla mukhya kaaran ye hai ki {topic} hamari daily life aur modern strategy par seedha prabhav daalta hai.",
+            f"Experts aur researchers ke vishleshan se pata chalta hai ki iska prabhav long-term growth aur development par padta hai.",
+            f"Iske alawa, {topic} ki barikiyo ko samajhna aur sahi tareeqe se implement karna hi kamyabi ki kunjhi hai.",
+            f"Aaj ke daur mein har din hazaron log {topic} se judi nayi jaankariyon ko seekhne ki koshish kar rahe hain."
         ]
         outro_templates = [
             f"Toh ye the {topic} se jude sabse important facts! Video pasand aayi ho toh like aur share zaroor karein.",
-            f"Umeed hai aapko ye jaankari informative aur pasand aayi hogi. Aise hi aur content ke liye channel ko subscribe karein!"
+            f"Umeed hai aapko ye jaankari informative aur pasand aayi hogi. Channel ko subscribe karein!"
         ]
 
     scenes = []
     full_text_list = []
     
-    for i in range(scene_count):
-        if i == 0:
-            text = f"{random.choice(intro_templates)} {body_templates[0]}"
-        elif i == scene_count - 1 and scene_count > 1:
-            text = f"{body_templates[(i - 1) % len(body_templates)]} {random.choice(outro_templates)}"
-        else:
-            b1 = body_templates[(i - 1) % len(body_templates)]
-            b2 = body_templates[i % len(body_templates)]
-            text = f"{b1} {b2}" if b1 != b2 else b1
-            
+    selected_intro = random.choice(intro_templates)
+    selected_outro = random.choice(outro_templates)
+
+    if scene_count == 1:
+        text = f"{selected_intro} {body_templates[0]} {selected_outro}"
         scenes.append({"text": text, "keyword": main_kw})
         full_text_list.append(text)
+    else:
+        for i in range(scene_count):
+            if i == 0:
+                scene_text = f"{selected_intro} {body_templates[0]}"
+            elif i == scene_count - 1:
+                body_idx = i % len(body_templates)
+                scene_text = f"{body_templates[body_idx]} {selected_outro}"
+            else:
+                body_idx = i % len(body_templates)
+                scene_text = f"{body_templates[body_idx]}"
+
+            scenes.append({"text": scene_text, "keyword": main_kw})
+            full_text_list.append(scene_text)
 
     script_text = " ".join(full_text_list)
     title_gen, desc_gen = build_youtube_metadata(topic=topic, full_script=script_text, video_type=video_type)
