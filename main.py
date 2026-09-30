@@ -3378,74 +3378,77 @@ def generate_ai_script_core(topic: str, duration: int, video_type: str = "short"
 
     gemini_key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
     if gemini_key:
-        try:
-            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={gemini_key}"
-            if video_type == "ultra" and is_cartoon_cat:
-                if is_single_character_name:
-                    ultra_special_prompt = (
-                        f"\nSPECIAL ULTRA CARTOON CHARACTER STORY (KAHANI/CHUTKULA) MODE:\n"
-                        f"The topic is a character name '{topic}'. Write a super funny, hilarious, comedic 2D cartoon story script (Kahani / Kissa / Comedy Chutkula) about {topic}.\n"
-                        f"Show {topic}'s hilarious daily struggles, a crazy funny Jugaad/experiment gone wrong, funny cartoon dialogues, and a laugh-out-loud funny ending!\n"
-                        f"Make it sound like a funny animated story that will make kids and adults laugh out loud.\n"
-                    )
-                else:
-                    ultra_special_prompt = (
-                        f"\nSPECIAL ULTRA CARTOON KAHANI (STORY) MODE REQUIREMENT:\n"
-                        f"This is an ULTRA Cartoon & Animation video. Write an entertaining, creative, dramatic, and fun ANIMATED STORY (KAHANI) script about '{topic}'.\n"
-                        f"The script MUST be structured like an engaging 2D cartoon story (Kahani) with relatable animated characters, fun dialogues/actions, plot twist/adventure, and a satisfying moral or funny story conclusion.\n"
-                        f"Do NOT write a factual documentary or boring facts. Make it a complete, entertaining 2D cartoon story script (Kahani) with rich character storytelling.\n"
-                    )
-            elif video_type == "ultra":
+        models_to_try = ["gemini-1.5-flash", "gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-pro"]
+        if video_type == "ultra" and is_cartoon_cat:
+            if is_single_character_name:
                 ultra_special_prompt = (
-                    f"\nSPECIAL ULTRA MODE REQUIREMENT:\n"
-                    f"This is an ULTRA premium documentary video. Write a rich, deeply informative, and complete narrative script.\n"
-                    f"Do NOT output short title fragments or half-baked sentences.\n"
-                    f"Each scene text MUST contain 2-3 complete, highly engaging, informative spoken sentences explaining the history, key achievements, and full story of '{topic}'.\n"
+                    f"\nSPECIAL ULTRA CARTOON CHARACTER STORY (KAHANI/CHUTKULA) MODE:\n"
+                    f"The topic is a character name '{topic}'. Write a super funny, hilarious, comedic 2D cartoon story script (Kahani / Kissa / Comedy Chutkula) about {topic}.\n"
+                    f"Show {topic}'s hilarious daily struggles, a crazy funny Jugaad/experiment gone wrong, funny cartoon dialogues, and a laugh-out-loud funny ending!\n"
+                    f"Make it sound like a funny animated story that will make kids and adults laugh out loud.\n"
                 )
             else:
-                ultra_special_prompt = ""
-
-            prompt = (
-                f"You are a master viral video scriptwriter. Write a COMPLETE, fully-resolved video script about '{topic}' "
-                f"in {language} language. Video type: {video_type.upper()} ({duration} seconds, approx {word_count} spoken words).\n"
-                f"CRITICAL REQUIREMENT: The script MUST be 100% complete with a clear Hook, Full Story/Information, and a Satisfying Conclusion. "
-                f"Do NOT leave the explanation half-done or cut off mid-sentence.{ultra_special_prompt}\n"
-                f"Format requirement: Return ONLY a valid JSON object with:\n"
-                f"1. 'full_script': The complete spoken voiceover text covering the full story from hook to conclusion.\n"
-                f"2. 'scenes': An array of exactly {scene_count} complete sentence scene objects, each containing:\n"
-                f"   - 'text': 2-3 complete, detailed, well-formed sentences with full stops.\n"
-                f"   - 'keyword': 1-2 relevant visual search terms for background clips.\n"
-                f"Do not include markdown triple backticks or text outside JSON."
+                ultra_special_prompt = (
+                    f"\nSPECIAL ULTRA CARTOON KAHANI (STORY) MODE REQUIREMENT:\n"
+                    f"This is an ULTRA Cartoon & Animation video. Write an entertaining, creative, dramatic, and fun ANIMATED STORY (KAHANI) script about '{topic}'.\n"
+                    f"The script MUST be structured like an engaging 2D cartoon story (Kahani) with relatable animated characters, fun dialogues/actions, plot twist/adventure, and a satisfying moral or funny story conclusion.\n"
+                    f"Do NOT write a factual documentary or boring facts. Make it a complete, entertaining 2D cartoon story script (Kahani) with rich character storytelling.\n"
+                )
+        elif video_type == "ultra":
+            ultra_special_prompt = (
+                f"\nSPECIAL ULTRA MODE REQUIREMENT:\n"
+                f"This is an ULTRA premium documentary video. Write a rich, deeply informative, and complete narrative script.\n"
+                f"Do NOT output short title fragments or half-baked sentences.\n"
+                f"Each scene text MUST contain 2-3 complete, highly engaging, informative spoken sentences explaining the history, key achievements, and full story of '{topic}'.\n"
             )
+        else:
+            ultra_special_prompt = ""
 
-            req_data = json.dumps({"contents": [{"parts": [{"text": prompt}]}]}).encode('utf-8')
-            req = urllib.request.Request(url, data=req_data, headers={"Content-Type": "application/json"})
-            with urllib.request.urlopen(req, timeout=5) as resp:
-                res_body = json.loads(resp.read().decode('utf-8'))
-                raw_text = res_body['candidates'][0]['content']['parts'][0]['text'].strip()
-                if raw_text.startswith("```"):
-                    raw_text = raw_text.split("```")[1]
-                    if raw_text.startswith("json"):
-                        raw_text = raw_text[4:].strip()
-                parsed = json.loads(raw_text)
-                script_text = parsed.get("full_script", "")
-                title_gen, desc_gen = build_youtube_metadata(topic=topic, full_script=script_text, video_type=video_type)
-                return {
-                    "status": "success",
-                    "source": "gemini_ai",
-                    "topic": topic,
-                    "duration_seconds": duration,
-                    "video_type": video_type,
-                    "language": language,
-                    "tone": tone,
-                    "estimated_word_count": word_count,
-                    "full_script": script_text,
-                    "scenes": parsed.get("scenes", []),
-                    "title": title_gen,
-                    "description": desc_gen
-                }
-        except Exception as err:
-            print(f"⚠️ Cloxel AI Engine Notice (Falling back to dynamic engine): {err}")
+        prompt = (
+            f"You are a master viral video scriptwriter. Write a COMPLETE, fully-resolved video script about '{topic}' "
+            f"in {language} language. Video type: {video_type.upper()} ({duration} seconds, approx {word_count} spoken words).\n"
+            f"CRITICAL REQUIREMENT: The script MUST be 100% complete with a clear Hook, Full Story/Information, and a Satisfying Conclusion. "
+            f"Do NOT leave the explanation half-done or cut off mid-sentence.{ultra_special_prompt}\n"
+            f"Format requirement: Return ONLY a valid JSON object with:\n"
+            f"1. 'full_script': The complete spoken voiceover text covering the full story from hook to conclusion.\n"
+            f"2. 'scenes': An array of exactly {scene_count} complete sentence scene objects, each containing:\n"
+            f"   - 'text': 2-3 complete, detailed, well-formed sentences with full stops.\n"
+            f"   - 'keyword': 1-2 relevant visual search terms for background clips.\n"
+            f"Do not include markdown triple backticks or text outside JSON."
+        )
+
+        for g_model in models_to_try:
+            try:
+                url = f"https://generativelanguage.googleapis.com/v1beta/models/{g_model}:generateContent?key={gemini_key}"
+                req_data = json.dumps({"contents": [{"parts": [{"text": prompt}]}]}).encode('utf-8')
+                req = urllib.request.Request(url, data=req_data, headers={"Content-Type": "application/json"})
+                with urllib.request.urlopen(req, timeout=8) as resp:
+                    res_body = json.loads(resp.read().decode('utf-8'))
+                    raw_text = res_body['candidates'][0]['content']['parts'][0]['text'].strip()
+                    if raw_text.startswith("```"):
+                        raw_text = raw_text.split("```")[1]
+                        if raw_text.startswith("json"):
+                            raw_text = raw_text[4:].strip()
+                    parsed = json.loads(raw_text)
+                    script_text = parsed.get("full_script", "")
+                    title_gen, desc_gen = build_youtube_metadata(topic=topic, full_script=script_text, video_type=video_type)
+                    return {
+                        "status": "success",
+                        "source": f"gemini_ai ({g_model})",
+                        "topic": topic,
+                        "duration_seconds": duration,
+                        "video_type": video_type,
+                        "language": language,
+                        "tone": tone,
+                        "estimated_word_count": word_count,
+                        "full_script": script_text,
+                        "scenes": parsed.get("scenes", []),
+                        "title": title_gen,
+                        "description": desc_gen
+                    }
+            except Exception as err_g:
+                print(f"⚠️ Cloxel AI Engine Notice ({g_model} fallback): {err_g}")
+                continue
 
     stop_words = {"aur", "ek", "hai", "ki", "ke", "ka", "jo", "se", "me", "ko", "hi", "to", "ye", "wo", "tha", "thi"}
     keywords = [w.lower() for w in topic.split() if w.isalpha() and w.lower() not in stop_words]
