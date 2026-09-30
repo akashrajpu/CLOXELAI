@@ -863,7 +863,7 @@ def merge_and_export(
                     audio_codec="aac",
                     fps=15,
                     preset="ultrafast",
-                    threads=2,
+                    threads=1,
                     ffmpeg_params=["-crf", "26", "-pix_fmt", "yuv420p"],
                     logger=None
                 )
@@ -1070,7 +1070,7 @@ def merge_and_export(
                 audio_codec="aac", 
                 fps=15, 
                 preset="ultrafast", 
-                threads=2, 
+                threads=1, 
                 ffmpeg_params=["-crf", "28", "-pix_fmt", "yuv420p"],
                 logger=None
             )

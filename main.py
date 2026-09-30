@@ -631,15 +631,13 @@ def process_single_user_schedule(user: dict, now_ist: datetime, today_str: str):
 
         yt_creds = user.get("youtube_credentials")
         if not yt_creds:
-            print(f"⚠️ User {internal_id} has no YouTube account linked. Clearing auto_schedule from DB...")
+            print(f"⚠️ User {internal_id} has no YouTube account linked. Pausing auto_schedule in DB...")
             if users_collection is not None:
                 users_collection.update_one(
                     {"internal_id": internal_id},
                     {
-                        "$unset": {
-                            "auto_schedule": "",
-                            "staged_auto_videos": ""
-                        }
+                        "$set": {"auto_schedule.schedule_enabled": False},
+                        "$unset": {"staged_auto_videos": ""}
                     }
                 )
             return
@@ -699,8 +697,8 @@ def process_single_user_schedule(user: dict, now_ist: datetime, today_str: str):
             staged_map = fresh_user.get("staged_auto_videos", {})
             staged_item = staged_map.get(kind, {})
 
-            # STAGE 1: PREDICTIVE AUTO-STAGING (Pre-render ahead of upload time & save to Cloudinary + MongoDB)
-            if 5 < mins_until <= 720:
+            # STAGE 1: PREDICTIVE AUTO-STAGING (Pre-render 45 mins ahead of upload time & save to Cloudinary + MongoDB)
+            if 5 < mins_until <= 45:
                 has_valid_staged = bool(staged_item.get("cloudinary_url")) or (staged_item.get("file") and os.path.exists(staged_item.get("file", "")))
                 if not has_valid_staged:
                     lock_field = f"auto_locks.staging_{kind}"
@@ -1898,14 +1896,17 @@ async def save_auto_schedule(req: AutoScheduleRequest):
         users_collection.update_one(
             {"internal_id": req.internal_id},
             {
+                "$set": {
+                    "auto_schedule.schedule_enabled": False,
+                    "auto_schedule.updated_at": datetime.utcnow()
+                },
                 "$unset": {
-                    "auto_schedule": "",
                     "staged_auto_videos": ""
                 }
             }
         )
-        print(f"🧹 Complete Data Wipe: Auto-publishing stopped and all saved schedule data erased for user {req.internal_id}")
-        return {"message": "Auto-publishing stopped and all schedule data erased from database!", "schedule": {"schedule_enabled": False}}
+        print(f"🛑 Auto-publishing stopped! All schedule settings safely preserved in MongoDB for user {req.internal_id}")
+        return {"message": "Auto-publishing stopped! All your schedule settings remain safely saved in database.", "schedule": {"schedule_enabled": False}}
 
     schedule_data = {
         "schedule_enabled": req.schedule_enabled,
@@ -2020,9 +2021,12 @@ async def get_auto_schedule(internal_id: str):
         if schedule and schedule.get("schedule_enabled"):
             users_collection.update_one(
                 {"internal_id": internal_id},
-                {"$unset": {"auto_schedule": "", "staged_auto_videos": ""}}
+                {
+                    "$set": {"auto_schedule.schedule_enabled": False},
+                    "$unset": {"staged_auto_videos": ""}
+                }
             )
-            schedule = {}
+            schedule["schedule_enabled"] = False
         is_schedule_enabled = False
     else:
         is_schedule_enabled = bool(schedule.get("schedule_enabled", False))
