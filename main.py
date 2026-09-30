@@ -631,13 +631,17 @@ def process_single_user_schedule(user: dict, now_ist: datetime, today_str: str):
 
         yt_creds = user.get("youtube_credentials")
         if not yt_creds:
-            print(f"⚠️ User {internal_id} has no YouTube account linked. Pausing auto_schedule in DB...")
+            print(f"⚠️ User {internal_id} has no YouTube account linked. Clearing auto_schedule from DB...")
             if users_collection is not None:
                 users_collection.update_one(
                     {"internal_id": internal_id},
                     {
-                        "$set": {"auto_schedule.schedule_enabled": False},
-                        "$unset": {"staged_auto_videos": ""}
+                        "$unset": {
+                            "auto_schedule": "",
+                            "staged_auto_videos": "",
+                            "auto_schedule_status": "",
+                            "auto_locks": ""
+                        }
                     }
                 )
             return
@@ -1896,17 +1900,16 @@ async def save_auto_schedule(req: AutoScheduleRequest):
         users_collection.update_one(
             {"internal_id": req.internal_id},
             {
-                "$set": {
-                    "auto_schedule.schedule_enabled": False,
-                    "auto_schedule.updated_at": datetime.utcnow()
-                },
                 "$unset": {
-                    "staged_auto_videos": ""
+                    "auto_schedule": "",
+                    "staged_auto_videos": "",
+                    "auto_schedule_status": "",
+                    "auto_locks": ""
                 }
             }
         )
-        print(f"🛑 Auto-publishing stopped! All schedule settings safely preserved in MongoDB for user {req.internal_id}")
-        return {"message": "Auto-publishing stopped! All your schedule settings remain safely saved in database.", "schedule": {"schedule_enabled": False}}
+        print(f"🧹 Complete Data Wipe: Auto-publishing stopped and all saved schedule data erased from database for user {req.internal_id}")
+        return {"message": "Auto-publishing stopped and all schedule data erased from database!", "schedule": {"schedule_enabled": False}}
 
     schedule_data = {
         "schedule_enabled": req.schedule_enabled,
@@ -2021,12 +2024,9 @@ async def get_auto_schedule(internal_id: str):
         if schedule and schedule.get("schedule_enabled"):
             users_collection.update_one(
                 {"internal_id": internal_id},
-                {
-                    "$set": {"auto_schedule.schedule_enabled": False},
-                    "$unset": {"staged_auto_videos": ""}
-                }
+                {"$unset": {"auto_schedule": "", "staged_auto_videos": "", "auto_schedule_status": "", "auto_locks": ""}}
             )
-            schedule["schedule_enabled"] = False
+            schedule = {}
         is_schedule_enabled = False
     else:
         is_schedule_enabled = bool(schedule.get("schedule_enabled", False))
