@@ -818,7 +818,7 @@ function App() {
           currency: orderData.currency,
           name: "Cloxel AI Video Generator",
           description: `30 Days Membership (${planType.toUpperCase()})`,
-          order_id: orderData.order_id,
+          ...(orderData.order_id && !orderData.order_id.startsWith("order_test_") ? { order_id: orderData.order_id } : {}),
           prefill: {
             name: "Cloxel User",
             email: "user@cloxel.com",
