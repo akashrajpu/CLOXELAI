@@ -3453,6 +3453,13 @@ def generate_ai_script_core(topic: str, duration: int, video_type: str = "short"
     keywords = [w.lower() for w in topic.split() if w.isalpha() and w.lower() not in stop_words]
     main_kw = keywords[0] if keywords else topic
 
+    cat_lower = str(category).lower()
+    topic_lower = str(topic).lower()
+    
+    is_business_topic = any(k in topic_lower or k in cat_lower for k in ["richest", "billionaire", "empire", "money", "business", "wealth", "company", "startup", "ceo", "market", "trade", "investment", "finance"])
+    is_history_topic = any(k in topic_lower or k in cat_lower for k in ["history", "warrior", "king", "empire", "battle", "emperor", "ancient", "war", "fort", "ruler", "dynasty"])
+    is_tech_topic = any(k in topic_lower or k in cat_lower for k in ["ai", "tech", "technology", "space", "science", "future", "robot", "galaxy", "nasa", "computer", "digital"])
+
     if video_type == "ultra" and is_cartoon_cat:
         if is_single_character_name:
             intro_templates = [
@@ -3482,36 +3489,65 @@ def generate_ai_script_core(topic: str, duration: int, video_type: str = "short"
                 f"Aakhirkar, ye pyaari kahani hume sikhaati hai ki mehnat aur dosti se har mushkil aasan ho jaati hai. Kahani pasand aayi toh video ko like aur follow karein!",
                 f"Aur is tarah {topic} ki ye mazedar cartoon kahani ek khushgawar ant ke sath poori hui. Channel ko subscribe karein!"
             ]
-    elif video_type == "ultra":
+    elif is_business_topic:
         intro_templates = [
-            f"Itihas aur gathaon mein {topic} ka naam swabhiman aur veerta ka prateek mana jata hai. Iski poori kahani aapko aashcharya mein daal degi.",
-            f"Kya aap jante hain {topic} se judi wo aitihasik baatein jo aaj bhi har bhartiya ke dil mein garv bhar deti hain? Aaiye vistaar se jaante hain."
+            f"Dosto! Kya aapne kabhi socha hai ki duniya ke top billionaires aur business tycoons aakhir aam logon se alag kaise sochte hain?",
+            f"Duniya ke sabse ameer billionaires aur unke banya gaye vishalkaye empires ke peeche 3 aise kadve sach hain jo 99% log nahi jante."
         ]
         body_templates = [
-            f"Iska mukhya uddeshya swabhiman aur matribhumi ki raksha karna tha, jiske liye yoddhaon ne aakhir saans tak sangharsh kiya.",
-            f"Aitihasik shastron aur dastaavezon ke mutabiq {topic} ne shatruon ki sena ke chakke chhudaye the aur itihaas mein apna naam amar kar diya.",
-            f"Ranbhoomi mein inki talwar aur ranniti ne dushmano ko aisi shikast di jise aaj bhi yaad kiya jata hai."
+            f"Pehli sabse badi baat — inhone kabhi sirf monthly salary par depend rehne ke bajaye scalable systems aur monopoly assets create kiye.",
+            f"Doosri baat, inka sabse bada secret hai compounding aur calculated risk taking — jahan aam log darte hain, wahin ye game-changing opportunities ko pakadte hain.",
+            f"Teesra sabse bada factor hai customer value aur aggressive expansion. Inka har ek decision long-term market dominance ko dhyan mein rakh kar liya jata hai.",
+            f"Iske sath hi, ye log apne cashflow ko passive assets aur futuristic technology mein reinvest karke apne empire ko untouchable bana dete hain."
         ]
         outro_templates = [
-            f"Yahi wajah hai ki {topic} ki ye veer gatha aaj bhi har peedhi ke liye prerna ka srot hai. Is aitihasik jaankari ke liye hume follow karein.",
-            f"Swabhiman ki is kahani ne {topic} ko mahan bana diya. Aise hi aur durlabh aitihasik kisse dekhne ke liye channel ko subscribe karein!"
+            f"Toh ye the wealth creation aur business empire ke wo golden rules jinhe samajhkar koi bhi aage badh sakta hai. Video acchi lagi ho toh like aur subscribe zaroor karein!",
+            f"Yahi wajah hai ki inka business empire din-ba-din bada hota chala jata hai. Aise hi viral business insights ke liye channel ko abhi follow karein!"
+        ]
+    elif is_history_topic or any(k in cat_lower for k in ["history", "mythology", "ancient"]):
+        intro_templates = [
+            f"Itihas ke pannon mein darj {topic} ki ye veergatha aur ranniti aaj bhi har kisi ke hosh uda deti hai.",
+            f"Kya aap jante hain {topic} se judi wo aitihasik baatein jo aaj bhi har kisi ko garv aur aashcharya se bhar deti hain? Aaiye vistaar se samajhte hain."
+        ]
+        body_templates = [
+            f"Ranbhoomi aur itihaas ke shastron ke mutabiq, yoddhaon ne matribhumi aur swabhiman ke liye aakhiri saans tak abhootpoorv sangharsh kiya.",
+            f"Inki kootniti aur sena ki tayyari ne dushmano ke chakke chhudaye aur ranbhoomi mein aisi shikast di jise saadiyon tak yaad rakha jayega.",
+            f"Is aitihasik kaal mein banaye gaye kila, sthapatya aur ranneeti aaj ke modern commanders ke liye bhi prerna ka srot hain.",
+            f"Inki veerta aur swabhiman ne itihas ki dhara ko poori tarah badal diya aur apna naam hamesha ke liye swarnim aksharon mein amar kar diya."
+        ]
+        outro_templates = [
+            f"Yahi wajah hai ki ye veer gatha aaj bhi har peedhi ke liye prerna ka srot hai. Aise hi durlabh aitihasik kisse dekhne ke liye channel ko subscribe karein!",
+            f"Swabhiman aur veerta ki is kahani ne itihaas ko mahan bana diya. Video ko share aur follow zaroor karein!"
+        ]
+    elif is_tech_topic or any(k in cat_lower for k in ["science", "tech", "technology", "ai"]):
+        intro_templates = [
+            f"Dosto! Science aur modern technology ki duniya mein ek aisa revolution aa chuka hai jo aane wale samay mein hamari zindagi poori tarah badal dega.",
+            f"Kya aapko pata hai ki {topic} ke kshetra mein hue naye breakthrough ne duniya ke sabse bade experts aur scientists ko bhi chaunka diya hai?"
+        ]
+        body_templates = [
+            f"Recent research aur scientific analysis ke mutabiq, ye futuristic advancement hamari daily efficiency ko 10 guna tak badha sakti hai.",
+            f"Is technology ke peeche complex algorithms aur advanced neural networks kaam kar rahe hain jo insani dimaag se bhi tez decision lete hain.",
+            f"Global tech companies aur researchers is field mein billions of dollars invest kar rahe hain taaki naye automated solutions taiyaar kiye ja sakein.",
+            f"Agli kuch saalon mein ye innovation hamare transport, healthcare aur digital communication ka sabse important hissa ban jayegi."
+        ]
+        outro_templates = [
+            f"Toh ye tha future technology ka sabse bada update! Aise hi viral science aur tech content ke liye hume zaroor follow karein.",
+            f"Tech world ke is naye daur se update rehne ke liye video ko like aur channel ko subscribe karna na bhulein!"
         ]
     else:
         intro_templates = [
-            f"Dosto! Kya aapko pata hai {topic} ke baare mein ye hairatangez sach?",
-            f"{topic} ki duniya mein ek aisa raaz hai jo aapka hosh uda dega.",
-            f"Aaj hum {topic} se jude sabse bada aur shocking sach jaanenge."
+            f"Dosto! Aaj hum {topic} se jude sabse dilchasp aur hairatangez pehluon ko vistaar se samajhne wale hain.",
+            f"Kya aap jante hain {topic} ke peeche ki wo asli kahani jo aamtaur par logon ko pata nahi hoti? Aaiye iske sabhi mukhya baaton ko jaante hain."
         ]
         body_templates = [
-            f"Iske peeche ki asli wajah ye hai ki {topic} hamari daily life par deep impact daalta hai.",
-            f"Experts aur scientists ke mutabiq {topic} aane wale time mein poori tarah badalne wala hai.",
-            f"Research mein pata chala hai ki {topic} ki wajah se kayi bade changes dekhe gaye hain.",
-            f"Har roz hazaron log {topic} ke is naye aspect ko samajhne ki koshish kar rahe hain."
+            f"Sabse pehla mukhya kaaran ye hai ki iske peeche deep psychological aur strategic factors kaam karte hain jo sabko prabhavit karte hain.",
+            f"Experts aur researchers ke dwara kiye gaye vishleshan se pata chalta hai ki iska prabhav long-term growth aur development par seedha padta hai.",
+            f"Iske alawa, iski barikiyo ko samajhna aur sahi direction mein implement karna hi sabse badi kamyabi ki kunjhi mana jata hai.",
+            f"Aaj ke daur mein har din hazaron log is pehlu se judi nayi jaankariyon ko samajhne aur seekhne ki koshish kar rahe hain."
         ]
         outro_templates = [
-            f"Toh ye tha {topic} ka poora sach! Aise hi viral aur informative content ke liye hume zaroor follow karein.",
-            f"Yahi wajah hai ki {topic} itna special hai. Video acchi lagi ho toh like aur share zaroor karein!",
-            f"Umeed hai aapko {topic} ki ye information pasand aayi hogi. Channel ko subscribe karna na bhulein!"
+            f"Toh ye the {topic} se jude sabse important facts! Video pasand aayi ho toh like aur share zaroor karein.",
+            f"Umeed hai aapko ye jaankari informative aur pasand aayi hogi. Aise hi aur content ke liye channel ko subscribe karein!"
         ]
 
     scenes = []
