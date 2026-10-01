@@ -84,17 +84,83 @@
 
 body {
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
-  background-color: #0b071a;
+  background-color: #090514;
   color: #f8fafc;
   min-height: 100vh;
-  background-image: radial-gradient(circle at 50% 0%, rgba(168, 85, 247, 0.15) 0%, transparent 70%), linear-gradient(180deg, #0b071a 0%, #06040d 100%);
-  background-size: cover;
-  background-position: center center;
-  background-repeat: no-repeat;
-  background-attachment: fixed;
   margin: 0;
   padding: 0;
   width: 100%;
+  overflow-x: hidden;
+  position: relative;
+}
+
+body::before {
+  content: '';
+  position: fixed;
+  top: -60%;
+  left: -60%;
+  width: 220%;
+  height: 220%;
+  z-index: -2;
+  background-image: 
+    radial-gradient(circle at 20% 25%, rgba(255, 65, 115, 0.45) 0%, transparent 45%),
+    radial-gradient(circle at 75% 20%, rgba(99, 102, 241, 0.5) 0%, transparent 45%),
+    radial-gradient(circle at 50% 75%, rgba(56, 189, 248, 0.45) 0%, transparent 50%),
+    radial-gradient(circle at 85% 80%, rgba(192, 132, 252, 0.45) 0%, transparent 45%),
+    radial-gradient(circle at 15% 85%, rgba(244, 114, 182, 0.4) 0%, transparent 45%);
+  background-size: 100% 100%;
+  animation: meshAuroraMove 20s ease-in-out infinite alternate;
+  filter: blur(70px);
+  pointer-events: none;
+}
+
+body::after {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: -1;
+  background: radial-gradient(circle at 50% 50%, rgba(9, 5, 20, 0.25) 0%, rgba(5, 3, 12, 0.85) 100%);
+  pointer-events: none;
+}
+
+body.theme-pastel::before {
+  background-image: 
+    radial-gradient(circle at 25% 25%, rgba(255, 110, 150, 0.55) 0%, transparent 50%),
+    radial-gradient(circle at 75% 20%, rgba(147, 197, 253, 0.65) 0%, transparent 50%),
+    radial-gradient(circle at 50% 75%, rgba(192, 132, 252, 0.6) 0%, transparent 55%),
+    radial-gradient(circle at 85% 80%, rgba(244, 114, 182, 0.55) 0%, transparent 50%),
+    radial-gradient(circle at 15% 85%, rgba(165, 243, 252, 0.6) 0%, transparent 50%);
+  filter: blur(65px);
+}
+
+body.theme-pastel::after {
+  background: radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.2) 0%, rgba(243, 232, 255, 0.7) 100%);
+}
+
+@keyframes meshAuroraMove {
+  0% {
+    transform: translate(0, 0) rotate(0deg) scale(1);
+    filter: blur(70px) hue-rotate(0deg);
+  }
+  25% {
+    transform: translate(4%, 3%) rotate(4deg) scale(1.05);
+    filter: blur(65px) hue-rotate(25deg);
+  }
+  50% {
+    transform: translate(-3%, 5%) rotate(-3deg) scale(1.1);
+    filter: blur(75px) hue-rotate(50deg);
+  }
+  75% {
+    transform: translate(3%, -2%) rotate(2deg) scale(1.04);
+    filter: blur(60px) hue-rotate(25deg);
+  }
+  100% {
+    transform: translate(0, 0) rotate(0deg) scale(1);
+    filter: blur(70px) hue-rotate(0deg);
+  }
 }
 
 .app-container {
