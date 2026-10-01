@@ -179,6 +179,7 @@ function App() {
   const [theme, setTheme] = useState(() => localStorage.getItem('cloxel_theme') || 'pastel');
   const [topic, setTopic] = useState('Space Exploration');
   const [duration, setDuration] = useState(20);
+  const [videoType, setVideoType] = useState('short');
   const [fullScript, setFullScript] = useState('');
   const [activeTab, setActiveTab] = useState('create');
   const [scriptTab, setScriptTab] = useState('manual');
