@@ -179,8 +179,11 @@ function App() {
   const [theme, setTheme] = useState(() => localStorage.getItem('cloxel_theme') || 'pastel');
   const [topic, setTopic] = useState('Space Exploration');
   const [duration, setDuration] = useState(20);
-  const [videoType, setVideoType] = useState('short'); // 'short' or 'long'
   const [fullScript, setFullScript] = useState('');
+  const [activeTab, setActiveTab] = useState('create');
+  const [scriptTab, setScriptTab] = useState('manual');
+  const [targetAudience, setTargetAudience] = useState('General');
+  const [searchKeyword, setSearchKeyword] = useState('');
 
   // Customization Settings
   const [fontName, setFontName] = useState('Arial.ttf');
