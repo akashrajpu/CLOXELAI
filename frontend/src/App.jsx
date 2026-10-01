@@ -179,12 +179,8 @@ function App() {
   const [theme, setTheme] = useState(() => localStorage.getItem('cloxel_theme') || 'pastel');
   const [topic, setTopic] = useState('Space Exploration');
   const [duration, setDuration] = useState(20);
-  const [videoType, setVideoType] = useState('short');
+  const [videoType, setVideoType] = useState('short'); // 'short' or 'long'
   const [fullScript, setFullScript] = useState('');
-  const [activeTab, setActiveTab] = useState('create');
-  const [scriptTab, setScriptTab] = useState('manual');
-  const [targetAudience, setTargetAudience] = useState('General');
-  const [searchKeyword, setSearchKeyword] = useState('');
 
   // Customization Settings
   const [fontName, setFontName] = useState('Arial.ttf');
@@ -822,7 +818,7 @@ function App() {
           currency: orderData.currency,
           name: "Cloxel AI Video Generator",
           description: `30 Days Membership (${planType.toUpperCase()})`,
-          ...(orderData.order_id && !orderData.order_id.startsWith("order_test_") ? { order_id: orderData.order_id } : {}),
+          order_id: orderData.order_id,
           prefill: {
             name: "Cloxel User",
             email: "user@cloxel.com",

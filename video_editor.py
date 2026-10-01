@@ -772,15 +772,7 @@ def merge_and_export(
     cat_lower = str(category).lower()
     is_cartoon_cat = any(k in cat_lower for k in ["cartoon", "anime", "animation", "character", "comic"])
 
-    has_downloaded_media = any(
-        sc.get('video') and any(
-            os.path.exists(str(vp)) and not "fallback_canvas" in str(vp) 
-            for vp in (sc['video'] if isinstance(sc['video'], list) else [sc['video']])
-        )
-        for sc in scene_list
-    )
-
-    if mode == "ultra" and is_cartoon_cat and not has_downloaded_media:
+    if mode == "ultra" and is_cartoon_cat:
         print(f"\n🎬 [Ultra Cartoon Single-API Engine] Triggering 1 SINGLE Gemini API Call for full video ({len(scene_list)} scenes)...")
         scene_durations = []
         start_frames = []
@@ -871,7 +863,7 @@ def merge_and_export(
                     audio_codec="aac",
                     fps=15,
                     preset="ultrafast",
-                    threads=1,
+                    threads=2,
                     ffmpeg_params=["-crf", "26", "-pix_fmt", "yuv420p"],
                     logger=None
                 )
@@ -964,33 +956,11 @@ def merge_and_export(
         is_cartoon_cat = any(k in cat_lower for k in ["cartoon", "anime", "animation", "character", "comic"])
 
         if mode == "ultra":
-            video_paths = scene.get('video', [])
-            if not isinstance(video_paths, list):
-                video_paths = [video_paths]
-            valid_paths = [str(vp) for vp in video_paths if vp and os.path.exists(str(vp)) and not "fallback_canvas" in str(vp)]
-
             if "characters" in scene:
                 print(f"🎭 Scene {i+1}: Generating Multi-Character Dialogue Ultra Clip...")
                 v_clip = create_multi_character_ultra_clip(scene, clip_duration, size=target_size)
-            elif valid_paths:
-                bg_path = valid_paths[0]
-                show_cutout = (i % 2 == 0) and (i < 6)
-                fg_path = valid_paths[1] if (show_cutout and len(valid_paths) > 1) else None
-
-                filters = [
-                    "warm_epic", "cyber_teal_orange", "vintage_parchment", 
-                    "royal_gold", "dramatic_cinematic", "dark_gothic", 
-                    "neon_cyberpunk", "golden_sunburst", "emerald_fantasy", 
-                    "crimson_warrior", "vintage_sepia_film", "ice_blue_cyber"
-                ]
-                filter_choice = random.choice(filters)
-                side_pos = "left" if i % 2 == 0 else "right"
-                motions = ["zoom_in", "zoom_out", "pan_right", "pan_left", "diagonal_fast", "spiral_zoom"]
-                motion_choice = random.choice(motions)
-                print(f"✨ Scene {i+1}: Rendering Ultra Photo Motion Clip with downloaded media ({bg_path})...")
-                v_clip = create_ultra_photo_motion_clip(bg_path, fg_photo_path=fg_path, duration=clip_duration, size=target_size, filter_style=filter_choice, cutout_pos=side_pos, motion_type=motion_choice)
             elif is_cartoon_cat:
-                print(f"🎨 Scene {i+1}: Ultra Cartoon Mode detected. Triggering Gemini AI Cartoon Animation Engine...")
+                print(f"🎨 Scene {i+1}: Ultra Cartoon Mode detected. Triggering Gemini AI Cartoon Animation Engine STRICTLY...")
                 ai_mp4_path = os.path.join(job_dir, f"gemini_cartoon_scene_{i}.mp4")
                 anim_result = None
                 if generate_gemini_cartoon_animation:
@@ -1011,10 +981,37 @@ def merge_and_export(
                         target_size=target_size,
                         fps=15
                     )
+                if not anim_result or not os.path.exists(anim_result) or os.path.getsize(anim_result) < 500:
+                    print(f"🎨 Scene {i+1}: Running Guaranteed Local 2D Cartoon Canvas Renderer...")
+                    from gemini_animator import create_pro_cartoon_canvas_mp4
+                    anim_result = create_pro_cartoon_canvas_mp4(
+                        user_prompt=scene.get("text", "Cartoon animation scene"),
+                        output_mp4=ai_mp4_path,
+                        duration=clip_duration,
+                        target_size=target_size,
+                        fps=15
+                    )
+
                 v_clip = VideoFileClip(anim_result)
             else:
-                bg_path = valid_paths[0] if valid_paths else os.path.join(job_dir, f"fallback_canvas_{i}.jpg")
-                v_clip = create_ultra_photo_motion_clip(bg_path, duration=clip_duration, size=target_size)
+                video_paths = scene['video'] if isinstance(scene['video'], list) else [scene['video']]
+                bg_path = video_paths[0]
+                
+                show_cutout = (i % 2 == 0) and (i < 6)
+                fg_path = video_paths[1] if (show_cutout and len(video_paths) > 1) else None
+                
+                filters = [
+                    "warm_epic", "cyber_teal_orange", "vintage_parchment", 
+                    "royal_gold", "dramatic_cinematic", "dark_gothic", 
+                    "neon_cyberpunk", "golden_sunburst", "emerald_fantasy", 
+                    "crimson_warrior", "vintage_sepia_film", "ice_blue_cyber"
+                ]
+                filter_choice = random.choice(filters)
+                side_pos = "left" if i % 2 == 0 else "right"
+                motions = ["zoom_in", "zoom_out", "pan_right", "pan_left", "diagonal_fast", "spiral_zoom"]
+                motion_choice = random.choice(motions)
+                print(f"✨ Scene {i+1}: Generating Ultra Motion Clip (Filter: {filter_choice}, Motion: {motion_choice.upper()}, Cutout: {show_cutout}, Side: {side_pos.upper()})...")
+                v_clip = create_ultra_photo_motion_clip(bg_path, fg_photo_path=fg_path, duration=clip_duration, size=target_size, filter_style=filter_choice, cutout_pos=side_pos, motion_type=motion_choice)
         else:
             video_path = scene['video'][0] if isinstance(scene['video'], list) else scene['video']
             is_image = str(video_path).lower().endswith(('.jpg', '.jpeg', '.png', '.webp'))
@@ -1073,7 +1070,7 @@ def merge_and_export(
                 audio_codec="aac", 
                 fps=15, 
                 preset="ultrafast", 
-                threads=1, 
+                threads=2, 
                 ffmpeg_params=["-crf", "28", "-pix_fmt", "yuv420p"],
                 logger=None
             )
