@@ -3456,10 +3456,14 @@ def generate_ai_script_core(topic: str, duration: int, video_type: str = "short"
     cat_lower = str(category).lower()
     topic_lower = str(topic).lower()
     
-    is_leader_personality = any(k in topic_lower or k in cat_lower for k in ["modi", "narendra modi", "pm modi", "leader", "prime minister", "president", "politician", "celebrity", "actor", "cricketer", "virat", "dhoni", "srk", "elon", "trump", "biden", "putin", "obama"])
+    is_rahul_gandhi = any(k in topic_lower for k in ["rahul", "gandhi", "gandi", "congress", "rg"])
+    is_modi = any(k in topic_lower for k in ["modi", "narendra modi", "pm modi", "namo"])
+    is_general_leader = any(k in topic_lower or k in cat_lower for k in ["leader", "prime minister", "president", "politician", "celebrity", "actor", "cricketer", "virat", "dhoni", "srk", "elon", "trump", "biden", "putin", "obama", "kejriwal", "yogi", "tata"])
     is_business_topic = any(k in topic_lower or k in cat_lower for k in ["richest", "billionaire", "empire", "money", "business", "wealth", "company", "startup", "ceo", "market", "trade", "investment", "finance"])
     is_history_topic = any(k in topic_lower or k in cat_lower for k in ["history", "warrior", "king", "empire", "battle", "emperor", "ancient", "war", "fort", "ruler", "dynasty", "mythology"])
     is_tech_topic = any(k in topic_lower or k in cat_lower for k in ["ai", "tech", "technology", "space", "science", "future", "robot", "galaxy", "nasa", "computer", "digital"])
+
+    topic_title = topic.strip().title()
 
     if is_cartoon_cat:
         if is_leader_personality:
@@ -3519,7 +3523,26 @@ def generate_ai_script_core(topic: str, duration: int, video_type: str = "short"
                 f"Aakhirkar, ye pyaari kahani hume sikhaati hai ki mehnat aur dosti se har mushkil aasan ho jaati hai. Channel ko subscribe karein!",
                 f"Aur is tarah {topic} ki ye mazedar cartoon kahani ek khushgawar ant ke sath poori hui. Video ko share zaroor karein!"
             ]
-    elif is_leader_personality:
+    elif is_rahul_gandhi:
+        intro_templates = [
+            f"Dosto! Aaj hum Bharat ke sabse charchit neta Rahul Gandhi Ji se judi wo mukhya aur dilchasp baatein jaaninge jo har kisi ko pata honi chahiye.",
+            f"Kya aap jante hain Rahul Gandhi Ji ki political journey aur unke leadership style ke peeche 3 sabse bade aur prabhavshali karann?"
+        ]
+        body_templates = [
+            f"Pehli sabse badi baat — Gandhi parivar se aane wale Rahul Gandhi ne Bharat Jodo Yatra ke zariye hazaaron kilometer paidal yatra karke janta se seedha samvad kiya.",
+            f"Doosri baat — inka mukhya focus youth employment, constitution protection aur social equality jaise muddyon par raha hai.",
+            f"Teesri baat — inki political journey mein kayi ups and downs aaye, lekin Lok Sabha mein Leader of Opposition banne ke baad inka political impact kafi majboot hua hai.",
+            f"Inke speeches aur opposition strategy ne Bhartiya rajneeti mein ek naya hungama aur charcha ka vishay banaya hai.",
+            f"Youth politics aur party organization ko restructure karne ke liye inke dwara naye initiatives shuru kiye gaye.",
+            f"Public rallies aur ground interaction ke zariye ye hamesha aam logon ki aawaz uthane ki koshish karte hain.",
+            f"Indian political landscape mein inki har ek statement aur rally par desh bhar ke media aur analysts ki gehri nazar rehti hai.",
+            f"Inke dwara uthaye gaye mudde parliament aur public debates ka sabse mukhya hissa ban chuke hain."
+        ]
+        outro_templates = [
+            f"Toh ye thi Rahul Gandhi Ji se judi mukhya baatein! Video pasand aayi ho toh like aur channel ko subscribe zaroor karein!",
+            f"Aise hi viral aur informative political content ke liye hume zaroor follow karein!"
+        ]
+    elif is_modi:
         intro_templates = [
             f"Dosto! Aaj hum Bharat ke Pradhan Mantri Narendra Modi Ji se judi wo mukhya aur dilchasp baatein jaaninge jo har kisi ko pata honi chahiye.",
             f"Kya aap jante hain PM Modi Ji ki safalta aur unke leadership style ke peeche 3 sabse bade aur prabhavshali karann?"
@@ -3536,6 +3559,25 @@ def generate_ai_script_core(topic: str, duration: int, video_type: str = "short"
         ]
         outro_templates = [
             f"Toh ye thi PM Modi Ji ki safalta aur unke leadership style se judi sabse important baatein. Video acchi lagi ho toh like aur subscribe zaroor karein!",
+            f"Aise hi viral aur informative content ke liye hume zaroor follow karein!"
+        ]
+    elif is_general_leader:
+        intro_templates = [
+            f"Dosto! Aaj hum {topic_title} ki zindagi aur unke safar se judi wo 3 sabse badi aur dilchasp baatein jaaninge jo har kisi ko pata honi chahiye.",
+            f"Kya aap jante hain {topic_title} ki safalta aur unke unique leadership style ke peeche 3 mukhya karann?"
+        ]
+        body_templates = [
+            f"Pehli sabse badi baat — {topic_title} ne apne kshetra mein kadi mehnat aur dedication se ek alag aur vishisht pehchan banayi hai.",
+            f"Doosri baat — inke dwar liye gaye bold decisions aur unique strategy ne inki safalta ke raste ko kafi majboot banaya.",
+            f"Teesri baat — inka hard work aur relentless focus aaj ke youth aur upcoming generation ke liye ek atyant prernadayak udaharan hai.",
+            f"Inke contribution aur public influence ne unhe apne field mein ek prominent personality bana diya hai.",
+            f"Strategic planning aur continuous efforts ke zariye inhone apni leadership style ko global stage par prove kiya hai.",
+            f"Inke bhashan, ideas aur decisions par desh-videsh ke experts aur media ki gehri nazar rehti hai.",
+            f"Public connect aur visionary goals ke zariye inhone apni identity ko ek trusted brand bana diya hai.",
+            f"Inki zindagi ki ye journey har kisi ke liye seekhne aur aage badhne ka sabse bada srot hai."
+        ]
+        outro_templates = [
+            f"Toh ye the {topic_title} se jude sabse important facts! Video acchi lagi ho toh like aur channel ko subscribe zaroor karein!",
             f"Aise hi viral aur informative content ke liye hume zaroor follow karein!"
         ]
     elif is_business_topic:
