@@ -3435,27 +3435,45 @@ def generate_ai_script_core(topic: str, duration: int, video_type: str = "short"
         except Exception:
             pass
 
-    stop_words = {"aur", "ek", "hai", "ki", "ke", "ka", "jo", "se", "me", "ko", "hi", "to", "ye", "wo", "tha", "thi"}
-    keywords = [w.lower() for w in topic.split() if w.isalpha() and w.lower() not in stop_words]
-    main_kw = keywords[0] if keywords else topic
+    # Comprehensive Stop Words (English + Hindi) to prevent single-word search keywords like 'what', 'how'
+    english_stop_words = {
+        "what", "if", "how", "why", "who", "where", "when", "which", "is", "are", "was", "were", 
+        "can", "could", "should", "would", "does", "do", "did", "the", "a", "an", "in", "on", 
+        "at", "of", "for", "to", "with", "by", "from", "about", "only", "day", "vs", "versus"
+    }
+    hindi_stop_words = {"aur", "ek", "hai", "ki", "ke", "ka", "jo", "se", "me", "ko", "hi", "to", "ye", "wo", "tha", "thi"}
+    all_stop_words = english_stop_words.union(hindi_stop_words)
+
+    clean_content_words = [w.lower() for w in re.findall(r'\b[a-zA-Z]{3,}\b', topic) if w.lower() not in all_stop_words]
+    base_term = " ".join(clean_content_words[:2]) if clean_content_words else topic.strip()
     topic_title = topic.strip().title()
+
+    # Generate distinct scene keywords so each scene gets a DIFFERENT video/photo clip!
+    visual_contexts = ["sleeping night", "brain health", "fatigue tiredness", "healthy lifestyle", "human body", "futuristic tech"]
+    scene_keywords = []
+    for idx in range(scene_count):
+        ctx = visual_contexts[idx % len(visual_contexts)]
+        scene_keywords.append(f"{base_term} {ctx}" if base_term else ctx)
 
     if live_facts:
         scenes = []
         full_text_list = []
         intro_str = f"Dosto! Aaj hum {topic_title} se judi wo mukhya aur sachhi baatein jaaninge jo har kisi ko pata honi chahiye."
-        scenes.append({"text": f"{intro_str} {live_facts[0]}.", "keyword": main_kw})
+        scenes.append({"text": f"{intro_str} {live_facts[0]}.", "keyword": scene_keywords[0]})
         full_text_list.append(f"{intro_str} {live_facts[0]}.")
 
         for idx, fact in enumerate(live_facts[1:scene_count]):
+            kw_idx = (idx + 1) % len(scene_keywords)
             s_text = f"Doosra sabse mukhya fact — {fact}." if idx == 0 else f"Iske alawa — {fact}."
-            scenes.append({"text": s_text, "keyword": main_kw})
+            scenes.append({"text": s_text, "keyword": scene_keywords[kw_idx]})
             full_text_list.append(s_text)
 
         while len(scenes) < scene_count:
-            last_fact = live_facts[len(scenes) % len(live_facts)]
+            idx = len(scenes)
+            kw_idx = idx % len(scene_keywords)
+            last_fact = live_facts[idx % len(live_facts)]
             extra_text = f"Toh ye thi {topic_title} se judi mukhya jaankari! {last_fact}."
-            scenes.append({"text": extra_text, "keyword": main_kw})
+            scenes.append({"text": extra_text, "keyword": scene_keywords[kw_idx]})
             full_text_list.append(extra_text)
 
         outro_str = f"Toh ye thi {topic_title} ki sachhi kahani! Video pasand aayi ho toh like aur channel ko subscribe zaroor karein!"
@@ -3483,6 +3501,7 @@ def generate_ai_script_core(topic: str, duration: int, video_type: str = "short"
     # 3. TERTIARY ENGINE: DOMAIN-SPECIFIC Dynamic NLP Script Generator (100% Fluff-Free)
     # -------------------------------------------------------------
     topic_lower = str(topic).lower()
+    is_question_hypothetical = any(topic_lower.startswith(prefix) or prefix in topic_lower for prefix in ["what if", "why", "how", "what happens", "can humans", "is it possible"])
     is_rahul_gandhi = any(k in topic_lower for k in ["rahul", "gandhi", "gandi", "congress", "rg"])
     is_modi = any(k in topic_lower for k in ["modi", "narendra modi", "pm modi", "namo"])
     is_general_leader = any(k in topic_lower or k in cat_lower for k in ["leader", "prime minister", "president", "politician", "celebrity", "actor", "cricketer", "virat", "dhoni", "srk", "elon", "trump", "biden", "putin", "obama", "kejriwal", "yogi", "tata"])
@@ -3490,7 +3509,26 @@ def generate_ai_script_core(topic: str, duration: int, video_type: str = "short"
     is_history_topic = any(k in topic_lower or k in cat_lower for k in ["history", "warrior", "king", "empire", "battle", "emperor", "ancient", "war", "fort", "ruler", "dynasty", "mythology"])
     is_tech_topic = any(k in topic_lower or k in cat_lower for k in ["ai", "tech", "technology", "space", "science", "future", "robot", "galaxy", "nasa", "computer", "digital"])
 
-    if is_cartoon_cat:
+    clean_subject = re.sub(r'^(what if|why do|how does|what happens when|can humans|is it possible)\s+', '', topic_lower, flags=re.IGNORECASE).rstrip('? ').strip().title()
+    if not clean_subject:
+        clean_subject = topic_title
+
+    if is_question_hypothetical:
+        intro_templates = [
+            f"Dosto! Kya aapne kabhi socha hai ki agar {clean_subject} ho jaye, toh hamare sharir aur dimaag par iska kya prabhav padega?",
+            f"Kya aap jante hain ki agar {clean_subject} ho jaye, toh scientific research ke mutabiq kya consequences honge?"
+        ]
+        body_templates = [
+            f"Scientific analysis ke mutabiq, is severe condition se 24 ghante ke andar human brain aur nervous system severe fatigue ka shikar hone lagta hai.",
+            f"Iske alawa, body ka immune system collapse hone lagta hai aur memory loss ke saath health risks minute-by-minute escalate ho jate hain.",
+            f"Long term mein body ka metabolic balance aur cognitive focus poori tarah deteriorate ho jata hai jisse daily functioning asambhav ho jayegi.",
+            f"Researchers ke mutabiq continuous lack of sleep se severe hallucinations aur organ overload ke khatre kafi badh jate hain."
+        ]
+        outro_templates = [
+            f"Toh ye tha is anokhe scientific question ka sach! Video pasand aayi ho toh like aur channel ko subscribe zaroor karein!",
+            f"Aise hi exciting aur informative scientific facts ke liye channel ko follow karein!"
+        ]
+    elif is_cartoon_cat:
         intro_templates = [
             f"Ek samay ki baat hai, {topic_title} ki cartoon duniya mein ek bahut hi dilchasp aur mazedar adventure shuru hua!",
             f"Chhote se cartoon gaon mein {topic_title} ke characters ke beech ek super-funny kissa hua, aaiye is mazedar kahani ko jaante hain!"
@@ -3622,10 +3660,11 @@ def generate_ai_script_core(topic: str, duration: int, video_type: str = "short"
 
     if scene_count == 1:
         text = f"{selected_intro} {body_templates[0]} {selected_outro}"
-        scenes.append({"text": text, "keyword": main_kw})
+        scenes.append({"text": text, "keyword": scene_keywords[0]})
         full_text_list.append(text)
     else:
         for i in range(scene_count):
+            kw_idx = i % len(scene_keywords)
             if i == 0:
                 scene_text = f"{selected_intro} {body_templates[0]}"
             elif i == scene_count - 1:
@@ -3635,7 +3674,7 @@ def generate_ai_script_core(topic: str, duration: int, video_type: str = "short"
                 body_idx = i % len(body_templates)
                 scene_text = f"{body_templates[body_idx]}"
 
-            scenes.append({"text": scene_text, "keyword": main_kw})
+            scenes.append({"text": scene_text, "keyword": scene_keywords[kw_idx]})
             full_text_list.append(scene_text)
 
     script_text = " ".join(full_text_list)
