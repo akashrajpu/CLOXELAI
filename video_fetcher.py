@@ -2,7 +2,7 @@ import requests
 import os
 
 PEXELS_API_KEY = os.getenv("PEXELS_API_KEY", "jqGZN1a4uHQFpxqdFAdVaD1l1eyjW1kzHqtdlNJ1TPkSmOEXcbAL7yhN")
-PIXABAY_API_KEY = os.getenv("PIXABAY_API_KEY", "")
+PIXABAY_API_KEY = os.getenv("PIXABAY_API_KEY", "39827606-4df15a6b0c26bbef50352ef2e")
 UNSPLASH_ACCESS_KEY = os.getenv("UNSPLASH_ACCESS_KEY", "")
 PINTEREST_ACCESS_TOKEN = os.getenv("PINTEREST_ACCESS_TOKEN", "")
 
@@ -146,58 +146,71 @@ def fetch_pinterest_pins(keyword, job_id, count=1, orientation="portrait"):
         print(f"⚠️ [Pinterest Non-Blocking Warning]: {e}. Falling back to next provider...")
     return []
 
-def fetch_videos(keyword, job_id, count=1, orientation="portrait", category="Random"):
+def fetch_videos(keyword, job_id, count=1, orientation="portrait", category="Random", video_type="short"):
     """
-    100% Optional & Non-Blocking Multi-Provider Media Fetcher:
-    - Never crashes video generation even if ALL keys are missing or invalid!
-    - Try order: Pinterest (optional) -> Pexels -> Pixabay -> Generic Fallback
+    Multi-Provider Media Fetcher:
+    - For short and long video modes (video_type in ['short', 'long']): ALWAYS fetch real HD video clips from Pexels & Pixabay!
+    - For ultra video mode (video_type == 'ultra'): Pinterest HD Pins can be used as priority if requested.
     """
     cat_lower = str(category).lower()
-    
-    prefer_pinterest = any(c in cat_lower for c in ['cartoon', 'animation', 'documentary', 'comedy', 'horror', 'mythology', 'history', 'anime', 'art', 'photo'])
-    
-    if prefer_pinterest:
-        try:
-            print(f"🎨 [Category: {category}] Trying Pinterest HD Pins (Optional Priority)...")
-            search_term = f"{keyword} {category.replace('🎲', '').replace('🎨', '').replace('✍️', '').strip()}"
-            pins = fetch_pinterest_pins(search_term, job_id, count=count, orientation=orientation)
-            if not pins:
-                pins = fetch_pinterest_pins(keyword, job_id, count=count, orientation=orientation)
-            if pins:
-                return pins
-        except Exception as e_p:
-            print(f"⚠️ [Pinterest Skip]: {e_p}")
+    is_ultra_mode = (str(video_type).lower() == "ultra")
 
+    # Clean query for Pexels & Pixabay video search
+    noise_words = {"concept", "impact", "science", "reality", "future", "nature", "discovery", "cartoon", "animation", "category", "random"}
+    clean_words = [w for w in keyword.replace('🎨', '').replace('🎲', '').replace('✍️', '').split() if w.lower() not in noise_words]
+    video_query = " ".join(clean_words) if clean_words else keyword
+
+    # 1. Ultra Mode Priority: Pinterest HD Pins
+    if is_ultra_mode:
+        prefer_pinterest = any(c in cat_lower for c in ['cartoon', 'animation', 'documentary', 'comedy', 'horror', 'mythology', 'history', 'anime', 'art', 'photo'])
+        if prefer_pinterest:
+            try:
+                print(f"🎨 [Ultra Mode Priority: {category}] Trying Pinterest HD Pins...")
+                search_term = f"{keyword} {category.replace('🎲', '').replace('🎨', '').replace('✍️', '').strip()}"
+                pins = fetch_pinterest_pins(search_term, job_id, count=count, orientation=orientation)
+                if not pins:
+                    pins = fetch_pinterest_pins(keyword, job_id, count=count, orientation=orientation)
+                if pins:
+                    return pins
+            except Exception as e_p:
+                print(f"⚠️ [Pinterest Skip]: {e_p}")
+
+    # 2. Short & Long Video Modes: Direct HD Video Clips (Pexels -> Pixabay)
     try:
-        clips = fetch_pexels_videos(keyword, job_id, count=count, orientation=orientation)
+        clips = fetch_pexels_videos(video_query, job_id, count=count, orientation=orientation)
         if clips:
             return clips
     except Exception as e_px:
         print(f"⚠️ [Pexels Skip]: {e_px}")
         
     try:
-        clips = fetch_pixabay_videos(keyword, job_id, count=count, orientation=orientation)
+        clips = fetch_pixabay_videos(video_query, job_id, count=count, orientation=orientation)
         if clips:
             return clips
     except Exception as e_pb:
         print(f"⚠️ [Pixabay Skip]: {e_pb}")
 
-    try:
-        pins = fetch_pinterest_pins(keyword, job_id, count=count, orientation=orientation)
-        if pins:
-            return pins
-    except Exception as e_p2:
-        print(f"⚠️ [Pinterest Fallback Skip]: {e_p2}")
-
-    for fallback_kw in ["nature", "technology", "abstract", "city"]:
-        if fallback_kw != keyword.lower():
+    # 3. Fallback Video Keywords on Pexels / Pixabay
+    for fallback_kw in ["nature", "technology", "abstract", "city", "ocean"]:
+        if fallback_kw != video_query.lower():
             try:
-                print(f"🔄 Retrying with fallback keyword: '{fallback_kw}'...")
+                print(f"🔄 Retrying with fallback video clip keyword: '{fallback_kw}'...")
                 clips = fetch_pexels_videos(fallback_kw, job_id, count=count, orientation=orientation)
+                if not clips:
+                    clips = fetch_pixabay_videos(fallback_kw, job_id, count=count, orientation=orientation)
                 if clips:
                     return clips
             except Exception:
                 continue
-                
+
+    # 4. Ultra Mode Fallback only
+    if is_ultra_mode:
+        try:
+            pins = fetch_pinterest_pins(keyword, job_id, count=count, orientation=orientation)
+            if pins:
+                return pins
+        except Exception as e_p2:
+            print(f"⚠️ [Pinterest Fallback Skip]: {e_p2}")
+
     print(f"⚠️ [Media Fetcher] No online media found for '{keyword}'. Using internal canvas background...")
     return []

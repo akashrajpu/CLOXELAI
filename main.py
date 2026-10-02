@@ -1366,7 +1366,7 @@ def full_process(req: VideoRequest, job_id: str):
                         v_paths.append(fg_img_path)
                         
                     if not v_paths or any(w in scene_specific.lower() for w in ["battle", "war", "action", "fight", "army"]):
-                        vid_list = fetch_videos(f"{main_topic} {scene_specific}", v_path, orientation=orientation, category=req.category or "Random")
+                        vid_list = fetch_videos(f"{main_topic} {scene_specific}", v_path, orientation=orientation, category=req.category or "Random", video_type=req.video_type or "short")
                         if vid_list and os.path.exists(vid_list[0]):
                             if not v_paths:
                                 v_paths = vid_list
@@ -1374,9 +1374,9 @@ def full_process(req: VideoRequest, job_id: str):
                                 v_paths.append(vid_list[0])
                 except Exception as e_img:
                     print(f"   ⚠️ Ultra script image fetch fallback: {e_img}")
-                    v_paths = fetch_videos(sc["keyword"], v_path, orientation=orientation, category=req.category or "Random")
+                    v_paths = fetch_videos(sc["keyword"], v_path, orientation=orientation, category=req.category or "Random", video_type=req.video_type or "short")
             else:
-                v_paths = fetch_videos(sc["keyword"], v_path, orientation=orientation, category=req.category or "Random")
+                v_paths = fetch_videos(sc["keyword"], v_path, orientation=orientation, category=req.category or "Random", video_type=req.video_type or "short")
             
             if os.path.exists(a_path):
                 if not v_paths:
