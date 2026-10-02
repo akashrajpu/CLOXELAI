@@ -3309,55 +3309,61 @@ def generate_ai_script_core(topic: str, duration: int, video_type: str = "short"
     scene_count = max(1, duration // 10)
     word_count = int(duration * 2.7)
 
-    # 1. Try Gemini API models via requests
-    gemini_key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY") or os.getenv("AI_API_KEY")
-    if gemini_key:
-        models = ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-1.5-pro", "gemini-pro"]
-        cat_lower = str(category).lower()
-        is_cartoon_cat = any(k in cat_lower for k in ["cartoon", "anime", "animation", "character", "comic"])
+    # 1. Collect all Gemini API Keys from environment
+    keys = []
+    for k_name in ["GEMINI_API_KEY", "GOOGLE_API_KEY", "AI_API_KEY"]:
+        val = os.getenv(k_name)
+        if val and val.strip() and val.strip() not in keys:
+            keys.append(val.strip())
 
-        stop_words_check = {"history", "how", "what", "why", "secret", "future", "facts", "science", "vs", "the", "system", "warriors", "ai", "space"}
-        words_in_topic = [w.lower() for w in topic.split() if w.isalpha()]
-        is_single_character_name = len(words_in_topic) <= 2 and not any(w in stop_words_check for w in words_in_topic)
+    models = ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-1.5-pro", "gemini-pro"]
+    cat_lower = str(category).lower()
+    is_cartoon_cat = any(k in cat_lower for k in ["cartoon", "anime", "animation", "character", "comic"])
 
-        if video_type == "ultra" and is_cartoon_cat:
-            if is_single_character_name:
-                ultra_special_prompt = (
-                    f"\nSPECIAL ULTRA CARTOON CHARACTER STORY (KAHANI/CHUTKULA) MODE:\n"
-                    f"The topic is a character name '{topic}'. Write a super funny, hilarious, comedic 2D cartoon story script (Kahani / Kissa / Comedy Chutkula) about {topic}.\n"
-                    f"Show {topic}'s hilarious daily struggles, a crazy funny Jugaad/experiment gone wrong, funny cartoon dialogues, and a laugh-out-loud funny ending!\n"
-                    f"Make it sound like a funny animated story that will make kids and adults laugh out loud.\n"
-                )
-            else:
-                ultra_special_prompt = (
-                    f"\nSPECIAL ULTRA CARTOON KAHANI (STORY) MODE REQUIREMENT:\n"
-                    f"This is an ULTRA Cartoon & Animation video. Write an entertaining, creative, dramatic, and fun ANIMATED STORY (KAHANI) script about '{topic}'.\n"
-                    f"The script MUST be structured like an engaging 2D cartoon story (Kahani) with relatable animated characters, fun dialogues/actions, plot twist/adventure, and a satisfying moral or funny story conclusion.\n"
-                    f"Do NOT write a factual documentary or boring facts. Make it a complete, entertaining 2D cartoon story script (Kahani) with rich character storytelling.\n"
-                )
-        elif video_type == "ultra":
+    stop_words_check = {"history", "how", "what", "why", "secret", "future", "facts", "science", "vs", "the", "system", "warriors", "ai", "space"}
+    words_in_topic = [w.lower() for w in topic.split() if w.isalpha()]
+    is_single_character_name = len(words_in_topic) <= 2 and not any(w in stop_words_check for w in words_in_topic)
+
+    if video_type == "ultra" and is_cartoon_cat:
+        if is_single_character_name:
             ultra_special_prompt = (
-                f"\nSPECIAL ULTRA MODE REQUIREMENT:\n"
-                f"This is an ULTRA premium documentary video. Write a rich, deeply informative, and complete narrative script.\n"
-                f"Do NOT output short title fragments or half-baked sentences.\n"
-                f"Each scene text MUST contain 2-3 complete, highly engaging, informative spoken sentences explaining the history, key achievements, and full story of '{topic}'.\n"
+                f"\nSPECIAL ULTRA CARTOON CHARACTER STORY (KAHANI/CHUTKULA) MODE:\n"
+                f"The topic is a character name '{topic}'. Write a super funny, hilarious, comedic 2D cartoon story script (Kahani / Kissa / Comedy Chutkula) about {topic}.\n"
+                f"Show {topic}'s hilarious daily struggles, a crazy funny Jugaad/experiment gone wrong, funny cartoon dialogues, and a laugh-out-loud funny ending!\n"
+                f"Make it sound like a funny animated story that will make kids and adults laugh out loud.\n"
             )
         else:
-            ultra_special_prompt = ""
-
-        prompt = (
-            f"You are a master viral video scriptwriter. Write a COMPLETE, fully-resolved video script about '{topic}' "
-            f"in {language} language. Video type: {video_type.upper()} ({duration} seconds, approx {word_count} spoken words).\n"
-            f"CRITICAL REQUIREMENT: The script MUST be 100% complete with a clear Hook, Full Story/Information, and a Satisfying Conclusion. "
-            f"Do NOT leave the explanation half-done or cut off mid-sentence.{ultra_special_prompt}\n"
-            f"Format requirement: Return ONLY a valid JSON object with:\n"
-            f"1. 'full_script': The complete spoken voiceover text covering the full story from hook to conclusion.\n"
-            f"2. 'scenes': An array of exactly {scene_count} complete sentence scene objects, each containing:\n"
-            f"   - 'text': 2-3 complete, detailed, well-formed sentences with full stops.\n"
-            f"   - 'keyword': 1-2 relevant visual search terms for background clips.\n"
-            f"Do not include markdown triple backticks or text outside JSON."
+            ultra_special_prompt = (
+                f"\nSPECIAL ULTRA CARTOON KAHANI (STORY) MODE REQUIREMENT:\n"
+                f"This is an ULTRA Cartoon & Animation video. Write an entertaining, creative, dramatic, and fun ANIMATED STORY (KAHANI) script about '{topic}'.\n"
+                f"The script MUST be structured like an engaging 2D cartoon story (Kahani) with relatable animated characters, fun dialogues/actions, plot twist/adventure, and a satisfying moral or funny story conclusion.\n"
+                f"Do NOT write a factual documentary or boring facts. Make it a complete, entertaining 2D cartoon story script (Kahani) with rich character storytelling.\n"
+            )
+    elif video_type == "ultra":
+        ultra_special_prompt = (
+            f"\nSPECIAL ULTRA MODE REQUIREMENT:\n"
+            f"This is an ULTRA premium documentary video. Write a rich, deeply informative, and complete narrative script.\n"
+            f"Do NOT output short title fragments or half-baked sentences.\n"
+            f"Each scene text MUST contain 2-3 complete, highly engaging, informative spoken sentences explaining the history, key achievements, and full story of '{topic}'.\n"
         )
+    else:
+        ultra_special_prompt = ""
 
+    prompt = (
+        f"You are a master viral video scriptwriter. Write a COMPLETE, fully-resolved video script about '{topic}' "
+        f"in {language} language. Video type: {video_type.upper()} ({duration} seconds, approx {word_count} spoken words).\n"
+        f"CRITICAL REQUIREMENT: The script MUST be 100% complete with a clear Hook, Full Story/Information, and a Satisfying Conclusion. "
+        f"Do NOT leave the explanation half-done or cut off mid-sentence.{ultra_special_prompt}\n"
+        f"Format requirement: Return ONLY a valid JSON object with:\n"
+        f"1. 'full_script': The complete spoken voiceover text covering the full story from hook to conclusion.\n"
+        f"2. 'scenes': An array of exactly {scene_count} complete sentence scene objects, each containing:\n"
+        f"   - 'text': 2-3 complete, detailed, well-formed sentences with full stops.\n"
+        f"   - 'keyword': 1-2 relevant visual search terms for background clips.\n"
+        f"Do not include markdown triple backticks or text outside JSON."
+    )
+
+    # Attempt Gemini API with all available keys & models
+    for gemini_key in keys:
         for model_name in models:
             url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={gemini_key}"
             try:
@@ -3365,7 +3371,7 @@ def generate_ai_script_core(topic: str, duration: int, video_type: str = "short"
                     url,
                     json={"contents": [{"parts": [{"text": prompt}]}]},
                     headers={"Content-Type": "application/json"},
-                    timeout=10.0
+                    timeout=12.0
                 )
                 if resp.status_code == 200:
                     res_body = resp.json()
@@ -3395,109 +3401,51 @@ def generate_ai_script_core(topic: str, duration: int, video_type: str = "short"
                             "description": desc_gen
                         }
             except Exception as err:
+                print(f"⚠️ Gemini AI ({model_name}) Attempt Exception: {err}")
                 continue
 
-    # 2. Wikipedia / Web Research Fallback if online
-    research_summary = ""
-    try:
-        clean_q = topic.strip()
-        wiki_url = f"https://en.wikipedia.org/api/rest_v1/page/summary/{urllib.parse.quote(clean_q)}"
-        r = requests.get(wiki_url, timeout=4.0)
-        if r.status_code == 200:
-            research_summary = r.json().get("extract", "")
-    except Exception:
-        pass
+    # Attempt external AI Server if configured
+    raw_env_url = os.getenv("AI_SERVER_URL", "").rstrip("/")
+    if raw_env_url and not raw_env_url.startswith("http://localhost"):
+        try:
+            target_url = f"{raw_env_url}/generate-script"
+            resp = requests.post(target_url, json={
+                "topic": topic,
+                "category": category,
+                "duration_seconds": duration,
+                "video_type": video_type,
+                "language": language,
+                "tone": tone
+            }, timeout=15.0)
+            if resp.status_code == 200:
+                data = resp.json()
+                full_script = data.get("full_script") or data.get("script") or ""
+                scenes = data.get("scenes") or []
+                if full_script or scenes:
+                    title_gen, desc_gen = build_youtube_metadata(topic=topic, full_script=full_script, video_type=video_type)
+                    return {
+                        "status": "success",
+                        "source": "external_ai_service",
+                        "topic": topic,
+                        "duration_seconds": duration,
+                        "video_type": video_type,
+                        "language": language,
+                        "tone": tone,
+                        "estimated_word_count": word_count,
+                        "full_script": full_script,
+                        "scenes": scenes,
+                        "title": title_gen,
+                        "description": desc_gen
+                    }
+        except Exception as e_ext:
+            print(f"⚠️ External AI Server Attempt Exception: {e_ext}")
 
-    # 3. Intelligent Dynamic Script & Scene Keyword Generator
-    cat_lower = str(category).lower()
-    is_cartoon_cat = any(k in cat_lower for k in ["cartoon", "anime", "animation", "character", "comic"])
-
-    stop_words_all = {
-        "what", "if", "only", "how", "why", "secret", "facts", "science", "vs", "the", "a", "an", "is", "are", "in", "on", "of", "to", "for", "with", "by",
-        "aur", "ek", "hai", "ki", "ke", "ka", "jo", "se", "me", "ko", "hi", "to", "ye", "wo", "tha", "thi", "day", "hours", "hour"
-    }
-    clean_topic_words = [w for w in re.findall(r'\b[a-zA-Z]{3,}\b', topic) if w.lower() not in stop_words_all]
-    main_kw_base = " ".join(clean_topic_words[:2]) if clean_topic_words else topic.lower()
-
-    scenes = []
-    full_text_list = []
-
-    # Dynamic topic-aware template generation
-    num_match = re.search(r'\d+', topic)
-    hrs_str = num_match.group(0) if num_match else "1"
-
-    if "slept" in topic.lower() or "sleep" in topic.lower():
-        intro_str = f"Dosto! Agar insan din mein sirf {hrs_str} ghanta soye, toh hamare body aur brain ke sath kya hoga? Aaiye is hairan kar dene wale facts ko vistaar se samajhte hain."
-        body_parts = [
-            f"Sabse pehle, hamara brain REM sleep aur deep memory recovery process skip kar dega, jisse matra 24 ghante ke andar severe mental fatigue aur hallucinations hone lagenge.",
-            f"Scientists ke mutabiq, continuous sleep deprivation se body ka immune system completely breakdown ho jata hai aur stress hormones ka level dangerous mark tak pahunch jata hai.",
-            f"Physical health ki baat karein toh muscle recovery aur cell regeneration rukh jata hai, jisse heart risk aur brain fog multi-fold badh jata hai.",
-            f"Isi wajah se nature ne human body ke liye 7 se 8 ghante ki uninterrupted sleep ko mandatory banaya hai."
-        ]
-        outro_str = f"Toh ye the {topic} se jude sabse important aur alarming facts! Agar video informative lagi ho toh like aur share zaroor karein!"
-    elif research_summary:
-        sentences = [s.strip() for s in research_summary.split('.') if len(s.strip()) > 15]
-        intro_str = f"Dosto! Aaj hum {topic} se jude sabse dilchasp aur aitihasik facts ko vistaar se samajhne wale hain."
-        body_parts = sentences if sentences else [f"{topic} ki duniya mein ek aisa raaz hai jo aapko aashcharya mein daal dega."]
-        outro_str = f"Toh ye the {topic} se jude sabse mukhya pehlu! Aise hi informative content ke liye channel ko follow aur subscribe karein!"
-    elif is_cartoon_cat:
-        intro_str = f"Dosto! Aapko milate hain humare cartoon hero {topic} se, jinki zindagi mein har din ek naya aur mazedar hungama hota hai!"
-        body_parts = [
-            f"{topic} ne apna super-dimag lagakar ek aisa dhasu jugaad kiya ki poore mohalle ke hosh ud gaye.",
-            f"Dekhte hi dekhte {topic} ka ye jugaad ek mazedar comedy mistake ban gaya aur sabhi cartoon dost pet pakad kar hasne lage.",
-            f"Lekin {topic} ne haar nahi maani aur apni chalaki se aakhiri minute mein situation ko poori tarah sambhal kiya."
-        ]
-        outro_str = f"Aur is tarah {topic} ke is funny kissey ne sabko hasa-hasa kar lothpoth kar diya! Channel ko subscribe karein!"
-    elif video_type == "ultra" or any(k in topic.lower() for k in ["pratap", "maharana", "shivaji", "history", "war", "king", "empire"]):
-        intro_str = f"Itihas aur gathaon mein {topic} ka naam swabhiman aur veerta ka prateek mana jata hai. Iski poori kahani aapko garv se bhar degi."
-        body_parts = [
-            f"Aitihasik shastron aur dastaavezon ke mutabiq {topic} ne matribhumi ki raksha ke liye aakhir saans tak sangharsh kiya.",
-            f"Ranbhoomi mein inki ranniti aur swabhiman ne shatruon ki sena ke chakke chhudaye the aur itihaas mein apna naam amar kar diya.",
-            f"Inki veer gatha aaj bhi har bhartiya ke dil mein garv aur prerna ka srot hai."
-        ]
-        outro_str = f"Swabhiman ki is mahan kahani ne {topic} ko amar bana diya. Aise hi aitihasik kisse dekhne ke liye channel ko subscribe karein!"
-    else:
-        intro_str = f"Dosto! Kya aapko pata hai {topic} ke baare mein ye hairatangez sach?"
-        body_parts = [
-            f"Iske peeche ki asli scientific wajah ye hai ki {topic} hamari daily life aur future par deep impact daalta hai.",
-            f"Research aur experts ke mutabiq, {topic} se jude kayi secret factors hain jo sadharan nazariye se nahi dikhte.",
-            f"Aage chal kar {topic} ke kshetra mein naye breakthrough changes dekhe ja rahe hain jo sabhi ko chaunka rahe hain."
-        ]
-        outro_str = f"Toh ye tha {topic} ka poora sach! Aise hi viral aur informative content ke liye like aur share zaroor karein!"
-
-    aspect_keywords = ["concept", "impact", "science", "reality", "future", "discovery", "nature"]
-
-    for i in range(scene_count):
-        if i == 0:
-            text = intro_str
-        elif i == scene_count - 1 and scene_count > 1:
-            text = outro_str
-        else:
-            b_idx = (i - 1) % len(body_parts)
-            text = body_parts[b_idx]
-            
-        kw_aspect = aspect_keywords[i % len(aspect_keywords)]
-        scene_kw = f"{main_kw_base} {kw_aspect}".strip()
-
-        scenes.append({"text": text, "keyword": scene_kw})
-        full_text_list.append(text)
-
-    script_text = " ".join(full_text_list)
-    title_gen, desc_gen = build_youtube_metadata(topic=topic, full_script=script_text, video_type=video_type)
-    return {
-        "status": "success",
-        "source": "dynamic_ai_engine",
-        "topic": topic,
-        "duration_seconds": duration,
-        "video_type": video_type,
-        "language": language,
-        "tone": tone,
-        "estimated_word_count": word_count,
-        "full_script": script_text,
-        "scenes": scenes,
-        "title": title_gen,
-        "description": desc_gen
-    }
+    # PURE LLM POLICY: Local static/fallback script templates are COMPLETELY REMOVED per user mandate!
+    # If Gemini AI API is unreachable or key is missing, throw an explicit error.
+    raise HTTPException(
+        status_code=500,
+        detail="AI Script Generation Error: Could not reach Gemini AI API. Please verify GEMINI_API_KEY in config.env or internet connection."
+    )
 
 @app.post("/api/generate-ai-script")
 async def api_generate_ai_script(req: AIScriptRequest):
