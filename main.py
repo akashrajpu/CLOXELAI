@@ -3303,225 +3303,183 @@ class AIScriptRequest(BaseModel):
 
 def generate_ai_script_core(topic: str, duration: int, video_type: str = "short", language: str = "hinglish", tone: str = "viral", category: str = "Random"):
     import random
+    import urllib.parse
+    import re
     topic = resolve_random_topic(topic, category)
-    raw_env_url = os.getenv("AI_SERVER_URL", "").rstrip("/")
-    candidate_urls = [
-        "https://ai-script-generator-service-production.up.railway.app",
-        raw_env_url if raw_env_url else "https://ai-script-generator-service.onrender.com",
-        "https://ai-script-generator-service.onrender.com"
-    ]
-    seen = set()
-    ai_server_urls = [u for u in candidate_urls if u and not (u in seen or seen.add(u))]
-
     scene_count = max(1, duration // 10)
     word_count = int(duration * 2.7)
 
-    cat_niche = f" in the '{category}' category" if category and str(category).lower() != "random" else ""
+    # 1. Try Gemini API models via requests
+    gemini_key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY") or os.getenv("AI_API_KEY")
+    if gemini_key:
+        models = ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-1.5-pro", "gemini-pro"]
+        cat_lower = str(category).lower()
+        is_cartoon_cat = any(k in cat_lower for k in ["cartoon", "anime", "animation", "character", "comic"])
 
-    payload = {
-        "topic": topic,
-        "category": category,
-        "duration_seconds": duration,
-        "video_type": video_type,
-        "language": language,
-        "tone": tone
-    }
-    
-    for base_url in ai_server_urls[:2]:
-        for endpoint in ["/generate-script", "/api/generate-ai-script"]:
-            target_url = f"{base_url}{endpoint}"
+        stop_words_check = {"history", "how", "what", "why", "secret", "future", "facts", "science", "vs", "the", "system", "warriors", "ai", "space"}
+        words_in_topic = [w.lower() for w in topic.split() if w.isalpha()]
+        is_single_character_name = len(words_in_topic) <= 2 and not any(w in stop_words_check for w in words_in_topic)
+
+        if video_type == "ultra" and is_cartoon_cat:
+            if is_single_character_name:
+                ultra_special_prompt = (
+                    f"\nSPECIAL ULTRA CARTOON CHARACTER STORY (KAHANI/CHUTKULA) MODE:\n"
+                    f"The topic is a character name '{topic}'. Write a super funny, hilarious, comedic 2D cartoon story script (Kahani / Kissa / Comedy Chutkula) about {topic}.\n"
+                    f"Show {topic}'s hilarious daily struggles, a crazy funny Jugaad/experiment gone wrong, funny cartoon dialogues, and a laugh-out-loud funny ending!\n"
+                    f"Make it sound like a funny animated story that will make kids and adults laugh out loud.\n"
+                )
+            else:
+                ultra_special_prompt = (
+                    f"\nSPECIAL ULTRA CARTOON KAHANI (STORY) MODE REQUIREMENT:\n"
+                    f"This is an ULTRA Cartoon & Animation video. Write an entertaining, creative, dramatic, and fun ANIMATED STORY (KAHANI) script about '{topic}'.\n"
+                    f"The script MUST be structured like an engaging 2D cartoon story (Kahani) with relatable animated characters, fun dialogues/actions, plot twist/adventure, and a satisfying moral or funny story conclusion.\n"
+                    f"Do NOT write a factual documentary or boring facts. Make it a complete, entertaining 2D cartoon story script (Kahani) with rich character storytelling.\n"
+                )
+        elif video_type == "ultra":
+            ultra_special_prompt = (
+                f"\nSPECIAL ULTRA MODE REQUIREMENT:\n"
+                f"This is an ULTRA premium documentary video. Write a rich, deeply informative, and complete narrative script.\n"
+                f"Do NOT output short title fragments or half-baked sentences.\n"
+                f"Each scene text MUST contain 2-3 complete, highly engaging, informative spoken sentences explaining the history, key achievements, and full story of '{topic}'.\n"
+            )
+        else:
+            ultra_special_prompt = ""
+
+        prompt = (
+            f"You are a master viral video scriptwriter. Write a COMPLETE, fully-resolved video script about '{topic}' "
+            f"in {language} language. Video type: {video_type.upper()} ({duration} seconds, approx {word_count} spoken words).\n"
+            f"CRITICAL REQUIREMENT: The script MUST be 100% complete with a clear Hook, Full Story/Information, and a Satisfying Conclusion. "
+            f"Do NOT leave the explanation half-done or cut off mid-sentence.{ultra_special_prompt}\n"
+            f"Format requirement: Return ONLY a valid JSON object with:\n"
+            f"1. 'full_script': The complete spoken voiceover text covering the full story from hook to conclusion.\n"
+            f"2. 'scenes': An array of exactly {scene_count} complete sentence scene objects, each containing:\n"
+            f"   - 'text': 2-3 complete, detailed, well-formed sentences with full stops.\n"
+            f"   - 'keyword': 1-2 relevant visual search terms for background clips.\n"
+            f"Do not include markdown triple backticks or text outside JSON."
+        )
+
+        for model_name in models:
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={gemini_key}"
             try:
-                resp = requests.post(target_url, json=payload, timeout=15.0)
+                resp = requests.post(
+                    url,
+                    json={"contents": [{"parts": [{"text": prompt}]}]},
+                    headers={"Content-Type": "application/json"},
+                    timeout=10.0
+                )
                 if resp.status_code == 200:
-                    data = resp.json()
-                    full_script = data.get("full_script") or data.get("script") or ""
-                    scenes = data.get("scenes") or []
-                    
-                    if full_script or scenes:
-                        if not scenes and full_script:
-                            stop_words = {"aur", "ek", "hai", "ki", "ke", "ka", "jo", "se", "me", "ko"}
-                            kws = [w.lower() for w in topic.split() if w.isalpha() and w.lower() not in stop_words]
-                            kw = kws[0] if kws else topic
-                            chunks = full_script.split(".")
-                            scenes = [{"text": c.strip(), "keyword": kw} for c in chunks if len(c.strip()) > 5][:scene_count]
-                            
-                        print(f"✅ External AI Script Service Success ({target_url})!")
-                        title_gen, desc_gen = build_youtube_metadata(topic=topic, full_script=full_script, video_type=video_type)
+                    res_body = resp.json()
+                    raw_text = res_body['candidates'][0]['content']['parts'][0]['text'].strip()
+                    if raw_text.startswith("```"):
+                        raw_text = raw_text.split("```")[1]
+                        if raw_text.startswith("json"):
+                            raw_text = raw_text[4:].strip()
+                    parsed = json.loads(raw_text)
+                    script_text = parsed.get("full_script", "")
+                    scenes = parsed.get("scenes", [])
+                    if script_text or scenes:
+                        title_gen, desc_gen = build_youtube_metadata(topic=topic, full_script=script_text, video_type=video_type)
+                        print(f"✅ Gemini AI Script Generation Success ({model_name})!")
                         return {
                             "status": "success",
-                            "source": "external_ai_service",
-                            "server_url": target_url,
+                            "source": f"gemini_ai ({model_name})",
                             "topic": topic,
                             "duration_seconds": duration,
                             "video_type": video_type,
                             "language": language,
                             "tone": tone,
                             "estimated_word_count": word_count,
-                            "full_script": full_script,
+                            "full_script": script_text,
                             "scenes": scenes,
                             "title": title_gen,
                             "description": desc_gen
                         }
-            except Exception as e_inner:
+            except Exception as err:
                 continue
 
+    # 2. Wikipedia / Web Research Fallback if online
+    research_summary = ""
+    try:
+        clean_q = topic.strip()
+        wiki_url = f"https://en.wikipedia.org/api/rest_v1/page/summary/{urllib.parse.quote(clean_q)}"
+        r = requests.get(wiki_url, timeout=4.0)
+        if r.status_code == 200:
+            research_summary = r.json().get("extract", "")
+    except Exception:
+        pass
+
+    # 3. Intelligent Dynamic Script & Scene Keyword Generator
     cat_lower = str(category).lower()
     is_cartoon_cat = any(k in cat_lower for k in ["cartoon", "anime", "animation", "character", "comic"])
 
-    stop_words_check = {"history", "how", "what", "why", "secret", "future", "facts", "science", "vs", "the", "system", "warriors", "ai", "space"}
-    words_in_topic = [w.lower() for w in topic.split() if w.isalpha()]
-    is_single_character_name = len(words_in_topic) <= 2 and not any(w in stop_words_check for w in words_in_topic)
-
-    gemini_key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
-    if gemini_key:
-        try:
-            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={gemini_key}"
-            if video_type == "ultra" and is_cartoon_cat:
-                if is_single_character_name:
-                    ultra_special_prompt = (
-                        f"\nSPECIAL ULTRA CARTOON CHARACTER STORY (KAHANI/CHUTKULA) MODE:\n"
-                        f"The topic is a character name '{topic}'. Write a super funny, hilarious, comedic 2D cartoon story script (Kahani / Kissa / Comedy Chutkula) about {topic}.\n"
-                        f"Show {topic}'s hilarious daily struggles, a crazy funny Jugaad/experiment gone wrong, funny cartoon dialogues, and a laugh-out-loud funny ending!\n"
-                        f"Make it sound like a funny animated story that will make kids and adults laugh out loud.\n"
-                    )
-                else:
-                    ultra_special_prompt = (
-                        f"\nSPECIAL ULTRA CARTOON KAHANI (STORY) MODE REQUIREMENT:\n"
-                        f"This is an ULTRA Cartoon & Animation video. Write an entertaining, creative, dramatic, and fun ANIMATED STORY (KAHANI) script about '{topic}'.\n"
-                        f"The script MUST be structured like an engaging 2D cartoon story (Kahani) with relatable animated characters, fun dialogues/actions, plot twist/adventure, and a satisfying moral or funny story conclusion.\n"
-                        f"Do NOT write a factual documentary or boring facts. Make it a complete, entertaining 2D cartoon story script (Kahani) with rich character storytelling.\n"
-                    )
-            elif video_type == "ultra":
-                ultra_special_prompt = (
-                    f"\nSPECIAL ULTRA MODE REQUIREMENT:\n"
-                    f"This is an ULTRA premium documentary video. Write a rich, deeply informative, and complete narrative script.\n"
-                    f"Do NOT output short title fragments or half-baked sentences.\n"
-                    f"Each scene text MUST contain 2-3 complete, highly engaging, informative spoken sentences explaining the history, key achievements, and full story of '{topic}'.\n"
-                )
-            else:
-                ultra_special_prompt = ""
-
-            prompt = (
-                f"You are a master viral video scriptwriter. Write a COMPLETE, fully-resolved video script about '{topic}' "
-                f"in {language} language. Video type: {video_type.upper()} ({duration} seconds, approx {word_count} spoken words).\n"
-                f"CRITICAL REQUIREMENT: The script MUST be 100% complete with a clear Hook, Full Story/Information, and a Satisfying Conclusion. "
-                f"Do NOT leave the explanation half-done or cut off mid-sentence.{ultra_special_prompt}\n"
-                f"Format requirement: Return ONLY a valid JSON object with:\n"
-                f"1. 'full_script': The complete spoken voiceover text covering the full story from hook to conclusion.\n"
-                f"2. 'scenes': An array of exactly {scene_count} complete sentence scene objects, each containing:\n"
-                f"   - 'text': 2-3 complete, detailed, well-formed sentences with full stops.\n"
-                f"   - 'keyword': 1-2 relevant visual search terms for background clips.\n"
-                f"Do not include markdown triple backticks or text outside JSON."
-            )
-
-            req_data = json.dumps({"contents": [{"parts": [{"text": prompt}]}]}).encode('utf-8')
-            req = urllib.request.Request(url, data=req_data, headers={"Content-Type": "application/json"})
-            with urllib.request.urlopen(req, timeout=5) as resp:
-                res_body = json.loads(resp.read().decode('utf-8'))
-                raw_text = res_body['candidates'][0]['content']['parts'][0]['text'].strip()
-                if raw_text.startswith("```"):
-                    raw_text = raw_text.split("```")[1]
-                    if raw_text.startswith("json"):
-                        raw_text = raw_text[4:].strip()
-                parsed = json.loads(raw_text)
-                script_text = parsed.get("full_script", "")
-                title_gen, desc_gen = build_youtube_metadata(topic=topic, full_script=script_text, video_type=video_type)
-                return {
-                    "status": "success",
-                    "source": "gemini_ai",
-                    "topic": topic,
-                    "duration_seconds": duration,
-                    "video_type": video_type,
-                    "language": language,
-                    "tone": tone,
-                    "estimated_word_count": word_count,
-                    "full_script": script_text,
-                    "scenes": parsed.get("scenes", []),
-                    "title": title_gen,
-                    "description": desc_gen
-                }
-        except Exception as err:
-            print(f"⚠️ Cloxel AI Engine Notice (Falling back to dynamic engine): {err}")
-
-    stop_words = {"aur", "ek", "hai", "ki", "ke", "ka", "jo", "se", "me", "ko", "hi", "to", "ye", "wo", "tha", "thi"}
-    keywords = [w.lower() for w in topic.split() if w.isalpha() and w.lower() not in stop_words]
-    main_kw = keywords[0] if keywords else topic
-
-    if video_type == "ultra" and is_cartoon_cat:
-        if is_single_character_name:
-            intro_templates = [
-                f"Dosto! Aapko milate hain humare cartoon hero {topic} se, jinki zindagi mein har din ek naya aur mazedar hungama hota hai!",
-                f"Ek din {topic} ne socha ki aaj kuch toofani karte hain, aur bas wahin se shuru hua sabse mazedar kissa!"
-            ]
-            body_templates = [
-                f"{topic} ne apna super-dimag lagakar ek aisa dhasu jugaad kiya ki poore mohalle ke hosh ud gaye.",
-                f"Dekhte hi dekhte {topic} ka ye jugaad ek mazedar comedy mistake ban gaya aur sabhi cartoon dost pet pakad kar hasne lage.",
-                f"Lekin {topic} ne haar nahi maani aur apni chalaki se aakhiri minute mein situation ko poori tarah sambhal kiya."
-            ]
-            outro_templates = [
-                f"Aur is tarah {topic} ke is funny kissey ne sabko hasa-hasa kar lothpoth kar diya! Agar {topic} ki kahani pasand aayi toh video ko like aur channel ko subscribe karein!",
-                f"Yahi toh khas baat hai {topic} ki! Aise hi aur mazedar cartoon kisse dekhne ke liye video ko share zaroor karein!"
-            ]
-        else:
-            intro_templates = [
-                f"Ek samay ki baat hai, {topic} ki cartoon duniya mein ek bahut hi dilchasp aur mazedar kahani shuru hui.",
-                f"Chhote se cartoon gaon mein {topic} ke characters ke beech ek anokhi kahani ghati, aaiye is mazedar kahani ko jaante hain."
-            ]
-            body_templates = [
-                f"Kahani mein mukhya cartoon character ne apni samajhdaari aur chalaki se ek badi chunauti ka samna kiya aur dosto ko chaunkaya.",
-                f"Dekhte hi dekhte kahani mein ek mazedar twist aaya jahan sabhi cartoon dosto ne milkar ek anokha hal nikala.",
-                f"Is thrilling cartoon mod par sabhi characters ne ek doosre ki madad ki aur har mushkil ko aasan bana diya."
-            ]
-            outro_templates = [
-                f"Aakhirkar, ye pyaari kahani hume sikhaati hai ki mehnat aur dosti se har mushkil aasan ho jaati hai. Kahani pasand aayi toh video ko like aur follow karein!",
-                f"Aur is tarah {topic} ki ye mazedar cartoon kahani ek khushgawar ant ke sath poori hui. Channel ko subscribe karein!"
-            ]
-    elif video_type == "ultra":
-        intro_templates = [
-            f"Itihas aur gathaon mein {topic} ka naam swabhiman aur veerta ka prateek mana jata hai. Iski poori kahani aapko aashcharya mein daal degi.",
-            f"Kya aap jante hain {topic} se judi wo aitihasik baatein jo aaj bhi har bhartiya ke dil mein garv bhar deti hain? Aaiye vistaar se jaante hain."
-        ]
-        body_templates = [
-            f"Iska mukhya uddeshya swabhiman aur matribhumi ki raksha karna tha, jiske liye yoddhaon ne aakhir saans tak sangharsh kiya.",
-            f"Aitihasik shastron aur dastaavezon ke mutabiq {topic} ne shatruon ki sena ke chakke chhudaye the aur itihaas mein apna naam amar kar diya.",
-            f"Ranbhoomi mein inki talwar aur ranniti ne dushmano ko aisi shikast di jise aaj bhi yaad kiya jata hai."
-        ]
-        outro_templates = [
-            f"Yahi wajah hai ki {topic} ki ye veer gatha aaj bhi har peedhi ke liye prerna ka srot hai. Is aitihasik jaankari ke liye hume follow karein.",
-            f"Swabhiman ki is kahani ne {topic} ko mahan bana diya. Aise hi aur durlabh aitihasik kisse dekhne ke liye channel ko subscribe karein!"
-        ]
-    else:
-        intro_templates = [
-            f"Dosto! Kya aapko pata hai {topic} ke baare mein ye hairatangez sach?",
-            f"{topic} ki duniya mein ek aisa raaz hai jo aapka hosh uda dega.",
-            f"Aaj hum {topic} se jude sabse bada aur shocking sach jaanenge."
-        ]
-        body_templates = [
-            f"Iske peeche ki asli wajah ye hai ki {topic} hamari daily life par deep impact daalta hai.",
-            f"Experts aur scientists ke mutabiq {topic} aane wale time mein poori tarah badalne wala hai.",
-            f"Research mein pata chala hai ki {topic} ki wajah se kayi bade changes dekhe gaye hain.",
-            f"Har roz hazaron log {topic} ke is naye aspect ko samajhne ki koshish kar rahe hain."
-        ]
-        outro_templates = [
-            f"Toh ye tha {topic} ka poora sach! Aise hi viral aur informative content ke liye hume zaroor follow karein.",
-            f"Yahi wajah hai ki {topic} itna special hai. Video acchi lagi ho toh like aur share zaroor karein!",
-            f"Umeed hai aapko {topic} ki ye information pasand aayi hogi. Channel ko subscribe karna na bhulein!"
-        ]
+    stop_words_all = {
+        "what", "if", "only", "how", "why", "secret", "facts", "science", "vs", "the", "a", "an", "is", "are", "in", "on", "of", "to", "for", "with", "by",
+        "aur", "ek", "hai", "ki", "ke", "ka", "jo", "se", "me", "ko", "hi", "to", "ye", "wo", "tha", "thi", "day", "hours", "hour"
+    }
+    clean_topic_words = [w for w in re.findall(r'\b[a-zA-Z]{3,}\b', topic) if w.lower() not in stop_words_all]
+    main_kw_base = " ".join(clean_topic_words[:2]) if clean_topic_words else topic.lower()
 
     scenes = []
     full_text_list = []
-    
+
+    # Dynamic topic-aware template generation
+    num_match = re.search(r'\d+', topic)
+    hrs_str = num_match.group(0) if num_match else "1"
+
+    if "slept" in topic.lower() or "sleep" in topic.lower():
+        intro_str = f"Dosto! Agar insan din mein sirf {hrs_str} ghanta soye, toh hamare body aur brain ke sath kya hoga? Aaiye is hairan kar dene wale facts ko vistaar se samajhte hain."
+        body_parts = [
+            f"Sabse pehle, hamara brain REM sleep aur deep memory recovery process skip kar dega, jisse matra 24 ghante ke andar severe mental fatigue aur hallucinations hone lagenge.",
+            f"Scientists ke mutabiq, continuous sleep deprivation se body ka immune system completely breakdown ho jata hai aur stress hormones ka level dangerous mark tak pahunch jata hai.",
+            f"Physical health ki baat karein toh muscle recovery aur cell regeneration rukh jata hai, jisse heart risk aur brain fog multi-fold badh jata hai.",
+            f"Isi wajah se nature ne human body ke liye 7 se 8 ghante ki uninterrupted sleep ko mandatory banaya hai."
+        ]
+        outro_str = f"Toh ye the {topic} se jude sabse important aur alarming facts! Agar video informative lagi ho toh like aur share zaroor karein!"
+    elif research_summary:
+        sentences = [s.strip() for s in research_summary.split('.') if len(s.strip()) > 15]
+        intro_str = f"Dosto! Aaj hum {topic} se jude sabse dilchasp aur aitihasik facts ko vistaar se samajhne wale hain."
+        body_parts = sentences if sentences else [f"{topic} ki duniya mein ek aisa raaz hai jo aapko aashcharya mein daal dega."]
+        outro_str = f"Toh ye the {topic} se jude sabse mukhya pehlu! Aise hi informative content ke liye channel ko follow aur subscribe karein!"
+    elif is_cartoon_cat:
+        intro_str = f"Dosto! Aapko milate hain humare cartoon hero {topic} se, jinki zindagi mein har din ek naya aur mazedar hungama hota hai!"
+        body_parts = [
+            f"{topic} ne apna super-dimag lagakar ek aisa dhasu jugaad kiya ki poore mohalle ke hosh ud gaye.",
+            f"Dekhte hi dekhte {topic} ka ye jugaad ek mazedar comedy mistake ban gaya aur sabhi cartoon dost pet pakad kar hasne lage.",
+            f"Lekin {topic} ne haar nahi maani aur apni chalaki se aakhiri minute mein situation ko poori tarah sambhal kiya."
+        ]
+        outro_str = f"Aur is tarah {topic} ke is funny kissey ne sabko hasa-hasa kar lothpoth kar diya! Channel ko subscribe karein!"
+    elif video_type == "ultra" or any(k in topic.lower() for k in ["pratap", "maharana", "shivaji", "history", "war", "king", "empire"]):
+        intro_str = f"Itihas aur gathaon mein {topic} ka naam swabhiman aur veerta ka prateek mana jata hai. Iski poori kahani aapko garv se bhar degi."
+        body_parts = [
+            f"Aitihasik shastron aur dastaavezon ke mutabiq {topic} ne matribhumi ki raksha ke liye aakhir saans tak sangharsh kiya.",
+            f"Ranbhoomi mein inki ranniti aur swabhiman ne shatruon ki sena ke chakke chhudaye the aur itihaas mein apna naam amar kar diya.",
+            f"Inki veer gatha aaj bhi har bhartiya ke dil mein garv aur prerna ka srot hai."
+        ]
+        outro_str = f"Swabhiman ki is mahan kahani ne {topic} ko amar bana diya. Aise hi aitihasik kisse dekhne ke liye channel ko subscribe karein!"
+    else:
+        intro_str = f"Dosto! Kya aapko pata hai {topic} ke baare mein ye hairatangez sach?"
+        body_parts = [
+            f"Iske peeche ki asli scientific wajah ye hai ki {topic} hamari daily life aur future par deep impact daalta hai.",
+            f"Research aur experts ke mutabiq, {topic} se jude kayi secret factors hain jo sadharan nazariye se nahi dikhte.",
+            f"Aage chal kar {topic} ke kshetra mein naye breakthrough changes dekhe ja rahe hain jo sabhi ko chaunka rahe hain."
+        ]
+        outro_str = f"Toh ye tha {topic} ka poora sach! Aise hi viral aur informative content ke liye like aur share zaroor karein!"
+
+    aspect_keywords = ["concept", "impact", "science", "reality", "future", "discovery", "nature"]
+
     for i in range(scene_count):
         if i == 0:
-            text = f"{random.choice(intro_templates)} {body_templates[0]}"
+            text = intro_str
         elif i == scene_count - 1 and scene_count > 1:
-            text = f"{body_templates[(i - 1) % len(body_templates)]} {random.choice(outro_templates)}"
+            text = outro_str
         else:
-            b1 = body_templates[(i - 1) % len(body_templates)]
-            b2 = body_templates[i % len(body_templates)]
-            text = f"{b1} {b2}" if b1 != b2 else b1
+            b_idx = (i - 1) % len(body_parts)
+            text = body_parts[b_idx]
             
-        scenes.append({"text": text, "keyword": main_kw})
+        kw_aspect = aspect_keywords[i % len(aspect_keywords)]
+        scene_kw = f"{main_kw_base} {kw_aspect}".strip()
+
+        scenes.append({"text": text, "keyword": scene_kw})
         full_text_list.append(text)
 
     script_text = " ".join(full_text_list)
