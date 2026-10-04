@@ -1397,7 +1397,7 @@ def full_process(req: VideoRequest, job_id: str):
         if taiyaar_scenes:
             print(f"\n🎬 [PROGRESS 65%] STEP 4 & 5: Entering FFmpeg & 3D Motion Render Queue...")
             output_file = f"acoumation_video_{job_id}.mp4"
-            target_size = (1280, 720) if is_16_9 else (720, 1280)
+            target_size = (960, 540) if is_16_9 else (540, 960)
             adjusted_font_size = int(req.font_size * 0.7) if is_16_9 else req.font_size
             with render_queue_lock:
                 gc.collect()

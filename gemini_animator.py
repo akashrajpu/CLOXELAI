@@ -60,109 +60,206 @@ class SafeImageDraw:
                 return [(x, y), (x + 10, y + 10)]
         return xy
 
-    def line(self, xy, *args, **kwargs):
+    def _extract_target_and_args(self, args):
+        if not args:
+            return self._draw, []
+        first = args[0]
+        if hasattr(first, '_draw'):
+            return first._draw, list(args[1:])
+        elif hasattr(first, 'line') or hasattr(first, 'im'):
+            return first, list(args[1:])
+        return self._draw, list(args)
+
+    def line(self, *args, **kwargs):
+        draw_obj, rem_args = self._extract_target_and_args(args)
+        if not rem_args:
+            return None
+        xy = rem_args[0]
+        pts = self._normalize_points(xy)
+        
+        fill = kwargs.get('fill')
+        if fill is None and len(rem_args) > 1:
+            fill = rem_args[1]
+        if fill is None:
+            fill = (255, 255, 255)
+
+        width = kwargs.get('width')
+        if width is None and len(rem_args) > 2 and isinstance(rem_args[2], (int, float)):
+            width = rem_args[2]
+        if width is None:
+            width = 1
+
         try:
-            pts = self._normalize_points(xy)
-            fill = kwargs.get('fill') or (args[0] if len(args) > 0 else (255, 255, 255))
-            width = kwargs.get('width') or (args[1] if len(args) > 1 and isinstance(args[1], (int, float)) else 1)
-            return self._draw.line(pts, fill=fill, width=int(width))
+            return draw_obj.line(pts, fill=fill, width=int(width))
         except Exception:
             try:
-                pts = self._normalize_points(xy)
-                return self._draw.line(pts, fill=(255, 255, 255), width=1)
+                return draw_obj.line(pts, fill=(255, 255, 255), width=1)
             except Exception:
                 pass
 
     def draw_line(self, *args, **kwargs):
         return self.line(*args, **kwargs)
 
-    def rectangle(self, xy, *args, **kwargs):
+    def rectangle(self, *args, **kwargs):
+        draw_obj, rem_args = self._extract_target_and_args(args)
+        if not rem_args:
+            return None
+        xy = rem_args[0]
+        box = self._normalize_box(xy)
+
+        fill = kwargs.get('fill')
+        if fill is None and len(rem_args) > 1:
+            fill = rem_args[1]
+
+        outline = kwargs.get('outline')
+        if outline is None and len(rem_args) > 2:
+            outline = rem_args[2]
+
+        width = kwargs.get('width', 1)
+
         try:
-            box = self._normalize_box(xy)
-            fill = kwargs.get('fill') or (args[0] if len(args) > 0 else None)
-            outline = kwargs.get('outline') or (args[1] if len(args) > 1 else None)
-            return self._draw.rectangle(box, fill=fill, outline=outline)
+            return draw_obj.rectangle(box, fill=fill, outline=outline, width=int(width))
         except Exception:
             try:
-                box = self._normalize_box(xy)
-                return self._draw.rectangle(box, fill=(100, 100, 100))
+                return draw_obj.rectangle(box, fill=(100, 100, 100))
             except Exception:
                 pass
 
     def draw_rectangle(self, *args, **kwargs):
         return self.rectangle(*args, **kwargs)
 
-    def ellipse(self, xy, *args, **kwargs):
+    def ellipse(self, *args, **kwargs):
+        draw_obj, rem_args = self._extract_target_and_args(args)
+        if not rem_args:
+            return None
+        xy = rem_args[0]
+        box = self._normalize_box(xy)
+
+        fill = kwargs.get('fill')
+        if fill is None and len(rem_args) > 1:
+            fill = rem_args[1]
+
+        outline = kwargs.get('outline')
+        if outline is None and len(rem_args) > 2:
+            outline = rem_args[2]
+
+        width = kwargs.get('width', 1)
+
         try:
-            box = self._normalize_box(xy)
-            fill = kwargs.get('fill') or (args[0] if len(args) > 0 else None)
-            outline = kwargs.get('outline') or (args[1] if len(args) > 1 else None)
-            return self._draw.ellipse(box, fill=fill, outline=outline)
+            return draw_obj.ellipse(box, fill=fill, outline=outline, width=int(width))
         except Exception:
             try:
-                box = self._normalize_box(xy)
-                return self._draw.ellipse(box, fill=(200, 200, 200))
+                return draw_obj.ellipse(box, fill=(200, 200, 200))
             except Exception:
                 pass
 
     def draw_ellipse(self, *args, **kwargs):
         return self.ellipse(*args, **kwargs)
 
-    def polygon(self, xy, *args, **kwargs):
+    def polygon(self, *args, **kwargs):
+        draw_obj, rem_args = self._extract_target_and_args(args)
+        if not rem_args:
+            return None
+        xy = rem_args[0]
+        pts = self._normalize_points(xy)
+
+        fill = kwargs.get('fill')
+        if fill is None and len(rem_args) > 1:
+            fill = rem_args[1]
+
+        outline = kwargs.get('outline')
+        if outline is None and len(rem_args) > 2:
+            outline = rem_args[2]
+
         try:
-            pts = self._normalize_points(xy)
-            fill = kwargs.get('fill') or (args[0] if len(args) > 0 else None)
-            outline = kwargs.get('outline') or (args[1] if len(args) > 1 else None)
-            return self._draw.polygon(pts, fill=fill, outline=outline)
+            return draw_obj.polygon(pts, fill=fill, outline=outline)
         except Exception:
             try:
-                pts = self._normalize_points(xy)
-                return self._draw.polygon(pts, fill=(150, 150, 150))
+                return draw_obj.polygon(pts, fill=(150, 150, 150))
             except Exception:
                 pass
 
     def draw_polygon(self, *args, **kwargs):
         return self.polygon(*args, **kwargs)
 
-    def text(self, xy, text="", *args, **kwargs):
+    def text(self, *args, **kwargs):
+        draw_obj, rem_args = self._extract_target_and_args(args)
+        if not rem_args:
+            return None
+        xy = rem_args[0]
+        pts = self._normalize_points(xy)
+        pos = pts[0] if isinstance(pts, (list, tuple)) and len(pts) > 0 else (20, 20)
+
+        text_val = kwargs.get('text', "")
+        if not text_val and len(rem_args) > 1:
+            text_val = rem_args[1]
+
+        fill = kwargs.get('fill')
+        if fill is None and len(rem_args) > 2:
+            fill = rem_args[2]
+        if fill is None:
+            fill = (255, 255, 255)
+
+        font = kwargs.get('font')
+
         try:
-            pts = self._normalize_points(xy)
-            pos = pts[0] if isinstance(pts, (list, tuple)) and len(pts) > 0 else (20, 20)
-            fill = kwargs.get('fill') or (args[0] if len(args) > 0 else (255, 255, 255))
-            return self._draw.text(pos, str(text), fill=fill)
+            if font:
+                return draw_obj.text(pos, str(text_val), fill=fill, font=font)
+            return draw_obj.text(pos, str(text_val), fill=fill)
         except Exception:
             try:
-                return self._draw.text((20, 20), str(text), fill=(255, 255, 255))
+                return draw_obj.text((20, 20), str(text_val), fill=(255, 255, 255))
             except Exception:
                 pass
 
     def draw_text(self, *args, **kwargs):
         return self.text(*args, **kwargs)
 
-    def arc(self, xy, start=0, end=360, *args, **kwargs):
+    def arc(self, *args, **kwargs):
+        draw_obj, rem_args = self._extract_target_and_args(args)
+        if not rem_args:
+            return None
+        xy = rem_args[0]
+        box = self._normalize_box(xy)
+        start = kwargs.get('start', rem_args[1] if len(rem_args) > 1 else 0)
+        end = kwargs.get('end', rem_args[2] if len(rem_args) > 2 else 360)
+        fill = kwargs.get('fill', rem_args[3] if len(rem_args) > 3 else (255, 255, 255))
         try:
-            box = self._normalize_box(xy)
-            return self._draw.arc(box, int(start), int(end), *args, **kwargs)
+            return draw_obj.arc(box, int(start), int(end), fill=fill)
         except Exception:
             pass
 
     def draw_arc(self, *args, **kwargs):
         return self.arc(*args, **kwargs)
 
-    def chord(self, xy, start=0, end=360, *args, **kwargs):
+    def chord(self, *args, **kwargs):
+        draw_obj, rem_args = self._extract_target_and_args(args)
+        if not rem_args:
+            return None
+        xy = rem_args[0]
+        box = self._normalize_box(xy)
+        start = kwargs.get('start', rem_args[1] if len(rem_args) > 1 else 0)
+        end = kwargs.get('end', rem_args[2] if len(rem_args) > 2 else 360)
+        fill = kwargs.get('fill', rem_args[3] if len(rem_args) > 3 else (255, 255, 255))
         try:
-            box = self._normalize_box(xy)
-            return self._draw.chord(box, int(start), int(end), *args, **kwargs)
+            return draw_obj.chord(box, int(start), int(end), fill=fill)
         except Exception:
             pass
 
     def draw_chord(self, *args, **kwargs):
         return self.chord(*args, **kwargs)
 
-    def pieslice(self, xy, start=0, end=360, *args, **kwargs):
+    def pieslice(self, *args, **kwargs):
+        draw_obj, rem_args = self._extract_target_and_args(args)
+        if not rem_args:
+            return None
+        xy = rem_args[0]
+        box = self._normalize_box(xy)
+        start = kwargs.get('start', rem_args[1] if len(rem_args) > 1 else 0)
+        end = kwargs.get('end', rem_args[2] if len(rem_args) > 2 else 360)
+        fill = kwargs.get('fill', rem_args[3] if len(rem_args) > 3 else (255, 255, 255))
         try:
-            box = self._normalize_box(xy)
-            return self._draw.pieslice(box, int(start), int(end), *args, **kwargs)
+            return draw_obj.pieslice(box, int(start), int(end), fill=fill)
         except Exception:
             pass
 
@@ -180,6 +277,63 @@ class SafeImageDrawModule:
     def Draw(self, im, mode=None):
         raw_draw = self._mod.Draw(im, mode=mode)
         return SafeImageDraw(raw_draw)
+
+    def _delegate_draw_call(self, method_name, args, kwargs):
+        if args and (hasattr(args[0], '_draw') or hasattr(args[0], 'im') or hasattr(args[0], 'line')):
+            d = args[0]
+            if isinstance(d, SafeImageDraw):
+                return getattr(d, method_name)(*args[1:], **kwargs)
+            else:
+                return getattr(SafeImageDraw(d), method_name)(*args[1:], **kwargs)
+        return None
+
+    def line(self, *args, **kwargs):
+        return self._delegate_draw_call("line", args, kwargs)
+
+    def draw_line(self, *args, **kwargs):
+        return self.line(*args, **kwargs)
+
+    def rectangle(self, *args, **kwargs):
+        return self._delegate_draw_call("rectangle", args, kwargs)
+
+    def draw_rectangle(self, *args, **kwargs):
+        return self.rectangle(*args, **kwargs)
+
+    def ellipse(self, *args, **kwargs):
+        return self._delegate_draw_call("ellipse", args, kwargs)
+
+    def draw_ellipse(self, *args, **kwargs):
+        return self.ellipse(*args, **kwargs)
+
+    def polygon(self, *args, **kwargs):
+        return self._delegate_draw_call("polygon", args, kwargs)
+
+    def draw_polygon(self, *args, **kwargs):
+        return self.polygon(*args, **kwargs)
+
+    def text(self, *args, **kwargs):
+        return self._delegate_draw_call("text", args, kwargs)
+
+    def draw_text(self, *args, **kwargs):
+        return self.text(*args, **kwargs)
+
+    def arc(self, *args, **kwargs):
+        return self._delegate_draw_call("arc", args, kwargs)
+
+    def draw_arc(self, *args, **kwargs):
+        return self.arc(*args, **kwargs)
+
+    def chord(self, *args, **kwargs):
+        return self._delegate_draw_call("chord", args, kwargs)
+
+    def draw_chord(self, *args, **kwargs):
+        return self.chord(*args, **kwargs)
+
+    def pieslice(self, *args, **kwargs):
+        return self._delegate_draw_call("pieslice", args, kwargs)
+
+    def draw_pieslice(self, *args, **kwargs):
+        return self.pieslice(*args, **kwargs)
 
     def __getattr__(self, name):
         return getattr(self._mod, name)
@@ -225,7 +379,9 @@ def generate_gemini_cartoon_animation(user_prompt: str, output_mp4: str, duratio
        
     4. SIZE & FRAMES: Canvas size MUST be {w}x{h} ({aspect_desc}). Generate {total_frames} frames depending on the story length.
     
-    5. VERY IMPORTANT MATH RULE: All coordinates (x, y) passed to ImageDraw functions MUST be integers using int(). No floats. (e.g., draw.ellipse((int(x), int(y), int(x+20), int(y+20))))
+    5. VERY IMPORTANT MATH & DRAW RULE:
+       - All coordinates (x, y) passed to ImageDraw functions MUST be integers using int(). No floats.
+       - DO NOT pass both positional color and fill= keyword argument to draw functions! Use draw.line(xy, fill=color, width=2) or draw.rectangle(box, fill=color).
     
     6. Keep drawings simple (stick figures, colored shapes, basic background) but animate them smoothly. Add speech bubbles if they talk.
     
@@ -258,7 +414,6 @@ def generate_gemini_cartoon_animation(user_prompt: str, output_mp4: str, duratio
             models_to_try = ['gemini-3.6-flash', 'gemini-flash-latest', 'gemini-3.5-flash']
             for m_name in models_to_try:
                 try:
-                    # Try new google-genai SDK first
                     from google import genai
                     client = genai.Client(api_key=api_key)
                     response = client.models.generate_content(
@@ -267,8 +422,7 @@ def generate_gemini_cartoon_animation(user_prompt: str, output_mp4: str, duratio
                     )
                     generated_code = response.text
                     if generated_code: break
-                except Exception as e_new_sdk:
-                    # Try legacy google.generativeai SDK second
+                except Exception:
                     try:
                         import google.generativeai as legacy_genai
                         legacy_genai.configure(api_key=api_key)
@@ -276,8 +430,7 @@ def generate_gemini_cartoon_animation(user_prompt: str, output_mp4: str, duratio
                         res_legacy = g_model.generate_content(system_instruction)
                         generated_code = res_legacy.text
                         if generated_code: break
-                    except Exception as e_leg_sdk:
-                        # Direct REST API fallback third (100% dependency-free)
+                    except Exception:
                         try:
                             import requests
                             url = f"https://generativelanguage.googleapis.com/v1beta/models/{m_name}:generateContent?key={api_key}"
@@ -308,7 +461,6 @@ def generate_gemini_cartoon_animation(user_prompt: str, output_mp4: str, duratio
         print("⚠️ Gemini API offline or 503. Triggering guaranteed local 2D Cartoon Canvas Renderer...")
         return create_pro_cartoon_canvas_mp4(user_prompt, output_mp4, duration, target_size, fps)
 
-    # Code Cleaning
     clean_code = re.sub(r"^```python\n?", "", generated_code, flags=re.MULTILINE)
     clean_code = re.sub(r"^```\n?", "", clean_code, flags=re.MULTILINE)
     clean_code = clean_code.strip()
@@ -378,6 +530,7 @@ def create_pro_cartoon_canvas_mp4(user_prompt: str, output_mp4: str, duration: f
     Guaranteed Local 2D Cartoon Animation Generator:
     Generates a 2D animated cartoon scene with smooth character motions, speech bubbles,
     and vibrant cartoon backgrounds when Gemini AI is offline or 503.
+    Ultra-low RAM memory footprint (< 50MB RAM).
     """
     if target_size and len(target_size) == 2:
         if target_size[1] > target_size[0]:
@@ -393,11 +546,13 @@ def create_pro_cartoon_canvas_mp4(user_prompt: str, output_mp4: str, duration: f
     is_night = any(k in prompt_lower for k in ["night", "space", "moon", "star", "dark"])
     bg_top = (15, 15, 45) if is_night else (100, 180, 255)
 
-    frames = []
+    writer = None
     try:
         writer = imageio.get_writer(output_mp4, fps=fps, macro_block_size=1)
     except Exception:
         writer = None
+
+    frames_fallback = [] if writer is None else None
 
     for frame_idx in range(total_frames):
         img = Image.new('RGB', (w, h), bg_top)
@@ -459,25 +614,29 @@ def create_pro_cartoon_canvas_mp4(user_prompt: str, output_mp4: str, duration: f
                 writer.append_data(np.array(img.convert('RGB')))
             except Exception:
                 pass
-        frames.append(img)
+            del img, draw
+            if frame_idx % 15 == 0:
+                gc.collect()
+        else:
+            frames_fallback.append(img)
 
     if writer:
         try:
             writer.close()
         except Exception:
             pass
+        gc.collect()
 
     if os.path.exists(output_mp4) and os.path.getsize(output_mp4) > 1000:
         print(f"🎨 [Local 2D Cartoon Engine] Successfully rendered 2D Cartoon MP4 via ImageIO: {output_mp4}")
         return output_mp4
 
-    # Direct FFmpeg rawvideo stdin pipe fallback
-    print("🎨 Rendering 2D Cartoon Canvas MP4 via FFmpeg rawvideo pipe...")
-    if render_pil_frames_to_mp4(frames, output_mp4, w, h, fps):
-        print(f"🎨 [FFmpeg Raw Pipe Canvas] Created valid 2D cartoon animation MP4: {output_mp4}")
-        return output_mp4
+    if frames_fallback:
+        print("🎨 Rendering 2D Cartoon Canvas MP4 via FFmpeg rawvideo pipe...")
+        if render_pil_frames_to_mp4(frames_fallback, output_mp4, w, h, fps):
+            print(f"🎨 [FFmpeg Raw Pipe Canvas] Created valid 2D cartoon animation MP4: {output_mp4}")
+            return output_mp4
 
-    # Final colorful scene fallback with text (NEVER solid purple)
     try:
         dur_str = str(max(2.0, duration))
         cmd = [

@@ -499,7 +499,7 @@ def apply_color_filter(pil_img: Image.Image, filter_style: str = "warm_epic") ->
 
     return img
 
-def create_history_spotlight_overlay(base_img: Image.Image, progress: float) -> Image.Image:
+def create_history_spotlight_overlay(base_img: Image.Image, progress: float, dark_bg: Image.Image = None) -> Image.Image:
     """
     Creates the dynamic moving dark mask spotlight reveal animation for History Mode (matching user screenshots 1, 2, 3):
       - Outer region: Darkened monochromatic / vignette overlay (0.28x brightness + desaturated).
@@ -507,12 +507,11 @@ def create_history_spotlight_overlay(base_img: Image.Image, progress: float) -> 
     """
     w, h = base_img.size
     
-    dark_bg = base_img.copy().convert("L").convert("RGB")
-    dark_bg = ImageEnhance.Brightness(dark_bg).enhance(0.28)
+    if dark_bg is None:
+        dark_bg = base_img.convert("L").convert("RGB")
+        dark_bg = ImageEnhance.Brightness(dark_bg).enhance(0.28)
     
-    spotlight_mask = Image.new("L", (w, h), 0)
-    # Fast High-Speed Downscaled Spotlight Mask Calculation (16x Faster Rendering!)
-    mw, mh = w // 4, h // 4
+    mw, mh = max(1, w // 4), max(1, h // 4)
     spotlight_mask = Image.new("L", (mw, mh), 0)
     s_draw = ImageDraw.Draw(spotlight_mask)
     
@@ -612,7 +611,7 @@ def create_ultra_photo_motion_clip(
     photo_path: str,
     fg_photo_path: str = None,
     duration: float = 5.0,
-    size: tuple = (1920, 1080),
+    size: tuple = (540, 960),
     filter_style: str = "warm_epic",
     cutout_pos: str = "left",
     motion_type: str = "zoom_in",
@@ -695,6 +694,9 @@ def create_ultra_photo_motion_clip(
     bg_base_scaled = bg_pil.resize((int(bg_w_fit * 1.25), int(bg_h_fit * 1.25)), Image.LANCZOS)
     bg_w_scaled, bg_h_scaled = bg_base_scaled.size
 
+    dark_bg_full = bg_base_scaled.convert("L").convert("RGB")
+    dark_bg_full = ImageEnhance.Brightness(dark_bg_full).enhance(0.28)
+
     def get_frame(t):
         progress = t / duration if duration > 0 else 0
         
@@ -725,7 +727,8 @@ def create_ultra_photo_motion_clip(
         frame_canvas = bg_base_scaled.crop((crop_x, crop_y, crop_x + w, crop_y + h)).convert("RGBA")
         
         if filter_style in ["warm_epic", "vintage_parchment", "history", "dramatic_cinematic"]:
-            frame_canvas = create_history_spotlight_overlay(frame_canvas, progress)
+            dark_crop = dark_bg_full.crop((crop_x, crop_y, crop_x + w, crop_y + h))
+            frame_canvas = create_history_spotlight_overlay(frame_canvas, progress, dark_bg=dark_crop)
         
         if has_cutout and fg_resized:
             cur_fg_w = fg_resized.width
@@ -863,7 +866,7 @@ def merge_and_export(
                     audio_codec="aac",
                     fps=15,
                     preset="ultrafast",
-                    threads=2,
+                    threads=1,
                     ffmpeg_params=["-crf", "26", "-pix_fmt", "yuv420p"],
                     logger=None
                 )
@@ -1070,7 +1073,7 @@ def merge_and_export(
                 audio_codec="aac", 
                 fps=15, 
                 preset="ultrafast", 
-                threads=2, 
+                threads=1, 
                 ffmpeg_params=["-crf", "28", "-pix_fmt", "yuv420p"],
                 logger=None
             )
