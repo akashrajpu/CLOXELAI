@@ -3309,57 +3309,24 @@ def generate_ai_script_core(topic: str, duration: int, video_type: str = "short"
     scene_count = max(1, duration // 10)
     word_count = int(duration * 2.7)
 
-    # 0. Attempt External AI Microservice (https://ai-script-generator-service.onrender.com)
-    raw_env_url = os.getenv("AI_SERVER_URL", "").rstrip("/")
-    candidate_urls = [
-        "https://ai-script-generator-service.onrender.com",
-        "https://ai-script-generator-service-production.up.railway.app",
-        raw_env_url if raw_env_url else ""
-    ]
-    seen = set()
-    ai_server_urls = [u for u in candidate_urls if u and not (u in seen or seen.add(u))]
-
-    payload = {
-        "topic": topic,
-        "category": category,
-        "duration_seconds": duration,
-        "video_type": video_type,
-        "language": language,
-        "tone": tone
-    }
-
-    for base_url in ai_server_urls:
-        for endpoint in ["/api/generate-ai-script", "/generate-script"]:
-            target_url = f"{base_url}{endpoint}"
-            try:
-                resp = requests.post(target_url, json=payload, timeout=20.0)
-                if resp.status_code == 200:
-                    data = resp.json()
-                    full_script = data.get("full_script") or data.get("script") or ""
-                    scenes = data.get("scenes") or []
-                    if full_script or scenes:
-                        title_gen, desc_gen = build_youtube_metadata(topic=topic, full_script=full_script, video_type=video_type)
-                        print(f"✅ External AI Script Microservice Success ({target_url})!")
-                        return {
-                            "status": "success",
-                            "source": f"external_ai_service ({target_url})",
-                            "topic": topic,
-                            "duration_seconds": duration,
-                            "video_type": video_type,
-                            "language": language,
-                            "tone": tone,
-                            "estimated_word_count": word_count,
-                            "full_script": full_script,
-                            "scenes": scenes,
-                            "title": title_gen,
-                            "description": desc_gen
-                        }
-            except Exception as e_ext:
-                print(f"⚠️ External AI Microservice ({target_url}) Notice: {e_ext}")
-                continue
-
-    # 1. Collect all Gemini API Keys from environment
+    # 1. Collect Gemini API Keys from environment & config.env
     keys = []
+    gemini_key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY") or os.getenv("AI_API_KEY")
+    if not gemini_key and os.path.exists("config.env"):
+        try:
+            with open("config.env", "r") as f:
+                for line in f:
+                    line_s = line.strip()
+                    if line_s.startswith("GEMINI_API_KEY=") or line_s.startswith("AI_API_KEY=") or line_s.startswith("GOOGLE_API_KEY="):
+                        val = line_s.split("=", 1)[1].strip()
+                        if val and not val.startswith("your_"):
+                            gemini_key = val
+                            break
+        except Exception:
+            pass
+
+    if gemini_key:
+        keys.append(gemini_key)
     for k_name in ["GEMINI_API_KEY", "GOOGLE_API_KEY", "AI_API_KEY"]:
         val = os.getenv(k_name)
         if val and val.strip() and val.strip() not in keys:
