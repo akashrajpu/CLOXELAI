@@ -17,102 +17,157 @@ class SafeImageDraw:
     def __init__(self, draw_obj):
         self._draw = draw_obj
 
-    def _clean_xy(self, xy):
-        if isinstance(xy, (list, tuple)):
-            res = []
+    def _normalize_box(self, xy):
+        if isinstance(xy, (tuple, list)):
+            flat = []
             for item in xy:
-                if isinstance(item, (list, tuple)):
-                    res.append(tuple(int(v) for v in item))
+                if isinstance(item, (tuple, list)):
+                    flat.extend(item)
                 elif isinstance(item, (int, float)):
-                    res.append(int(item))
+                    flat.append(int(item))
                 else:
-                    res.append(item)
-            return tuple(res) if isinstance(xy, tuple) else res
+                    try:
+                        flat.append(int(item))
+                    except Exception:
+                        pass
+            if len(flat) == 2:
+                x, y = flat
+                return [(x - 10, y - 10), (x + 10, y + 10)]
+            elif len(flat) == 3:
+                x, y, r = flat
+                return [(x - r, y - r), (x + r, y + r)]
+            elif len(flat) >= 4:
+                return [(flat[0], flat[1]), (flat[2], flat[3])]
+        return xy
+
+    def _normalize_points(self, xy):
+        if isinstance(xy, (tuple, list)):
+            flat = []
+            for item in xy:
+                if isinstance(item, (tuple, list)):
+                    flat.extend(item)
+                elif isinstance(item, (int, float)):
+                    flat.append(int(item))
+                else:
+                    try:
+                        flat.append(int(item))
+                    except Exception:
+                        pass
+            if len(flat) >= 4:
+                return [(flat[i], flat[i+1]) for i in range(0, len(flat)-1, 2)]
+            elif len(flat) == 2:
+                x, y = flat
+                return [(x, y), (x + 10, y + 10)]
         return xy
 
     def line(self, xy, *args, **kwargs):
         try:
-            xy = self._clean_xy(xy)
-            if 'fill' in kwargs and len(args) > 0:
-                args = ()
-            return self._draw.line(xy, *args, **kwargs)
+            pts = self._normalize_points(xy)
+            fill = kwargs.get('fill') or (args[0] if len(args) > 0 else (255, 255, 255))
+            width = kwargs.get('width') or (args[1] if len(args) > 1 and isinstance(args[1], (int, float)) else 1)
+            return self._draw.line(pts, fill=fill, width=int(width))
         except Exception:
             try:
-                fill = kwargs.get('fill', (255, 255, 255))
-                width = int(kwargs.get('width', 1))
-                return self._draw.line(xy, fill=fill, width=width)
+                pts = self._normalize_points(xy)
+                return self._draw.line(pts, fill=(255, 255, 255), width=1)
             except Exception:
                 pass
+
+    def draw_line(self, *args, **kwargs):
+        return self.line(*args, **kwargs)
 
     def rectangle(self, xy, *args, **kwargs):
         try:
-            xy = self._clean_xy(xy)
-            if 'fill' in kwargs and len(args) > 0:
-                args = ()
-            return self._draw.rectangle(xy, *args, **kwargs)
+            box = self._normalize_box(xy)
+            fill = kwargs.get('fill') or (args[0] if len(args) > 0 else None)
+            outline = kwargs.get('outline') or (args[1] if len(args) > 1 else None)
+            return self._draw.rectangle(box, fill=fill, outline=outline)
         except Exception:
             try:
-                fill = kwargs.get('fill', (100, 100, 100))
-                return self._draw.rectangle(xy, fill=fill)
+                box = self._normalize_box(xy)
+                return self._draw.rectangle(box, fill=(100, 100, 100))
             except Exception:
                 pass
+
+    def draw_rectangle(self, *args, **kwargs):
+        return self.rectangle(*args, **kwargs)
 
     def ellipse(self, xy, *args, **kwargs):
         try:
-            xy = self._clean_xy(xy)
-            if 'fill' in kwargs and len(args) > 0:
-                args = ()
-            return self._draw.ellipse(xy, *args, **kwargs)
+            box = self._normalize_box(xy)
+            fill = kwargs.get('fill') or (args[0] if len(args) > 0 else None)
+            outline = kwargs.get('outline') or (args[1] if len(args) > 1 else None)
+            return self._draw.ellipse(box, fill=fill, outline=outline)
         except Exception:
             try:
-                fill = kwargs.get('fill', (200, 200, 200))
-                return self._draw.ellipse(xy, fill=fill)
+                box = self._normalize_box(xy)
+                return self._draw.ellipse(box, fill=(200, 200, 200))
             except Exception:
                 pass
+
+    def draw_ellipse(self, *args, **kwargs):
+        return self.ellipse(*args, **kwargs)
 
     def polygon(self, xy, *args, **kwargs):
         try:
-            xy = self._clean_xy(xy)
-            if 'fill' in kwargs and len(args) > 0:
-                args = ()
-            return self._draw.polygon(xy, *args, **kwargs)
+            pts = self._normalize_points(xy)
+            fill = kwargs.get('fill') or (args[0] if len(args) > 0 else None)
+            outline = kwargs.get('outline') or (args[1] if len(args) > 1 else None)
+            return self._draw.polygon(pts, fill=fill, outline=outline)
         except Exception:
             try:
-                fill = kwargs.get('fill', (150, 150, 150))
-                return self._draw.polygon(xy, fill=fill)
+                pts = self._normalize_points(xy)
+                return self._draw.polygon(pts, fill=(150, 150, 150))
             except Exception:
                 pass
 
-    def text(self, xy, text, *args, **kwargs):
+    def draw_polygon(self, *args, **kwargs):
+        return self.polygon(*args, **kwargs)
+
+    def text(self, xy, text="", *args, **kwargs):
         try:
-            xy = self._clean_xy(xy)
-            return self._draw.text(xy, str(text), *args, **kwargs)
+            pts = self._normalize_points(xy)
+            pos = pts[0] if isinstance(pts, (list, tuple)) and len(pts) > 0 else (20, 20)
+            fill = kwargs.get('fill') or (args[0] if len(args) > 0 else (255, 255, 255))
+            return self._draw.text(pos, str(text), fill=fill)
         except Exception:
             try:
-                return self._draw.text(xy, str(text), fill=(255, 255, 255))
+                return self._draw.text((20, 20), str(text), fill=(255, 255, 255))
             except Exception:
                 pass
 
-    def arc(self, xy, start, end, *args, **kwargs):
+    def draw_text(self, *args, **kwargs):
+        return self.text(*args, **kwargs)
+
+    def arc(self, xy, start=0, end=360, *args, **kwargs):
         try:
-            xy = self._clean_xy(xy)
-            return self._draw.arc(xy, int(start), int(end), *args, **kwargs)
+            box = self._normalize_box(xy)
+            return self._draw.arc(box, int(start), int(end), *args, **kwargs)
         except Exception:
             pass
 
-    def chord(self, xy, start, end, *args, **kwargs):
+    def draw_arc(self, *args, **kwargs):
+        return self.arc(*args, **kwargs)
+
+    def chord(self, xy, start=0, end=360, *args, **kwargs):
         try:
-            xy = self._clean_xy(xy)
-            return self._draw.chord(xy, int(start), int(end), *args, **kwargs)
+            box = self._normalize_box(xy)
+            return self._draw.chord(box, int(start), int(end), *args, **kwargs)
         except Exception:
             pass
 
-    def pieslice(self, xy, start, end, *args, **kwargs):
+    def draw_chord(self, *args, **kwargs):
+        return self.chord(*args, **kwargs)
+
+    def pieslice(self, xy, start=0, end=360, *args, **kwargs):
         try:
-            xy = self._clean_xy(xy)
-            return self._draw.pieslice(xy, int(start), int(end), *args, **kwargs)
+            box = self._normalize_box(xy)
+            return self._draw.pieslice(box, int(start), int(end), *args, **kwargs)
         except Exception:
             pass
+
+    def draw_pieslice(self, *args, **kwargs):
+        return self.pieslice(*args, **kwargs)
 
     def __getattr__(self, name):
         return getattr(self._draw, name)
