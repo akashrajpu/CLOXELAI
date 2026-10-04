@@ -3309,7 +3309,58 @@ def generate_ai_script_core(topic: str, duration: int, video_type: str = "short"
     scene_count = max(1, duration // 10)
     word_count = int(duration * 2.7)
 
-    # 1. Collect Gemini API Keys from environment & config.env
+    # 0. Primary Call: External AI Microservice (https://ai-script-generator-service.onrender.com)
+    raw_env_url = os.getenv("AI_SERVER_URL", "").rstrip("/")
+    candidate_urls = [
+        "https://ai-script-generator-service.onrender.com",
+        "https://ai-script-generator-service-production.up.railway.app",
+        raw_env_url if raw_env_url else ""
+    ]
+    seen = set()
+    ai_server_urls = [u for u in candidate_urls if u and not (u in seen or seen.add(u))]
+
+    payload = {
+        "topic": topic,
+        "category": category,
+        "duration_seconds": duration,
+        "video_type": video_type,
+        "language": language,
+        "tone": tone
+    }
+
+    for base_url in ai_server_urls:
+        for endpoint in ["/api/generate-ai-script", "/generate-script", "/api/generate-script"]:
+            target_url = f"{base_url}{endpoint}"
+            try:
+                resp = requests.post(target_url, json=payload, timeout=12.0)
+                if resp.status_code == 200:
+                    data = resp.json()
+                    full_script = data.get("full_script") or data.get("script") or ""
+                    scenes = data.get("scenes") or []
+                    if full_script or scenes:
+                        title_gen, desc_gen = build_youtube_metadata(topic=topic, full_script=full_script, video_type=video_type)
+                        print(f"✅ External AI Microservice Script Success ({target_url})!")
+                        return {
+                            "status": "success",
+                            "source": f"external_ai_service ({target_url})",
+                            "topic": topic,
+                            "duration_seconds": duration,
+                            "video_type": video_type,
+                            "language": language,
+                            "tone": tone,
+                            "estimated_word_count": word_count,
+                            "full_script": full_script,
+                            "scenes": scenes,
+                            "title": title_gen,
+                            "description": desc_gen
+                        }
+            except Exception as e_ext:
+                print(f"⚠️ External AI Microservice ({target_url}) Notice: {e_ext}")
+                continue
+
+    print("ℹ️ Microservice offline or fallback triggered. Using direct Gemini AI Script Engine...")
+
+    # 1. Fallback Attempt: Collect Gemini API Keys from environment & config.env
     keys = []
     gemini_key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY") or os.getenv("AI_API_KEY")
     if not gemini_key and os.path.exists("config.env"):
@@ -3340,36 +3391,45 @@ def generate_ai_script_core(topic: str, duration: int, video_type: str = "short"
     words_in_topic = [w.lower() for w in topic.split() if w.isalpha()]
     is_single_character_name = len(words_in_topic) <= 2 and not any(w in stop_words_check for w in words_in_topic)
 
-    if video_type == "ultra" and is_cartoon_cat:
+    if video_type == "short":
+        type_specific_prompt = (
+            f"\nSPECIAL SHORT VIDEO REQUIREMENT:\n"
+            f"Write a CONCISE, fast-paced, highly logical SHORT video script (approx {duration}s). "
+            f"Focus on a super quick hook, crisp logical facts, and an engaging conclusion suitable for Youtube Shorts / Instagram Reels.\n"
+        )
+    elif video_type == "long":
+        type_specific_prompt = (
+            f"\nSPECIAL LONG DOCUMENTARY REQUIREMENT:\n"
+            f"Write a deeply detailed, comprehensive HISTORICAL & STORYTELLING narrative script (approx {duration}s). "
+            f"Cover full historical background, key events, deep insights, and a complete documentary conclusion.\n"
+        )
+    elif video_type == "ultra" and is_cartoon_cat:
         if is_single_character_name:
-            ultra_special_prompt = (
+            type_specific_prompt = (
                 f"\nSPECIAL ULTRA CARTOON CHARACTER STORY (KAHANI/CHUTKULA) MODE:\n"
                 f"The topic is a character name '{topic}'. Write a super funny, hilarious, comedic 2D cartoon story script (Kahani / Kissa / Comedy Chutkula) about {topic}.\n"
                 f"Show {topic}'s hilarious daily struggles, a crazy funny Jugaad/experiment gone wrong, funny cartoon dialogues, and a laugh-out-loud funny ending!\n"
-                f"Make it sound like a funny animated story that will make kids and adults laugh out loud.\n"
             )
         else:
-            ultra_special_prompt = (
+            type_specific_prompt = (
                 f"\nSPECIAL ULTRA CARTOON KAHANI (STORY) MODE REQUIREMENT:\n"
                 f"This is an ULTRA Cartoon & Animation video. Write an entertaining, creative, dramatic, and fun ANIMATED STORY (KAHANI) script about '{topic}'.\n"
-                f"The script MUST be structured like an engaging 2D cartoon story (Kahani) with relatable animated characters, fun dialogues/actions, plot twist/adventure, and a satisfying moral or funny story conclusion.\n"
-                f"Do NOT write a factual documentary or boring facts. Make it a complete, entertaining 2D cartoon story script (Kahani) with rich character storytelling.\n"
+                f"Structure it like an engaging 2D cartoon story with characters, fun dialogues/actions, plot twist, and satisfying conclusion.\n"
             )
     elif video_type == "ultra":
-        ultra_special_prompt = (
+        type_specific_prompt = (
             f"\nSPECIAL ULTRA MODE REQUIREMENT:\n"
-            f"This is an ULTRA premium documentary video. Write a rich, deeply informative, and complete narrative script.\n"
-            f"Do NOT output short title fragments or half-baked sentences.\n"
-            f"Each scene text MUST contain 2-3 complete, highly engaging, informative spoken sentences explaining the history, key achievements, and full story of '{topic}'.\n"
+            f"This is an ULTRA premium video. Write a rich, deeply informative narrative script about '{topic}'.\n"
+            f"Each scene text MUST contain 2-3 complete, highly engaging spoken sentences with full visual context.\n"
         )
     else:
-        ultra_special_prompt = ""
+        type_specific_prompt = ""
 
     prompt = (
         f"You are a master viral video scriptwriter. Write a COMPLETE, fully-resolved video script about '{topic}' "
         f"in {language} language. Video type: {video_type.upper()} ({duration} seconds, approx {word_count} spoken words).\n"
         f"CRITICAL REQUIREMENT: The script MUST be 100% complete with a clear Hook, Full Story/Information, and a Satisfying Conclusion. "
-        f"Do NOT leave the explanation half-done or cut off mid-sentence.{ultra_special_prompt}\n"
+        f"Do NOT leave the explanation half-done.{type_specific_prompt}\n"
         f"Format requirement: Return ONLY a valid JSON object with:\n"
         f"1. 'full_script': The complete spoken voiceover text covering the full story from hook to conclusion.\n"
         f"2. 'scenes': An array of exactly {scene_count} complete sentence scene objects, each containing:\n"
