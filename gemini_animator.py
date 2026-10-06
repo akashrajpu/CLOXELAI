@@ -350,6 +350,18 @@ def generate_gemini_cartoon_animation(user_prompt: str, output_mp4: str, duratio
         print("⚠️ GEMINI_API_KEY / GOOGLE_API_KEY environment variable not set. Skipping AI animation generation.")
         return None
 
+    # ENFORCE USER QUOTA POLICY: ONLY allow API usage if triggered by Auto Schedule!
+    import inspect
+    is_auto_schedule = False
+    for frame_record in inspect.stack():
+        if "process_single_user_schedule" in frame_record.function or "auto_schedule" in frame_record.function.lower():
+            is_auto_schedule = True
+            break
+            
+    if not is_auto_schedule:
+        print("🛑 [API Quota Protection] Blocking Gemini API call for MANUAL Ultra Cartoon request. API will ONLY be used for Auto-Scheduled videos.")
+        return None  # Triggers local 2D Canvas emergency fallback instead!
+
     if target_size and len(target_size) == 2:
         if target_size[1] > target_size[0]:
             w, h = (360, 640)

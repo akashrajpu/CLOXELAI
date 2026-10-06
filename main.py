@@ -3425,59 +3425,8 @@ def generate_ai_script_core(topic: str, duration: int, video_type: str = "short"
     else:
         type_specific_prompt = ""
 
-    prompt = (
-        f"You are a master viral video scriptwriter. Write a COMPLETE, fully-resolved video script about '{topic}' "
-        f"in {language} language. Video type: {video_type.upper()} ({duration} seconds, approx {word_count} spoken words).\n"
-        f"CRITICAL REQUIREMENT: The script MUST be 100% complete with a clear Hook, Full Story/Information, and a Satisfying Conclusion. "
-        f"Do NOT leave the explanation half-done.{type_specific_prompt}\n"
-        f"Format requirement: Return ONLY a valid JSON object with:\n"
-        f"1. 'full_script': The complete spoken voiceover text covering the full story from hook to conclusion.\n"
-        f"2. 'scenes': An array of exactly {scene_count} complete sentence scene objects, each containing:\n"
-        f"   - 'text': 2-3 complete, detailed, well-formed sentences with full stops.\n"
-        f"   - 'keyword': 1-2 relevant visual search terms for background clips.\n"
-        f"Do not include markdown triple backticks or text outside JSON."
-    )
-
-    # 1. Attempt Gemini API models
-    for gemini_key in keys:
-        for model_name in models:
-            url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={gemini_key}"
-            try:
-                resp = requests.post(
-                    url,
-                    json={"contents": [{"parts": [{"text": prompt}]}]},
-                    headers={"Content-Type": "application/json"},
-                    timeout=10.0
-                )
-                if resp.status_code == 200:
-                    res_body = resp.json()
-                    raw_text = res_body['candidates'][0]['content']['parts'][0]['text'].strip()
-                    if raw_text.startswith("```"):
-                        raw_text = raw_text.split("```")[1]
-                        if raw_text.startswith("json"):
-                            raw_text = raw_text[4:].strip()
-                    parsed = json.loads(raw_text)
-                    script_text = parsed.get("full_script", "")
-                    scenes = parsed.get("scenes", [])
-                    if script_text or scenes:
-                        title_gen, desc_gen = build_youtube_metadata(topic=topic, full_script=script_text, video_type=video_type)
-                        print(f"✅ Gemini AI Script Generation Success ({model_name})!")
-                        return {
-                            "status": "success",
-                            "source": f"gemini_ai ({model_name})",
-                            "topic": topic,
-                            "duration_seconds": duration,
-                            "video_type": video_type,
-                            "language": language,
-                            "tone": tone,
-                            "estimated_word_count": word_count,
-                            "full_script": script_text,
-                            "scenes": scenes,
-                            "title": title_gen,
-                            "description": desc_gen
-                        }
-            except Exception as err:
-                continue
+    # Gemini API script generation has been disabled as per user request to save API quota.
+    # We will now directly fall back to the offline factual/web research script engine.
 
     # 2. Attempt Web Research / Factual Wikipedia & Topic Analysis Engine
     research_summary = None
