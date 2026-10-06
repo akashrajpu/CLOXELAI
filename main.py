@@ -3319,8 +3319,22 @@ def generate_ai_script_core(topic: str, duration: int, video_type: str = "short"
     seen = set()
     ai_server_urls = [u for u in candidate_urls if u and not (u in seen or seen.add(u))]
 
+    cat_lower = str(category).lower()
+    is_cartoon_cat = any(k in cat_lower for k in ["cartoon", "anime", "animation", "character", "comic"])
+    instruction_topic = topic
+    
+    if video_type == "short":
+        instruction_topic = f"{topic} [Strict: Ignore category. Write a concise, fast-paced short script.]"
+    elif video_type == "long":
+        instruction_topic = f"{topic} [Strict: Write a detailed explainer script explaining this topic thoroughly.]"
+    elif video_type == "ultra":
+        if is_cartoon_cat:
+            instruction_topic = f"{topic} [Strict: Write an entertaining cartoon story / kahani script.]"
+        else:
+            instruction_topic = f"{topic} [Strict: Write a narrative script strictly in the style of category '{category}'.]"
+
     payload = {
-        "topic": topic,
+        "topic": instruction_topic,
         "category": category,
         "duration_seconds": duration,
         "video_type": video_type,
