@@ -3383,7 +3383,7 @@ def generate_ai_script_core(topic: str, duration: int, video_type: str = "short"
         if val and val.strip() and val.strip() not in keys:
             keys.append(val.strip())
 
-    models = ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-1.5-pro", "gemini-pro"]
+    models = ["gemini-3.6-flash", "gemini-flash-latest", "gemini-3.5-flash", "gemini-2.5-flash"]
     cat_lower = str(category).lower()
     is_cartoon_cat = any(k in cat_lower for k in ["cartoon", "anime", "animation", "character", "comic"])
 

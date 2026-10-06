@@ -450,6 +450,10 @@ def generate_gemini_cartoon_animation(user_prompt: str, output_mp4: str, duratio
             if generated_code:
                 print(f"   ✅ Gemini API returned animation code ({len(generated_code)} chars)")
                 break
+            else:
+                import time
+                print(f"⚠️ Gemini API failed to return code. Sleeping before next attempt...")
+                time.sleep(3)
         except Exception as api_err:
             print(f"⚠️ Gemini Animation API attempt {attempt+1}/{max_retries} warning: {api_err}")
             if "503" in str(api_err) or "429" in str(api_err):
