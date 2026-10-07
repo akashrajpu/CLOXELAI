@@ -411,7 +411,7 @@ def generate_gemini_cartoon_animation(user_prompt: str, output_mp4: str, duratio
     for attempt in range(max_retries):
         try:
             print(f"   🤖 Calling Gemini API (attempt {attempt+1}/{max_retries})...")
-            models_to_try = ['gemini-3.6-flash', 'gemini-flash-latest', 'gemini-3.5-flash', 'gemini-2.5-flash', 'gemini-2.5-pro']
+            models_to_try = ['gemini-3.8-flash', 'gemini-3.6-flash', 'gemini-flash-latest', 'gemini-3.5-flash', 'gemini-3.1-pro-preview']
             for m_name in models_to_try:
                 try:
                     from google import genai
