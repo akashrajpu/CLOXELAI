@@ -409,57 +409,37 @@ def generate_gemini_cartoon_animation(user_prompt: str, output_mp4: str, duratio
     generated_code = ""
     max_retries = 3
     for attempt in range(max_retries):
-        try:
-            print(f"   🤖 Calling Gemini API (attempt {attempt+1}/{max_retries})...")
-            models_to_try = ['gemini-3.8-flash', 'gemini-3.6-flash', 'gemini-flash-latest', 'gemini-3.5-flash', 'gemini-3.1-pro-preview']
-            for m_name in models_to_try:
-                try:
-                    from google import genai
-                    client = genai.Client(api_key=api_key)
-                    response = client.models.generate_content(
-                        model=m_name,
-                        contents=system_instruction,
-                    )
-                    generated_code = response.text
-                    if generated_code: break
-                except Exception:
-                    try:
-                        import google.generativeai as legacy_genai
-                        legacy_genai.configure(api_key=api_key)
-                        g_model = legacy_genai.GenerativeModel(m_name)
-                        res_legacy = g_model.generate_content(system_instruction)
-                        generated_code = res_legacy.text
-                        if generated_code: break
-                    except Exception:
-                        try:
-                            import requests
-                            url = f"https://generativelanguage.googleapis.com/v1beta/models/{m_name}:generateContent?key={api_key}"
-                            payload = {"contents": [{"parts": [{"text": system_instruction}]}]}
-                            r_rest = requests.post(url, json=payload, timeout=25)
-                            if r_rest.status_code == 200:
-                                r_data = r_rest.json()
-                                candidates = r_data.get("candidates", [])
-                                if candidates and "content" in candidates[0]:
-                                    parts = candidates[0]["content"].get("parts", [])
-                                    if parts:
-                                        generated_code = parts[0].get("text", "")
-                                        if generated_code: break
-                        except Exception:
-                            pass
-
-            if generated_code:
-                print(f"   ✅ Gemini API returned animation code ({len(generated_code)} chars)")
-                break
-            else:
-                import time
-                print(f"⚠️ Gemini API failed to return code. Sleeping before next attempt...")
-                time.sleep(3)
-        except Exception as api_err:
-            print(f"⚠️ Gemini Animation API attempt {attempt+1}/{max_retries} warning: {api_err}")
-            if "503" in str(api_err) or "429" in str(api_err):
-                time.sleep(2)
-            else:
-                break
+        print(f"   🤖 Calling Gemini API (attempt {attempt+1}/{max_retries})...")
+        models_to_try = ['gemini-3.8-flash', 'gemini-3.6-flash', 'gemini-flash-latest', 'gemini-3.5-flash', 'gemini-3.1-pro-preview']
+        used_model = None
+        for m_name in models_to_try:
+            try:
+                import requests
+                url = f"https://generativelanguage.googleapis.com/v1beta/models/{m_name}:generateContent?key={api_key}"
+                payload = {"contents": [{"parts": [{"text": system_instruction}]}]}
+                r_rest = requests.post(url, json=payload, timeout=12.0)
+                if r_rest.status_code == 200:
+                    r_data = r_rest.json()
+                    candidates = r_data.get("candidates", [])
+                    if candidates and "content" in candidates[0]:
+                        parts = candidates[0]["content"].get("parts", [])
+                        if parts:
+                            generated_code = parts[0].get("text", "")
+                            if generated_code: 
+                                used_model = m_name
+                                break
+                else:
+                    print(f"      ⚠️ Model {m_name} failed (HTTP {r_rest.status_code}) - skipping...")
+            except Exception as e:
+                print(f"      ⚠️ Model {m_name} exception: {e} - skipping...")
+                
+        if generated_code:
+            print(f"   ✅ Gemini API returned animation code ({len(generated_code)} chars) using model: {used_model}")
+            break
+        else:
+            import time
+            print(f"⚠️ All Gemini models failed on attempt {attempt+1}. Sleeping 2s before retry...")
+            time.sleep(2)
 
     if not generated_code:
         print("⚠️ Gemini API offline or 503. Triggering guaranteed local 2D Cartoon Canvas Renderer...")
