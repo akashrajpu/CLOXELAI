@@ -437,7 +437,6 @@ def generate_gemini_cartoon_animation(user_prompt: str, output_mp4: str, duratio
             print(f"   ✅ Gemini API returned animation code ({len(generated_code)} chars) using model: {used_model}")
             break
         else:
-            import time
             print(f"⚠️ All Gemini models failed on attempt {attempt+1}. Sleeping 2s before retry...")
             time.sleep(2)
 
