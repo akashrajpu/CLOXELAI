@@ -2459,11 +2459,11 @@ function App() {
               {customAlert.icon || '⚠️'}
             </div>
             
-            <h3 style={{ color: customAlert.type === 'danger' ? '#ef4444' : (customAlert.type === 'success' ? '#22c55e' : '#ffffff'), fontSize: '1.4rem', fontWeight: '800', marginBottom: '12px' }}>
+            <h3 style={{ textAlign: 'center', color: customAlert.type === 'danger' ? '#ef4444' : (customAlert.type === 'success' ? '#22c55e' : '#ffffff'), fontSize: '1.4rem', fontWeight: '800', marginBottom: '12px' }}>
               {customAlert.title}
             </h3>
             
-            <div style={{ color: '#e2e8f0', fontSize: '0.92rem', lineHeight: '1.55', marginBottom: '28px', whiteSpace: 'pre-line' }}>
+            <div style={{ textAlign: 'center', color: '#e2e8f0', fontSize: '0.92rem', lineHeight: '1.55', marginBottom: '28px', whiteSpace: 'pre-line' }}>
               {customAlert.message}
             </div>
 
