@@ -774,9 +774,14 @@ def merge_and_export(
 
     cat_lower = str(category).lower()
     is_cartoon_cat = any(k in cat_lower for k in ["cartoon", "anime", "animation", "character", "comic"])
+    is_world_news_cat = any(k in cat_lower for k in ["world news", "geopolitics", "news"])
 
-    if mode == "ultra" and is_cartoon_cat:
-        print(f"\n🎬 [Ultra Cartoon Single-API Engine] Triggering 1 SINGLE Gemini API Call for full video ({len(scene_list)} scenes)...")
+    if mode == "ultra" and (is_cartoon_cat or is_world_news_cat):
+        if is_world_news_cat:
+            print(f"\n🌍 [Ultra World News Engine] Triggering WebGL API Call for full video ({len(scene_list)} scenes)...")
+        else:
+            print(f"\n🎬 [Ultra Cartoon Single-API Engine] Triggering 1 SINGLE Gemini API Call for full video ({len(scene_list)} scenes)...")
+            
         scene_durations = []
         start_frames = []
         end_frames = []
@@ -808,10 +813,23 @@ def merge_and_export(
             prompt_lines.append(f"Scene {idx+1} (Frames {start_frames[-1]} to {end_frames[-1]}, Duration {sc_dur:.1f}s): Dialogue & Action: '{sc_text}'")
 
         full_prompt_story = "\n".join(prompt_lines)
-        full_anim_mp4 = os.path.join(job_dir, "gemini_full_cartoon_video.mp4")
+        full_anim_mp4 = os.path.join(job_dir, "gemini_full_ultra_video.mp4")
         anim_result = None
 
-        if generate_gemini_cartoon_animation:
+        if is_world_news_cat:
+            try:
+                from world_news_ultra_engine import generate_world_news_ultra_video
+                print(f"🌍 [Ultra World News Engine] Requesting WebGL MP4 ({total_audio_duration:.1f}s total)...")
+                anim_result = generate_world_news_ultra_video(
+                    user_prompt=full_prompt_story,
+                    output_mp4=full_anim_mp4,
+                    duration=total_audio_duration,
+                    target_size=target_size,
+                    fps=60
+                )
+            except ImportError:
+                print("⚠️ world_news_ultra_engine not found! Falling back.")
+        elif generate_gemini_cartoon_animation:
             print(f"🤖 [Single Gemini API Call] Requesting 1 full 2D Cartoon Animation MP4 ({total_audio_duration:.1f}s total)...")
             anim_result = generate_gemini_cartoon_animation(
                 user_prompt=full_prompt_story,
@@ -822,7 +840,7 @@ def merge_and_export(
             )
 
         if not anim_result or not os.path.exists(anim_result) or os.path.getsize(anim_result) < 500:
-            print(f"⚠️ Generating emergency cartoon 2D canvas MP4 -> {full_anim_mp4}...")
+            print(f"⚠️ Generating emergency fallback 2D canvas MP4 -> {full_anim_mp4}...")
             from gemini_animator import create_pro_cartoon_canvas_mp4
             anim_result = create_pro_cartoon_canvas_mp4(
                 user_prompt=full_prompt_story,
