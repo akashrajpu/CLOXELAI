@@ -1334,9 +1334,10 @@ def full_process(req: VideoRequest, job_id: str):
             
             cat_lower_req = str(req.category).lower()
             is_cartoon_req = any(k in cat_lower_req for k in ["cartoon", "anime", "animation", "character", "comic"])
+            is_world_news_req = any(k in cat_lower_req for k in ["world news", "geopolitics", "news"])
 
-            if is_ultra and is_cartoon_req:
-                print(f"🎨 [Ultra Cartoon Scene {i+1}] Pure AI Cartoon Mode. Skipping web photo downloads; Cloxel AI Director will generate 2D Cartoon scene from script!")
+            if is_ultra and (is_cartoon_req or is_world_news_req):
+                print(f"🎨 [Ultra Scene {i+1}] Pure AI Render Mode (Cartoon/WebGL). Skipping web photo downloads; Cloxel AI Director will generate scene directly from script!")
                 v_paths = []
             elif is_ultra and fetch_web_image:
                 try:
