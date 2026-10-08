@@ -22,3 +22,5 @@ gTTS
 google-genai
 google-generativeai
 qrcode
+selenium
+webdriver_manager
