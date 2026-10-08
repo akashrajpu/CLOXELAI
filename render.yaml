@@ -2,7 +2,7 @@ services:
   - type: web
     name: cloxel-ai-studio
     env: python
-    buildCommand: ./render-build.sh
+    buildCommand: pip install -r requirements.txt
     startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
     envVars:
       - key: REMOVE_BG_API_KEY
