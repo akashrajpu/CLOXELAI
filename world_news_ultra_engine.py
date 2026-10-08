@@ -100,6 +100,8 @@ Output ONLY the complete, copy-paste ready, single-file HTML code without placeh
 
     options = Options()
     options.add_argument("--headless=new")
+    options.add_argument("--no-sandbox")
+    options.add_argument("--disable-dev-shm-usage")
     options.add_argument(f"--window-size={w},{h}")
     options.add_experimental_option("prefs", {
       "download.default_directory": download_dir,
@@ -107,7 +109,17 @@ Output ONLY the complete, copy-paste ready, single-file HTML code without placeh
     })
     
     try:
-        service = Service(ChromeDriverManager().install())
+        import shutil
+        system_driver = shutil.which("chromedriver")
+        if system_driver:
+            print(f"   ⚙️ Using system chromedriver at {system_driver}")
+            service = Service(system_driver)
+            sys_browser = shutil.which("chromium-browser") or shutil.which("google-chrome")
+            if sys_browser:
+                options.binary_location = sys_browser
+        else:
+            service = Service(ChromeDriverManager().install())
+            
         driver = webdriver.Chrome(service=service, options=options)
         driver.get("file://" + os.path.abspath(html_path))
         
