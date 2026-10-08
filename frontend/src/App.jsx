@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import Auth from './Auth';
 import YouTubeIntegration from './YouTubeIntegration';
+import { Smartphone, Monitor, Zap, Film, Settings, Sparkles, Clock, Palette, Mic, Music, Layout, Hash, Dices, Clapperboard, MonitorPlay } from 'lucide-react';
 
 const API_BASE = window.location.hostname === 'localhost' ? 'http://localhost:8000' : '';
 
@@ -994,7 +995,7 @@ function App() {
 
       <div className="dashboard">
         <main className="panel">
-          <h2>🎬 Script & Content Editor</h2>
+          <h2 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><Clapperboard size={26} /> Script & Content Editor</h2>
           
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
             <div className="form-group">
@@ -1027,7 +1028,7 @@ function App() {
                     gap: '6px',
                     fontSize: '0.9rem'
                   }}
-                >📱 Short</button>
+                ><Smartphone size={16} /> Short</button>
                 <button 
                   className={`button ${videoType === 'long' ? 'primary' : 'secondary'}`}
                   onClick={() => {
@@ -1055,7 +1056,7 @@ function App() {
                     gap: '6px',
                     fontSize: '0.9rem'
                   }}
-                >🖥️ Long</button>
+                ><MonitorPlay size={16} /> Long</button>
                 <button 
                   className={`button ${videoType === 'ultra' ? 'primary' : 'secondary'}`}
                   onClick={() => {
@@ -1083,7 +1084,7 @@ function App() {
                     gap: '6px',
                     fontSize: '0.9rem'
                   }}
-                >⚡ Ultra</button>
+                ><Zap size={16} /> Ultra</button>
               </div>
             </div>
             <div className="form-group">
@@ -1092,18 +1093,18 @@ function App() {
                 value={duration} 
                 onChange={(val) => setDuration(Number(val))}
                 options={videoType === 'short' ? [
-                  { value: 10, label: '⏱️ 10 Seconds' },
-                  { value: 20, label: '⏱️ 20 Seconds' },
-                  { value: 30, label: '⏱️ 30 Seconds' },
-                  { value: 45, label: '⏱️ 45 Seconds' },
-                  { value: 55, label: '⏱️ 55 Seconds' }
+                  { value: 10, label: <span style={{display: 'flex', alignItems: 'center', gap: '6px'}}><Clock size={16} /> 10 Seconds</span> },
+                  { value: 20, label: <span style={{display: 'flex', alignItems: 'center', gap: '6px'}}><Clock size={16} /> 20 Seconds</span> },
+                  { value: 30, label: <span style={{display: 'flex', alignItems: 'center', gap: '6px'}}><Clock size={16} /> 30 Seconds</span> },
+                  { value: 45, label: <span style={{display: 'flex', alignItems: 'center', gap: '6px'}}><Clock size={16} /> 45 Seconds</span> },
+                  { value: 55, label: <span style={{display: 'flex', alignItems: 'center', gap: '6px'}}><Clock size={16} /> 55 Seconds</span> }
                 ] : [
-                  { value: 20, label: '⏱️ 20 Seconds' },
-                  { value: 30, label: '⏱️ 30 Seconds' },
-                  { value: 60, label: '⏱️ 1 Minute' },
-                  { value: 120, label: '⏱️ 2 Minutes' },
-                  { value: 180, label: '⏱️ 3 Minutes' },
-                  { value: 300, label: '⏱️ 5 Minutes' }
+                  { value: 20, label: <span style={{display: 'flex', alignItems: 'center', gap: '6px'}}><Clock size={16} /> 20 Seconds</span> },
+                  { value: 30, label: <span style={{display: 'flex', alignItems: 'center', gap: '6px'}}><Clock size={16} /> 30 Seconds</span> },
+                  { value: 60, label: <span style={{display: 'flex', alignItems: 'center', gap: '6px'}}><Clock size={16} /> 1 Minute</span> },
+                  { value: 120, label: <span style={{display: 'flex', alignItems: 'center', gap: '6px'}}><Clock size={16} /> 2 Minutes</span> },
+                  { value: 180, label: <span style={{display: 'flex', alignItems: 'center', gap: '6px'}}><Clock size={16} /> 3 Minutes</span> },
+                  { value: 300, label: <span style={{display: 'flex', alignItems: 'center', gap: '6px'}}><Clock size={16} /> 5 Minutes</span> }
                 ]}
               />
             </div>
@@ -1208,11 +1209,11 @@ function App() {
         </main>
 
         <aside className="panel">
-          <h2>⚙️ Video Settings</h2>
+          <h2 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><Settings size={26} /> Video Settings</h2>
 
           <div className="form-group" style={{ marginBottom: '1.2rem' }}>
             <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: '800' }}>
-              <span>✨ Engine Generation Mode</span>
+              <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Sparkles size={16} /> Engine Generation Mode</span>
             </label>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginTop: '6px' }}>
               <button
@@ -1269,7 +1270,7 @@ function App() {
           </div>
 
           <div className="form-group" style={{ marginBottom: '1.2rem' }}>
-            <label style={{ fontWeight: '800' }}>📐 Aspect Ratio</label>
+            <label style={{ fontWeight: '800', display: 'flex', alignItems: 'center', gap: '6px' }}><Layout size={16} /> Aspect Ratio</label>
             <CustomSelect 
               value={aspectRatio} 
               onChange={(val) => setAspectRatio(val)}
@@ -1282,7 +1283,7 @@ function App() {
           </div>
 
           <div className="form-group" style={{ marginBottom: '1.2rem' }}>
-            <label style={{ fontWeight: '800' }}>🎨 Cinematic Filter & Style</label>
+            <label style={{ fontWeight: '800', display: 'flex', alignItems: 'center', gap: '6px' }}><Palette size={16} /> Cinematic Filter & Style</label>
             <CustomSelect 
               value={filterStyle} 
               onChange={(val) => setFilterStyle(val)}
