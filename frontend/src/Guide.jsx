@@ -147,26 +147,26 @@ export default function Guide({ onClose }) {
             Check out these actual videos generated completely on autopilot by Cloxel AI.
           </p>
           
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '30px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '30px' }}>
             
             <div style={{ background: 'rgba(0,0,0,0.4)', borderRadius: '20px', padding: '15px', border: '1px solid rgba(168,85,247,0.3)', boxShadow: '0 10px 30px rgba(0,0,0,0.5)' }}>
-              <video src="https://res.cloudinary.com/dlf3caco8/video/upload/v1791608984/tqavkizjcsugjvpo44ta.mp4" style={{ width: '100%', borderRadius: '12px', objectFit: 'cover', aspectRatio: '9/16' }} autoPlay loop muted playsInline controls={false} />
+              <video src="https://res.cloudinary.com/dlf3caco8/video/upload/v1791608984/tqavkizjcsugjvpo44ta.mp4" style={{ width: '100%', borderRadius: '12px', objectFit: 'cover', aspectRatio: '16/9' }} autoPlay loop muted playsInline controls={false} />
               <div style={{ marginTop: '12px', fontWeight: 'bold', color: '#c084fc' }}>Ultra Photo Motion</div>
             </div>
 
             <div style={{ background: 'rgba(0,0,0,0.4)', borderRadius: '20px', padding: '15px', border: '1px solid rgba(168,85,247,0.3)', boxShadow: '0 10px 30px rgba(0,0,0,0.5)' }}>
-              <video src="https://res.cloudinary.com/dlf3caco8/video/upload/v1788896103/duk8gsaalrfmhdnz0qmm.mp4" style={{ width: '100%', borderRadius: '12px', objectFit: 'cover', aspectRatio: '9/16' }} autoPlay loop muted playsInline controls={false} />
-              <div style={{ marginTop: '12px', fontWeight: 'bold', color: '#c084fc' }}>AI History Short</div>
+              <video src="https://res.cloudinary.com/dlf3caco8/video/upload/v1788896103/duk8gsaalrfmhdnz0qmm.mp4" style={{ width: '100%', borderRadius: '12px', objectFit: 'cover', aspectRatio: '16/9' }} autoPlay loop muted playsInline controls={false} />
+              <div style={{ marginTop: '12px', fontWeight: 'bold', color: '#c084fc' }}>AI History Long</div>
             </div>
 
             <div style={{ background: 'rgba(0,0,0,0.4)', borderRadius: '20px', padding: '15px', border: '1px solid rgba(168,85,247,0.3)', boxShadow: '0 10px 30px rgba(0,0,0,0.5)' }}>
-              <video src="https://res.cloudinary.com/dlf3caco8/video/upload/v1788584205/tueaktarhjeugs3r11jc.mp4" style={{ width: '100%', borderRadius: '12px', objectFit: 'cover', aspectRatio: '9/16' }} autoPlay loop muted playsInline controls={false} />
+              <video src="https://res.cloudinary.com/dlf3caco8/video/upload/v1788584205/tueaktarhjeugs3r11jc.mp4" style={{ width: '100%', borderRadius: '12px', objectFit: 'cover', aspectRatio: '16/9' }} autoPlay loop muted playsInline controls={false} />
               <div style={{ marginTop: '12px', fontWeight: 'bold', color: '#c084fc' }}>Mystery & Facts</div>
             </div>
 
             <div style={{ background: 'rgba(0,0,0,0.4)', borderRadius: '20px', padding: '15px', border: '1px solid rgba(168,85,247,0.3)', boxShadow: '0 10px 30px rgba(0,0,0,0.5)' }}>
-              <video src="https://res.cloudinary.com/dlf3caco8/video/upload/v1788544557/xtnrv0cnnolqrvlwrpsr.mp4" style={{ width: '100%', borderRadius: '12px', objectFit: 'cover', aspectRatio: '9/16' }} autoPlay loop muted playsInline controls={false} />
-              <div style={{ marginTop: '12px', fontWeight: 'bold', color: '#c084fc' }}>Motivational Reels</div>
+              <video src="https://res.cloudinary.com/dlf3caco8/video/upload/v1788544557/xtnrv0cnnolqrvlwrpsr.mp4" style={{ width: '100%', borderRadius: '12px', objectFit: 'cover', aspectRatio: '16/9' }} autoPlay loop muted playsInline controls={false} />
+              <div style={{ marginTop: '12px', fontWeight: 'bold', color: '#c084fc' }}>Motivational Story</div>
             </div>
 
           </div>
