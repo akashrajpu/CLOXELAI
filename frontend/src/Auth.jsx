@@ -3,6 +3,7 @@ import jsQR from 'jsqr';
 import lottie from 'lottie-web';
 import heroAnimationData from './lottie_hero.json';
 import Guide from './Guide';
+import Features from './Features';
 
 const API_BASE = window.location.hostname === 'localhost' ? 'http://localhost:8000' : '';
 
@@ -773,47 +774,7 @@ function Auth({ onLoginSuccess }) {
 
       {/* 2. FEATURES MODAL */}
       {showFeatures && (
-        <div className="pricing-modal-overlay" onClick={() => setShowFeatures(false)} style={{ zIndex: 3000 }}>
-          <div className="pricing-modal-card" style={{ maxWidth: '850px', padding: '36px' }} onClick={e => e.stopPropagation()}>
-            <button className="sidebar-close-btn" style={{ position: 'absolute', top: '20px', right: '20px', background: 'none', border: 'none', color: '#fff', fontSize: '1.8rem', cursor: 'pointer' }} onClick={() => setShowFeatures(false)}>×</button>
-
-            <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', width: '100%', marginBottom: '28px' }}>
-              <span className="pricing-badge">⚡ CORE CAPABILITIES</span>
-              <h2 style={{ color: '#ffffff', fontSize: '2rem', marginTop: '8px', fontWeight: '800', textAlign: 'center', display: 'block', width: '100%', margin: '8px auto 0 auto' }}>
-                Cloxel AI Platform Features
-              </h2>
-              <p style={{ color: '#94a3b8', fontSize: '0.95rem', textAlign: 'center', display: 'block', width: '100%', margin: '4px auto 0 auto' }}>
-                Everything you need to automate your YouTube & Shorts content creation.
-              </p>
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '20px', marginBottom: '28px' }}>
-              <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(168,85,247,0.3)', borderRadius: '16px', padding: '20px' }}>
-                <h4 style={{ color: '#c084fc', fontSize: '1.1rem', marginBottom: '8px' }}>📱 9:16 Shorts & Reels</h4>
-                <p style={{ color: '#cbd5e1', fontSize: '0.85rem', margin: 0 }}>Create vertical viral Shorts with animated yellow subtitles.</p>
-              </div>
-
-              <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(168,85,247,0.3)', borderRadius: '16px', padding: '20px' }}>
-                <h4 style={{ color: '#c084fc', fontSize: '1.1rem', marginBottom: '8px' }}>🖥️ 16:9 Long YouTube Videos</h4>
-                <p style={{ color: '#cbd5e1', fontSize: '0.85rem', margin: 0 }}>Full length landscape videos for long-form documentary channels.</p>
-              </div>
-
-              <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(168,85,247,0.3)', borderRadius: '16px', padding: '20px' }}>
-                <h4 style={{ color: '#c084fc', fontSize: '1.1rem', marginBottom: '8px' }}>🗣️ Madhur Neural Voice</h4>
-                <p style={{ color: '#cbd5e1', fontSize: '0.85rem', margin: 0 }}>Natural human-like Indian voiceover with perfect pronunciation.</p>
-              </div>
-
-              <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(168,85,247,0.3)', borderRadius: '16px', padding: '20px' }}>
-                <h4 style={{ color: '#c084fc', fontSize: '1.1rem', marginBottom: '8px' }}>📅 30-Day Auto Upload</h4>
-                <p style={{ color: '#cbd5e1', fontSize: '0.85rem', margin: 0 }}>Schedule daily automated video generation and YouTube posting.</p>
-              </div>
-            </div>
-
-            <button className="btn-hero-cta" style={{ width: '100%', padding: '12px' }} onClick={() => setShowFeatures(false)}>
-              Explore Features & Start →
-            </button>
-          </div>
-        </div>
+        <Features onClose={() => setShowFeatures(false)} />
       )}
 
       {/* 3. SUPPORT MODAL */}
