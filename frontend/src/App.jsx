@@ -1682,6 +1682,8 @@ function App() {
                   <li>✅ Daily 1 Ultra Mode Video for 30 Days</li>
                   <li>✅ YouTube Auto-Upload Enabled</li>
                   <li>✅ Multi-Character Dialogue & Ink FX</li>
+                  <li style={{ opacity: 0.6 }}>❌ Standard Short Video (9:16) Not Included</li>
+                  <li style={{ opacity: 0.6 }}>❌ Standard Long Video (16:9) Not Included</li>
                 </ul>
                 <button 
                   className={`btn-buy-plan ${selectedPlan === 'ultra' ? 'featured-btn' : ''}`} 
@@ -1720,6 +1722,8 @@ function App() {
                   <li>✅ Daily 1 Short Video (9:16) for 30 Days</li>
                   <li>✅ YouTube Auto-Upload Enabled</li>
                   <li>✅ Cloud Storage & History</li>
+                  <li style={{ opacity: 0.6 }}>❌ Standard Long Video (16:9) Not Included</li>
+                  <li style={{ opacity: 0.6 }}>❌ Ultra Cinematic Mode Not Included</li>
                 </ul>
                 <button 
                   className={`btn-buy-plan ${selectedPlan === 'short' ? 'featured-btn' : ''}`} 
@@ -1758,6 +1762,8 @@ function App() {
                   <li>✅ Daily 1 Long Video (16:9) for 30 Days</li>
                   <li>✅ YouTube Auto-Upload Enabled</li>
                   <li>✅ Cloud Storage & History</li>
+                  <li style={{ opacity: 0.6 }}>❌ Standard Short Video (9:16) Not Included</li>
+                  <li style={{ opacity: 0.6 }}>❌ Ultra Cinematic Mode Not Included</li>
                 </ul>
                 <button 
                   className={`btn-buy-plan ${selectedPlan === 'long' ? 'featured-btn' : ''}`} 
@@ -1796,6 +1802,7 @@ function App() {
                   <li>✅ Daily 1 Short + 1 Long Video for 30 Days</li>
                   <li>✅ YouTube Auto-Upload Enabled</li>
                   <li>✅ Priority AI Rendering</li>
+                  <li style={{ opacity: 0.6 }}>❌ Ultra Cinematic Mode Not Included</li>
                 </ul>
                 <button 
                   className={`btn-buy-plan ${selectedPlan === 'combo' ? 'featured-btn' : ''}`} 
