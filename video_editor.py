@@ -541,7 +541,7 @@ def create_parchment_subtitle_box(text: str, size: tuple, font_size: int = 180) 
     with bold distressed Crimson Rust Red font (matching user screenshots 1, 2, 3!).
     """
     w, h = size
-    box_w = int(w * 0.78)
+    box_w = int(w * 0.85)
     box_h = int(h * 0.22)
     
     parchment = Image.new("RGBA", (box_w, box_h), (255, 253, 232, 245))
@@ -565,23 +565,32 @@ def create_parchment_subtitle_box(text: str, size: tuple, font_size: int = 180) 
     torn_mask = torn_mask.filter(ImageFilter.GaussianBlur(radius=2))
     parchment.putalpha(torn_mask)
     
+    # We want a bold, readable font. RaceFlow, anton, or bebas work well.
     font_candidates = [
-        "./fonts/BetsyFlanagan.ttf",
-        "./fonts/RaceFlow.ttf",
-        "./fonts/CarbonBlock.ttf",
+        "./fonts/anton.ttf",
         "./fonts/bebas.ttf",
-        "./fonts/anton.ttf"
+        "./fonts/RaceFlow.ttf",
+        "./fonts/CarbonBlock.ttf"
     ]
+    
+    # Text could be in Hinglish/Hindi, so BetsyFlanagan with weird characters is dangerous.
+    
+    # The box is box_h pixels high. Let's make the font size proportional to the box height so it's always readable.
+    optimal_font_size = int(box_h * 0.35)
+    
     chosen_font = None
     for fc in font_candidates:
         if os.path.exists(fc):
             try:
-                chosen_font = ImageFont.truetype(fc, int(font_size * 0.38))
+                chosen_font = ImageFont.truetype(fc, optimal_font_size)
                 break
             except Exception:
                 pass
     if not chosen_font:
-        chosen_font = ImageFont.load_default()
+        try:
+            chosen_font = ImageFont.truetype("./fonts/Arial.ttf", optimal_font_size)
+        except Exception:
+            chosen_font = ImageFont.load_default()
 
     words = text.upper().split()
     mid = max(1, (len(words) + 1) // 2)
@@ -594,12 +603,22 @@ def create_parchment_subtitle_box(text: str, size: tuple, font_size: int = 180) 
     text_color = (200, 50, 0, 255)
     
     draw_p = ImageDraw.Draw(parchment)
-    y_pos = int(box_h * 0.16)
-    line_h = int(chosen_font.size * 1.20)
+    
+    # If using default tiny font, just manually scale it so it's readable
+    if hasattr(chosen_font, "size"):
+        line_h = int(chosen_font.size * 1.20)
+    else:
+        line_h = int(optimal_font_size * 1.20)
+        
+    y_pos = (box_h - (len(lines) * line_h)) // 2
     
     for line in lines:
-        tb = draw_p.textbbox((0, 0), line, font=chosen_font)
-        lw = tb[2] - tb[0]
+        try:
+            tb = draw_p.textbbox((0, 0), line, font=chosen_font)
+            lw = tb[2] - tb[0]
+        except Exception:
+            lw = len(line) * optimal_font_size * 0.5
+            
         x_pos = (box_w - lw) // 2
         draw_p.text((x_pos + 2, y_pos + 2), line, font=chosen_font, fill=(70, 15, 0, 180))
         draw_p.text((x_pos, y_pos), line, font=chosen_font, fill=text_color)
