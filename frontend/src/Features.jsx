@@ -53,12 +53,12 @@ export default function Features({ onClose }) {
       <div style={{ maxWidth: '1200px', margin: '40px auto', padding: '0 20px' }}>
         
         {/* Header Section */}
-        <div style={{ textAlign: 'center', marginBottom: '80px' }}>
-          <div style={{ display: 'inline-block', padding: '8px 20px', background: 'rgba(168,85,247,0.2)', color: '#c084fc', borderRadius: '50px', fontWeight: 'bold', marginBottom: '20px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', marginBottom: '80px' }}>
+          <div style={{ padding: '8px 20px', background: 'rgba(168,85,247,0.2)', color: '#c084fc', borderRadius: '50px', fontWeight: 'bold', marginBottom: '20px' }}>
             <Sparkles size={16} style={{ display: 'inline', verticalAlign: 'text-bottom', marginRight: '6px' }} />
             ⚡ CORE CAPABILITIES
           </div>
-          <h2 style={{ fontSize: '3.5rem', margin: '0 0 20px 0', fontWeight: '900', background: 'linear-gradient(135deg, #fff 0%, #c084fc 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+          <h2 style={{ display: 'inline-block', fontSize: '3.5rem', margin: '0 0 20px 0', fontWeight: '900', background: 'linear-gradient(135deg, #fff 0%, #c084fc 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', textAlign: 'center' }}>
             Everything You Need To Dominate
           </h2>
           <p style={{ fontSize: '1.2rem', color: '#cbd5e1', maxWidth: '700px', margin: '0 auto', lineHeight: '1.6' }}>
