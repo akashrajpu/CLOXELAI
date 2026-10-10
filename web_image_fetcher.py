@@ -46,7 +46,7 @@ def clean_search_term(text: str) -> str:
     return " ".join(words) if words else text
 
 def optimize_image_for_ram(file_path: str) -> bool:
-    """Resizes downloaded web photo and verifies it is a valid image. Returns True if valid."""
+    """Resizes downloaded web photo and verifies it is a valid, high-resolution image. Returns True if valid."""
     try:
         from PIL import Image
         import os
@@ -59,6 +59,10 @@ def optimize_image_for_ram(file_path: str) -> bool:
             
         # Re-open to process
         with Image.open(file_path) as img:
+            # Reject images that are too small (thumbnails / placeholders)
+            if img.width < 400 or img.height < 400:
+                raise ValueError("Image is too small (likely a thumbnail or tracking pixel)")
+                
             if img.width > 1280 or img.height > 1280:
                 img.thumbnail((1280, 1280), Image.LANCZOS)
                 img.save(file_path, quality=88, optimize=True)
