@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import jsQR from 'jsqr';
 import lottie from 'lottie-web';
 import heroAnimationData from './lottie_hero.json';
+import Guide from './Guide';
 
 const API_BASE = window.location.hostname === 'localhost' ? 'http://localhost:8000' : '';
 
@@ -767,52 +768,7 @@ function Auth({ onLoginSuccess }) {
 
       {/* 1. HOW IT WORKS MODAL */}
       {showHowItWorks && (
-        <div className="pricing-modal-overlay" onClick={() => setShowHowItWorks(false)} style={{ zIndex: 3000 }}>
-          <div className="pricing-modal-card" style={{ maxWidth: '850px', padding: '36px' }} onClick={e => e.stopPropagation()}>
-            <button className="sidebar-close-btn" style={{ position: 'absolute', top: '20px', right: '20px', background: 'none', border: 'none', color: '#fff', fontSize: '1.8rem', cursor: 'pointer' }} onClick={() => setShowHowItWorks(false)}>×</button>
-
-            <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', width: '100%', marginBottom: '28px' }}>
-              <span className="pricing-badge">⚙️ AUTOMATION WORKFLOW GRAPH</span>
-              <h2 style={{ color: '#ffffff', fontSize: '2rem', marginTop: '8px', fontWeight: '800', textAlign: 'center', display: 'block', width: '100%', margin: '8px auto 0 auto' }}>
-                How Cloxel AI Automation Engine Works
-              </h2>
-              <p style={{ color: '#94a3b8', fontSize: '0.95rem', textAlign: 'center', display: 'block', width: '100%', margin: '4px auto 0 auto' }}>
-                An end-to-end cloud pipeline converting your topics into 60FPS viral videos & auto-publishing.
-              </p>
-            </div>
-
-            {/* Visual Step-by-step Flow Graph */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '16px', marginBottom: '28px' }}>
-              <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(168,85,247,0.3)', borderRadius: '16px', padding: '20px 16px', textAlign: 'center' }}>
-                <div style={{ fontSize: '2rem', marginBottom: '10px' }}>💡 Step 1</div>
-                <h4 style={{ color: '#c084fc', marginBottom: '6px' }}>Script Generation</h4>
-                <p style={{ color: '#cbd5e1', fontSize: '0.8rem', margin: 0 }}>Gemini AI parses your topic and writes viral scene hooks.</p>
-              </div>
-
-              <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(168,85,247,0.3)', borderRadius: '16px', padding: '20px 16px', textAlign: 'center' }}>
-                <div style={{ fontSize: '2rem', marginBottom: '10px' }}>🗣️ Step 2</div>
-                <h4 style={{ color: '#c084fc', marginBottom: '6px' }}>Madhur Voiceover</h4>
-                <p style={{ color: '#cbd5e1', fontSize: '0.8rem', margin: 0 }}>Hyper-realistic Madhur Neural Voice synthesizes crisp speech.</p>
-              </div>
-
-              <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(168,85,247,0.3)', borderRadius: '16px', padding: '20px 16px', textAlign: 'center' }}>
-                <div style={{ fontSize: '2rem', marginBottom: '10px' }}>🎬 Step 3</div>
-                <h4 style={{ color: '#c084fc', marginBottom: '6px' }}>FFmpeg Compositing</h4>
-                <p style={{ color: '#cbd5e1', fontSize: '0.8rem', margin: 0 }}>HD stock visuals + auto-animated yellow captions are merged.</p>
-              </div>
-
-              <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(168,85,247,0.3)', borderRadius: '16px', padding: '20px 16px', textAlign: 'center' }}>
-                <div style={{ fontSize: '2rem', marginBottom: '10px' }}>🚀 Step 4</div>
-                <h4 style={{ color: '#c084fc', marginBottom: '6px' }}>Cloud & YouTube</h4>
-                <p style={{ color: '#cbd5e1', fontSize: '0.8rem', margin: 0 }}>100% Cloud storage delivery and 1-click YouTube auto-upload.</p>
-              </div>
-            </div>
-
-            <button className="btn-hero-cta" style={{ width: '100%', padding: '12px' }} onClick={() => setShowHowItWorks(false)}>
-              Got It! Close Guide →
-            </button>
-          </div>
-        </div>
+        <Guide onClose={() => setShowHowItWorks(false)} />
       )}
 
       {/* 2. FEATURES MODAL */}
