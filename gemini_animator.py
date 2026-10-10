@@ -417,7 +417,7 @@ def generate_gemini_cartoon_animation(user_prompt: str, output_mp4: str, duratio
                 import requests
                 url = f"https://generativelanguage.googleapis.com/v1beta/models/{m_name}:generateContent?key={api_key}"
                 payload = {"contents": [{"parts": [{"text": system_instruction}]}]}
-                r_rest = requests.post(url, json=payload, timeout=120.0)
+                r_rest = requests.post(url, json=payload, timeout=300.0)
                 if r_rest.status_code == 200:
                     r_data = r_rest.json()
                     candidates = r_data.get("candidates", [])

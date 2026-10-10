@@ -61,7 +61,7 @@ Output ONLY the complete, copy-paste ready, single-file HTML code without placeh
             try:
                 url = f"https://generativelanguage.googleapis.com/v1beta/models/{m_name}:generateContent?key={api_key}"
                 payload = {"contents": [{"parts": [{"text": system_instruction}]}]}
-                r_rest = requests.post(url, json=payload, timeout=120.0)
+                r_rest = requests.post(url, json=payload, timeout=300.0)
                 if r_rest.status_code == 200:
                     r_data = r_rest.json()
                     candidates = r_data.get("candidates", [])
