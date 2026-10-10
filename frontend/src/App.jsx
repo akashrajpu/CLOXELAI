@@ -1447,8 +1447,9 @@ function App() {
               opacity: (isGeneratingVideo || jobStatus === 'processing' || jobStatus === 'initializing') ? 0.75 : 1
             }}
           >
+            {(isGeneratingVideo || jobStatus === 'processing' || jobStatus === 'initializing')
               ? '⏳ Starting Video Generation (Locked 🔒)...' 
-              : (isLimitExhausted ? '🔒 Free 2 Video Limit Reached - Unlock Premium' : <span style={{display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'center'}}><Rocket size={22} /> Generate Video</span>)}
+              : (isLimitExhausted ? '🔒 Free 2 Video Limit Reached - Unlock Premium' : '🚀 Generate Video')}
           </button>
 
           {jobStatus && (
