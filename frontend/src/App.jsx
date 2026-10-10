@@ -1829,7 +1829,7 @@ function App() {
       {/* Payment Success Confirmation Modal with payment.json Lottie animation */}
       {showPaymentSuccessModal && (
         <div className="pricing-modal-overlay" onClick={() => setShowPaymentSuccessModal(false)}>
-          <div className="pricing-modal-card" style={{ maxWidth: '420px', textAlign: 'center', padding: '40px 24px' }} onClick={e => e.stopPropagation()}>
+          <div className="pricing-modal-card" style={{ maxWidth: '420px', textAlign: 'center', padding: '40px 24px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }} onClick={e => e.stopPropagation()}>
             <lottie-player 
               src="/payment.json" 
               background="transparent" 
@@ -1838,10 +1838,10 @@ function App() {
               autoplay
             ></lottie-player>
 
-            <h2 style={{ color: '#22c55e', fontSize: '1.8rem', marginTop: '16px', marginBottom: '8px' }}>
+            <h2 style={{ color: '#22c55e', fontSize: '1.8rem', marginTop: '16px', marginBottom: '8px', textAlign: 'center', display: 'block', width: '100%' }}>
               🎉 Payment Successful!
             </h2>
-            <p style={{ color: '#cbd5e1', fontSize: '0.95rem', marginBottom: '24px' }}>
+            <p style={{ color: '#cbd5e1', fontSize: '0.95rem', marginBottom: '24px', textAlign: 'center', display: 'block', width: '100%' }}>
               Your 30-Day Membership has been activated. You can now generate videos and auto-upload to YouTube!
             </p>
 
@@ -1858,7 +1858,7 @@ function App() {
       {/* Big Clean Full-Screen Loading Animation Overlay */}
       {(isGeneratingScript || isPaymentProcessing) && (
         <div className="pricing-modal-overlay" style={{ zIndex: 4000, background: 'rgba(10, 7, 24, 0.85)', backdropFilter: 'blur(10px)' }}>
-          <div style={{ maxWidth: '480px', textAlign: 'center', padding: '20px' }}>
+          <div style={{ maxWidth: '480px', textAlign: 'center', padding: '20px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
             <lottie-player 
               src="/loding.json" 
               background="transparent" 
@@ -1867,13 +1867,13 @@ function App() {
               loop 
               autoplay
             ></lottie-player>
-            <h3 style={{ color: '#ffffff', fontSize: '1.5rem', marginTop: '14px', marginBottom: '8px', fontWeight: '800' }}>
+            <h3 style={{ color: '#ffffff', fontSize: '1.5rem', marginTop: '14px', marginBottom: '8px', fontWeight: '800', textAlign: 'center', display: 'block', width: '100%' }}>
               {isGeneratingScript ? 'Generating AI Video Script...' : 'Preparing Checkout...'}
             </h3>
-            <p style={{ color: '#c084fc', fontSize: '0.95rem', fontWeight: 'bold', marginBottom: '6px' }}>
+            <p style={{ color: '#c084fc', fontSize: '0.95rem', fontWeight: 'bold', marginBottom: '6px', textAlign: 'center', display: 'block', width: '100%' }}>
               Processing request via Cloxel AI Cloud
             </p>
-            <p style={{ color: '#cbd5e1', fontSize: '0.85rem', margin: 0 }}>
+            <p style={{ color: '#cbd5e1', fontSize: '0.85rem', margin: 0, textAlign: 'center', display: 'block', width: '100%' }}>
               Please wait a moment while we process your request.
             </p>
           </div>
@@ -1882,10 +1882,10 @@ function App() {
       {/* In-App Video Player Modal for Video History */}
       {playingHistoryVideo && (
         <div className="pricing-modal-overlay" onClick={() => setPlayingHistoryVideo(null)} style={{ zIndex: 3000 }}>
-          <div className="pricing-modal-card" style={{ maxWidth: '640px', padding: '32px 24px', textAlign: 'center' }} onClick={e => e.stopPropagation()}>
+          <div className="pricing-modal-card" style={{ maxWidth: '640px', padding: '32px 24px', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }} onClick={e => e.stopPropagation()}>
             <button className="modal-close-btn" onClick={() => setPlayingHistoryVideo(null)}>×</button>
             
-            <h3 style={{ color: '#ffffff', fontSize: '1.3rem', marginBottom: '16px', fontWeight: '800' }}>
+            <h3 style={{ color: '#ffffff', fontSize: '1.3rem', marginBottom: '16px', fontWeight: '800', textAlign: 'center', display: 'block', width: '100%' }}>
               🎬 {playingHistoryVideo.topic}
             </h3>
 
@@ -2407,6 +2407,10 @@ function App() {
               width: '90%',
               padding: '32px 28px', 
               textAlign: 'center',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
               background: 'rgba(255, 255, 255, 0.04)', 
               borderRadius: '24px', 
               border: '1px solid rgba(239, 68, 68, 0.45)', 
@@ -2416,11 +2420,11 @@ function App() {
             }} 
             onClick={e => e.stopPropagation()}
           >
-            <div style={{ fontSize: '3rem', marginBottom: '12px' }}>⚠️</div>
-            <h3 style={{ color: '#ef4444', fontSize: '1.4rem', fontWeight: '800', marginBottom: '12px' }}>
+            <div style={{ fontSize: '3rem', marginBottom: '12px', textAlign: 'center' }}>⚠️</div>
+            <h3 style={{ color: '#ef4444', fontSize: '1.4rem', fontWeight: '800', marginBottom: '12px', textAlign: 'center', display: 'block', width: '100%' }}>
               Stop Auto-Publishing Warning
             </h3>
-            <p style={{ color: '#cbd5e1', fontSize: '0.92rem', lineHeight: '1.5', marginBottom: '24px' }}>
+            <p style={{ color: '#cbd5e1', fontSize: '0.92rem', lineHeight: '1.5', marginBottom: '24px', textAlign: 'center', display: 'block', width: '100%' }}>
               If you stop auto-publishing now, your automated daily video generation and YouTube channel publishing will be <strong>completely STOPPED</strong>.<br/><br/>
               When you re-enable it in the future, you will need to re-configure your daily upload schedule. Are you sure you want to stop?
             </p>
@@ -2457,6 +2461,10 @@ function App() {
               width: '90%',
               padding: '36px 28px', 
               textAlign: 'center', 
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
               background: 'rgba(255, 255, 255, 0.04)', 
               borderRadius: '24px', 
               border: customAlert.type === 'danger' ? '1px solid rgba(239, 68, 68, 0.45)' : (customAlert.type === 'success' ? '1px solid rgba(34, 197, 94, 0.45)' : '1px solid rgba(168, 85, 247, 0.45)'), 
@@ -2466,15 +2474,15 @@ function App() {
             }} 
             onClick={e => e.stopPropagation()}
           >
-            <div style={{ fontSize: '3.2rem', marginBottom: '14px', filter: 'drop-shadow(0 4px 12px rgba(0,0,0,0.5))' }}>
+            <div style={{ fontSize: '3.2rem', marginBottom: '14px', filter: 'drop-shadow(0 4px 12px rgba(0,0,0,0.5))', textAlign: 'center' }}>
               {customAlert.icon || '⚠️'}
             </div>
             
-            <h3 style={{ textAlign: 'center', color: customAlert.type === 'danger' ? '#ef4444' : (customAlert.type === 'success' ? '#22c55e' : '#ffffff'), fontSize: '1.4rem', fontWeight: '800', marginBottom: '12px' }}>
+            <h3 style={{ textAlign: 'center', display: 'block', width: '100%', color: customAlert.type === 'danger' ? '#ef4444' : (customAlert.type === 'success' ? '#22c55e' : '#ffffff'), fontSize: '1.4rem', fontWeight: '800', marginBottom: '12px' }}>
               {customAlert.title}
             </h3>
             
-            <div style={{ textAlign: 'center', color: '#e2e8f0', fontSize: '0.92rem', lineHeight: '1.55', marginBottom: '28px', whiteSpace: 'pre-line' }}>
+            <div style={{ textAlign: 'center', display: 'block', width: '100%', color: '#e2e8f0', fontSize: '0.92rem', lineHeight: '1.55', marginBottom: '28px', whiteSpace: 'pre-line' }}>
               {customAlert.message}
             </div>
 

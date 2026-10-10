@@ -749,7 +749,7 @@ function Auth({ onLoginSuccess }) {
       {/* Big Full-Screen Loading Animation Overlay */}
       {isLoading && (
         <div className="pricing-modal-overlay" style={{ zIndex: 5000, background: 'rgba(10, 7, 24, 0.85)', backdropFilter: 'blur(10px)' }}>
-          <div style={{ maxWidth: '480px', textAlign: 'center', padding: '20px' }}>
+          <div style={{ maxWidth: '480px', textAlign: 'center', padding: '20px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
             <lottie-player 
               src="/loding.json" 
               background="transparent" 
@@ -758,10 +758,10 @@ function Auth({ onLoginSuccess }) {
               loop 
               autoplay
             ></lottie-player>
-            <h3 style={{ color: '#ffffff', fontSize: '1.5rem', marginTop: '14px', marginBottom: '8px', fontWeight: '800' }}>
+            <h3 style={{ color: '#ffffff', fontSize: '1.5rem', marginTop: '14px', marginBottom: '8px', fontWeight: '800', textAlign: 'center', display: 'block', width: '100%' }}>
               {isLogin ? 'Logging into Dashboard...' : 'Creating Your Account...'}
             </h3>
-            <p style={{ color: '#cbd5e1', fontSize: '0.9rem', margin: 0 }}>
+            <p style={{ color: '#cbd5e1', fontSize: '0.9rem', margin: 0, textAlign: 'center', display: 'block', width: '100%' }}>
               Please wait a moment while we set up your session.
             </p>
           </div>
