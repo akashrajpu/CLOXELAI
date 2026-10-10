@@ -786,71 +786,9 @@ function Auth({ onLoginSuccess }) {
       {/* 4. OFFICIAL LEGAL PRIVACY POLICY MODAL */}
       {showPrivacyPolicy && (
         <div className="pricing-modal-overlay" onClick={() => setShowPrivacyPolicy(false)} style={{ zIndex: 3000 }}>
-          <div className="pricing-modal-card" style={{ maxWidth: '850px', padding: '40px', background: '#0b071a', border: '2px solid rgba(168,85,247,0.5)' }} onClick={e => e.stopPropagation()}>
-            <button className="sidebar-close-btn" style={{ position: 'absolute', top: '20px', right: '20px', background: 'none', border: 'none', color: '#fff', fontSize: '1.8rem', cursor: 'pointer' }} onClick={() => setShowPrivacyPolicy(false)}>×</button>
-
-            {/* Official Legal Header */}
-            <div style={{ borderBottom: '2px solid rgba(168,85,247,0.3)', paddingBottom: '16px', marginBottom: '24px', textAlign: 'center' }}>
-              <div style={{ fontSize: '0.75rem', letterSpacing: '2px', color: '#c084fc', fontWeight: '800', textTransform: 'uppercase' }}>OFFICIAL LEGAL DOCUMENT • REPUBLIC OF INDIA COMPLIANT</div>
-              <h2 style={{ color: '#ffffff', fontSize: '1.8rem', margin: '8px 0', fontWeight: '800' }}>
-                Privacy Policy & User Terms Document
-              </h2>
-              <p style={{ color: '#94a3b8', fontSize: '0.82rem' }}>
-                Issued by Cloxel AI Technologies India | IT Act 2000 & Digital Personal Data Protection (DPDP) Act 2023 Guidelines
-              </p>
-            </div>
-
-            {/* Document Body */}
-            <div style={{ maxHeight: '50vh', overflowY: 'auto', paddingRight: '12px', fontSize: '0.85rem', color: '#cbd5e1', lineHeight: '1.65', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              <section>
-                <h4 style={{ color: '#ffffff', fontSize: '1rem', marginBottom: '4px' }}>1. Advanced Binary Security Architecture (SMS OTP Replacement)</h4>
-                <p>To eliminate SIM-swapping vulnerabilities and SMS interception delays, Cloxel AI utilizes high-level <strong>Binary Cryptographic Hash Architecture & SHA-256 Protocol Encryption</strong>, which is exponentially more powerful, secure, and resilient than traditional OTP systems. Account authorization relies directly on binary token handshakes and encrypted credentials.</p>
-              </section>
-
-              <section style={{ background: 'rgba(239, 68, 68, 0.08)', padding: '14px', borderRadius: '12px', border: '1px solid rgba(239, 68, 68, 0.3)' }}>
-                <h4 style={{ color: '#f87171', fontSize: '1rem', marginBottom: '4px' }}>2. User Password Disclosure & Zero Responsibility Disclaimer</h4>
-                <p style={{ color: '#fca5a5' }}>
-                  While Cloxel AI implements state-of-the-art Binary Encryption, <strong>users remain 100% solely and completely responsible for maintaining strict password secrecy</strong>.
-                </p>
-                <p style={{ color: '#fca5a5', marginTop: '8px' }}>
-                  <strong>Password Sharing Exclusion:</strong> If a user voluntarily or accidentally discloses, shares, or reveals their account password or email credentials to any third party, friend, or external service, <strong>Cloxel AI, its website, infrastructure, servers, and Founder Akash Raj hold ZERO legal liability, financial responsibility, or obligation for any resulting account breach, data loss, or unauthorized access.</strong>
-                </p>
-              </section>
-
-              <section>
-                <h4 style={{ color: '#ffffff', fontSize: '1rem', marginBottom: '4px' }}>3. Third-Party Integrations & YouTube API Services</h4>
-                <p>By connecting YouTube channels, users agree to YouTube Terms of Service and Google Privacy Policy. Cloxel AI accesses OAuth tokens strictly for automated video publishing initiated by the user.</p>
-              </section>
-
-              <section>
-                <h4 style={{ color: '#ffffff', fontSize: '1rem', marginBottom: '4px' }}>4. Official Company & Contact Details</h4>
-                <p>For legal inquiries, formal notices, or privacy data requests, contact our legal office:</p>
-                <ul style={{ paddingLeft: '20px', marginTop: '6px' }}>
-                  <li><strong>Founder & Managing Director:</strong> Akash Raj</li>
-                  <li><strong>Official Entity:</strong> Cloxel AI Technologies India</li>
-                  <li><strong>Primary Contact Email:</strong> zobbly.com@gmail.com</li>
-                  <li><strong>Support Desk Email:</strong> support@cloxel.com</li>
-                </ul>
-              </section>
-            </div>
-
-            {/* Official Signature & Seal Block */}
-            <div style={{ marginTop: '24px', paddingTop: '16px', borderTop: '2px dashed rgba(168,85,247,0.3)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div>
-                <p style={{ color: '#94a3b8', fontSize: '0.75rem', margin: 0 }}>AUTHORIZATION SEAL</p>
-                <div style={{ background: 'rgba(168,85,247,0.15)', border: '1px solid #a855f7', color: '#c084fc', padding: '6px 12px', borderRadius: '8px', fontSize: '0.75rem', fontWeight: 'bold', display: 'inline-block', marginTop: '4px' }}>
-                  ✓ VERIFIED LEGAL POLICY DOC • REPUBLIC OF INDIA
-                </div>
-              </div>
-
-              <div style={{ textAlign: 'right' }}>
-                <p style={{ color: '#c084fc', fontFamily: 'cursive', fontSize: '1.4rem', margin: 0, fontWeight: 'bold' }}>
-                  Akash Raj
-                </p>
-                <p style={{ color: '#ffffff', fontSize: '0.8rem', margin: 0, fontWeight: 'bold' }}>Akash Raj</p>
-                <p style={{ color: '#94a3b8', fontSize: '0.75rem', margin: 0 }}>Founder & CEO, Cloxel AI</p>
-              </div>
-            </div>
+          <div className="pricing-modal-card" style={{ maxWidth: '950px', padding: 0, background: 'transparent', border: 'none', overflow: 'hidden' }} onClick={e => e.stopPropagation()}>
+            <button className="sidebar-close-btn" style={{ position: 'absolute', top: '-40px', right: '0px', background: 'rgba(0,0,0,0.5)', border: '1px solid rgba(255,255,255,0.2)', color: '#fff', fontSize: '1.8rem', cursor: 'pointer', borderRadius: '50%', width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={() => setShowPrivacyPolicy(false)}>×</button>
+            <img src="/privacy_policy_doc.jpg" alt="Official Privacy Policy Document" style={{ width: '100%', height: 'auto', display: 'block', borderRadius: '24px', border: '2px solid rgba(168,85,247,0.5)', boxShadow: '0 20px 50px rgba(0,0,0,0.8)' }} />
           </div>
         </div>
       )}
