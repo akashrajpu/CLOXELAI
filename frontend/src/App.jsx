@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import Auth from './Auth';
 import YouTubeIntegration from './YouTubeIntegration';
-import { Smartphone, Monitor, Zap, Film, Settings, Sparkles, Clock, Palette, Mic, Music, Layout, Hash, Dices, Clapperboard, MonitorPlay } from 'lucide-react';
+import { Smartphone, Monitor, Zap, Film, Settings, Sparkles, Clock, Palette, Mic, Music, Layout, Hash, Dices, Clapperboard, MonitorPlay, User, Sun, Scroll, Circle, Ban, Rocket, Box, Square, Tv } from 'lucide-react';
 
 const API_BASE = window.location.hostname === 'localhost' ? 'http://localhost:8000' : '';
 
@@ -1126,7 +1126,10 @@ function App() {
               <CustomSelect 
                 value={category} 
                 onChange={(val) => setCategory(val)}
-                options={CATEGORIES}
+                options={CATEGORIES.map(cat => ({
+                  value: cat,
+                  label: <span style={{display: 'flex', alignItems: 'center', gap: '6px'}}><Hash size={16} /> {cat.substring(cat.indexOf(' ') + 1)}</span>
+                }))}
               />
             </div>
           </div>
@@ -1239,7 +1242,7 @@ function App() {
                   transition: 'all 0.2s ease'
                 }}
               >
-                ✨ Ultra Photo Motion
+                <span style={{ display: 'flex', alignItems: 'center', gap: '6px', justifyContent: 'center' }}><Sparkles size={16} /> Ultra Photo Motion</span>
               </button>
               <button
                 type="button"
@@ -1264,7 +1267,7 @@ function App() {
                   transition: 'all 0.2s ease'
                 }}
               >
-                🎬 Standard Stock Video
+                <span style={{ display: 'flex', alignItems: 'center', gap: '6px', justifyContent: 'center' }}><Clapperboard size={16} /> Standard Stock Video</span>
               </button>
             </div>
           </div>
@@ -1275,9 +1278,9 @@ function App() {
               value={aspectRatio} 
               onChange={(val) => setAspectRatio(val)}
               options={[
-                { value: '16:9', label: '📺 16:9 Landscape HD (1920×1080)' },
-                { value: '9:16', label: '📱 9:16 Vertical HD (1080×1920)' },
-                { value: '1:1', label: '🔳 1:1 Square HD (1080×1080)' }
+                { value: '16:9', label: <span style={{display: 'flex', alignItems: 'center', gap: '6px'}}><Tv size={16} /> 16:9 Landscape HD (1920×1080)</span> },
+                { value: '9:16', label: <span style={{display: 'flex', alignItems: 'center', gap: '6px'}}><Smartphone size={16} /> 9:16 Vertical HD (1080×1920)</span> },
+                { value: '1:1', label: <span style={{display: 'flex', alignItems: 'center', gap: '6px'}}><Square size={16} /> 1:1 Square HD (1080×1080)</span> }
               ]}
             />
           </div>
@@ -1288,10 +1291,10 @@ function App() {
               value={filterStyle} 
               onChange={(val) => setFilterStyle(val)}
               options={[
-                { value: 'warm_epic', label: '🟡 Warm Epic (Maharana Pratap / Historic / Warrior)' },
-                { value: 'vintage_parchment', label: '📜 Vintage Parchment (Sepia Canvas)' },
-                { value: 'dramatic_cinematic', label: '🎬 Dramatic Cinematic (Teal-Orange Movie Grade)' },
-                { value: 'none', label: '⚪ Standard / Original Colors' }
+                { value: 'warm_epic', label: <span style={{display: 'flex', alignItems: 'center', gap: '6px'}}><Sun size={16} /> Warm Epic (Maharana Pratap / Historic / Warrior)</span> },
+                { value: 'vintage_parchment', label: <span style={{display: 'flex', alignItems: 'center', gap: '6px'}}><Scroll size={16} /> Vintage Parchment (Sepia Canvas)</span> },
+                { value: 'dramatic_cinematic', label: <span style={{display: 'flex', alignItems: 'center', gap: '6px'}}><Clapperboard size={16} /> Dramatic Cinematic (Teal-Orange Movie Grade)</span> },
+                { value: 'none', label: <span style={{display: 'flex', alignItems: 'center', gap: '6px'}}><Circle size={16} /> Standard / Original Colors</span> }
               ]}
             />
           </div>
@@ -1302,10 +1305,10 @@ function App() {
               value={voiceId} 
               onChange={(val) => setVoiceId(val)}
               options={[
-                { value: 'hi-IN-MadhurNeural', label: '♂️ Male (Hindi)' },
-                { value: 'hi-IN-SwaraNeural', label: '♀️ Female (Hindi)' },
-                { value: 'en-US-GuyNeural', label: '♂️ Male (English)' },
-                { value: 'en-US-JennyNeural', label: '♀️ Female (English)' }
+                { value: 'hi-IN-MadhurNeural', label: <span style={{display: 'flex', alignItems: 'center', gap: '6px'}}><User size={16} /> Male (Hindi)</span> },
+                { value: 'hi-IN-SwaraNeural', label: <span style={{display: 'flex', alignItems: 'center', gap: '6px'}}><User size={16} /> Female (Hindi)</span> },
+                { value: 'en-US-GuyNeural', label: <span style={{display: 'flex', alignItems: 'center', gap: '6px'}}><User size={16} /> Male (English)</span> },
+                { value: 'en-US-JennyNeural', label: <span style={{display: 'flex', alignItems: 'center', gap: '6px'}}><User size={16} /> Female (English)</span> }
               ]}
             />
           </div>
@@ -1327,13 +1330,13 @@ function App() {
           </div>
           
           <div className="form-group">
-            <label>🎵 Background Music Track</label>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Music size={16} /> Background Music Track</label>
             <CustomSelect 
               value={bgMusic} 
               onChange={(val) => setBgMusic(val)}
               options={bgMusicList.map(m => ({ 
                 value: m, 
-                label: m === 'random' ? '🎲 Random Background Music' : (m === 'none' ? '🚫 No Background Music' : `🎵 ${m}`) 
+                label: m === 'random' ? <span style={{display: 'flex', alignItems: 'center', gap: '6px'}}><Dices size={16} /> Random Background Music</span> : (m === 'none' ? <span style={{display: 'flex', alignItems: 'center', gap: '6px'}}><Ban size={16} /> No Background Music</span> : <span style={{display: 'flex', alignItems: 'center', gap: '6px'}}><Music size={16} /> {m}</span>)
               }))}
             />
           </div>
@@ -1444,9 +1447,8 @@ function App() {
               opacity: (isGeneratingVideo || jobStatus === 'processing' || jobStatus === 'initializing') ? 0.75 : 1
             }}
           >
-            {(isGeneratingVideo || jobStatus === 'processing' || jobStatus === 'initializing')
               ? '⏳ Starting Video Generation (Locked 🔒)...' 
-              : (isLimitExhausted ? '🔒 Free 2 Video Limit Reached - Unlock Premium' : '🚀 Generate Video')}
+              : (isLimitExhausted ? '🔒 Free 2 Video Limit Reached - Unlock Premium' : <span style={{display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'center'}}><Rocket size={22} /> Generate Video</span>)}
           </button>
 
           {jobStatus && (
@@ -2054,7 +2056,7 @@ function App() {
                       <label style={{ color: '#cbd5e1', display: 'block', marginBottom: '4px' }}>Category / Niche (30+ Options):</label>
                       <select value={autoSchedule.short_category || '🎲 Random / All Categories'} onChange={(e) => setAutoSchedule({ ...autoSchedule, short_category: e.target.value })} style={{ width: '100%', padding: '8px', background: '#1e1738', border: '1px solid rgba(255,255,255,0.15)', color: '#fff', borderRadius: '8px' }}>
                         {CATEGORIES.map((cat, i) => (
-                          <option key={i} value={cat}>{cat}</option>
+                          <option key={i} value={cat}>{cat.substring(cat.indexOf(' ') + 1)}</option>
                         ))}
                       </select>
                     </div>
@@ -2142,7 +2144,7 @@ function App() {
                       <label style={{ color: '#cbd5e1', display: 'block', marginBottom: '4px' }}>Category / Niche (30+ Options):</label>
                       <select value={autoSchedule.long_category || '🎲 Random / All Categories'} onChange={(e) => setAutoSchedule({ ...autoSchedule, long_category: e.target.value })} style={{ width: '100%', padding: '8px', background: '#1e1738', border: '1px solid rgba(255,255,255,0.15)', color: '#fff', borderRadius: '8px' }}>
                         {CATEGORIES.map((cat, i) => (
-                          <option key={i} value={cat}>{cat}</option>
+                          <option key={i} value={cat}>{cat.substring(cat.indexOf(' ') + 1)}</option>
                         ))}
                       </select>
                     </div>
@@ -2243,7 +2245,7 @@ function App() {
                           <label style={{ color: '#cbd5e1', display: 'block', marginBottom: '4px' }}>Category / Niche:</label>
                           <select value={autoSchedule.ultra_category || '🎲 Random / All Categories'} onChange={(e) => setAutoSchedule({ ...autoSchedule, ultra_category: e.target.value })} style={{ width: '100%', padding: '8px', background: '#1e1738', border: '1px solid rgba(255,255,255,0.15)', color: '#fff', borderRadius: '8px' }}>
                             {CATEGORIES.map((cat, i) => (
-                              <option key={i} value={cat}>{cat}</option>
+                              <option key={i} value={cat}>{cat.substring(cat.indexOf(' ') + 1)}</option>
                             ))}
                           </select>
                         </div>
