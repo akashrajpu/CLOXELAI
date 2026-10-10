@@ -45,17 +45,32 @@ def clean_search_term(text: str) -> str:
     words = [w for w in text.split() if w.lower() not in stops]
     return " ".join(words) if words else text
 
-def optimize_image_for_ram(file_path: str):
-    """Resizes downloaded web photo to max 1280x1280 to save server RAM memory."""
+def optimize_image_for_ram(file_path: str) -> bool:
+    """Resizes downloaded web photo and verifies it is a valid image. Returns True if valid."""
     try:
         from PIL import Image
+        import os
+        if not os.path.exists(file_path):
+            return False
+            
+        # Verify it's actually an image
+        with Image.open(file_path) as img:
+            img.verify()
+            
+        # Re-open to process
+        with Image.open(file_path) as img:
+            if img.width > 1280 or img.height > 1280:
+                img.thumbnail((1280, 1280), Image.LANCZOS)
+                img.save(file_path, quality=88, optimize=True)
+        return True
+    except Exception as e:
+        import os
         if os.path.exists(file_path):
-            with Image.open(file_path) as img:
-                if img.width > 1280 or img.height > 1280:
-                    img.thumbnail((1280, 1280), Image.LANCZOS)
-                    img.save(file_path, quality=88, optimize=True)
-    except Exception:
-        pass
+            try:
+                os.remove(file_path) # Delete corrupted file so we don't pass it to video editor
+            except:
+                pass
+        return False
 
 def fetch_web_image(query: str, save_path: str) -> bool:
     """
@@ -73,9 +88,11 @@ def fetch_web_image(query: str, save_path: str) -> bool:
         p_files = fetch_pinterest_photos_via_gallery_dl(clean_q_term, limit=1, output_dir=temp_p_dir)
         if p_files and os.path.exists(p_files[0]):
             shutil.copy(p_files[0], save_path)
-            optimize_image_for_ram(save_path)
-            print(f"✅ [Pinterest HD Engine] Successfully downloaded: {save_path}")
-            return True
+            if optimize_image_for_ram(save_path):
+                print(f"✅ [Pinterest HD Engine] Successfully downloaded: {save_path}")
+                return True
+            else:
+                print("⚠️ [Pinterest HD Engine] Downloaded file was invalid/corrupt. Falling back...")
     except Exception as e_pin:
         print(f"⚠️ Pinterest HD search skip: {e_pin}")
 
@@ -94,9 +111,9 @@ def fetch_web_image(query: str, save_path: str) -> bool:
                         if img_req.status_code == 200 and len(img_req.content) > 15000:
                             with open(save_path, "wb") as f:
                                 f.write(img_req.content)
-                            optimize_image_for_ram(save_path)
-                            print(f"✅ [Pexels HD Photo API] Successfully downloaded: {save_path}")
-                            return True
+                            if optimize_image_for_ram(save_path):
+                                print(f"✅ [Pexels HD Photo API] Successfully downloaded: {save_path}")
+                                return True
         except Exception as e_pex:
             print(f"⚠️ Pexels photo search skip: {e_pex}")
 
@@ -107,9 +124,9 @@ def fetch_web_image(query: str, save_path: str) -> bool:
         if u_res.status_code == 200 and len(u_res.content) > 15000:
             with open(save_path, "wb") as f:
                 f.write(u_res.content)
-            optimize_image_for_ram(save_path)
-            print(f"✅ [Pollinations HD Engine] Successfully downloaded: {save_path}")
-            return True
+            if optimize_image_for_ram(save_path):
+                print(f"✅ [Pollinations HD Engine] Successfully downloaded: {save_path}")
+                return True
     except Exception as e_u:
         print(f"⚠️ Pollinations search skip: {e_u}")
 
