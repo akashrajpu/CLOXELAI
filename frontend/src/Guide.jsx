@@ -70,16 +70,16 @@ export default function Guide({ onClose }) {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '40px', marginBottom: '80px' }}>
           
           {/* Step 1 */}
-          <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(168,85,247,0.3)', borderRadius: '24px', padding: '40px', display: 'flex', gap: '30px', alignItems: 'center' }}>
+          <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(168,85,247,0.3)', borderRadius: '24px', padding: '40px', display: 'flex', gap: '20px', alignItems: 'center', flexDirection: 'column', textAlign: 'center' }}>
             <div style={{ width: '80px', height: '80px', borderRadius: '20px', background: 'linear-gradient(135deg, #a855f7 0%, #6366f1 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, boxShadow: '0 10px 30px rgba(168,85,247,0.4)' }}>
               <Bot size={40} color="#fff" />
             </div>
             <div>
               <h3 style={{ fontSize: '1.8rem', color: '#fff', margin: '0 0 10px 0' }}>Step 1: Choose Your Topic & Format</h3>
-              <p style={{ color: '#94a3b8', fontSize: '1.1rem', margin: '0 0 15px 0', lineHeight: '1.5' }}>
+              <p style={{ color: '#94a3b8', fontSize: '1.1rem', margin: '0 auto 15px auto', lineHeight: '1.5', maxWidth: '800px' }}>
                 Select whether you want a <strong>Short (9:16)</strong> for YouTube Shorts/Reels, a <strong>Long (16:9)</strong> video for standard YouTube, or our premium <strong>Ultra Photo Motion</strong> format. Then, simply type a topic like <em>"History of Black Holes"</em>.
               </p>
-              <div style={{ display: 'flex', gap: '15px' }}>
+              <div style={{ display: 'flex', gap: '15px', justifyContent: 'center' }}>
                 <span style={{ padding: '6px 12px', background: 'rgba(255,255,255,0.1)', borderRadius: '8px', fontSize: '0.9rem', color: '#c084fc' }}><CheckCircle2 size={14} style={{ display: 'inline', marginRight: '4px' }}/> 30+ Categories Supported</span>
                 <span style={{ padding: '6px 12px', background: 'rgba(255,255,255,0.1)', borderRadius: '8px', fontSize: '0.9rem', color: '#c084fc' }}><CheckCircle2 size={14} style={{ display: 'inline', marginRight: '4px' }}/> Multiple Aspect Ratios</span>
               </div>
@@ -87,16 +87,16 @@ export default function Guide({ onClose }) {
           </div>
 
           {/* Step 2 */}
-          <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(168,85,247,0.3)', borderRadius: '24px', padding: '40px', display: 'flex', gap: '30px', alignItems: 'center', flexDirection: 'row-reverse' }}>
+          <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(168,85,247,0.3)', borderRadius: '24px', padding: '40px', display: 'flex', gap: '20px', alignItems: 'center', flexDirection: 'column', textAlign: 'center' }}>
             <div style={{ width: '80px', height: '80px', borderRadius: '20px', background: 'linear-gradient(135deg, #ec4899 0%, #a855f7 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, boxShadow: '0 10px 30px rgba(236,72,153,0.4)' }}>
               <Wand2 size={40} color="#fff" />
             </div>
-            <div style={{ textAlign: 'right' }}>
+            <div>
               <h3 style={{ fontSize: '1.8rem', color: '#fff', margin: '0 0 10px 0' }}>Step 2: Auto-Generate Script</h3>
-              <p style={{ color: '#94a3b8', fontSize: '1.1rem', margin: '0 0 15px 0', lineHeight: '1.5' }}>
+              <p style={{ color: '#94a3b8', fontSize: '1.1rem', margin: '0 auto 15px auto', lineHeight: '1.5', maxWidth: '800px' }}>
                 Click the magical <strong>Auto-Generate Script via AI</strong> button. Our Gemini AI will parse your topic and write a highly engaging, viral script with hooks, scene descriptions, and perfect pacing. You can also manually edit the script if you want.
               </p>
-              <div style={{ display: 'flex', gap: '15px', justifyContent: 'flex-end' }}>
+              <div style={{ display: 'flex', gap: '15px', justifyContent: 'center' }}>
                 <span style={{ padding: '6px 12px', background: 'rgba(255,255,255,0.1)', borderRadius: '8px', fontSize: '0.9rem', color: '#f472b6' }}><CheckCircle2 size={14} style={{ display: 'inline', marginRight: '4px' }}/> Viral Hooks Built-in</span>
                 <span style={{ padding: '6px 12px', background: 'rgba(255,255,255,0.1)', borderRadius: '8px', fontSize: '0.9rem', color: '#f472b6' }}><CheckCircle2 size={14} style={{ display: 'inline', marginRight: '4px' }}/> Scene-by-Scene Breakdown</span>
               </div>
@@ -104,16 +104,16 @@ export default function Guide({ onClose }) {
           </div>
 
           {/* Step 3 */}
-          <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(168,85,247,0.3)', borderRadius: '24px', padding: '40px', display: 'flex', gap: '30px', alignItems: 'center' }}>
+          <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(168,85,247,0.3)', borderRadius: '24px', padding: '40px', display: 'flex', gap: '20px', alignItems: 'center', flexDirection: 'column', textAlign: 'center' }}>
             <div style={{ width: '80px', height: '80px', borderRadius: '20px', background: 'linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, boxShadow: '0 10px 30px rgba(59,130,246,0.4)' }}>
               <Clapperboard size={40} color="#fff" />
             </div>
             <div>
               <h3 style={{ fontSize: '1.8rem', color: '#fff', margin: '0 0 10px 0' }}>Step 3: Customize Visuals & Audio</h3>
-              <p style={{ color: '#94a3b8', fontSize: '1.1rem', margin: '0 0 15px 0', lineHeight: '1.5' }}>
+              <p style={{ color: '#94a3b8', fontSize: '1.1rem', margin: '0 auto 15px auto', lineHeight: '1.5', maxWidth: '800px' }}>
                 Use the settings panel on the right to personalize your video. Choose a hyper-realistic AI Voice (Male or Female), pick a cinematic filter (like Warm Epic), add background music, and set your target duration (e.g., 60 seconds).
               </p>
-              <div style={{ display: 'flex', gap: '15px' }}>
+              <div style={{ display: 'flex', gap: '15px', justifyContent: 'center' }}>
                 <span style={{ padding: '6px 12px', background: 'rgba(255,255,255,0.1)', borderRadius: '8px', fontSize: '0.9rem', color: '#93c5fd' }}><CheckCircle2 size={14} style={{ display: 'inline', marginRight: '4px' }}/> Neural Voices</span>
                 <span style={{ padding: '6px 12px', background: 'rgba(255,255,255,0.1)', borderRadius: '8px', fontSize: '0.9rem', color: '#93c5fd' }}><CheckCircle2 size={14} style={{ display: 'inline', marginRight: '4px' }}/> Color Grading Filters</span>
               </div>
@@ -121,17 +121,17 @@ export default function Guide({ onClose }) {
           </div>
 
           {/* Step 4 */}
-          <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(168,85,247,0.3)', borderRadius: '24px', padding: '40px', display: 'flex', gap: '30px', alignItems: 'center', flexDirection: 'row-reverse' }}>
+          <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(168,85,247,0.3)', borderRadius: '24px', padding: '40px', display: 'flex', gap: '20px', alignItems: 'center', flexDirection: 'column', textAlign: 'center' }}>
             <div style={{ width: '80px', height: '80px', borderRadius: '20px', background: 'linear-gradient(135deg, #10b981 0%, #3b82f6 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, boxShadow: '0 10px 30px rgba(16,185,129,0.4)' }}>
               <Rocket size={40} color="#fff" />
             </div>
-            <div style={{ textAlign: 'right' }}>
+            <div>
               <h3 style={{ fontSize: '1.8rem', color: '#fff', margin: '0 0 10px 0' }}>Step 4: Generate & Auto-Upload</h3>
-              <p style={{ color: '#94a3b8', fontSize: '1.1rem', margin: '0 0 15px 0', lineHeight: '1.5' }}>
-                Hit the <strong>Generate Video</strong> button. Our cloud FFmpeg compositing engine takes over: it fetches HD media, synthesizes the voiceover, generates auto-animated yellow captions, merges everything, and optionally auto-uploads directly to your YouTube channel!
+              <p style={{ color: '#94a3b8', fontSize: '1.1rem', margin: '0 auto 15px auto', lineHeight: '1.5', maxWidth: '800px' }}>
+                Hit the <strong>Generate Video</strong> button. Our powerful <strong>Cloxel Engine</strong> takes over: it fetches HD media, synthesizes the voiceover, generates auto-animated yellow captions, merges everything, and optionally auto-uploads directly to your YouTube channel!
               </p>
-              <div style={{ display: 'flex', gap: '15px', justifyContent: 'flex-end' }}>
-                <span style={{ padding: '6px 12px', background: 'rgba(255,255,255,0.1)', borderRadius: '8px', fontSize: '0.9rem', color: '#6ee7b7' }}><CheckCircle2 size={14} style={{ display: 'inline', marginRight: '4px' }}/> FFmpeg Rendering</span>
+              <div style={{ display: 'flex', gap: '15px', justifyContent: 'center' }}>
+                <span style={{ padding: '6px 12px', background: 'rgba(255,255,255,0.1)', borderRadius: '8px', fontSize: '0.9rem', color: '#6ee7b7' }}><CheckCircle2 size={14} style={{ display: 'inline', marginRight: '4px' }}/> Cloxel Engine Rendering</span>
                 <span style={{ padding: '6px 12px', background: 'rgba(255,255,255,0.1)', borderRadius: '8px', fontSize: '0.9rem', color: '#6ee7b7' }}><Video size={14} style={{ display: 'inline', marginRight: '4px' }}/> 1-Click YouTube Publish</span>
               </div>
             </div>
