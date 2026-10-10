@@ -4,6 +4,7 @@ import lottie from 'lottie-web';
 import heroAnimationData from './lottie_hero.json';
 import Guide from './Guide';
 import Features from './Features';
+import Support from './Support';
 
 const API_BASE = window.location.hostname === 'localhost' ? 'http://localhost:8000' : '';
 
@@ -779,46 +780,7 @@ function Auth({ onLoginSuccess }) {
 
       {/* 3. SUPPORT MODAL */}
       {showSupport && (
-        <div className="pricing-modal-overlay" onClick={() => setShowSupport(false)} style={{ zIndex: 3000 }}>
-          <div className="pricing-modal-card" style={{ maxWidth: '800px', padding: '36px' }} onClick={e => e.stopPropagation()}>
-            <button className="sidebar-close-btn" style={{ position: 'absolute', top: '20px', right: '20px', background: 'none', border: 'none', color: '#fff', fontSize: '1.8rem', cursor: 'pointer' }} onClick={() => setShowSupport(false)}>×</button>
-
-            <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', width: '100%', marginBottom: '24px' }}>
-              <span className="pricing-badge">💬 24/7 SUPPORT CENTER</span>
-              <h2 style={{ color: '#ffffff', fontSize: '2rem', marginTop: '8px', fontWeight: '800', textAlign: 'center', display: 'block', width: '100%', margin: '8px auto 0 auto' }}>
-                Cloxel AI Help & Support
-              </h2>
-              <p style={{ color: '#94a3b8', fontSize: '0.95rem', textAlign: 'center', display: 'block', width: '100%', margin: '4px auto 0 auto' }}>
-                Have questions or need assistance? Our support team is here to help you 24/7.
-              </p>
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '24px' }}>
-              <div style={{ background: 'rgba(255,255,255,0.04)', padding: '20px', borderRadius: '16px', border: '1px solid rgba(168,85,247,0.3)' }}>
-                <h4 style={{ color: '#c084fc', marginBottom: '10px' }}>✉️ Direct Email Support</h4>
-                <p style={{ color: '#cbd5e1', fontSize: '0.85rem', marginBottom: '8px' }}>Email us anytime for account or payment queries:</p>
-                <a href="mailto:support@cloxel.com" style={{ color: '#ec4899', fontWeight: 'bold', fontSize: '0.95rem', display: 'block' }}>support@cloxel.com</a>
-                <a href="mailto:zobbly.com@gmail.com" style={{ color: '#a855f7', fontWeight: 'bold', fontSize: '0.85rem', display: 'block', marginTop: '4px' }}>zobbly.com@gmail.com</a>
-              </div>
-
-              <div style={{ background: 'rgba(255,255,255,0.04)', padding: '20px', borderRadius: '16px', border: '1px solid rgba(168,85,247,0.3)' }}>
-                <h4 style={{ color: '#c084fc', marginBottom: '10px' }}>👤 Founder & Executive Contact</h4>
-                <p style={{ color: '#cbd5e1', fontSize: '0.85rem', margin: 0 }}><strong>Founder & CEO:</strong> Akash Raj</p>
-                <p style={{ color: '#cbd5e1', fontSize: '0.85rem', marginTop: '4px' }}><strong>Organization:</strong> Cloxel AI Technologies India</p>
-                <p style={{ color: '#22c55e', fontSize: '0.8rem', marginTop: '8px', margin: 0 }}>⚡ Guaranteed response within 24 hours.</p>
-              </div>
-            </div>
-
-            <div style={{ background: 'rgba(0,0,0,0.2)', padding: '20px', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.06)' }}>
-              <h4 style={{ color: '#ffffff', marginBottom: '10px' }}>❓ Frequently Asked Questions</h4>
-              <ul style={{ color: '#cbd5e1', fontSize: '0.85rem', paddingLeft: '20px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                <li><strong>How do I activate my 30-day membership?</strong> Select your desired plan and complete Razorpay checkout. Activation is instant.</li>
-                <li><strong>What if I repurchase an active plan?</strong> Your active membership is automatically extended by an additional 30 days.</li>
-                <li><strong>Can I auto-upload videos to YouTube?</strong> Yes, connect your YouTube channel from the dashboard panel.</li>
-              </ul>
-            </div>
-          </div>
-        </div>
+        <Support onClose={() => setShowSupport(false)} />
       )}
 
       {/* 4. OFFICIAL LEGAL PRIVACY POLICY MODAL */}
