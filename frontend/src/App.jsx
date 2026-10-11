@@ -980,7 +980,7 @@ function App() {
             </div>
           </div>
           <button className="btn-upgrade-pill" onClick={() => openPricingModal()}>
-            💎 Upgrade Plan
+            👑 Upgrade Plan
           </button>
           <button className="profile-pill-btn" onClick={() => { setIsSidebarOpen(true); fetchSubscriptionStatus(); fetchYoutubeStatus(); }} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             {subStatus?.profile_pic ? (
@@ -1530,7 +1530,7 @@ function App() {
                     {subStatus?.name || 'Account Active'}
                   </h4>
                   <div style={{ fontSize: '0.78rem', color: subStatus?.has_active_subscription ? '#34d399' : '#c084fc', fontWeight: 'bold' }}>
-                    💎 {subStatus?.has_active_subscription ? `${(subStatus.plan_type || 'combo').toUpperCase()} PLAN (ACTIVE)` : (subStatus?.has_active_ultra_subscription ? 'ULTRA CINEMATIC (ACTIVE)' : `Free Demo (${subStatus?.free_demo_count ?? 2}/2)`)}
+                    👑 {subStatus?.has_active_subscription ? `${(subStatus.plan_type || 'combo').toUpperCase()} PLAN (ACTIVE)` : (subStatus?.has_active_ultra_subscription ? 'ULTRA CINEMATIC (ACTIVE)' : `Free Demo (${subStatus?.free_demo_count ?? 2}/2)`)}
                   </div>
                   <div style={{ fontSize: '0.72rem', color: isAutoScheduleActive ? '#34d399' : '#94a3b8', fontWeight: 'bold', marginTop: '2px' }}>
                     {isAutoScheduleActive ? '🟢 Auto-Publishing: ACTIVE' : '🔴 Auto-Publishing: PAUSED'}
@@ -1599,7 +1599,7 @@ function App() {
                 style={{ padding: '8px 10px', fontSize: '0.8rem', whiteSpace: 'nowrap' }} 
                 onClick={() => openPricingModal()}
               >
-                💎 Upgrade
+                👑 Upgrade
               </button>
             </div>
 
@@ -1653,7 +1653,7 @@ function App() {
             <button className="modal-close-btn" onClick={() => setShowPricingModal(false)}>×</button>
             
             <div className="pricing-header">
-              <span className="pricing-badge">💎 MEMBERSHIP PLANS</span>
+              <span className="pricing-badge">👑 MEMBERSHIP PLANS</span>
               <h2>Choose Your Monthly Video Plan</h2>
               <p>Unlock 30 days of daily automated AI video creation and auto-uploads.</p>
             </div>
@@ -1820,7 +1820,7 @@ function App() {
             </div>
 
             <div className="pricing-footer">
-              🔒 Safe & Secure Payments via Razorpay. Cancel anytime.
+              🔒 Safe & Secure Payments via Razorpay.
             </div>
           </div>
         </div>
@@ -1938,7 +1938,7 @@ function App() {
             {/* Current Active Plan Status Card */}
             <div style={{ background: 'rgba(255,255,255,0.04)', padding: '18px 20px', borderRadius: '16px', border: '1px solid rgba(6, 182, 212, 0.3)', marginBottom: '20px' }}>
               <h4 style={{ color: '#38bdf8', marginBottom: '10px', fontSize: '1rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                💎 Active Membership Plan Status
+                👑 Active Membership Plan Status
               </h4>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', fontSize: '0.85rem', color: '#cbd5e1' }}>
                 <div><strong>Current Plan:</strong> <span style={{ color: '#c084fc', textTransform: 'uppercase', fontWeight: 'bold' }}>{subStatus.has_active_subscription ? `${subStatus.plan_type} (${autoSchedule.purchase_count || 1}x Stacked)` : 'Free Demo'}</span></div>
@@ -2384,7 +2384,7 @@ function App() {
                     setShowPricingModal(true);
                   }}
                 >
-                  🔒 Active Membership Required — Click to Upgrade Plan & Unlock Auto-Schedule 💎
+                  🔒 Active Membership Required — Click to Upgrade Plan & Unlock Auto-Schedule 👑
                 </button>
               )}
             </div>

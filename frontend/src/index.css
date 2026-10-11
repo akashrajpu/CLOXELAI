@@ -1363,6 +1363,10 @@ body.theme-pastel .history-card-topic {
   cursor: pointer;
   box-shadow: 0 4px 15px rgba(168, 85, 247, 0.4);
   transition: transform 0.2s, box-shadow 0.2s;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
 }
 
 .btn-upgrade-pill:hover {

@@ -486,12 +486,7 @@ def resolve_random_topic(topic: str = "", category: str = "Random") -> str:
 
     is_random_requested = (
         not topic_clean or
-        topic_low in ["random", "random topic", "default", "ai script", "generate script", "none", "ai auto topic (daily dynamic)"] or
-        "ai auto topic" in topic_low or
-        "space exploration" in topic_low or
-        "history of ancient warriors" in topic_low or
-        "ai innovations" in topic_low or
-        "ai technology" in topic_low
+        topic_low in ["random", "random topic", "default", "ai script", "generate script", "none", "ai auto topic (daily dynamic)", "ai auto topic"]
     )
 
     if is_random_requested:
@@ -3563,7 +3558,8 @@ async def api_generate_ai_script(req: AIScriptRequest):
         duration=duration,
         video_type=req.video_type or "short",
         language=req.language or "hinglish",
-        tone=req.tone or "viral"
+        tone=req.tone or "viral",
+        category=req.category or "Random"
     )
 
 @app.post("/generate-script")
