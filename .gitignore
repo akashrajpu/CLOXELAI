@@ -15,3 +15,4 @@ crop_actual_portrait.py
 *.png
 *.jpg
 !frontend/dist/favicon.png
+cloxel-load-balancer/
