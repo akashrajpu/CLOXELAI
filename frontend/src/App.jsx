@@ -373,6 +373,132 @@ function App() {
     }
   };
 
+  const getTourPlacement = () => {
+    if (!spotlightRect || typeof window === 'undefined') {
+      return {
+        cardStyle: { bottom: '28px', right: '28px', left: 'auto', top: 'auto' },
+        arrowDir: null
+      };
+    }
+
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    const cardWidth = 440;
+    const cardHeight = 250;
+
+    const targetLeft = spotlightRect.left;
+    const targetRight = spotlightRect.left + spotlightRect.width;
+    const targetTop = spotlightRect.top;
+    const targetBottom = spotlightRect.top + spotlightRect.height;
+    const targetCenterX = spotlightRect.left + spotlightRect.width / 2;
+    const targetCenterY = spotlightRect.top + spotlightRect.height / 2;
+
+    // Mobile screens (<= 640px)
+    if (vw <= 640) {
+      const isTargetInBottomHalf = targetCenterY > vh / 2;
+      return {
+        cardStyle: {
+          left: '12px',
+          right: '12px',
+          width: 'calc(100% - 24px)',
+          maxWidth: '100%',
+          top: isTargetInBottomHalf ? '16px' : 'auto',
+          bottom: isTargetInBottomHalf ? 'auto' : '16px'
+        },
+        arrowDir: isTargetInBottomHalf ? 'down' : 'up'
+      };
+    }
+
+    // Space available around spotlight box
+    const spaceLeft = targetLeft - 20;
+    const spaceRight = vw - targetRight - 20;
+    const isTargetOnRight = targetCenterX > vw / 2;
+
+    // Header actions (Step 7)
+    if (targetTop < 120) {
+      return {
+        cardStyle: {
+          right: '28px',
+          bottom: '28px',
+          left: 'auto',
+          top: 'auto',
+          maxWidth: `${cardWidth}px`
+        },
+        arrowDir: null
+      };
+    }
+
+    // If target is on the right side of the screen (e.g. Generate button or Video Settings)
+    if (isTargetOnRight) {
+      if (spaceLeft >= 360) {
+        // Place card directly next to target on its left side!
+        const effectiveCardWidth = Math.min(cardWidth, spaceLeft - 10);
+        const cardRightDist = vw - targetLeft + 20;
+        const calculatedBottom = Math.max(28, Math.min(vh - cardHeight - 28, vh - targetBottom));
+        return {
+          cardStyle: {
+            right: `${cardRightDist}px`,
+            bottom: `${calculatedBottom}px`,
+            left: 'auto',
+            top: 'auto',
+            maxWidth: `${effectiveCardWidth}px`
+          },
+          arrowDir: 'right'
+        };
+      } else {
+        // Narrower screen: if room above target
+        if (targetTop >= cardHeight + 40) {
+          return {
+            cardStyle: {
+              right: '24px',
+              bottom: `${vh - targetTop + 20}px`,
+              left: 'auto',
+              top: 'auto',
+              maxWidth: `${cardWidth}px`
+            },
+            arrowDir: 'down'
+          };
+        }
+        // Fallback: place on bottom left
+        return {
+          cardStyle: {
+            left: '24px',
+            bottom: '24px',
+            right: 'auto',
+            top: 'auto',
+            maxWidth: `${cardWidth}px`
+          },
+          arrowDir: 'right'
+        };
+      }
+    }
+
+    // Target is on left side (Video Type, Duration, Topic, Scenes)
+    if (spaceRight >= 360) {
+      return {
+        cardStyle: {
+          right: '28px',
+          bottom: '28px',
+          left: 'auto',
+          top: 'auto',
+          maxWidth: `${cardWidth}px`
+        },
+        arrowDir: 'left'
+      };
+    } else {
+      return {
+        cardStyle: {
+          right: '24px',
+          bottom: '24px',
+          left: 'auto',
+          top: 'auto',
+          maxWidth: `${cardWidth}px`
+        },
+        arrowDir: null
+      };
+    }
+  };
+
   // Smooth scroll and calculate spotlight cutout coordinates on each tour step
   useEffect(() => {
     if (!isTourActive) {
@@ -384,11 +510,14 @@ function App() {
       const el = document.getElementById(stepTarget);
       if (el) {
         el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        const t1 = setTimeout(updateSpotlight, 120);
-        const t2 = setTimeout(updateSpotlight, 400);
+        updateSpotlight();
+        const t1 = setTimeout(updateSpotlight, 100);
+        const t2 = setTimeout(updateSpotlight, 300);
+        const t3 = setTimeout(updateSpotlight, 600);
         return () => {
           clearTimeout(t1);
           clearTimeout(t2);
+          clearTimeout(t3);
         };
       }
     }
@@ -1071,7 +1200,7 @@ function App() {
   const isAutoScheduleActive = !!(autoSchedule?.schedule_enabled && ytStatus?.linked);
 
   return (
-    <div className="app-container">
+    <div className="app-container" style={{ paddingBottom: isTourActive ? '260px' : undefined }}>
       <header className="app-header">
         <div className="header-left">
           <button className="hamburger-btn" onClick={() => { setIsSidebarOpen(true); fetchSubscriptionStatus(); fetchYoutubeStatus(); }} title="Open Menu">
@@ -2733,69 +2862,88 @@ function App() {
                 width: `${spotlightRect.width + 16}px`,
                 height: `${spotlightRect.height + 16}px`
               }}
-            />
+            >
+              <div 
+                className="tour-spotlight-tag"
+                style={spotlightRect.top < 50 ? { bottom: '-34px', top: 'auto' } : { top: '-34px', bottom: 'auto' }}
+              >
+                <span className="tour-spotlight-tag-pulse" />
+                {TOUR_STEPS[tourStep]?.badge || 'Target Element'}
+              </div>
+            </div>
           )}
 
-          <div className="tour-card" onClick={e => e.stopPropagation()}>
-            <div className="tour-card-header">
-              <span className="tour-step-badge">
-                {TOUR_STEPS[tourStep]?.badge || `Step ${tourStep + 1} of ${TOUR_STEPS.length}`}
-              </span>
-              <button className="tour-close-btn" onClick={handleCloseTour} title="Close Tour">×</button>
-            </div>
+          {(() => {
+            const { cardStyle, arrowDir } = getTourPlacement();
+            return (
+              <div 
+                className="tour-card" 
+                style={cardStyle} 
+                onClick={e => e.stopPropagation()}
+              >
+                {arrowDir && <div className={`tour-card-arrow tour-card-arrow-${arrowDir}`} />}
+                
+                <div className="tour-card-header">
+                  <span className="tour-step-badge">
+                    {TOUR_STEPS[tourStep]?.badge || `Step ${tourStep + 1} of ${TOUR_STEPS.length}`}
+                  </span>
+                  <button className="tour-close-btn" onClick={handleCloseTour} title="Close Tour">×</button>
+                </div>
 
-            <h3 className="tour-card-title">
-              <span>{TOUR_STEPS[tourStep]?.icon}</span>
-              <span>{TOUR_STEPS[tourStep]?.title}</span>
-            </h3>
+                <h3 className="tour-card-title">
+                  <span>{TOUR_STEPS[tourStep]?.icon}</span>
+                  <span>{TOUR_STEPS[tourStep]?.title}</span>
+                </h3>
 
-            <p className="tour-card-desc">
-              {TOUR_STEPS[tourStep]?.description}
-            </p>
+                <p className="tour-card-desc">
+                  {TOUR_STEPS[tourStep]?.description}
+                </p>
 
-            <div className="tour-card-footer">
-              <div className="tour-dots-container">
-                {TOUR_STEPS.map((_, idx) => (
-                  <div 
-                    key={idx} 
-                    className={`tour-dot ${idx === tourStep ? 'active' : ''}`}
-                    onClick={() => setTourStep(idx)}
-                    style={{ cursor: 'pointer' }}
-                    title={`Go to step ${idx + 1}`}
-                  />
-                ))}
+                <div className="tour-card-footer">
+                  <div className="tour-dots-container">
+                    {TOUR_STEPS.map((_, idx) => (
+                      <div 
+                        key={idx} 
+                        className={`tour-dot ${idx === tourStep ? 'active' : ''}`}
+                        onClick={() => setTourStep(idx)}
+                        style={{ cursor: 'pointer' }}
+                        title={`Go to step ${idx + 1}`}
+                      />
+                    ))}
+                  </div>
+
+                  <div className="tour-actions">
+                    <button 
+                      type="button" 
+                      className="tour-btn-secondary" 
+                      onClick={handleCloseTour}
+                      style={{ marginRight: '4px' }}
+                    >
+                      Skip
+                    </button>
+
+                    {tourStep > 0 && (
+                      <button 
+                        type="button" 
+                        className="tour-btn-secondary" 
+                        onClick={handlePrevTourStep}
+                      >
+                        ← Back
+                      </button>
+                    )}
+
+                    <button 
+                      type="button" 
+                      className="tour-btn-primary" 
+                      onClick={handleNextTourStep}
+                    >
+                      {tourStep === TOUR_STEPS.length - 1 ? '🎉 Done / Start! 🚀' : 'Next →'}
+                    </button>
+                  </div>
+                </div>
               </div>
-
-              <div className="tour-actions">
-                <button 
-                  type="button" 
-                  className="tour-btn-secondary" 
-                  onClick={handleCloseTour}
-                  style={{ marginRight: '4px' }}
-                >
-                  Skip
-                </button>
-
-                {tourStep > 0 && (
-                  <button 
-                    type="button" 
-                    className="tour-btn-secondary" 
-                    onClick={handlePrevTourStep}
-                  >
-                    ← Back
-                  </button>
-                )}
-
-                <button 
-                  type="button" 
-                  className="tour-btn-primary" 
-                  onClick={handleNextTourStep}
-                >
-                  {tourStep === TOUR_STEPS.length - 1 ? '🎉 Done / Start! 🚀' : 'Next →'}
-                </button>
-              </div>
-            </div>
-          </div>
+            );
+          })()}
         </>
       )}
     </div>
