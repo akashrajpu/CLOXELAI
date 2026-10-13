@@ -1636,37 +1636,37 @@ body.theme-pastel .custom-select-dropdown div {
 /* =========================================================
    Interactive Onboarding Product Tour (New User Guide)
    ========================================================= */
-.cloxel-tour-overlay {
+.cloxel-tour-backdrop {
   position: fixed;
   inset: 0;
-  z-index: 9998;
-  background: rgba(6, 4, 18, 0.72);
-  backdrop-filter: blur(4px);
-  -webkit-backdrop-filter: blur(4px);
+  z-index: 9997;
+  background: transparent;
   pointer-events: auto;
-  animation: tourFadeIn 0.3s ease;
 }
 
-@keyframes tourFadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
+.tour-spotlight-box {
+  position: fixed;
+  border-radius: 20px;
+  border: 3px solid #c084fc;
+  box-shadow: 0 0 0 9999px rgba(6, 4, 20, 0.78), 0 0 35px rgba(168, 85, 247, 0.85);
+  z-index: 9998;
+  pointer-events: none;
+  background: transparent;
+  transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+  animation: tourGlowPulse 2s infinite alternate ease-in-out;
 }
 
-.tour-highlight {
-  position: relative !important;
-  z-index: 9999 !important;
-  box-shadow: 0 0 0 4px #c084fc, 0 0 35px rgba(168, 85, 247, 0.75) !important;
-  border-radius: 20px !important;
-  animation: tourPulseGlow 2s infinite alternate ease-in-out !important;
-  background-color: inherit;
+body.theme-pastel .tour-spotlight-box {
+  border-color: #9333ea;
+  box-shadow: 0 0 0 9999px rgba(25, 12, 45, 0.65), 0 0 35px rgba(147, 51, 234, 0.75);
 }
 
-@keyframes tourPulseGlow {
+@keyframes tourGlowPulse {
   0% {
-    box-shadow: 0 0 0 3px #a855f7, 0 0 20px rgba(168, 85, 247, 0.5);
+    box-shadow: 0 0 0 9999px rgba(6, 4, 20, 0.78), 0 0 20px rgba(168, 85, 247, 0.6);
   }
   100% {
-    box-shadow: 0 0 0 6px #d946ef, 0 0 45px rgba(217, 70, 239, 0.85);
+    box-shadow: 0 0 0 9999px rgba(6, 4, 20, 0.78), 0 0 45px rgba(217, 70, 239, 0.95);
   }
 }
 

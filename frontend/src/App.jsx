@@ -354,28 +354,61 @@ function App() {
     }
   }, [userId]);
 
-  // Smooth scroll and spotlight target element on each tour step
-  useEffect(() => {
+  const [spotlightRect, setSpotlightRect] = useState(null);
+
+  const updateSpotlight = () => {
     if (!isTourActive) return;
     const stepTarget = TOUR_STEPS[tourStep]?.targetId;
     if (stepTarget) {
-      document.querySelectorAll('.tour-highlight').forEach(el => el.classList.remove('tour-highlight'));
       const el = document.getElementById(stepTarget);
       if (el) {
-        el.classList.add('tour-highlight');
-        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        const r = el.getBoundingClientRect();
+        setSpotlightRect({
+          left: r.left,
+          top: r.top,
+          width: r.width,
+          height: r.height
+        });
       }
     }
+  };
+
+  // Smooth scroll and calculate spotlight cutout coordinates on each tour step
+  useEffect(() => {
+    if (!isTourActive) {
+      setSpotlightRect(null);
+      return;
+    }
+    const stepTarget = TOUR_STEPS[tourStep]?.targetId;
+    if (stepTarget) {
+      const el = document.getElementById(stepTarget);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        const t1 = setTimeout(updateSpotlight, 120);
+        const t2 = setTimeout(updateSpotlight, 400);
+        return () => {
+          clearTimeout(t1);
+          clearTimeout(t2);
+        };
+      }
+    }
+  }, [isTourActive, tourStep]);
+
+  useEffect(() => {
+    if (!isTourActive) return;
+    window.addEventListener('resize', updateSpotlight);
+    window.addEventListener('scroll', updateSpotlight, true);
     return () => {
-      document.querySelectorAll('.tour-highlight').forEach(el => el.classList.remove('tour-highlight'));
+      window.removeEventListener('resize', updateSpotlight);
+      window.removeEventListener('scroll', updateSpotlight, true);
     };
   }, [isTourActive, tourStep]);
 
   const handleCloseTour = () => {
     setIsTourActive(false);
+    setSpotlightRect(null);
     localStorage.setItem('cloxel_tour_completed', 'true');
     localStorage.removeItem('cloxel_is_new_user');
-    document.querySelectorAll('.tour-highlight').forEach(el => el.classList.remove('tour-highlight'));
   };
 
   const handleNextTourStep = () => {
@@ -2688,7 +2721,21 @@ function App() {
       {/* Interactive Onboarding Product Tour (New User Walkthrough) */}
       {isTourActive && (
         <>
-          <div className="cloxel-tour-overlay" onClick={handleCloseTour} />
+          <div className="cloxel-tour-backdrop" onClick={handleCloseTour} />
+
+          {/* Transparent Spotlight Window with Dark Perimeter & Glowing Neon Frame */}
+          {spotlightRect && (
+            <div 
+              className="tour-spotlight-box"
+              style={{
+                left: `${spotlightRect.left - 8}px`,
+                top: `${spotlightRect.top - 8}px`,
+                width: `${spotlightRect.width + 16}px`,
+                height: `${spotlightRect.height + 16}px`
+              }}
+            />
+          )}
+
           <div className="tour-card" onClick={e => e.stopPropagation()}>
             <div className="tour-card-header">
               <span className="tour-step-badge">
