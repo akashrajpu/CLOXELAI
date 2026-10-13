@@ -360,6 +360,11 @@ function Auth({ onLoginSuccess }) {
           name: data.name || name
         }));
 
+        if (!isLogin) {
+          localStorage.setItem('cloxel_is_new_user', 'true');
+          localStorage.removeItem('cloxel_tour_completed');
+        }
+
         onLoginSuccess(data.internal_id, { internal_id: data.internal_id, email: userEmail, phone: userPhone });
       } else {
         throw new Error("No internal ID received");

@@ -40,9 +40,9 @@ const CATEGORIES = [
   '✍️ Custom Category (Type Below)'
 ];
 
-function CustomSelect({ value, onChange, options }) {
+function CustomSelect({ value, onChange, options, theme }) {
   const [isOpen, setIsOpen] = useState(false);
-  const isPastel = typeof document !== 'undefined' && document.body.classList.contains('theme-pastel');
+  const isPastel = theme ? (theme === 'pastel') : (typeof document !== 'undefined' && document.body.classList.contains('theme-pastel'));
 
   const selectedOption = options.find(opt => (typeof opt === 'object' ? opt.value : opt) === value);
   const selectedLabel = selectedOption 
@@ -166,6 +166,58 @@ function CustomSelect({ value, onChange, options }) {
   );
 }
 
+const TOUR_STEPS = [
+  {
+    targetId: 'tour-video-type',
+    title: '1. Video Type Chuniye',
+    badge: 'Step 1 • Format Selection',
+    description: 'Yahan se aap chun sakte hain ki aapko YouTube Shorts / Reels (9:16 vertical) banani hai, lambi Documentary (Long 16:9), ya Ultra Cinematic AI video.',
+    icon: '🎬'
+  },
+  {
+    targetId: 'tour-duration-category',
+    title: '2. Duration & Category Select Kijiye',
+    badge: 'Step 2 • Length & Niche',
+    description: 'Video ki length set kijiye (10s se 5 minutes tak) aur 30+ Categories (jaise AI, Space, History, Cartoon) me se apna topic niche chuniye.',
+    icon: '⏱️'
+  },
+  {
+    targetId: 'tour-topic-script',
+    title: '3. Topic Likhein & Auto Script Banayein',
+    badge: 'Step 3 • AI Scriptwriting',
+    description: 'Apni video ka topic yahan likhiye (jaise "Space Secrets") aur "✨ Auto-Generate Script" par click karein. AI khud viral dialogues aur keywords likh dega!',
+    icon: '✨'
+  },
+  {
+    targetId: 'tour-scenes-editor',
+    title: '4. Scene & Visual Keyword Editor',
+    badge: 'Step 4 • Scenes & Story',
+    description: 'Yahan AI dwara likha har scene chunk dikhega. Aap apni marzi se kisi bhi scene ka dialogue text aur image/video search keyword badal sakte hain.',
+    icon: '📝'
+  },
+  {
+    targetId: 'tour-video-settings',
+    title: '5. Video Settings Panel',
+    badge: 'Step 5 • Audio & Styles',
+    description: 'Is panel se Aspect Ratio (16:9 / 9:16), Cinematic Color Filters, AI Voiceover (Male/Female), Font Style aur Background Music customize kijiye.',
+    icon: '⚙️'
+  },
+  {
+    targetId: 'tour-generate-btn',
+    title: '6. 🚀 Final Video Generate & Export',
+    badge: 'Step 6 • Render Engine',
+    description: 'Sab settings final karne ke baad is button par click karein. Cloxel Engine dual HD assets fetch karke full video render karega aur download dega!',
+    icon: '🚀'
+  },
+  {
+    targetId: 'tour-header-actions',
+    title: '7. 👑 Membership & Auto-Publish',
+    badge: 'Step 7 • Pro Features',
+    description: 'Yahan se plan upgrade karke daily videos unlock karein aur ☰ menu se YouTube Channel jod kar Daily Auto-Publishing chalu karein!',
+    icon: '👑'
+  }
+];
+
 function App() {
   const [userId, setUserId] = useState(() => {
     try {
@@ -276,6 +328,9 @@ function App() {
   const [isSavingSchedule, setIsSavingSchedule] = useState(false);
   const [isUploadingPic, setIsUploadingPic] = useState(false);
 
+  const [isTourActive, setIsTourActive] = useState(false);
+  const [tourStep, setTourStep] = useState(0);
+
   useEffect(() => {
     if (!userId) {
       document.body.className = 'theme-dark';
@@ -285,8 +340,64 @@ function App() {
     localStorage.setItem('cloxel_theme', theme);
   }, [theme, userId]);
 
+  // Auto trigger tour for new user or first-time users
+  useEffect(() => {
+    if (!userId) return;
+    const isNew = localStorage.getItem('cloxel_is_new_user');
+    const completed = localStorage.getItem('cloxel_tour_completed');
+    if (isNew || !completed) {
+      const timer = setTimeout(() => {
+        setIsTourActive(true);
+        setTourStep(0);
+      }, 700);
+      return () => clearTimeout(timer);
+    }
+  }, [userId]);
+
+  // Smooth scroll and spotlight target element on each tour step
+  useEffect(() => {
+    if (!isTourActive) return;
+    const stepTarget = TOUR_STEPS[tourStep]?.targetId;
+    if (stepTarget) {
+      document.querySelectorAll('.tour-highlight').forEach(el => el.classList.remove('tour-highlight'));
+      const el = document.getElementById(stepTarget);
+      if (el) {
+        el.classList.add('tour-highlight');
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }
+    return () => {
+      document.querySelectorAll('.tour-highlight').forEach(el => el.classList.remove('tour-highlight'));
+    };
+  }, [isTourActive, tourStep]);
+
+  const handleCloseTour = () => {
+    setIsTourActive(false);
+    localStorage.setItem('cloxel_tour_completed', 'true');
+    localStorage.removeItem('cloxel_is_new_user');
+    document.querySelectorAll('.tour-highlight').forEach(el => el.classList.remove('tour-highlight'));
+  };
+
+  const handleNextTourStep = () => {
+    if (tourStep < TOUR_STEPS.length - 1) {
+      setTourStep(prev => prev + 1);
+    } else {
+      handleCloseTour();
+    }
+  };
+
+  const handlePrevTourStep = () => {
+    if (tourStep > 0) {
+      setTourStep(prev => prev - 1);
+    }
+  };
+
   const toggleTheme = () => {
-    setTheme(prev => (prev === 'pastel' ? 'dark' : 'pastel'));
+    setTheme(prev => {
+      const nextTheme = prev === 'pastel' ? 'dark' : 'pastel';
+      document.body.className = nextTheme === 'pastel' ? 'theme-pastel' : 'theme-dark';
+      return nextTheme;
+    });
   };
 
   const triggerAlert = (title, message, icon = '⚠️', type = 'info', onConfirm = null, confirmText = 'OK', cancelText = 'Cancel') => {
@@ -935,7 +1046,29 @@ function App() {
           </button>
           <h1>Cloxel <span>AI Video Generator</span></h1>
         </div>
-        <div className="header-right" style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+        <div className="header-right" id="tour-header-actions" style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+          <button 
+            type="button"
+            className="btn-tour-pill" 
+            onClick={() => { setIsTourActive(true); setTourStep(0); }}
+            title="Interactive App Guide / Walkthrough"
+            style={{
+              background: theme === 'pastel' ? 'rgba(168, 85, 247, 0.15)' : 'rgba(255, 255, 255, 0.08)',
+              border: theme === 'pastel' ? '1.5px solid #a855f7' : '1px solid rgba(255, 255, 255, 0.2)',
+              color: theme === 'pastel' ? '#6b21a8' : '#ffffff',
+              padding: '6px 12px',
+              borderRadius: '20px',
+              fontSize: '0.82rem',
+              fontWeight: '800',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '5px',
+              transition: 'all 0.2s ease'
+            }}
+          >
+            💡 Guide
+          </button>
           {isAutoScheduleActive && (
             <div style={{ background: 'rgba(34, 197, 94, 0.15)', border: '1px solid rgba(34, 197, 94, 0.4)', color: '#4ade80', padding: '5px 12px', borderRadius: '20px', fontSize: '0.8rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px', boxShadow: '0 0 12px rgba(34, 197, 94, 0.3)' }}>
               <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#22c55e', boxShadow: '0 0 8px #22c55e' }}></span>
@@ -997,7 +1130,7 @@ function App() {
         <main className="panel">
           <h2 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><Clapperboard size={26} /> Script & Content Editor</h2>
           
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }} id="tour-video-type">
             <div className="form-group">
               <label>Video Type</label>
               <div style={{ display: 'flex', gap: '0.5rem' }}>
@@ -1087,9 +1220,10 @@ function App() {
                 ><Zap size={16} /> Ultra</button>
               </div>
             </div>
-            <div className="form-group">
+            <div className="form-group" id="tour-duration-category">
               <label>Target Duration</label>
               <CustomSelect 
+                theme={theme}
                 value={duration} 
                 onChange={(val) => setDuration(Number(val))}
                 options={videoType === 'short' ? [
@@ -1110,108 +1244,113 @@ function App() {
             </div>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-            <div className="form-group">
-              <label>Main Topic</label>
-              <input 
-                type="text" 
-                value={topic} 
-                onChange={e => setTopic(e.target.value)} 
-                placeholder="e.g. History of AI, Space Exploration"
-              />
+          <div id="tour-topic-script">
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+              <div className="form-group">
+                <label>Main Topic</label>
+                <input 
+                  type="text" 
+                  value={topic} 
+                  onChange={e => setTopic(e.target.value)} 
+                  placeholder="e.g. History of AI, Space Exploration"
+                />
+              </div>
+
+              <div className="form-group">
+                <label>Category / Niche (30+ Categories)</label>
+                <CustomSelect 
+                  theme={theme}
+                  value={category} 
+                  onChange={(val) => setCategory(val)}
+                  options={CATEGORIES.map(cat => ({
+                    value: cat,
+                    label: <span style={{display: 'flex', alignItems: 'center', gap: '6px'}}><Hash size={16} /> {cat.substring(cat.indexOf(' ') + 1)}</span>
+                  }))}
+                />
+              </div>
             </div>
 
+            {category === '✍️ Custom Category (Type Below)' && (
+              <div className="form-group">
+                <label>Custom Category / Niche Name</label>
+                <input 
+                  type="text" 
+                  value={customCategory} 
+                  onChange={e => setCustomCategory(e.target.value)} 
+                  placeholder="Type your custom niche (e.g. Cyberpunk Anime, Ancient Rome)"
+                />
+              </div>
+            )}
+
             <div className="form-group">
-              <label>Category / Niche (30+ Categories)</label>
-              <CustomSelect 
-                value={category} 
-                onChange={(val) => setCategory(val)}
-                options={CATEGORIES.map(cat => ({
-                  value: cat,
-                  label: <span style={{display: 'flex', alignItems: 'center', gap: '6px'}}><Hash size={16} /> {cat.substring(cat.indexOf(' ') + 1)}</span>
-                }))}
-              />
+              <button 
+                className="button" 
+                onClick={handleAutoGenerate}
+                disabled={isGeneratingScript}
+                style={{ 
+                  width: '100%', 
+                  marginBottom: '1.5rem', 
+                  background: isLimitExhausted ? 'linear-gradient(135deg, #ef4444 0%, #f97316 100%)' : 'linear-gradient(135deg, #3b82f6 0%, #8b5cf6 50%, #ec4899 100%)', 
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '14px',
+                  padding: '13px 20px',
+                  fontWeight: '800',
+                  fontSize: '0.98rem',
+                  boxShadow: isLimitExhausted ? '0 6px 22px rgba(239, 68, 68, 0.5)' : '0 6px 22px rgba(59, 130, 246, 0.45)', 
+                  cursor: 'pointer'
+                }}
+              >
+                {isGeneratingScript 
+                  ? 'Generating Script via Cloxel AI Engine...' 
+                  : (isLimitExhausted ? '🔒 Free 2 Limit Exhausted (Click to Upgrade)' : '✨ Auto-Generate Script via AI')}
+              </button>
             </div>
           </div>
 
-          {category === '✍️ Custom Category (Type Below)' && (
-            <div className="form-group">
-              <label>Custom Category / Niche Name</label>
-              <input 
-                type="text" 
-                value={customCategory} 
-                onChange={e => setCustomCategory(e.target.value)} 
-                placeholder="Type your custom niche (e.g. Cyberpunk Anime, Ancient Rome)"
-              />
-            </div>
-          )}
-
-          <div className="form-group">
-            <button 
-              className="button" 
-              onClick={handleAutoGenerate}
-              disabled={isGeneratingScript}
-              style={{ 
-                width: '100%', 
-                marginBottom: '1.5rem', 
-                background: isLimitExhausted ? 'linear-gradient(135deg, #ef4444 0%, #f97316 100%)' : 'linear-gradient(135deg, #3b82f6 0%, #8b5cf6 50%, #ec4899 100%)', 
-                color: 'white',
-                border: 'none',
-                borderRadius: '14px',
-                padding: '13px 20px',
-                fontWeight: '800',
-                fontSize: '0.98rem',
-                boxShadow: isLimitExhausted ? '0 6px 22px rgba(239, 68, 68, 0.5)' : '0 6px 22px rgba(59, 130, 246, 0.45)',
-                cursor: 'pointer'
-              }}
-            >
-              {isGeneratingScript 
-                ? 'Generating Script via Cloxel AI Engine...' 
-                : (isLimitExhausted ? '🔒 Free 2 Limit Exhausted (Click to Upgrade)' : '✨ Auto-Generate Script via AI')}
-            </button>
+          <div id="tour-scenes-editor">
+            {(videoType === 'long' || videoType === 'ultra') ? (
+              <div className="form-group">
+                <label>{videoType === 'ultra' ? '⚡ Ultra Mode Script (Multi-Character / Cinematic Script)' : 'Full Video Script (AI generated or custom)'}</label>
+                <textarea 
+                  rows={8}
+                  value={fullScript}
+                  onChange={e => setFullScript(e.target.value)}
+                  placeholder={videoType === 'ultra' ? 'Paste or write your Ultra Cinematic Multi-Character script here...' : 'Paste or write your full video script here. Our smart AI will automatically split it into matching scenes and generate appropriate background visuals.'}
+                />
+              </div>
+            ) : (
+              <div className="scenes-list">
+                {scenes.map((scene, index) => (
+                  <div key={index} className="scene-card" style={{ borderLeft: '4px solid var(--primary)', paddingLeft: '1rem', marginBottom: '1.5rem' }}>
+                    <h4 style={{ color: '#a855f7', marginBottom: '0.5rem' }}>Scene {index + 1} ({index * 10}s - {(index + 1) * 10}s)</h4>
+                    <div className="form-group">
+                      <label>Script Chunk</label>
+                      <textarea 
+                        rows={2}
+                        value={scene.text}
+                        onChange={e => handleSceneChange(index, 'text', e.target.value)}
+                        placeholder="Enter script text for this part..."
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label>Video Search Keyword</label>
+                      <input 
+                        type="text" 
+                        value={scene.keyword}
+                        onChange={e => handleSceneChange(index, 'keyword', e.target.value)}
+                        placeholder="e.g. galaxy stars"
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
-
-          {(videoType === 'long' || videoType === 'ultra') ? (
-            <div className="form-group">
-              <label>{videoType === 'ultra' ? '⚡ Ultra Mode Script (Multi-Character / Cinematic Script)' : 'Full Video Script (AI generated or custom)'}</label>
-              <textarea 
-                rows={8}
-                value={fullScript}
-                onChange={e => setFullScript(e.target.value)}
-                placeholder={videoType === 'ultra' ? 'Paste or write your Ultra Cinematic Multi-Character script here...' : 'Paste or write your full video script here. Our smart AI will automatically split it into matching scenes and generate appropriate background visuals.'}
-              />
-            </div>
-          ) : (
-            <div className="scenes-list">
-              {scenes.map((scene, index) => (
-                <div key={index} className="scene-card" style={{ borderLeft: '4px solid var(--primary)', paddingLeft: '1rem', marginBottom: '1.5rem' }}>
-                  <h4 style={{ color: '#a855f7', marginBottom: '0.5rem' }}>Scene {index + 1} ({index * 10}s - {(index + 1) * 10}s)</h4>
-                  <div className="form-group">
-                    <label>Script Chunk</label>
-                    <textarea 
-                      rows={2}
-                      value={scene.text}
-                      onChange={e => handleSceneChange(index, 'text', e.target.value)}
-                      placeholder="Enter script text for this part..."
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label>Video Search Keyword</label>
-                    <input 
-                      type="text"
-                      value={scene.keyword}
-                      onChange={e => handleSceneChange(index, 'keyword', e.target.value)}
-                      placeholder="e.g. galaxy stars"
-                    />
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
 
         </main>
 
-        <aside className="panel">
+        <aside className="panel" id="tour-video-settings">
           <h2 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><Settings size={26} /> Video Settings</h2>
 
           <div className="form-group" style={{ marginBottom: '1.2rem' }}>
@@ -1275,6 +1414,7 @@ function App() {
           <div className="form-group" style={{ marginBottom: '1.2rem' }}>
             <label style={{ fontWeight: '800', display: 'flex', alignItems: 'center', gap: '6px' }}><Layout size={16} /> Aspect Ratio</label>
             <CustomSelect 
+              theme={theme}
               value={aspectRatio} 
               onChange={(val) => setAspectRatio(val)}
               options={[
@@ -1288,6 +1428,7 @@ function App() {
           <div className="form-group" style={{ marginBottom: '1.2rem' }}>
             <label style={{ fontWeight: '800', display: 'flex', alignItems: 'center', gap: '6px' }}><Palette size={16} /> Cinematic Filter & Style</label>
             <CustomSelect 
+              theme={theme}
               value={filterStyle} 
               onChange={(val) => setFilterStyle(val)}
               options={[
@@ -1302,6 +1443,7 @@ function App() {
           <div className="form-group">
             <label>AI Voice</label>
             <CustomSelect 
+              theme={theme}
               value={voiceId} 
               onChange={(val) => setVoiceId(val)}
               options={[
@@ -1316,6 +1458,7 @@ function App() {
           <div className="form-group">
             <label>Font Family (Visual Preview)</label>
             <CustomSelect 
+              theme={theme}
               value={fontName} 
               onChange={(val) => setFontName(val)}
               options={fontList.map(f => {
@@ -1332,6 +1475,7 @@ function App() {
           <div className="form-group">
             <label style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Music size={16} /> Background Music Track</label>
             <CustomSelect 
+              theme={theme}
               value={bgMusic} 
               onChange={(val) => setBgMusic(val)}
               options={bgMusicList.map(m => ({ 
@@ -1427,6 +1571,7 @@ function App() {
 
           <button 
             type="button" 
+            id="tour-generate-btn"
             className="btn-primary" 
             onClick={handleGenerateVideo}
             disabled={isGeneratingVideo || jobStatus === 'processing' || jobStatus === 'initializing'}
@@ -2538,6 +2683,73 @@ function App() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Interactive Onboarding Product Tour (New User Walkthrough) */}
+      {isTourActive && (
+        <>
+          <div className="cloxel-tour-overlay" onClick={handleCloseTour} />
+          <div className="tour-card" onClick={e => e.stopPropagation()}>
+            <div className="tour-card-header">
+              <span className="tour-step-badge">
+                {TOUR_STEPS[tourStep]?.badge || `Step ${tourStep + 1} of ${TOUR_STEPS.length}`}
+              </span>
+              <button className="tour-close-btn" onClick={handleCloseTour} title="Close Tour">×</button>
+            </div>
+
+            <h3 className="tour-card-title">
+              <span>{TOUR_STEPS[tourStep]?.icon}</span>
+              <span>{TOUR_STEPS[tourStep]?.title}</span>
+            </h3>
+
+            <p className="tour-card-desc">
+              {TOUR_STEPS[tourStep]?.description}
+            </p>
+
+            <div className="tour-card-footer">
+              <div className="tour-dots-container">
+                {TOUR_STEPS.map((_, idx) => (
+                  <div 
+                    key={idx} 
+                    className={`tour-dot ${idx === tourStep ? 'active' : ''}`}
+                    onClick={() => setTourStep(idx)}
+                    style={{ cursor: 'pointer' }}
+                    title={`Go to step ${idx + 1}`}
+                  />
+                ))}
+              </div>
+
+              <div className="tour-actions">
+                <button 
+                  type="button" 
+                  className="tour-btn-secondary" 
+                  onClick={handleCloseTour}
+                  style={{ marginRight: '4px' }}
+                >
+                  Skip
+                </button>
+
+                {tourStep > 0 && (
+                  <button 
+                    type="button" 
+                    className="tour-btn-secondary" 
+                    onClick={handlePrevTourStep}
+                  >
+                    ← Back
+                  </button>
+                )}
+
+                <button 
+                  type="button" 
+                  className="tour-btn-primary" 
+                  onClick={handleNextTourStep}
+                >
+                  {tourStep === TOUR_STEPS.length - 1 ? '🎉 Done / Start! 🚀' : 'Next →'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </>
       )}
     </div>
   );
