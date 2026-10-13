@@ -2826,12 +2826,12 @@ async def register_user(req: UserRegister):
         if dup_type == "phone":
             raise HTTPException(
                 status_code=400,
-                detail=f"⚠️ Account Creation Failed: Mobile Number '{primary_phone}' is already registered with another account! Ek phone number se keval ek hi Cloxel ID ban sakti hai. Kripya Login karein ya dusra Mobile Number dalein."
+                detail=f"⚠️ Account Creation Failed: Mobile Number '{primary_phone}' is already registered with an existing account! Only one Cloxel AI account is permitted per mobile number. Please log in or use a different phone number."
             )
         else:
             raise HTTPException(
                 status_code=400,
-                detail=f"⚠️ Account Creation Failed: Email ID '{primary_email}' is already registered with another account! Ek email se keval ek hi Cloxel ID ban sakti hai. Kripya Login karein ya dusra Email ID dalein."
+                detail=f"⚠️ Account Creation Failed: Email ID '{primary_email}' is already registered with an existing account! Only one Cloxel AI account is permitted per email address. Please log in or use a different email address."
             )
 
     email_h = hash_identifier(primary_email)

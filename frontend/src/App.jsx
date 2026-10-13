@@ -169,51 +169,51 @@ function CustomSelect({ value, onChange, options, theme }) {
 const TOUR_STEPS = [
   {
     targetId: 'tour-video-type',
-    title: '1. Video Type Chuniye',
+    title: '1. Select Video Format',
     badge: 'Step 1 • Format Selection',
-    description: 'Yahan se aap chun sakte hain ki aapko YouTube Shorts / Reels (9:16 vertical) banani hai, lambi Documentary (Long 16:9), ya Ultra Cinematic AI video.',
+    description: 'Choose your desired aspect ratio: vertical YouTube Shorts / Reels (9:16), long-form Documentary videos (16:9), or Ultra Cinematic AI scenes.',
     icon: '🎬'
   },
   {
     targetId: 'tour-duration-category',
-    title: '2. Duration & Category Select Kijiye',
+    title: '2. Duration & Category Selection',
     badge: 'Step 2 • Length & Niche',
-    description: 'Video ki length set kijiye (10s se 5 minutes tak) aur 30+ Categories (jaise AI, Space, History, Cartoon) me se apna topic niche chuniye.',
+    description: 'Set your video length (from 10 seconds up to 5 minutes) and choose from 30+ viral niches like AI, Space Exploration, History, Motivation, or Cartoons.',
     icon: '⏱️'
   },
   {
     targetId: 'tour-topic-script',
-    title: '3. Topic Likhein & Auto Script Banayein',
+    title: '3. Topic & Auto Script Generation',
     badge: 'Step 3 • AI Scriptwriting',
-    description: 'Apni video ka topic yahan likhiye (jaise "Space Secrets") aur "✨ Auto-Generate Script" par click karein. AI khud viral dialogues aur keywords likh dega!',
+    description: 'Enter your video topic (e.g., "Secrets of Deep Space") and click "✨ Auto-Generate Script". The AI will craft viral dialogues and visual keywords automatically!',
     icon: '✨'
   },
   {
     targetId: 'tour-scenes-editor',
-    title: '4. Scene & Visual Keyword Editor',
-    badge: 'Step 4 • Scenes & Story',
-    description: 'Yahan AI dwara likha har scene chunk dikhega. Aap apni marzi se kisi bhi scene ka dialogue text aur image/video search keyword badal sakte hain.',
+    title: '4. Scene & Keyword Editor',
+    badge: 'Step 4 • Scenes & Storyboard',
+    description: 'Review each AI-crafted scene. You can easily customize the narration text, voice cues, and visual asset search keywords to fit your creative vision.',
     icon: '📝'
   },
   {
     targetId: 'tour-video-settings',
-    title: '5. Video Settings Panel',
-    badge: 'Step 5 • Audio & Styles',
-    description: 'Is panel se Aspect Ratio (16:9 / 9:16), Cinematic Color Filters, AI Voiceover (Male/Female), Font Style aur Background Music customize kijiye.',
+    title: '5. Video Settings & Styles',
+    badge: 'Step 5 • Audio & Visuals',
+    description: 'Customize video aspect ratio, cinematic color filters, natural AI voiceovers (Male/Female), animated font styles, and background music.',
     icon: '⚙️'
   },
   {
     targetId: 'tour-generate-btn',
     title: '6. 🚀 Final Video Generate & Export',
     badge: 'Step 6 • Render Engine',
-    description: 'Sab settings final karne ke baad is button par click karein. Cloxel Engine dual HD assets fetch karke full video render karega aur download dega!',
+    description: 'Once you finalize your settings, click this button! The Cloxel Engine fetches dual HD assets, syncs voiceover with animated subtitles, and renders your full video.',
     icon: '🚀'
   },
   {
     targetId: 'tour-header-actions',
-    title: '7. 👑 Membership & Auto-Publish',
-    badge: 'Step 7 • Pro Features',
-    description: 'Yahan se plan upgrade karke daily videos unlock karein aur ☰ menu se YouTube Channel jod kar Daily Auto-Publishing chalu karein!',
+    title: '7. 👑 Pro Membership & YouTube Auto-Publish',
+    badge: 'Step 7 • Pro Automation',
+    description: 'Upgrade your plan to unlock higher daily video limits, and connect your YouTube Channel via the ☰ menu to enable 100% automated daily video publishing!',
     icon: '👑'
   }
 ];
