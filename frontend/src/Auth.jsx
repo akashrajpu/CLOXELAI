@@ -305,7 +305,8 @@ function Auth({ onLoginSuccess }) {
     setError(null);
 
     if (!isLogin) {
-      const cleanPhone = phone.replace(/\D/g, '');
+      const rawDigits = phone.replace(/\D/g, '');
+      const cleanPhone = rawDigits.slice(-10);
       if (cleanPhone.length !== 10) {
         setError('⚠️ Registration Failed: Mobile Number must be exactly 10 digits (e.g. 9876543210)!');
         return;
@@ -320,16 +321,19 @@ function Auth({ onLoginSuccess }) {
     setIsLoading(true);
 
     const endpoint = isLogin ? '/login' : '/register';
+    const cleanPhoneFinal = phone.replace(/\D/g, '').slice(-10);
+    const cleanEmailFinal = email.trim().toLowerCase();
+
     const payload = isLogin ? {
-      email_or_mobile: emailOrMobile,
+      email_or_mobile: emailOrMobile.trim(),
       password: password
     } : {
-      name: name,
+      name: name.trim(),
       country: country,
-      phone: phone,
-      email: email,
+      phone: cleanPhoneFinal,
+      email: cleanEmailFinal,
       password: password,
-      email_or_mobile: email
+      email_or_mobile: cleanEmailFinal
     };
 
 
@@ -449,7 +453,34 @@ function Auth({ onLoginSuccess }) {
               <p style={{ textAlign: 'center', display: 'block', width: '100%', margin: '0 auto' }}>{isLogin ? 'Enter your credentials to access your dashboard' : 'Fill in mandatory details to get started'}</p>
             </div>
 
-            {error && <div className="auth-error">{error}</div>}
+            {error && (
+              <div className="auth-error" style={{ display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'center' }}>
+                <div>{error}</div>
+                {(error.includes('already registered') || error.includes('Login')) && !isLogin && (
+                  <button 
+                    type="button" 
+                    onClick={() => {
+                      setIsLogin(true);
+                      setEmailOrMobile(phone || email);
+                      setError(null);
+                    }}
+                    style={{
+                      background: 'rgba(255, 255, 255, 0.2)',
+                      border: '1px solid rgba(255, 255, 255, 0.4)',
+                      color: '#ffffff',
+                      padding: '6px 14px',
+                      borderRadius: '8px',
+                      fontSize: '0.82rem',
+                      fontWeight: 'bold',
+                      cursor: 'pointer',
+                      marginTop: '4px'
+                    }}
+                  >
+                    🔑 Switch to Login Tab →
+                  </button>
+                )}
+              </div>
+            )}
 
             <form onSubmit={handleSubmit} className="auth-form">
               {!isLogin && (

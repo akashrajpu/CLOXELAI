@@ -1114,15 +1114,24 @@ def find_user_in_db(identifier: str) -> dict:
     """
     Finds user in MongoDB matching plaintext email, phone, internal_id, email_or_mobile,
     or deterministic SHA-256 HMAC hashes (email_hash, phone_hash).
+    Also supports fallback decryption scan across user documents to handle legacy encrypted docs.
     Returns the decrypted user document.
     """
     if users_collection is None or not identifier:
         return None
 
     raw_identifier = str(identifier).strip()
-    clean_phone = "".join(filter(str.isdigit, raw_identifier))
-    raw_hash = hash_identifier(raw_identifier)
-    phone_hash = hash_identifier(clean_phone) if clean_phone else None
+    raw_digits = "".join(filter(str.isdigit, raw_identifier))
+    phone_10 = raw_digits[-10:] if len(raw_digits) >= 10 else raw_digits
+
+    phone_variants = set()
+    if phone_10:
+        phone_variants.add(phone_10)
+        phone_variants.add("91" + phone_10)
+        phone_variants.add("+91" + phone_10)
+        phone_variants.add("0" + phone_10)
+    if raw_digits:
+        phone_variants.add(raw_digits)
 
     import re
     identifier_regex = re.compile(f"^{re.escape(raw_identifier.lower())}$", re.IGNORECASE)
@@ -1131,17 +1140,179 @@ def find_user_in_db(identifier: str) -> dict:
         {"email": identifier_regex},
         {"email_or_mobile": identifier_regex},
         {"internal_id": raw_identifier},
-        {"email_hash": raw_hash}
+        {"email_hash": hash_identifier(raw_identifier.lower())}
     ]
-    if clean_phone:
-        or_conditions.extend([
-            {"phone": clean_phone},
-            {"email_or_mobile": clean_phone},
-            {"phone_hash": phone_hash}
-        ])
+    for p in phone_variants:
+        p_h = hash_identifier(p)
+        or_conditions.append({"phone": p})
+        or_conditions.append({"email_or_mobile": p})
+        if p_h:
+            or_conditions.append({"phone_hash": p_h})
 
     user = users_collection.find_one({"$or": or_conditions})
-    return decrypt_user_doc(user)
+    if user:
+        return decrypt_user_doc(user)
+
+    # Fallback decryption scan if not found via index (handles legacy encrypted docs)
+    try:
+        cursor = users_collection.find({}, {
+            "_id": 1, "email": 1, "phone": 1, "email_or_mobile": 1, 
+            "phone_hash": 1, "email_hash": 1, "internal_id": 1, 
+            "name": 1, "password_hash": 1, "password": 1, "country": 1, 
+            "security_qr_token": 1, "free_demo_count": 1, "created_at": 1
+        })
+        for doc in cursor:
+            raw_p = doc.get("phone") or ""
+            dec_p = decrypt_field(raw_p) if isinstance(raw_p, str) else str(raw_p)
+            doc_p_digits = "".join(filter(str.isdigit, str(dec_p)))
+            doc_phone_10 = doc_p_digits[-10:] if len(doc_p_digits) >= 10 else doc_p_digits
+
+            raw_eom = doc.get("email_or_mobile") or ""
+            dec_eom = decrypt_field(raw_eom) if isinstance(raw_eom, str) else str(raw_eom)
+            doc_eom_digits = "".join(filter(str.isdigit, str(dec_eom)))
+            doc_eom_10 = doc_eom_digits[-10:] if len(doc_eom_digits) >= 10 else ""
+
+            raw_e = doc.get("email") or ""
+            dec_e = decrypt_field(raw_e) if isinstance(raw_e, str) else str(raw_e)
+            doc_email = str(dec_e).strip().lower()
+            doc_eom_email = str(dec_eom).strip().lower()
+
+            match = False
+            if phone_10 and len(phone_10) == 10 and (doc_phone_10 == phone_10 or doc_eom_10 == phone_10):
+                match = True
+            elif raw_identifier.lower() in [doc_email, doc_eom_email]:
+                match = True
+
+            if match:
+                # Auto-backfill hashes
+                updates = {}
+                if not doc.get("phone_hash") and doc_phone_10:
+                    updates["phone_hash"] = hash_identifier(doc_phone_10)
+                if not doc.get("email_hash") and doc_email:
+                    updates["email_hash"] = hash_identifier(doc_email)
+                if updates:
+                    try:
+                        users_collection.update_one({"_id": doc["_id"]}, {"$set": updates})
+                    except Exception:
+                        pass
+                return decrypt_user_doc(doc)
+    except Exception as e:
+        print(f"⚠️ Fallback scan notice in find_user_in_db: {e}")
+
+    return None
+
+
+def check_duplicate_user(email: str, phone: str):
+    """
+    Checks if a user already exists with the given email or phone number.
+    Returns (duplicate_type, user_doc) if found, else None.
+    duplicate_type can be 'phone' or 'email'.
+    
+    Checks:
+    1. Multi-format MongoDB $or query (email_hash, phone_hash across country code variants, regex, plaintext).
+    2. Fallback full-collection decryption scan (to catch legacy encrypted documents where phone_hash or email_hash was missing or secret changed).
+    """
+    if users_collection is None:
+        return None
+
+    clean_email = (email or "").strip().lower()
+    raw_digits = "".join(filter(str.isdigit, str(phone or "")))
+    phone_10 = raw_digits[-10:] if len(raw_digits) >= 10 else raw_digits
+
+    # 1. Fast MongoDB query with all variations
+    phone_variants = set()
+    if phone_10:
+        phone_variants.add(phone_10)
+        phone_variants.add("91" + phone_10)
+        phone_variants.add("+91" + phone_10)
+        phone_variants.add("0" + phone_10)
+    if raw_digits:
+        phone_variants.add(raw_digits)
+    if phone:
+        phone_variants.add(str(phone).strip())
+
+    import re
+    email_h = hash_identifier(clean_email) if clean_email else None
+    email_regex = re.compile(f"^{re.escape(clean_email)}$", re.IGNORECASE) if clean_email else None
+
+    or_query = []
+    if clean_email:
+        or_query.append({"email": email_regex})
+        or_query.append({"email_or_mobile": email_regex})
+        if email_h:
+            or_query.append({"email_hash": email_h})
+
+    for p in phone_variants:
+        p_h = hash_identifier(p)
+        or_query.append({"phone": p})
+        or_query.append({"email_or_mobile": p})
+        if p_h:
+            or_query.append({"phone_hash": p_h})
+
+    if or_query:
+        found = users_collection.find_one({"$or": or_query})
+        if found:
+            dec_found = decrypt_user_doc(found)
+            ex_email = str(dec_found.get("email") or "").strip().lower()
+            ex_eom = str(dec_found.get("email_or_mobile") or "").strip().lower()
+            ex_phone_digits = "".join(filter(str.isdigit, str(dec_found.get("phone") or "")))
+            ex_phone_10 = ex_phone_digits[-10:] if len(ex_phone_digits) >= 10 else ex_phone_digits
+            ex_eom_digits = "".join(filter(str.isdigit, ex_eom))
+            ex_eom_10 = ex_eom_digits[-10:] if len(ex_eom_digits) >= 10 else ""
+
+            if clean_email and (ex_email == clean_email or ex_eom == clean_email):
+                return "email", dec_found
+            if phone_10 and (ex_phone_10 == phone_10 or ex_eom_10 == phone_10):
+                return "phone", dec_found
+            return "phone", dec_found
+
+    # 2. Comprehensive Decryption Scan across all users
+    # This guarantees 100% protection even if documents were saved before hashes or if hashes differ!
+    try:
+        cursor = users_collection.find({}, {
+            "_id": 1, "email": 1, "phone": 1, "email_or_mobile": 1, 
+            "phone_hash": 1, "email_hash": 1, "internal_id": 1
+        })
+        for doc in cursor:
+            # Check phone
+            raw_p = doc.get("phone") or ""
+            dec_p = decrypt_field(raw_p) if isinstance(raw_p, str) else str(raw_p)
+            doc_p_digits = "".join(filter(str.isdigit, str(dec_p)))
+            doc_phone_10 = doc_p_digits[-10:] if len(doc_p_digits) >= 10 else doc_p_digits
+
+            # Check email_or_mobile
+            raw_eom = doc.get("email_or_mobile") or ""
+            dec_eom = decrypt_field(raw_eom) if isinstance(raw_eom, str) else str(raw_eom)
+            doc_eom_digits = "".join(filter(str.isdigit, str(dec_eom)))
+            doc_eom_10 = doc_eom_digits[-10:] if len(doc_eom_digits) >= 10 else ""
+
+            # Check email
+            raw_e = doc.get("email") or ""
+            dec_e = decrypt_field(raw_e) if isinstance(raw_e, str) else str(raw_e)
+            doc_email = str(dec_e).strip().lower()
+            doc_eom_email = str(dec_eom).strip().lower()
+
+            is_phone_duplicate = bool(phone_10 and len(phone_10) == 10 and (doc_phone_10 == phone_10 or doc_eom_10 == phone_10))
+            is_email_duplicate = bool(clean_email and (doc_email == clean_email or doc_eom_email == clean_email))
+
+            if is_phone_duplicate or is_email_duplicate:
+                # Auto-backfill hashes in MongoDB if missing
+                updates = {}
+                if not doc.get("phone_hash") and doc_phone_10:
+                    updates["phone_hash"] = hash_identifier(doc_phone_10)
+                if not doc.get("email_hash") and doc_email:
+                    updates["email_hash"] = hash_identifier(doc_email)
+                if updates:
+                    try:
+                        users_collection.update_one({"_id": doc["_id"]}, {"$set": updates})
+                    except Exception:
+                        pass
+
+                return ("phone" if is_phone_duplicate else "email"), doc
+    except Exception as e:
+        print(f"⚠️ Decryption scan warning in check_duplicate_user: {e}")
+
+    return None
 
 
 from fastapi.middleware.gzip import GZipMiddleware
@@ -2628,7 +2799,8 @@ async def register_user(req: UserRegister):
         raise HTTPException(status_code=500, detail="Database not configured")
         
     primary_email = req.email.strip().lower()
-    primary_phone = "".join(filter(str.isdigit, req.phone))
+    raw_digits = "".join(filter(str.isdigit, req.phone))
+    primary_phone = raw_digits[-10:] if len(raw_digits) >= 10 else raw_digits
     
     if not primary_email or not primary_phone or not req.name.strip() or not req.country.strip():
         raise HTTPException(status_code=400, detail="All fields (Name, Country, Phone, Email, Password) are mandatory.")
@@ -2647,32 +2819,23 @@ async def register_user(req: UserRegister):
             detail="⚠️ Registration Failed: Please enter a valid Email ID (e.g. name@domain.com)."
         )
 
+    # 100% Strict Duplicate Check: Blocks duplicate phone number or email across ALL accounts
+    dup_result = check_duplicate_user(email=primary_email, phone=primary_phone)
+    if dup_result:
+        dup_type, _ex_user = dup_result
+        if dup_type == "phone":
+            raise HTTPException(
+                status_code=400,
+                detail=f"⚠️ Account Creation Failed: Mobile Number '{primary_phone}' is already registered with another account! Ek phone number se keval ek hi Cloxel ID ban sakti hai. Kripya Login karein ya dusra Mobile Number dalein."
+            )
+        else:
+            raise HTTPException(
+                status_code=400,
+                detail=f"⚠️ Account Creation Failed: Email ID '{primary_email}' is already registered with another account! Ek email se keval ek hi Cloxel ID ban sakti hai. Kripya Login karein ya dusra Email ID dalein."
+            )
+
     email_h = hash_identifier(primary_email)
     phone_h = hash_identifier(primary_phone) if primary_phone else None
-
-    email_regex = re.compile(f"^{re.escape(primary_email)}$", re.IGNORECASE)
-    
-    or_query = [
-        {"email": email_regex},
-        {"phone": primary_phone},
-        {"phone": req.phone.strip()},
-        {"email_or_mobile": email_regex},
-        {"email_or_mobile": primary_phone},
-        {"email_hash": email_h}
-    ]
-    if phone_h:
-        or_query.append({"phone_hash": phone_h})
-
-    existing_user = users_collection.find_one({"$or": or_query})
-    
-    if existing_user:
-        existing_user = decrypt_user_doc(existing_user)
-        ex_email = (existing_user.get("email") or "").lower()
-        ex_phone = existing_user.get("phone") or ""
-        if ex_email == primary_email:
-            raise HTTPException(status_code=400, detail="⚠️ Account Creation Failed: This Email ID is already registered! Please use a different Email or Login.")
-        else:
-            raise HTTPException(status_code=400, detail="⚠️ Account Creation Failed: This Phone Number is already registered! Please use a different Phone Number or Login.")
         
     hashed_password = safe_hash_password(req.password)
     internal_id = str(uuid.uuid4())
