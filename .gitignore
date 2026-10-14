@@ -17,3 +17,5 @@ crop_actual_portrait.py
 *.jpg
 !frontend/dist/favicon.png
 cloxel-load-balancer/
+generated_dossiers/
+*.xlsx

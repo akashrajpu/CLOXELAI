@@ -25,3 +25,4 @@ qrcode
 selenium
 webdriver_manager
 playwright
+openpyxl
