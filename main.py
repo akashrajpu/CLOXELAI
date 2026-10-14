@@ -3488,19 +3488,21 @@ def generate_ai_script_core(topic: str, duration: int, video_type: str = "short"
     instruction_topic = topic
     
     if video_type == "short":
-        instruction_topic = f"{topic} [Strict: Ignore category. Write a concise, fast-paced short script.]"
+        instruction_topic = f"{topic} [Strict: Fast-paced short script, approximately {word_count} spoken words across {scene_count} scenes for {duration} seconds duration.]"
     elif video_type == "long":
-        instruction_topic = f"{topic} [Strict: Write a detailed explainer script explaining this topic thoroughly.]"
+        instruction_topic = f"{topic} [Strict: Write a complete, detailed {duration}-second documentary script. MUST be approximately {word_count} spoken words across {scene_count} progressive scenes to cover the entire {duration} seconds without stopping early.]"
     elif video_type == "ultra":
         if is_cartoon_cat:
-            instruction_topic = f"{topic} [Strict: Write an entertaining cartoon story / kahani script.]"
+            instruction_topic = f"{topic} [Strict: Write an entertaining cartoon story script of approximately {word_count} spoken words across {scene_count} scenes for {duration} seconds.]"
         else:
-            instruction_topic = f"{topic} [Strict: Write a narrative script strictly in the style of category '{category}'.]"
+            instruction_topic = f"{topic} [Strict: Write a narrative script strictly in the style of category '{category}' with approximately {word_count} spoken words across {scene_count} scenes for {duration} seconds.]"
 
     payload = {
         "topic": instruction_topic,
         "category": category,
         "duration_seconds": duration,
+        "word_count": word_count,
+        "scene_count": scene_count,
         "video_type": video_type,
         "language": language,
         "tone": tone
