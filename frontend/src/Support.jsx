@@ -11,7 +11,6 @@ export default function Support({ onClose }) {
       color: '#f8fafc',
       fontFamily: "'Inter', sans-serif"
     }}>
-      {/* Dark Grid Background */}
       <div style={{
         position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: -1,
         backgroundImage: `
@@ -24,7 +23,6 @@ export default function Support({ onClose }) {
         backgroundPosition: 'center top'
       }} />
 
-      {/* Navigation Bar */}
       <div style={{
         position: 'sticky', top: 0,
         background: 'rgba(11, 7, 26, 0.85)', backdropFilter: 'blur(12px)',
@@ -52,7 +50,6 @@ export default function Support({ onClose }) {
 
       <div style={{ maxWidth: '1200px', margin: '40px auto', padding: '0 20px' }}>
         
-        {/* Header Section */}
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', marginBottom: '80px' }}>
           <div style={{ padding: '8px 20px', background: 'rgba(59,130,246,0.2)', color: '#93c5fd', borderRadius: '50px', fontWeight: 'bold', marginBottom: '20px' }}>
             <MessageSquare size={16} style={{ display: 'inline', verticalAlign: 'text-bottom', marginRight: '6px' }} />
@@ -66,10 +63,8 @@ export default function Support({ onClose }) {
           </p>
         </div>
 
-        {/* Contact Methods */}
         <div style={{ display: 'flex', gap: '40px', marginBottom: '80px', flexWrap: 'wrap' }}>
           
-          {/* Card 1 */}
           <div style={{ flex: '1 1 500px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(59,130,246,0.3)', borderRadius: '24px', padding: '40px', display: 'flex', gap: '30px', alignItems: 'center' }}>
             <div style={{ width: '80px', height: '80px', borderRadius: '20px', background: 'linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, boxShadow: '0 10px 30px rgba(59,130,246,0.4)' }}>
               <Mail size={40} color="#fff" />
@@ -86,7 +81,6 @@ export default function Support({ onClose }) {
             </div>
           </div>
 
-          {/* Card 2 (Replaced Founder with Premium Enterprise Support) */}
           <div style={{ flex: '1 1 500px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(16,185,129,0.3)', borderRadius: '24px', padding: '40px', display: 'flex', gap: '30px', alignItems: 'center' }}>
             <div style={{ width: '80px', height: '80px', borderRadius: '20px', background: 'linear-gradient(135deg, #10b981 0%, #3b82f6 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, boxShadow: '0 10px 30px rgba(16,185,129,0.4)' }}>
               <ShieldCheck size={40} color="#fff" />
@@ -104,7 +98,6 @@ export default function Support({ onClose }) {
 
         </div>
 
-        {/* Visual Images Section */}
         <div style={{ display: 'flex', gap: '40px', marginBottom: '80px', flexWrap: 'wrap' }}>
           <div style={{ flex: '1 1 400px' }}>
             <img src="/priority_support_ai.jpg" alt="AI Support Assistant" style={{ width: '100%', borderRadius: '24px', boxShadow: '0 20px 50px rgba(236,72,153,0.2)', border: '1px solid rgba(255,255,255,0.1)' }} />
@@ -114,7 +107,6 @@ export default function Support({ onClose }) {
           </div>
         </div>
 
-        {/* FAQ Section */}
         <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '24px', padding: '50px', marginBottom: '80px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '15px', marginBottom: '30px' }}>
             <HelpCircle size={32} color="#f43f5e" />

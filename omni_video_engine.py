@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 ===============================================================================
     OMNI VIDEO ENGINE (GEMINI AI AUTOMATIC HINGLISH MULTI-CLIP MP4 GENERATOR)
@@ -23,7 +22,6 @@ from typing import Dict, Any, Optional, Callable
 from gemini_engine import generate_gemini_video_script
 from audio_engine import make_audio
 from rapid_story_engine import export_rapid_story_video
-
 
 class OmniVideoEngine:
     """
@@ -54,7 +52,6 @@ class OmniVideoEngine:
         log(f"🎬 Starting Gemini AI Multi-Clip Job #{job_id}", 5)
         log(f"Prompt: '{prompt[:60]}...' | Duration: {target_duration}s", 10)
 
-        # 1. Gemini AI API prompt filtering & micro-scene breakdown
         log("🤖 [Step 1/3] Gemini AI filtering Hinglish prompt into micro-scenes...", 15)
         script_data = generate_gemini_video_script(prompt, target_duration, api_key)
         scenes = script_data.get('scenes', [])
@@ -65,7 +62,6 @@ class OmniVideoEngine:
 
         log(f"✅ [Step 1/3] Gemini AI created {len(scenes)} distinct micro-scenes!", 25)
 
-        # 2. Synthesize audio voiceovers for each micro-scene
         audio_files = []
         for idx, scene in enumerate(scenes):
             narration_text = scene.get('narration') or scene.get('text') or prompt
@@ -74,7 +70,6 @@ class OmniVideoEngine:
             make_audio(narration_text, audio_path, voice_id="hi-IN-MadhurNeural")
             audio_files.append(audio_path)
 
-        # 3. Export & concatenate micro-scene clips to final MP4 video
         output_mp4_name = os.path.join(self.output_dir, f"omni_video_{job_id}.mp4")
         static_main_path = os.path.join(self.output_dir, "omni_video.mp4")
         target_size = (1280, 720) if aspect_ratio == "16:9" else (720, 1280)
@@ -106,7 +101,6 @@ class OmniVideoEngine:
             'duration': target_duration,
             'scenes': scenes
         }
-
 
 if __name__ == "__main__":
     engine = OmniVideoEngine()

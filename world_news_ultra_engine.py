@@ -11,9 +11,6 @@ from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
 
 def generate_world_news_ultra_video(user_prompt, output_mp4, duration, target_size=(1080, 1920), fps=60):
-    # CIRCUIT BREAKER: Prevent OOM on 512MB RAM servers.
-    # The actual HTML/WebGL WebM recording code is fully intact below.
-    # To enable it in the future when RAM is upgraded, simply remove this raise statement.
     raise Exception("Just pending for funding")
     
     print(f"🌍 [World News WebGL Engine] Initiating 3D Cinematic Animation for {duration:.1f}s...")
@@ -25,7 +22,6 @@ def generate_world_news_ultra_video(user_prompt, output_mp4, duration, target_si
 
     w, h = target_size
     
-    # 1. AI Prompt Construction
     system_instruction = f"""Act as a Senior Motion Graphics Designer and WebGL/Frontend Developer specializing in After Effects style programmatic animations.
 I have a {duration}-second vertical video script. I need a single-file, production-grade standalone HTML + CSS + JS code that renders a fully synced cinematic motion graphics video.
 
@@ -128,7 +124,6 @@ Output ONLY the complete, copy-paste ready, single-file HTML code without placeh
         driver = webdriver.Chrome(service=service, options=options)
         driver.get("file://" + os.path.abspath(html_path))
         
-        # Wait for duration + 10 seconds for the download to trigger and finish
         wait_time = duration + 10
         print(f"   ⏱️ Waiting {wait_time:.1f}s for WebGL animation and MediaRecorder download...")
         time.sleep(wait_time)
@@ -143,7 +138,6 @@ Output ONLY the complete, copy-paste ready, single-file HTML code without placeh
                 
         if webm_file:
             print(f"   🎥 Successfully captured WebM! Converting to MP4...")
-            # Convert webm to mp4 using ffmpeg
             try:
                 subprocess.run([
                     "ffmpeg", "-y", "-i", webm_file, 
@@ -153,7 +147,6 @@ Output ONLY the complete, copy-paste ready, single-file HTML code without placeh
                 ], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
                 print(f"   ✅ Final World News MP4 saved to {output_mp4}")
                 
-                # Cleanup
                 os.remove(html_path)
                 os.remove(webm_file)
                 os.rmdir(download_dir)

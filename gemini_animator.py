@@ -269,7 +269,6 @@ class SafeImageDraw:
     def __getattr__(self, name):
         return getattr(self._draw, name)
 
-
 class SafeImageDrawModule:
     def __init__(self, original_mod):
         self._mod = original_mod
@@ -337,7 +336,6 @@ class SafeImageDrawModule:
 
     def __getattr__(self, name):
         return getattr(self._mod, name)
-
 
 def generate_gemini_cartoon_animation(user_prompt: str, output_mp4: str, duration: float = 5.0, target_size: tuple = (640, 360), fps: int = 15) -> str:
     """
@@ -481,7 +479,6 @@ def generate_gemini_cartoon_animation(user_prompt: str, output_mp4: str, duratio
         print("🎨 Fallback to local 2D Cartoon Canvas Renderer...")
         return create_pro_cartoon_canvas_mp4(user_prompt, output_mp4, duration, target_size, fps)
 
-
 def render_pil_frames_to_mp4(frames: list, output_mp4: str, w: int, h: int, fps: int = 15) -> bool:
     """Pipes PIL Image frames directly into FFmpeg rawvideo stdin to guarantee zero-dependency MP4 creation."""
     try:
@@ -506,7 +503,6 @@ def render_pil_frames_to_mp4(frames: list, output_mp4: str, w: int, h: int, fps:
     except Exception as e_pipe:
         print(f"⚠️ FFmpeg rawvideo pipe error: {e_pipe}")
         return False
-
 
 def create_pro_cartoon_canvas_mp4(user_prompt: str, output_mp4: str, duration: float = 5.0, target_size: tuple = (640, 360), fps: int = 15) -> str:
     """
@@ -541,45 +537,32 @@ def create_pro_cartoon_canvas_mp4(user_prompt: str, output_mp4: str, duration: f
         img = Image.new('RGB', (w, h), bg_top)
         draw = ImageDraw.Draw(img)
 
-        # Draw Ground / Hill
         ground_y = int(h * 0.7)
         draw.rectangle([(0, ground_y), (w, h)], fill=(40, 160, 80) if not is_night else (20, 50, 40))
 
-        # Animated Sun/Moon
         sun_x = int(w * 0.8 - (frame_idx / float(total_frames)) * (w * 0.4))
         sun_y = int(h * 0.2)
         draw.ellipse([(sun_x - 30, sun_y - 30), (sun_x + 30, sun_y + 30)], fill=(255, 220, 50) if not is_night else (220, 230, 255))
 
-        # Animated Character 1 (Walking Boy/Hero)
         char1_x = int(w * 0.1 + (frame_idx / float(total_frames)) * (w * 0.35))
         char1_y = int(ground_y - 110)
         leg_bounce = int(math.sin(frame_idx * 0.5) * 8)
 
-        # Head
         draw.ellipse([(char1_x, char1_y), (char1_x + 45, char1_y + 45)], fill=(255, 205, 148), outline=(0, 0, 0), width=3)
-        # Eyes & Smile
         draw.ellipse([(char1_x + 28, char1_y + 14), (char1_x + 34, char1_y + 22)], fill=(0, 0, 0))
         draw.arc([(char1_x + 18, char1_y + 22), (char1_x + 35, char1_y + 35)], start=0, end=180, fill=(200, 0, 0), width=3)
-        # Body (Shirt)
         draw.rectangle([(char1_x + 8, char1_y + 45), (char1_x + 37, char1_y + 90)], fill=(255, 80, 80), outline=(0, 0, 0), width=3)
-        # Legs
         draw.line([(char1_x + 15, char1_y + 90), (char1_x + 8 + leg_bounce, char1_y + 115)], fill=(30, 30, 150), width=5)
         draw.line([(char1_x + 30, char1_y + 90), (char1_x + 37 - leg_bounce, char1_y + 115)], fill=(30, 30, 150), width=5)
 
-        # Animated Character 2 (Cute Puppy / Friend)
         char2_x = min(int(w - 75), char1_x + int(w * 0.25) + int(math.sin(frame_idx * 0.3) * 10))
         char2_y = ground_y - 50
-        # Body
         draw.ellipse([(char2_x, char2_y), (char2_x + 50, char2_y + 35)], fill=(210, 140, 70), outline=(0, 0, 0), width=3)
-        # Head
         draw.ellipse([(char2_x - 12, char2_y - 15), (char2_x + 20, char2_y + 15)], fill=(210, 140, 70), outline=(0, 0, 0), width=3)
-        # Ear
         draw.ellipse([(char2_x - 8, char2_y - 20), (char2_x + 4, char2_y - 4)], fill=(120, 70, 30))
-        # Tail (Wagging)
         tail_swing = int(math.sin(frame_idx * 0.8) * 10)
         draw.line([(char2_x + 45, char2_y + 8), (char2_x + 60, char2_y - 8 + tail_swing)], fill=(210, 140, 70), width=4)
 
-        # Speech Bubble
         bubble_x = max(5, char1_x - 15)
         bubble_y = max(5, char1_y - 55)
         bubble_w = min(150, w - bubble_x - 5)

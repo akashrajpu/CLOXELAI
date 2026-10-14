@@ -21,10 +21,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from PIL import Image
 import uvicorn
 
-# Import background remover module
 from bg_remover import remove_background
 
-# Render assigns PORT dynamically
 PORT = int(os.getenv("PORT", 8080))
 
 app = FastAPI(title="AI Background Remover Studio")
@@ -393,12 +391,10 @@ HTML_UI = """<!DOCTYPE html>
 </html>
 """
 
-
 @app.get("/", response_class=HTMLResponse)
 async def serve_ui():
     """Serves the background remover Web UI."""
     return HTML_UI
-
 
 @app.post("/api/remove-bg")
 async def api_remove_bg(request: Request):
@@ -431,7 +427,6 @@ async def api_remove_bg(request: Request):
     except Exception as e:
         print(f"❌ Server Error during /api/remove-bg: {e}")
         raise HTTPException(status_code=500, detail=str(e))
-
 
 if __name__ == "__main__":
     print(f"\n==================================================")

@@ -8,7 +8,6 @@ overlay = Image.new('RGBA', img.size, (0, 0, 0, 180))
 img = Image.alpha_composite(img, overlay)
 draw = ImageDraw.Draw(img)
 
-# Fonts
 font_title = ImageFont.truetype("/Library/Fonts/Arial Unicode.ttf", 43)
 font_subtitle = ImageFont.truetype("/Library/Fonts/Arial Unicode.ttf", 18)
 font_heading = ImageFont.truetype("/Library/Fonts/Arial Unicode.ttf", 23)
@@ -23,14 +22,12 @@ y = 80
 margin = 80
 width = img.width - (margin * 2)
 
-# CENTER SUBTITLE
 sub_text = "OFFICIAL LEGAL DOCUMENT • PRIVACY POLICY"
 sub_bbox = draw.textbbox((0, 0), sub_text, font=font_subtitle)
 sub_w = sub_bbox[2] - sub_bbox[0]
 draw.text(((img.width - sub_w) / 2, y), sub_text, font=font_subtitle, fill=color_purple)
 y += 35
 
-# CENTER TITLE
 title_text = "Privacy Policy & User Terms"
 title_bbox = draw.textbbox((0, 0), title_text, font=font_title)
 title_w = title_bbox[2] - title_bbox[0]
@@ -57,7 +54,6 @@ for heading, body in content:
         y += 26
     y += 35
 
-# Footer section placed dynamically after the text
 y += 10
 draw.line([(margin, y), (img.width - margin, y)], fill=(255, 255, 255, 50), width=1)
 y += 30
@@ -68,7 +64,6 @@ sig_text = "Akash Raj"
 sig_bbox = draw.textbbox((0, 0), sig_text, font=font_signature)
 sig_width = sig_bbox[2] - sig_bbox[0]
 
-# Draw signature on the right
 sig_x = img.width - margin - sig_width - 20
 draw.text((sig_x, y - 35), sig_text, font=font_signature, fill=color_purple)
 draw.text((sig_x + 20, y + 35), "Akash Raj", font=ImageFont.truetype("/Library/Fonts/Arial Unicode.ttf", 20), fill=color_white)

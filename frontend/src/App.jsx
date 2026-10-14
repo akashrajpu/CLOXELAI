@@ -270,10 +270,9 @@ function App() {
   const [theme, setTheme] = useState(() => localStorage.getItem('cloxel_theme') || 'pastel');
   const [topic, setTopic] = useState('Space Exploration');
   const [duration, setDuration] = useState(20);
-  const [videoType, setVideoType] = useState('short'); // 'short' or 'long'
+  const [videoType, setVideoType] = useState('short');
   const [fullScript, setFullScript] = useState('');
 
-  // Customization Settings
   const [fontName, setFontName] = useState('Arial.ttf');
   const [fontList, setFontList] = useState(['Arial.ttf', 'AgentOrange.ttf', 'BetsyFlanagan.ttf', 'CarbonBlock.ttf', 'Cartoon Blocks.ttf', 'GrapeSoda.ttf', 'HighLevel.ttf', 'RaceFlow.ttf']);
   const [fontSize, setFontSize] = useState(220);
@@ -285,10 +284,9 @@ function App() {
   const [category, setCategory] = useState('🎲 Random / All Categories');
   const [customCategory, setCustomCategory] = useState('');
 
-  // Ultra Photo Motion Engine Settings
-  const [generationMode, setGenerationMode] = useState('ultra'); // 'ultra' or 'standard'
-  const [aspectRatio, setAspectRatio] = useState('16:9'); // '16:9' default (1920x1080)
-  const [filterStyle, setFilterStyle] = useState('warm_epic'); // 'warm_epic', 'vintage_parchment', 'dramatic_cinematic', 'none'
+  const [generationMode, setGenerationMode] = useState('ultra');
+  const [aspectRatio, setAspectRatio] = useState('16:9');
+  const [filterStyle, setFilterStyle] = useState('warm_epic');
 
   const [scenes, setScenes] = useState([
     { text: '', keyword: '' },
@@ -320,7 +318,7 @@ function App() {
   const [showStopScheduleWarningModal, setShowStopScheduleWarningModal] = useState(false);
   const [customAlert, setCustomAlert] = useState(null);
   const [playingHistoryVideo, setPlayingHistoryVideo] = useState(null);
-  const [selectedPlan, setSelectedPlan] = useState('long'); // 'short', 'long', 'combo'
+  const [selectedPlan, setSelectedPlan] = useState('long');
   const [subStatus, setSubStatus] = useState(() => {
     const defaultSub = { free_demo_count: 2, has_active_subscription: false, plan_type: 'none' };
     try {
@@ -366,7 +364,7 @@ function App() {
   const [isSavingSchedule, setIsSavingSchedule] = useState(false);
   const [isUploadingPic, setIsUploadingPic] = useState(false);
 
-  const [activeTourType, setActiveTourType] = useState(null); // 'main', 'schedule', or null
+  const [activeTourType, setActiveTourType] = useState(null);
   const [tourStep, setTourStep] = useState(0);
   const [scheduleTourStep, setScheduleTourStep] = useState(0);
   const isTourActive = !!activeTourType;
@@ -380,7 +378,6 @@ function App() {
     localStorage.setItem('cloxel_theme', theme);
   }, [theme, userId]);
 
-  // Auto trigger main tour for new user or first-time users
   useEffect(() => {
     if (!userId) return;
     const isNew = localStorage.getItem('cloxel_is_new_user');
@@ -394,7 +391,6 @@ function App() {
     }
   }, [userId]);
 
-  // Auto trigger schedule tour when user opens schedule modal for the first time
   useEffect(() => {
     if (!showAutoUploadModal || !userId) return;
     const completed = localStorage.getItem('cloxel_schedule_tour_completed');
@@ -448,7 +444,6 @@ function App() {
     const targetCenterX = spotlightRect.left + spotlightRect.width / 2;
     const targetCenterY = spotlightRect.top + spotlightRect.height / 2;
 
-    // Mobile screens (<= 640px)
     if (vw <= 640) {
       const isTargetInBottomHalf = targetCenterY > vh / 2;
       return {
@@ -464,12 +459,10 @@ function App() {
       };
     }
 
-    // Space available around spotlight box
     const spaceLeft = targetLeft - 20;
     const spaceRight = vw - targetRight - 20;
     const isTargetOnRight = targetCenterX > vw / 2;
 
-    // Header actions (Step 7)
     if (targetTop < 120 && activeTourType !== 'schedule') {
       return {
         cardStyle: {
@@ -483,7 +476,6 @@ function App() {
       };
     }
 
-    // Schedule Modal tour placement: modal targets are centered
     if (activeTourType === 'schedule') {
       if (spaceRight >= 360) {
         const calculatedTop = Math.max(28, Math.min(vh - cardHeight - 28, targetTop));
@@ -525,10 +517,8 @@ function App() {
       }
     }
 
-    // Main Tour: If target is on the right side of the screen (e.g. Generate button or Video Settings)
     if (isTargetOnRight) {
       if (spaceLeft >= 360) {
-        // Place card directly next to target on its left side!
         const effectiveCardWidth = Math.min(cardWidth, spaceLeft - 10);
         const cardRightDist = vw - targetLeft + 20;
         const calculatedBottom = Math.max(28, Math.min(vh - cardHeight - 28, vh - targetBottom));
@@ -543,7 +533,6 @@ function App() {
           arrowDir: 'right'
         };
       } else {
-        // Narrower screen: if room above target
         if (targetTop >= cardHeight + 40) {
           return {
             cardStyle: {
@@ -556,7 +545,6 @@ function App() {
             arrowDir: 'down'
           };
         }
-        // Fallback: place on bottom left
         return {
           cardStyle: {
             left: '24px',
@@ -570,7 +558,6 @@ function App() {
       }
     }
 
-    // Target is on left side (Video Type, Duration, Topic, Scenes)
     if (spaceRight >= 360) {
       return {
         cardStyle: {
@@ -596,7 +583,6 @@ function App() {
     }
   };
 
-  // Smooth scroll and calculate spotlight cutout coordinates on each tour step
   useEffect(() => {
     if (!activeTourType) {
       setSpotlightRect(null);
@@ -824,7 +810,6 @@ function App() {
     const finalEnabledState = explicitEnabledState !== null ? explicitEnabledState : enableCheckbox;
 
     if (finalEnabledState) {
-      // 1. Checkbox Check
       if (!enableCheckbox) {
         triggerAlert(
           "Checkbox Selection Required",
@@ -835,7 +820,6 @@ function App() {
         return;
       }
 
-      // 2. YouTube Connection Check
       if (!ytStatus || !ytStatus.linked) {
         triggerAlert(
           "🔴 YouTube Channel Not Connected",
@@ -960,9 +944,7 @@ function App() {
     window.location.href = window.location.origin + window.location.pathname;
   };
 
-  // Update scenes array when duration changes
   useEffect(() => {
-    // Check for youtube success or error param
     const params = new URLSearchParams(window.location.search);
     if (params.get('yt_success')) {
       alert('YouTube Account successfully linked!');
@@ -1203,7 +1185,6 @@ function App() {
         return;
       }
 
-      // Real Razorpay Popup Checkout Integration
       if (window.Razorpay && orderData.key_id) {
         const options = {
           key: orderData.key_id,
@@ -1218,7 +1199,6 @@ function App() {
             contact: "9876543210"
           },
           handler: async function (res) {
-            // Verify payment on backend ONLY when payment actually succeeds!
             const verifyResp = await fetch(`${API_BASE}/verify-razorpay-payment`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
@@ -1346,7 +1326,6 @@ function App() {
               <span>Auto-Upload: 🟢 ACTIVE</span>
             </div>
           )}
-          {/* Animated Toggle Switch */}
           <div 
             onClick={toggleTheme}
             title={theme === 'pastel' ? 'Pastel Theme Active (Click to switch to Dark)' : 'Dark Theme Active (Click to switch to Pastel)'}
@@ -1916,7 +1895,6 @@ function App() {
         </aside>
       </div>
 
-      {/* Slide-out Sidebar Drawer */}
       {isSidebarOpen && (
         <div className="sidebar-backdrop" onClick={() => setIsSidebarOpen(false)}>
           <div className="sidebar-drawer" onClick={e => e.stopPropagation()}>
@@ -1975,7 +1953,6 @@ function App() {
               )}
             </div>
 
-            {/* YOUTUBE INTEGRATION INSIDE SIDEBAR DRAWER (COMPACT MODE) */}
             <div style={{ marginBottom: '12px' }}>
               <YouTubeIntegration 
                 userId={userId} 
@@ -2062,7 +2039,6 @@ function App() {
         </div>
       )}
 
-      {/* Pricing & Membership Modal with Dynamic Highlighting */}
       {showPricingModal && (
         <div className="pricing-modal-overlay" style={{ zIndex: 5000 }} onClick={() => setShowPricingModal(false)}>
           <div className="pricing-modal-card" onClick={e => e.stopPropagation()}>
@@ -2075,7 +2051,6 @@ function App() {
             </div>
 
             <div className="pricing-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))' }}>
-              {/* Plan 0: Ultra Cinematic */}
               <div 
                 className={`pricing-card ${selectedPlan === 'ultra' ? 'featured' : ''}`}
                 onClick={() => setSelectedPlan('ultra')}
@@ -2115,7 +2090,6 @@ function App() {
                 </button>
               </div>
 
-              {/* Plan 1: Short Starter */}
               <div 
                 className={`pricing-card ${selectedPlan === 'short' ? 'featured' : ''}`}
                 onClick={() => setSelectedPlan('short')}
@@ -2155,7 +2129,6 @@ function App() {
                 </button>
               </div>
 
-              {/* Plan 2: Long Master */}
               <div 
                 className={`pricing-card ${selectedPlan === 'long' ? 'featured' : ''}`}
                 onClick={() => setSelectedPlan('long')}
@@ -2195,7 +2168,6 @@ function App() {
                 </button>
               </div>
 
-              {/* Plan 3: Pro Combo */}
               <div 
                 className={`pricing-card ${selectedPlan === 'combo' ? 'featured' : ''}`}
                 onClick={() => setSelectedPlan('combo')}
@@ -2242,7 +2214,6 @@ function App() {
         </div>
       )}
 
-      {/* Payment Success Confirmation Modal with payment.json Lottie animation */}
       {showPaymentSuccessModal && (
         <div className="pricing-modal-overlay" onClick={() => setShowPaymentSuccessModal(false)}>
           <div className="pricing-modal-card" style={{ maxWidth: '420px', textAlign: 'center', padding: '40px 24px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }} onClick={e => e.stopPropagation()}>
@@ -2271,7 +2242,6 @@ function App() {
           </div>
         </div>
       )}
-      {/* Big Clean Full-Screen Loading Animation Overlay */}
       {(isGeneratingScript || isPaymentProcessing) && (
         <div className="pricing-modal-overlay" style={{ zIndex: 4000, background: 'rgba(10, 7, 24, 0.85)', backdropFilter: 'blur(10px)' }}>
           <div style={{ maxWidth: '480px', textAlign: 'center', padding: '20px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
@@ -2295,7 +2265,6 @@ function App() {
           </div>
         </div>
       )}
-      {/* In-App Video Player Modal for Video History */}
       {playingHistoryVideo && (
         <div className="pricing-modal-overlay" onClick={() => setPlayingHistoryVideo(null)} style={{ zIndex: 3000 }}>
           <div className="pricing-modal-card" style={{ maxWidth: '640px', padding: '32px 24px', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }} onClick={e => e.stopPropagation()}>
@@ -2335,7 +2304,6 @@ function App() {
           </div>
         </div>
       )}
-      {/* Auto-Upload Settings Modal (Secret Page) */}
       {showAutoUploadModal && (
         <div className="pricing-modal-overlay" onClick={() => {
           setShowAutoUploadModal(false);
@@ -2380,7 +2348,6 @@ function App() {
               </div>
             </div>
 
-            {/* Current Active Plan Status Card */}
             <div id="tour-sched-status" style={{ background: 'rgba(255,255,255,0.04)', padding: '18px 20px', borderRadius: '16px', border: '1px solid rgba(6, 182, 212, 0.3)', marginBottom: '20px' }}>
               <h4 style={{ color: '#38bdf8', marginBottom: '10px', fontSize: '1rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
                 👑 Active Membership Plan Status
@@ -2396,7 +2363,6 @@ function App() {
               </div>
             </div>
 
-            {/* Secret Auto-Generate Page Configuration Form */}
             <div style={{ background: 'rgba(0,0,0,0.35)', padding: '24px', borderRadius: '16px', border: '1px solid rgba(6, 182, 212, 0.3)', textAlign: 'left', marginBottom: '24px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
                 <span style={{ fontSize: '1.8rem' }}>🔐</span>
@@ -2410,7 +2376,6 @@ function App() {
                 </div>
               </div>
 
-              {/* Auto-Publishing Status Banner */}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: isAutoScheduleActive ? 'rgba(34, 197, 94, 0.12)' : 'rgba(239, 68, 68, 0.12)', border: isAutoScheduleActive ? '1px solid rgba(52, 211, 153, 0.35)' : '1px solid rgba(239, 68, 68, 0.35)', borderRadius: '12px', padding: '10px 16px', marginBottom: '18px' }}>
                 <span style={{ fontSize: '0.88rem', fontWeight: 'bold', color: '#ffffff' }}>Account Auto-Upload Status:</span>
                 <span style={{ padding: '4px 14px', borderRadius: '20px', fontSize: '0.8rem', fontWeight: '800', background: isAutoScheduleActive ? 'linear-gradient(135deg, #059669 0%, #10b981 100%)' : 'rgba(239, 68, 68, 0.25)', color: '#ffffff', boxShadow: isAutoScheduleActive ? '0 0 12px rgba(52, 211, 153, 0.4)' : 'none' }}>
@@ -2418,19 +2383,16 @@ function App() {
                 </span>
               </div>
 
-              {/* Plan Video Counter Bar */}
               <div style={{ background: 'rgba(6, 182, 212, 0.1)', border: '1px solid rgba(6, 182, 212, 0.3)', borderRadius: '12px', padding: '12px 16px', marginBottom: '18px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.85rem' }}>
                 <div><span style={{ color: '#94a3b8' }}>Elapsed Membership Days:</span> <strong style={{ color: '#ffffff' }}>{autoSchedule.total_videos_created} Days Passed</strong></div>
                 <div><span style={{ color: '#94a3b8' }}>Total Stacked Plan Remaining:</span> <strong style={{ color: '#38bdf8' }}>{autoSchedule.remaining_plan_videos} / {autoSchedule.total_plan_allowance || (subStatus.plan_type === 'combo' ? 60 : 30)} Videos Left</strong></div>
               </div>
 
-              {/* LIVE ENGINES STATUS DASHBOARD */}
               <div id="tour-sched-engines" style={{ background: 'rgba(15, 23, 42, 0.6)', border: '1px solid rgba(148, 163, 184, 0.2)', borderRadius: '14px', padding: '16px', marginBottom: '20px' }}>
                 <h4 style={{ color: '#f8fafc', fontSize: '0.92rem', fontWeight: '800', margin: '0 0 12px 0', display: 'flex', alignItems: 'center', gap: '8px' }}>
                   ⚡ Live Automation Engines Status Breakdown
                 </h4>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '10px' }}>
-                  {/* 1. Shorts Engine */}
                   <div style={{ background: (isAutoScheduleActive && (subStatus.plan_type === 'short' || subStatus.plan_type === 'combo')) ? 'rgba(34, 197, 94, 0.1)' : 'rgba(239, 68, 68, 0.08)', border: (isAutoScheduleActive && (subStatus.plan_type === 'short' || subStatus.plan_type === 'combo')) ? '1px solid rgba(34, 197, 94, 0.3)' : '1px solid rgba(239, 68, 68, 0.2)', borderRadius: '10px', padding: '10px 12px' }}>
                     <div style={{ fontSize: '0.8rem', fontWeight: 'bold', color: '#cbd5e1', marginBottom: '4px' }}>📱 9:16 Short Reels Engine</div>
                     <div style={{ fontSize: '0.78rem', fontWeight: '800', color: (isAutoScheduleActive && (subStatus.plan_type === 'short' || subStatus.plan_type === 'combo')) ? '#4ade80' : '#f87171' }}>
@@ -2438,7 +2400,6 @@ function App() {
                     </div>
                   </div>
 
-                  {/* 2. Long Engine */}
                   <div style={{ background: (isAutoScheduleActive && (subStatus.plan_type === 'long' || subStatus.plan_type === 'combo')) ? 'rgba(34, 197, 94, 0.1)' : 'rgba(239, 68, 68, 0.08)', border: (isAutoScheduleActive && (subStatus.plan_type === 'long' || subStatus.plan_type === 'combo')) ? '1px solid rgba(34, 197, 94, 0.3)' : '1px solid rgba(239, 68, 68, 0.2)', borderRadius: '10px', padding: '10px 12px' }}>
                     <div style={{ fontSize: '0.8rem', fontWeight: 'bold', color: '#cbd5e1', marginBottom: '4px' }}>📽️ 16:9 Long Video Engine</div>
                     <div style={{ fontSize: '0.78rem', fontWeight: '800', color: (isAutoScheduleActive && (subStatus.plan_type === 'long' || subStatus.plan_type === 'combo')) ? '#4ade80' : '#f87171' }}>
@@ -2446,7 +2407,6 @@ function App() {
                     </div>
                   </div>
 
-                  {/* 3. Ultra Engine */}
                   <div style={{ background: (isAutoScheduleActive && autoSchedule.ultra_enabled) ? 'rgba(236, 72, 153, 0.15)' : 'rgba(239, 68, 68, 0.08)', border: (isAutoScheduleActive && autoSchedule.ultra_enabled) ? '1px solid rgba(236, 72, 153, 0.4)' : '1px solid rgba(239, 68, 68, 0.2)', borderRadius: '10px', padding: '10px 12px' }}>
                     <div style={{ fontSize: '0.8rem', fontWeight: 'bold', color: '#cbd5e1', marginBottom: '4px' }}>🎬 Ultra 3D Motion Engine</div>
                     <div style={{ fontSize: '0.78rem', fontWeight: '800', color: (isAutoScheduleActive && autoSchedule.ultra_enabled) ? '#f472b6' : '#f87171' }}>
@@ -2456,7 +2416,6 @@ function App() {
                 </div>
               </div>
 
-              {/* Auto Schedule Switch */}
               <div id="tour-sched-toggle" style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px', background: 'rgba(255,255,255,0.03)', padding: '12px 16px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.08)' }}>
                 <input 
                   type="checkbox" 
@@ -2470,16 +2429,13 @@ function App() {
                 </label>
               </div>
 
-              {/* Schedule Timing & Topics Settings */}
               <div id="tour-sched-settings">
-                {/* 1. SHORT REEL SCHEDULE PROFILE (If Short Starter or Pro Combo) */}
                 {(subStatus.plan_type === 'short' || subStatus.plan_type === 'combo') && (
                 <div style={{ background: 'rgba(168,85,247,0.08)', padding: '18px', borderRadius: '14px', border: '1px solid rgba(168,85,247,0.3)', marginBottom: '20px' }}>
                   <h4 style={{ color: '#c084fc', marginBottom: '14px', fontSize: '1rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
                     📱 9:16 Short Reels Automation Settings
                   </h4>
 
-                  {/* Topic Choice */}
                   <div style={{ marginBottom: '14px' }}>
                     <div style={{ display: 'flex', gap: '10px', alignItems: 'center', marginBottom: '6px' }}>
                       <input 
@@ -2505,7 +2461,6 @@ function App() {
                     )}
                   </div>
 
-                  {/* Short Voice, Font, Category, Color, Duration, Time */}
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', fontSize: '0.82rem' }}>
                     <div>
                       <label style={{ color: '#cbd5e1', display: 'block', marginBottom: '4px' }}>Category / Niche (30+ Options):</label>
@@ -2560,14 +2515,12 @@ function App() {
                 </div>
               )}
 
-              {/* 2. LONG VIDEO SCHEDULE PROFILE (If Long Master or Pro Combo) */}
               {(subStatus.plan_type === 'long' || subStatus.plan_type === 'combo') && (
                 <div style={{ background: 'rgba(6,182,212,0.08)', padding: '18px', borderRadius: '14px', border: '1px solid rgba(6,182,212,0.3)', marginBottom: '20px' }}>
                   <h4 style={{ color: '#38bdf8', marginBottom: '14px', fontSize: '1rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
                     🖥️ 16:9 Long Video Automation Settings
                   </h4>
 
-                  {/* Topic Choice */}
                   <div style={{ marginBottom: '14px' }}>
                     <div style={{ display: 'flex', gap: '10px', alignItems: 'center', marginBottom: '6px' }}>
                       <input 
@@ -2593,7 +2546,6 @@ function App() {
                     )}
                   </div>
 
-                  {/* Long Voice, Font, Category, Color, Duration, Time */}
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', fontSize: '0.82rem' }}>
                     <div>
                       <label style={{ color: '#cbd5e1', display: 'block', marginBottom: '4px' }}>Category / Niche (30+ Options):</label>
@@ -2648,7 +2600,6 @@ function App() {
                 </div>
               )}
 
-              {/* 3. ULTRA CINEMATIC 3D MOTION SCHEDULE PROFILE (If Ultra Active or Enabled) */}
               {(subStatus.has_active_ultra_subscription || subStatus.plan_type === 'ultra' || subStatus.plan_type === 'combo' || autoSchedule.ultra_enabled) && (
                 <div style={{ background: 'rgba(236,72,153,0.08)', padding: '18px', borderRadius: '14px', border: '1px solid rgba(236,72,153,0.3)', marginBottom: '20px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
@@ -2805,7 +2756,6 @@ function App() {
 
               </div>
 
-              {/* Engine Activation / Deactivation Action Section */}
               <div id="tour-sched-actions" style={{ width: '100%' }}>
                 {subStatus.has_active_subscription ? (
                   isAutoScheduleActive ? (
@@ -2860,7 +2810,6 @@ function App() {
         </div>
       )}
 
-      {/* Stop Auto-Publishing Confirmation Warning Modal */}
       {showStopScheduleWarningModal && (
         <div className="pricing-modal-overlay" style={{ zIndex: 4000 }} onClick={() => setShowStopScheduleWarningModal(false)}>
           <div 
@@ -2910,7 +2859,6 @@ function App() {
         </div>
       )}
 
-      {/* Custom Glassmorphism Transparent Warning & Alert Modal */}
       {customAlert && (
         <div 
           className="pricing-modal-overlay" 
@@ -3002,7 +2950,6 @@ function App() {
         </div>
       )}
 
-      {/* Interactive Onboarding Product Tour (App & Schedule Walkthrough) */}
       {isTourActive && (() => {
         const currentSteps = activeTourType === 'schedule' ? SCHEDULE_TOUR_STEPS : TOUR_STEPS;
         const currentStepIndex = activeTourType === 'schedule' ? scheduleTourStep : tourStep;
@@ -3013,7 +2960,6 @@ function App() {
           <>
             <div className="cloxel-tour-backdrop" onClick={handleCloseTour} />
 
-            {/* Transparent Spotlight Window with Dark Perimeter & Glowing Neon Frame */}
             {spotlightRect && (
               <div 
                 className="tour-spotlight-box"

@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 ===============================================================================
     GEMINI AI AUTOMATIC MULTI-SCENE SCRIPT PARSER ENGINE (INSTANT SOCKET FAILSAFE)
@@ -27,7 +26,6 @@ except ImportError:
 
 DEFAULT_API_KEY = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY") or os.getenv("AI_API_KEY")
 
-
 def is_gemini_api_online(timeout: float = 0.5) -> bool:
     """
     Ultra-fast 0.5s socket check to prevent gRPC/DNS network hanging.
@@ -39,7 +37,6 @@ def is_gemini_api_online(timeout: float = 0.5) -> bool:
     except Exception:
         return False
 
-
 def parse_prompt_to_action_script(prompt: str) -> List[Dict[str, Any]]:
     """
     Parses explicit user scripts or breaks down Hinglish story text into micro-scenes.
@@ -47,7 +44,6 @@ def parse_prompt_to_action_script(prompt: str) -> List[Dict[str, Any]]:
     lines = [line.strip() for line in prompt.strip().split('\n') if line.strip()]
     scenes = []
 
-    # Check if script contains 'Scene 1:', 'Scene 2:', etc.
     scene_blocks = re.split(r'Scene\s*\d+\s*:', prompt, flags=re.IGNORECASE)
     if len(scene_blocks) > 1:
         for idx, block in enumerate(scene_blocks[1:]):
@@ -71,7 +67,6 @@ def parse_prompt_to_action_script(prompt: str) -> List[Dict[str, Any]]:
             })
         return scenes
 
-    # Break raw sentences into micro-scene clips
     sentences = [s.strip() for s in prompt.replace('\n', '. ').split('.') if len(s.strip()) > 3]
     if not sentences:
         sentences = [prompt.strip()]
@@ -94,7 +89,6 @@ def parse_prompt_to_action_script(prompt: str) -> List[Dict[str, Any]]:
 
     return scenes
 
-
 def generate_gemini_video_script(prompt: str, target_duration: int = 30, api_key: Optional[str] = None) -> Dict[str, Any]:
     """
     Calls Google Gemini AI API if online, or instantly (0.01s) falls back if offline/sandboxed.
@@ -103,7 +97,6 @@ def generate_gemini_video_script(prompt: str, target_duration: int = 30, api_key
 
     key = api_key or DEFAULT_API_KEY
 
-    # Ultra-Fast Socket Pre-Check (0.5s) to avoid network hanging!
     if HAS_GEMINI and key and is_gemini_api_online(timeout=0.5):
         try:
             print("🌐 [Gemini AI] Online connection verified! Processing prompt...")
@@ -148,13 +141,11 @@ def generate_gemini_video_script(prompt: str, target_duration: int = 30, api_key
     else:
         print("⚡ [Gemini Fast Engine] Offline/Sandbox mode detected: Instant (0.01s) local NLP scene parser active!")
 
-    # Instant Fallback
     return {
         'title': prompt[:40],
         'target_duration': target_duration,
         'scenes': local_parsed
     }
-
 
 if __name__ == "__main__":
     print("Testing gemini_engine instant socket check...")

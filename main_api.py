@@ -8,7 +8,6 @@ import os
 import json
 import threading
 
-# Modules check
 from video_editor import merge_and_export
 from audio_engine import make_audio
 from video_fetcher import fetch_videos 
@@ -28,16 +27,16 @@ class VideoRequest(BaseModel):
     voice_id: str = "hi-IN-MadhurNeural"
     username: str = "guest"
     clip_count: int = 0
-    mode: str = "standard"          # "standard" or "ultra" (Ultra Photo Motion Mode)
-    filter_style: str = "warm_epic" # "warm_epic", "vintage_parchment", "dramatic_cinematic"
-    aspect_ratio: str = "9:16"      # "9:16", "16:9", "1:1"
+    mode: str = "standard"
+    filter_style: str = "warm_epic"
+    aspect_ratio: str = "9:16"
 
 class ScheduleRequest(BaseModel):
     username: str
     topic: str
-    target_time: str = "12:00" # HH:MM format
+    target_time: str = "12:00"
     duration: int = 30
-    clip_count: int = 0 # 0 means auto
+    clip_count: int = 0
     font_name: str = "BebasNeue-Regular.ttf"
     text_color: str = "white"
     voice_id: str = "hi-IN-MadhurNeural"
@@ -90,10 +89,8 @@ def generate_single_video_job(topic_data):
     clip_count_override = topic_data.get("clip_count", 0)
     print(f"🌅 Generating script & video for user '{username}' on topic: {topic_name}")
     
-    # 1. Generate new AI script
     new_script = generate_daily_script(topic_name, duration)
     
-    # 2. Build Request
     req = VideoRequest(
         script=new_script,
         topic=topic_name,
@@ -108,7 +105,6 @@ def generate_single_video_job(topic_data):
         aspect_ratio=topic_data.get("aspect_ratio", "9:16")
     )
     
-    # 3. Trigger video task immediately
     job_id = f"daily_{uuid.uuid4().hex[:8]}"
     threading.Thread(target=process_video_task, args=(job_id, req)).start()
 
@@ -124,18 +120,15 @@ def process_video_task(job_id, data: VideoRequest):
         a_path = f"voice_{job_id}.mp3"
         out_path = f"final_{job_id}.mp4"
 
-        # 1. Poora Audio ek saath generate karein
         make_audio(data.script, a_path, voice_id=data.voice_id)
         
-        # 2. Aspect Ratio target size calculation
         if data.aspect_ratio == "16:9":
             target_size = (1920, 1080)
         elif data.aspect_ratio == "1:1":
             target_size = (1080, 1080)
         else:
-            target_size = (1080, 1920) # 9:16 default Shorts/Reels
+            target_size = (1080, 1920)
 
-        # 3. Dynamic Clip Count Logic
         if data.clip_count > 0:
             clip_count = data.clip_count
         else:
@@ -146,14 +139,12 @@ def process_video_task(job_id, data: VideoRequest):
             elif d <= 50: clip_count = 7
             else: clip_count = 10 
 
-        # 4. Fetch Clips or Photos
         jobs[job_id]["status"] = f"Fetching {clip_count} media assets for {d}s video..."
         video_clips = fetch_videos(data.topic, job_id, count=clip_count)
 
         if not video_clips:
             raise Exception("Media assets download nahi ho payin")
 
-        # 5. Build Scene List
         jobs[job_id]["status"] = f"Rendering {data.mode.upper()} Video ({data.aspect_ratio})..."
         scene_list = []
         for v_path in video_clips:
@@ -163,7 +154,6 @@ def process_video_task(job_id, data: VideoRequest):
                 "text": data.script
             })
         
-        # 6. Merge and Export using video_editor engine
         merge_and_export(
             scene_list=scene_list, 
             output_name=out_path, 

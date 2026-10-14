@@ -10,7 +10,6 @@
   --accent: #c084fc;
 }
 
-/* Sleek Dark Purple Custom Scrollbars for Dropdowns & Modals */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
@@ -31,9 +30,6 @@
   background: linear-gradient(180deg, #c084fc 0%, #38bdf8 100%);
 }
 
-/* ==========================================================================
-   AI Glowing Spinner Loading Animations
-   ========================================================================== */
 .spinner {
   width: 60px;
   height: 60px;
@@ -381,10 +377,6 @@ input:focus, select:focus, textarea:focus {
   letter-spacing: 0.05em;
 }
 
-/* ==========================================================================
-   Pastel Theme Overrides (Activated via Theme Toggle Button)
-   Matches User Design Mockup Photo (Vibrant Soft Pastel Background & Distinct Pill Borders)
-   ========================================================================== */
 body.theme-pastel {
   background-color: #c084fc !important;
   color: #1e1b4b !important;
@@ -570,7 +562,6 @@ body.theme-pastel .history-card-topic {
   }
 }
 
-/* Animations */
 @keyframes pulse {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.5; }
@@ -580,7 +571,6 @@ body.theme-pastel .history-card-topic {
   animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 
-/* Auth Component Styles */
 .auth-container {
   display: flex;
   justify-content: center;
@@ -661,7 +651,6 @@ body.theme-pastel .history-card-topic {
   color: #888;
 }
 
-
 .btn-link {
   background: none;
   border: none;
@@ -673,7 +662,6 @@ body.theme-pastel .history-card-topic {
   text-decoration: underline;
 }
 
-/* YouTube Integration Styles */
 .yt-card {
   margin-top: 30px;
   background-color: var(--surface);
@@ -758,7 +746,6 @@ body.theme-pastel .history-card-topic {
   text-align: center;
 }
 
-/* Sidebar & Hamburger Menu Styles */
 .header-left {
   display: flex;
   align-items: center;
@@ -1000,7 +987,6 @@ body.theme-pastel .history-card-topic {
   background-color: rgba(239, 68, 68, 0.2);
 }
 
-/* Landing Page & Auth Modal Styles */
 .landing-container {
   min-height: 100vh;
   background-color: #0b071a;
@@ -1010,7 +996,6 @@ body.theme-pastel .history-card-topic {
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
 }
 
-/* Glowing Background Orbs */
 .glow-orb {
   position: absolute;
   border-radius: 50%;
@@ -1035,7 +1020,6 @@ body.theme-pastel .history-card-topic {
   background: radial-gradient(circle, #ec4899 0%, #8b5cf6 100%);
 }
 
-/* Landing Navigation */
 .landing-nav {
   display: grid;
   grid-template-columns: 1fr auto 1fr;
@@ -1115,7 +1099,6 @@ body.theme-pastel .history-card-topic {
   box-shadow: 0 0 20px rgba(255, 255, 255, 0.4);
 }
 
-/* Landing Hero Section */
 .landing-hero {
   max-width: 850px;
   margin: 50px auto 40px auto;
@@ -1125,7 +1108,6 @@ body.theme-pastel .history-card-topic {
   z-index: 10;
 }
 
-/* Floating Lottie animation on left side while hero text remains 100% centered */
 .hero-lottie-side-left {
   position: absolute;
   left: -355px;
@@ -1261,7 +1243,6 @@ body.theme-pastel .history-card-topic {
   color: #94a3b8;
 }
 
-/* Auth Modal Styling */
 .auth-modal-overlay {
   position: fixed;
   top: 0;
@@ -1365,7 +1346,6 @@ body.theme-pastel .history-card-topic {
   margin-bottom: 4px;
 }
 
-/* Upgrade Pill & Pricing Modal Styles */
 .btn-upgrade-pill {
   background: linear-gradient(135deg, #a855f7 0%, #ec4899 100%);
   color: #ffffff;
@@ -1591,7 +1571,6 @@ body.theme-pastel .history-card-topic {
   color: #64748b;
 }
 
-/* Custom Select Theme Adaptability Fix */
 .custom-select-trigger {
   width: 100%;
   padding: 0.85rem 1.1rem;
@@ -1633,9 +1612,6 @@ body.theme-pastel .custom-select-dropdown div {
   color: #334155;
 }
 
-/* =========================================================
-   Interactive Guide Button (Header & Schedule)
-   ========================================================= */
 .btn-tour-pill {
   position: relative;
   display: inline-flex;
@@ -1726,9 +1702,6 @@ body.theme-pastel .btn-tour-pill-icon {
   filter: none;
 }
 
-/* =========================================================
-   Interactive Onboarding Product Tour (New User Guide)
-   ========================================================= */
 .cloxel-tour-backdrop {
   position: fixed;
   inset: 0;

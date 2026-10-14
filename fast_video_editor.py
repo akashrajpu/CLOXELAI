@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 ===============================================================================
        FAST NATIVE FFMPEG CARTOON VIDEO EDITOR (TRUE ANIMATED CARTOON)
@@ -21,7 +20,6 @@ from typing import List, Dict, Tuple, Any
 from PIL import Image, ImageDraw, ImageFont
 from omni_cartoon_renderer import CartoonSceneRenderer
 
-
 def load_fast_font(fs: int = 40):
     candidates = [
         "/System/Library/Fonts/Supplemental/Arial.ttf",
@@ -37,13 +35,11 @@ def load_fast_font(fs: int = 40):
                 pass
     return ImageFont.load_default()
 
-
 def render_scene_canvas(scene_id: int, scene_text: str, bg_path: str, size: Tuple[int, int] = (1280, 720)) -> Image.Image:
     """
     Renders HD 2D Animated Cartoon scene backdrop with Speech Bubbles & Characters.
     """
     return CartoonSceneRenderer.render_scene(scene_id=scene_id, scene_text=scene_text, frame_idx=0, size=size)
-
 
 def fast_merge_and_export(scene_list: List[Dict[str, Any]], output_name: str,
                           target_size: Tuple[int, int] = (1280, 720),
@@ -65,12 +61,10 @@ def fast_merge_and_export(scene_list: List[Dict[str, Any]], output_name: str,
         bg = scene.get('video') or scene.get('photo') or ''
         audio_path = scene.get('audio', '')
 
-        # 1. Pre-render 2D Cartoon Character Canvas
         canvas_img = render_scene_canvas(i, text, bg, size=target_size)
         canvas_path = os.path.abspath(os.path.join(job_dir, f"temp_frame_{i}.png"))
         canvas_img.save(canvas_path, format="PNG")
 
-        # 2. Get audio duration
         duration = 4.0
         if audio_path and os.path.exists(audio_path) and os.path.getsize(audio_path) > 500:
             try:
@@ -84,7 +78,6 @@ def fast_merge_and_export(scene_list: List[Dict[str, Any]], output_name: str,
             subprocess.run(["ffmpeg", "-y", "-f", "lavfi", "-i", "anullsrc=r=44100:cl=stereo", "-t", "4.0", "-acodec", "libmp3lame", safe_audio], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
             audio_path = safe_audio
 
-        # 3. Direct FFmpeg Hardware Scene Encode (0.4s per scene)
         scene_mp4 = os.path.abspath(os.path.join(job_dir, f"temp_scene_{i}.mp4"))
         cmd = [
             "ffmpeg", "-y", "-loop", "1", "-i", canvas_path,
@@ -106,7 +99,6 @@ def fast_merge_and_export(scene_list: List[Dict[str, Any]], output_name: str,
             pct = 70 + int(((i + 1) / len(scene_list)) * 25)
             log_callback(msg, pct)
 
-    # 4. Fast FFmpeg Concat
     list_path = os.path.abspath(os.path.join(job_dir, "concat_fast.txt"))
     with open(list_path, "w") as f:
         for s in temp_scenes:
@@ -123,7 +115,6 @@ def fast_merge_and_export(scene_list: List[Dict[str, Any]], output_name: str,
     total_time = t1 - t0
     print(f"\n🎉 [Fast Cartoon Engine] Total Animated MP4 Video rendered in {total_time:.2f} seconds!\n")
     return output_name
-
 
 if __name__ == "__main__":
     print("Testing Fast Cartoon Video Engine...")

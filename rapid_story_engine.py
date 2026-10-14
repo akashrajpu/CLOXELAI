@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 ===============================================================================
   RAPID STORY ENGINE 15.0 (GEMINI AI MULTI-CLIP LINE STICK MP4 CONCATENATOR)
@@ -18,7 +17,6 @@ import subprocess
 from typing import List, Dict, Tuple, Any
 from PIL import Image, ImageDraw
 from omni_cartoon_renderer import UserLineStickRenderer, parse_prompt_to_user_script
-
 
 def render_single_micro_clip(script_text: str, audio_path: str, output_mp4: str,
                              target_size: Tuple[int, int] = (1280, 720)) -> str:
@@ -64,7 +62,6 @@ def render_single_micro_clip(script_text: str, audio_path: str, output_mp4: str,
 
     return output_mp4
 
-
 def release_system_memory():
     """Forces Python Garbage Collection + Linux C-heap memory reclamation (malloc_trim)."""
     import gc
@@ -104,7 +101,6 @@ def export_rapid_story_video(prompt: str, scenes: List[Dict[str, Any]], audio_fi
             pct = 50 + int(((idx + 1) / len(scenes)) * 45)
             log_callback(msg, pct)
 
-    # Concat all micro-clip MP4 files
     concat_list_txt = os.path.abspath(os.path.join(job_dir, "concat_micro_clips.txt"))
     with open(concat_list_txt, "w") as f:
         for mp4_f in temp_scene_mp4s:
@@ -120,7 +116,6 @@ def export_rapid_story_video(prompt: str, scenes: List[Dict[str, Any]], audio_fi
     t1 = time.time()
     print(f"\n🎉 [Gemini Multi-Clip Engine] Exported Complete Video in {t1 - t0:.2f} seconds!")
     return output_name
-
 
 if __name__ == "__main__":
     print("Testing rapid_story_engine 15.0...")

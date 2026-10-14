@@ -70,21 +70,18 @@ try:
 except ImportError:
     fetch_web_image = None
 
-
 COLOR_PALETTES = [
-    "#FFEE00", # Vivid Yellow
-    "#00FFFF", # Neon Cyan
-    "#FF0055", # Hot Pink
-    "#00FF66", # Electric Green
-    "#FF9900", # Deep Amber
-    "#FFFFFF"  # Pure White
+    "#FFEE00",
+    "#00FFFF",
+    "#FF0055",
+    "#00FF66",
+    "#FF9900",
+    "#FFFFFF"
 ]
 
 POSITIONS = ["center", "bottom", "top"]
 
-
 _FONT_CACHE = {}
-
 
 def get_font(font_path_arg: str, fs: int, has_devanagari: bool):
     cache_key = (font_path_arg, fs, has_devanagari)
@@ -135,7 +132,6 @@ def get_font(font_path_arg: str, fs: int, has_devanagari: bool):
 
     _FONT_CACHE[cache_key] = font_obj
     return font_obj
-
 
 def create_dynamic_animated_text(
     full_text: str,
@@ -307,7 +303,6 @@ def create_dynamic_animated_text(
     mask_clip = VideoClip(make_mask, ismask=True, duration=duration).set_fps(fps)
     return clip.set_mask(mask_clip)
 
-
 def create_multi_character_ultra_clip(
     scene_info: dict,
     duration: float,
@@ -322,7 +317,7 @@ def create_multi_character_ultra_clip(
     """
     w, h = size
     bg_img_path = scene_info.get("background_image") or scene_info.get("video")
-    char_list = scene_info.get("characters", []) # List of dicts: [{"name": "Karna", "image": "...", "pos": "left"}]
+    char_list = scene_info.get("characters", [])
     
     if bg_img_path and os.path.exists(bg_img_path):
         bg_pil = Image.open(bg_img_path).convert("RGBA").resize(size, Image.LANCZOS)
@@ -351,7 +346,7 @@ def create_multi_character_ultra_clip(
                 pos_x = int(w * 0.04)
             elif c_pos == "right":
                 pos_x = w - target_w - int(w * 0.04)
-            else: # center
+            else:
                 pos_x = (w - target_w) // 2
                 
             pos_y = h - target_h
@@ -380,7 +375,6 @@ def create_multi_character_ultra_clip(
         return np.array(canvas.convert("RGB"))
 
     return VideoClip(get_frame, duration=duration).set_fps(fps)
-
 
 def generate_ink_brush_mask(size: tuple) -> Image.Image:
     """Generates a procedural high-resolution Ink Brush / Paint Reveal Mask PNG with rough organic edges."""
@@ -534,7 +528,6 @@ def create_history_spotlight_overlay(base_img: Image.Image, progress: float, dar
     result_img = Image.composite(base_img.convert("RGB"), dark_bg, spotlight_mask)
     return result_img.convert("RGBA")
 
-
 def create_parchment_subtitle_box(text: str, size: tuple, font_size: int = 180) -> Image.Image:
     """
     Renders subtitles inside an authentic Off-White Cream Torn Paper Scroll Banner
@@ -565,7 +558,6 @@ def create_parchment_subtitle_box(text: str, size: tuple, font_size: int = 180) 
     torn_mask = torn_mask.filter(ImageFilter.GaussianBlur(radius=2))
     parchment.putalpha(torn_mask)
     
-    # We want a bold, readable font. RaceFlow, anton, or bebas work well.
     font_candidates = [
         "./fonts/anton.ttf",
         "./fonts/bebas.ttf",
@@ -573,9 +565,7 @@ def create_parchment_subtitle_box(text: str, size: tuple, font_size: int = 180) 
         "./fonts/CarbonBlock.ttf"
     ]
     
-    # Text could be in Hinglish/Hindi, so BetsyFlanagan with weird characters is dangerous.
     
-    # The box is box_h pixels high. Let's make the font size proportional to the box height so it's always readable.
     optimal_font_size = int(box_h * 0.35)
     
     chosen_font = None
@@ -604,7 +594,6 @@ def create_parchment_subtitle_box(text: str, size: tuple, font_size: int = 180) 
     
     draw_p = ImageDraw.Draw(parchment)
     
-    # If using default tiny font, just manually scale it so it's readable
     if hasattr(chosen_font, "size"):
         line_h = int(chosen_font.size * 1.20)
     else:
@@ -734,7 +723,7 @@ def create_ultra_photo_motion_clip(
         elif motion_type == "diagonal_fast":
             pan_x_factor = 0.20 + (0.60 * progress)
             pan_y_factor = 0.20 + (0.60 * progress)
-        else: # spiral_zoom
+        else:
             pan_x_factor = 0.5 + 0.20 * math.sin(progress * math.pi * 2)
             pan_y_factor = 0.5 + 0.20 * math.cos(progress * math.pi * 2)
             
@@ -757,7 +746,7 @@ def create_ultra_photo_motion_clip(
             
             if cutout_pos == "right":
                 fg_x = (w - cur_fg_w) + slide_offset
-            else: # left
+            else:
                 fg_x = 0 - slide_offset
                 
             fg_y = h - cur_fg_h
@@ -766,7 +755,6 @@ def create_ultra_photo_motion_clip(
         return np.array(frame_canvas.convert("RGB"))
 
     return VideoClip(get_frame, duration=duration).set_fps(fps)
-
 
 def get_audio_duration_fast(audio_path: str, fallback: float = 5.0) -> float:
     """Uses ffprobe to instantly get audio duration without loading audio into memory."""
@@ -789,7 +777,6 @@ def get_audio_duration_fast(audio_path: str, fallback: float = 5.0) -> float:
     except Exception:
         pass
     return fallback
-
 
 def render_scene_native_ffmpeg(
     scene_output: str,
@@ -837,7 +824,6 @@ def render_scene_native_ffmpeg(
             c_end = (c_idx + 1) * chunk_dur
             
             if category_style in ["history", "ancient"]:
-                # Authentic torn parchment paper scroll banner
                 chunk_str = " ".join(c_words)
                 try:
                     parchment_img = create_parchment_subtitle_box(chunk_str, (w, h), font_size=fs)
@@ -853,7 +839,6 @@ def render_scene_native_ffmpeg(
                     category_style = "clean"
                     
             if category_style not in ["history", "ancient"]:
-                # High-speed glassmorphic subtitle banner (1 image per chunk -> < 20MB RAM, Zero OOM)
                 sub_canvas = Image.new("RGBA", (w, h), (0, 0, 0, 0))
                 draw = ImageDraw.Draw(sub_canvas)
                 
@@ -877,7 +862,6 @@ def render_scene_native_ffmpeg(
                 box_x = (w - box_w) // 2
                 box_y = int(h * 0.76)
                 
-                # Rounded dark glass container with golden / neon border
                 draw.rounded_rectangle(
                     [(box_x, box_y), (box_x + box_w, box_y + box_h)],
                     radius=12,
@@ -899,7 +883,6 @@ def render_scene_native_ffmpeg(
                 sub_overlay_files.append((sub_path, c_start, c_end))
                 state_counter += 1
 
-    # Prepare inputs for FFmpeg
     input_args = []
     fallback_created = None
     
@@ -919,7 +902,6 @@ def render_scene_native_ffmpeg(
     for sub_path, _, _ in sub_overlay_files:
         input_args.extend(["-i", sub_path])
         
-    # Scale & crop background video/image to exact target size
     filter_parts = [f"[0:v]scale={w}:{h}:force_original_aspect_ratio=increase,crop={w}:{h},setsar=1[vbg]"]
     last_v = "vbg"
     
@@ -966,7 +948,6 @@ def render_scene_native_ffmpeg(
         print(f"⚠️ Native FFmpeg render exception: {e_run}")
         success = False
     finally:
-        # Cleanup temporary files
         for sub_path, _, _ in sub_overlay_files:
             if os.path.exists(sub_path):
                 try: os.remove(sub_path)
@@ -977,7 +958,6 @@ def render_scene_native_ffmpeg(
             
     release_system_memory()
     return success
-
 
 def merge_and_export(
     scene_list: list,
@@ -1103,7 +1083,6 @@ def merge_and_export(
             sub_vclip = full_vclip.subclip(min(sc_start_t, max(0, full_vclip.duration - 0.1)), min(sc_end_t, full_vclip.duration))
             sub_vclip = sub_vclip.set_duration(actual_a_dur).set_audio(a_clip)
 
-            # Clean Ultra Cartoon animation without font/text overlay
             scene_combined = sub_vclip
             scene_output = os.path.join(job_dir, f"temp_rendered_scene_{i}.mp4")
 
@@ -1327,7 +1306,6 @@ def merge_and_export(
                 except Exception as e_um:
                     print(f"⚠️ Ultra motion render notice: {e_um}")
         else:
-            # SHORT & LONG MODES: Direct Native FFmpeg Pipeline (Zero-OOM, Instant Render, < 30MB RAM)
             video_path = scene['video'][0] if isinstance(scene['video'], list) else scene['video']
             rendered_successfully = render_scene_native_ffmpeg(
                 scene_output=scene_output,
@@ -1343,7 +1321,6 @@ def merge_and_export(
                 job_dir=job_dir
             )
 
-        # Robust Zero-RAM Fallback if Native Render failed
         if not rendered_successfully or not os.path.exists(scene_output) or os.path.getsize(scene_output) < 1000:
             print(f"⚠️ Native FFmpeg fallback to Zero-RAM Stream Stitch for Scene {i+1}...")
             video_path = scene['video'][0] if isinstance(scene['video'], list) else scene['video']

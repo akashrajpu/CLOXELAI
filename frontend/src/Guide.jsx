@@ -11,7 +11,6 @@ export default function Guide({ onClose }) {
       color: '#f8fafc',
       fontFamily: "'Inter', sans-serif"
     }}>
-      {/* Dark Grid Background matching main app */}
       <div style={{
         position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: -1,
         backgroundImage: `
@@ -24,7 +23,6 @@ export default function Guide({ onClose }) {
         backgroundPosition: 'center top'
       }} />
 
-      {/* Navigation Bar */}
       <div style={{
         position: 'sticky', top: 0,
         background: 'rgba(11, 7, 26, 0.85)', backdropFilter: 'blur(12px)',
@@ -47,12 +45,11 @@ export default function Guide({ onClose }) {
         <h1 style={{ margin: '0 auto', fontSize: '1.4rem', color: '#c084fc', fontWeight: '800' }}>
           Cloxel AI Platform Guide
         </h1>
-        <div style={{ width: '130px' }}></div> {/* Spacer for centering */}
+        <div style={{ width: '130px' }}></div>
       </div>
 
       <div style={{ maxWidth: '1100px', margin: '40px auto', padding: '0 20px' }}>
         
-        {/* Header Section */}
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', marginBottom: '60px' }}>
           <div style={{ padding: '8px 20px', background: 'rgba(168,85,247,0.2)', color: '#c084fc', borderRadius: '50px', fontWeight: 'bold', marginBottom: '20px' }}>
             <Sparkles size={16} style={{ display: 'inline', verticalAlign: 'text-bottom', marginRight: '6px' }} />
@@ -66,10 +63,8 @@ export default function Guide({ onClose }) {
           </p>
         </div>
 
-        {/* Step by Step Section */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '40px', marginBottom: '80px' }}>
           
-          {/* Step 1 */}
           <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(168,85,247,0.3)', borderRadius: '24px', padding: '40px', display: 'flex', gap: '30px', alignItems: 'center' }}>
             <div style={{ width: '80px', height: '80px', borderRadius: '20px', background: 'linear-gradient(135deg, #a855f7 0%, #6366f1 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, boxShadow: '0 10px 30px rgba(168,85,247,0.4)' }}>
               <Bot size={40} color="#fff" />
@@ -86,7 +81,6 @@ export default function Guide({ onClose }) {
             </div>
           </div>
 
-          {/* Step 2 */}
           <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(168,85,247,0.3)', borderRadius: '24px', padding: '40px', display: 'flex', gap: '30px', alignItems: 'center', flexDirection: 'row-reverse' }}>
             <div style={{ width: '80px', height: '80px', borderRadius: '20px', background: 'linear-gradient(135deg, #ec4899 0%, #a855f7 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, boxShadow: '0 10px 30px rgba(236,72,153,0.4)' }}>
               <Wand2 size={40} color="#fff" />
@@ -103,7 +97,6 @@ export default function Guide({ onClose }) {
             </div>
           </div>
 
-          {/* Step 3 */}
           <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(168,85,247,0.3)', borderRadius: '24px', padding: '40px', display: 'flex', gap: '30px', alignItems: 'center' }}>
             <div style={{ width: '80px', height: '80px', borderRadius: '20px', background: 'linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, boxShadow: '0 10px 30px rgba(59,130,246,0.4)' }}>
               <Clapperboard size={40} color="#fff" />
@@ -120,7 +113,6 @@ export default function Guide({ onClose }) {
             </div>
           </div>
 
-          {/* Step 4 */}
           <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(168,85,247,0.3)', borderRadius: '24px', padding: '40px', display: 'flex', gap: '30px', alignItems: 'center', flexDirection: 'row-reverse' }}>
             <div style={{ width: '80px', height: '80px', borderRadius: '20px', background: 'linear-gradient(135deg, #10b981 0%, #3b82f6 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, boxShadow: '0 10px 30px rgba(16,185,129,0.4)' }}>
               <Rocket size={40} color="#fff" />
@@ -138,7 +130,6 @@ export default function Guide({ onClose }) {
           </div>
         </div>
 
-        {/* Example Videos Section */}
         <div style={{ textAlign: 'center', marginBottom: '40px' }}>
           <h2 style={{ fontSize: '2.5rem', margin: '0 0 15px 0', fontWeight: '900', color: '#fff' }}>
             See What You Can Build

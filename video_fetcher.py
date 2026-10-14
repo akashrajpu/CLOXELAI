@@ -155,12 +155,10 @@ def fetch_videos(keyword, job_id, count=1, orientation="portrait", category="Ran
     cat_lower = str(category).lower()
     is_ultra_mode = (str(video_type).lower() == "ultra")
 
-    # Clean query for Pexels & Pixabay video search
     noise_words = {"concept", "impact", "science", "reality", "future", "nature", "discovery", "cartoon", "animation", "category", "random"}
     clean_words = [w for w in keyword.replace('🎨', '').replace('🎲', '').replace('✍️', '').split() if w.lower() not in noise_words]
     video_query = " ".join(clean_words) if clean_words else keyword
 
-    # 1. Ultra Mode Priority: Pinterest HD Pins
     if is_ultra_mode:
         prefer_pinterest = any(c in cat_lower for c in ['cartoon', 'animation', 'documentary', 'comedy', 'horror', 'mythology', 'history', 'anime', 'art', 'photo'])
         if prefer_pinterest:
@@ -175,7 +173,6 @@ def fetch_videos(keyword, job_id, count=1, orientation="portrait", category="Ran
             except Exception as e_p:
                 print(f"⚠️ [Pinterest Skip]: {e_p}")
 
-    # 2. Short & Long Video Modes: Direct HD Video Clips (Pexels -> Pixabay)
     try:
         clips = fetch_pexels_videos(video_query, job_id, count=count, orientation=orientation)
         if clips:
@@ -190,7 +187,6 @@ def fetch_videos(keyword, job_id, count=1, orientation="portrait", category="Ran
     except Exception as e_pb:
         print(f"⚠️ [Pixabay Skip]: {e_pb}")
 
-    # 3. Fallback Video Keywords on Pexels / Pixabay
     for fallback_kw in ["nature", "technology", "abstract", "city", "ocean"]:
         if fallback_kw != video_query.lower():
             try:
@@ -203,7 +199,6 @@ def fetch_videos(keyword, job_id, count=1, orientation="portrait", category="Ran
             except Exception:
                 continue
 
-    # 4. Ultra Mode Fallback only
     if is_ultra_mode:
         try:
             pins = fetch_pinterest_pins(keyword, job_id, count=count, orientation=orientation)

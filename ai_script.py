@@ -1,8 +1,6 @@
 import ollama
 import random
 
-# We will use qwen:0.5b by default as it uses very little RAM.
-# Ensure you have run: `ollama run qwen:0.5b` on the server first.
 MODEL_NAME = 'qwen:0.5b'
 
 def generate_daily_script(topic: str, duration: int) -> str:
@@ -19,10 +17,8 @@ def generate_daily_script(topic: str, duration: int) -> str:
         f"Tell a short, engaging story related to {topic}."
     ]
     
-    # Pick a random angle so the video is different every day
     selected_angle = random.choice(angles)
     
-    # Approx 2.5 words per second
     word_count = int(duration * 2.5)
     
     system_prompt = (
@@ -45,17 +41,14 @@ def generate_daily_script(topic: str, duration: int) -> str:
         ])
         
         script = response['message']['content'].strip()
-        # Fallback if model gives empty output
         if not script:
             return f"Welcome to today's video about {topic}. Did you know that {topic} is absolutely amazing? Stay tuned for more!"
             
         return script
     except Exception as e:
         print(f"❌ Ollama Error: {e}")
-        # Return a fallback script so the video still generates even if Ollama fails momentarily
         return f"Today, we are talking about {topic}. There is always something new to learn about {topic}. Subscribe for more!"
 
 if __name__ == "__main__":
-    # For testing the script directly
     print("Testing script generation...")
     print(generate_daily_script("Artificial Intelligence"))

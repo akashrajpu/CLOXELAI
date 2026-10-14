@@ -37,11 +37,9 @@ function LottieHeroAnimation() {
 
 function Auth({ onLoginSuccess }) {
 
-
-  const [isLogin, setIsLogin] = useState(false); // Default to register or landing view
+  const [isLogin, setIsLogin] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
 
-  // Form Fields
   const [name, setName] = useState('');
   const [country, setCountry] = useState('India');
   const [phone, setPhone] = useState('');
@@ -53,13 +51,11 @@ function Auth({ onLoginSuccess }) {
   const [isLoading, setIsLoading] = useState(false);
   const [agreedToPrivacy, setAgreedToPrivacy] = useState(false);
 
-  // Nav Modals
   const [showHowItWorks, setShowHowItWorks] = useState(false);
   const [showFeatures, setShowFeatures] = useState(false);
   const [showSupport, setShowSupport] = useState(false);
   const [showPrivacyPolicy, setShowPrivacyPolicy] = useState(false);
 
-  // Forgot Password States
   const [showForgotPasswordModal, setShowForgotPasswordModal] = useState(false);
   const [forgotStep, setForgotStep] = useState(1);
   const [forgotIdentifier, setForgotIdentifier] = useState('');
@@ -138,7 +134,6 @@ function Auth({ onLoginSuccess }) {
         throw new Error(data.detail || data.error || 'Invalid Security QR Code');
       }
 
-      // Valid QR Token!
       setForgotQrToken(qrData);
       setForgotSuccess('✅ Security QR Code Verified! Step 3: Please set your new password.');
       setForgotStep(3);
@@ -207,7 +202,6 @@ function Auth({ onLoginSuccess }) {
     };
     reader.readAsDataURL(file);
   };
-
 
   const handleRequestAccountVerify = async (e) => {
     e.preventDefault();
@@ -297,9 +291,6 @@ function Auth({ onLoginSuccess }) {
     }
   };
 
-
-
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError(null);
@@ -335,8 +326,6 @@ function Auth({ onLoginSuccess }) {
       password: password,
       email_or_mobile: cleanEmailFinal
     };
-
-
 
     try {
       const response = await fetch(`${API_BASE}${endpoint}`, {
@@ -382,11 +371,9 @@ function Auth({ onLoginSuccess }) {
 
   return (
     <div className="landing-container">
-      {/* Background Glowing Mesh / Orbs */}
       <div className="glow-orb orb-1"></div>
       <div className="glow-orb orb-2"></div>
 
-      {/* Landing Navbar */}
       <nav className="landing-nav">
         <div className="nav-brand">
           <span className="brand-logo">✦</span> Cloxel <span>AI</span>
@@ -407,9 +394,7 @@ function Auth({ onLoginSuccess }) {
         </div>
       </nav>
 
-      {/* Hero Section */}
       <header className="landing-hero">
-        {/* Floating Left Side Lottie Animation */}
         <div className="hero-lottie-side-left">
           <LottieHeroAnimation />
         </div>
@@ -429,7 +414,6 @@ function Auth({ onLoginSuccess }) {
           <p className="hero-cta-subtext">No credit card required. Instant AI video creation.</p>
         </div>
 
-        {/* Floating Feature Badges */}
         <div className="hero-stats">
           <div className="stat-card">
             <h3>24/7</h3>
@@ -442,7 +426,6 @@ function Auth({ onLoginSuccess }) {
         </div>
       </header>
 
-      {/* Auth Modal (Overlay) */}
       {showAuthModal && (
         <div className="auth-modal-overlay" onClick={() => setShowAuthModal(false)}>
           <div className="auth-modal-card" onClick={e => e.stopPropagation()}>
@@ -581,7 +564,6 @@ function Auth({ onLoginSuccess }) {
                 </div>
               )}
 
-
               {!isLogin && (
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '14px', marginBottom: '16px' }}>
                   <input 
@@ -628,7 +610,6 @@ function Auth({ onLoginSuccess }) {
         </div>
       )}
 
-      {/* Forgot Password Modal */}
       {showForgotPasswordModal && (
         <div className="auth-modal-overlay" onClick={resetForgotModal}>
           <div className="auth-modal-card" onClick={e => e.stopPropagation()} style={{ maxWidth: '440px' }}>
@@ -652,7 +633,6 @@ function Auth({ onLoginSuccess }) {
               </div>
             )}
 
-            {/* STEP 1: Enter Email or Mobile */}
             {forgotStep === 1 && (
               <form onSubmit={handleRequestAccountVerify} className="auth-form">
                 <div className="form-group">
@@ -676,10 +656,8 @@ function Auth({ onLoginSuccess }) {
               </form>
             )}
 
-            {/* STEP 2: Scan / Upload QR Code */}
             {forgotStep === 2 && (
               <div className="auth-form">
-                {/* Method 1: Upload QR Image */}
                 <div style={{ background: 'rgba(168,85,247,0.1)', border: '1px dashed rgba(168,85,247,0.4)', padding: '16px', borderRadius: '12px', marginBottom: '14px', textAlign: 'center' }}>
                   <label style={{ display: 'block', color: '#c084fc', fontWeight: 'bold', fontSize: '0.88rem', marginBottom: '6px' }}>
                     📁 Upload Cloxel Security QR Code Image *
@@ -693,7 +671,6 @@ function Auth({ onLoginSuccess }) {
                   />
                 </div>
 
-                {/* Method 2: Live Camera Scan */}
                 <div style={{ textAlign: 'center', marginBottom: '14px' }}>
                   {!isScanningCamera ? (
                     <button 
@@ -731,7 +708,6 @@ function Auth({ onLoginSuccess }) {
               </div>
             )}
 
-            {/* STEP 3: Set New Password & Confirm Password */}
             {forgotStep === 3 && (
               <form onSubmit={handleResetPassword} className="auth-form">
                 <div className="form-group" style={{ marginBottom: '12px' }}>
@@ -782,7 +758,6 @@ function Auth({ onLoginSuccess }) {
         </div>
       )}
 
-      {/* Big Full-Screen Loading Animation Overlay */}
       {isLoading && (
         <div className="pricing-modal-overlay" style={{ zIndex: 5000, background: 'rgba(10, 7, 24, 0.85)', backdropFilter: 'blur(10px)' }}>
           <div style={{ maxWidth: '480px', textAlign: 'center', padding: '20px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
@@ -804,22 +779,18 @@ function Auth({ onLoginSuccess }) {
         </div>
       )}
 
-      {/* 1. HOW IT WORKS MODAL */}
       {showHowItWorks && (
         <Guide onClose={() => setShowHowItWorks(false)} />
       )}
 
-      {/* 2. FEATURES MODAL */}
       {showFeatures && (
         <Features onClose={() => setShowFeatures(false)} />
       )}
 
-      {/* 3. SUPPORT MODAL */}
       {showSupport && (
         <Support onClose={() => setShowSupport(false)} />
       )}
 
-      {/* 4. OFFICIAL LEGAL PRIVACY POLICY MODAL */}
       {showPrivacyPolicy && (
         <div className="pricing-modal-overlay" onClick={() => setShowPrivacyPolicy(false)} style={{ zIndex: 3000 }}>
           <div className="pricing-modal-card" style={{ maxWidth: '950px', padding: 0, background: 'transparent', border: 'none', overflow: 'hidden' }} onClick={e => e.stopPropagation()}>

@@ -11,7 +11,6 @@ export default function Features({ onClose }) {
       color: '#f8fafc',
       fontFamily: "'Inter', sans-serif"
     }}>
-      {/* Dark Grid Background matching main app */}
       <div style={{
         position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: -1,
         backgroundImage: `
@@ -24,7 +23,6 @@ export default function Features({ onClose }) {
         backgroundPosition: 'center top'
       }} />
 
-      {/* Navigation Bar */}
       <div style={{
         position: 'sticky', top: 0,
         background: 'rgba(11, 7, 26, 0.85)', backdropFilter: 'blur(12px)',
@@ -47,12 +45,11 @@ export default function Features({ onClose }) {
         <h1 style={{ margin: '0 auto', fontSize: '1.4rem', color: '#c084fc', fontWeight: '800' }}>
           Platform Features
         </h1>
-        <div style={{ width: '130px' }}></div> {/* Spacer for centering */}
+        <div style={{ width: '130px' }}></div>
       </div>
 
       <div style={{ maxWidth: '1200px', margin: '40px auto', padding: '0 20px' }}>
         
-        {/* Header Section */}
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', marginBottom: '80px' }}>
           <div style={{ padding: '8px 20px', background: 'rgba(168,85,247,0.2)', color: '#c084fc', borderRadius: '50px', fontWeight: 'bold', marginBottom: '20px' }}>
             <Sparkles size={16} style={{ display: 'inline', verticalAlign: 'text-bottom', marginRight: '6px' }} />
@@ -66,7 +63,6 @@ export default function Features({ onClose }) {
           </p>
         </div>
 
-        {/* Highlight 1: AI Script Generation */}
         <div style={{ display: 'flex', gap: '40px', alignItems: 'center', marginBottom: '80px', flexWrap: 'wrap' }}>
           <div style={{ flex: '1 1 500px', order: 1 }}>
             <img src="/ai_script_writer.jpg" alt="AI Script Writer" style={{ width: '100%', borderRadius: '24px', boxShadow: '0 20px 50px rgba(168,85,247,0.3)', border: '1px solid rgba(168,85,247,0.4)' }} />
@@ -87,7 +83,6 @@ export default function Features({ onClose }) {
           </div>
         </div>
 
-        {/* Highlight 2: Ultra Photo Motion */}
         <div style={{ display: 'flex', gap: '40px', alignItems: 'center', marginBottom: '80px', flexWrap: 'wrap' }}>
           <div style={{ flex: '1 1 400px', order: 1 }}>
             <div style={{ width: '60px', height: '60px', borderRadius: '16px', background: 'rgba(236,72,153,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '20px' }}>
@@ -108,7 +103,6 @@ export default function Features({ onClose }) {
           </div>
         </div>
 
-        {/* Highlight 3: YouTube Auto Upload */}
         <div style={{ display: 'flex', gap: '40px', alignItems: 'center', marginBottom: '80px', flexWrap: 'wrap' }}>
           <div style={{ flex: '1 1 500px', order: 1 }}>
             <img src="/youtube_auto_upload.jpg" alt="YouTube Auto Upload" style={{ width: '100%', borderRadius: '24px', boxShadow: '0 20px 50px rgba(59,130,246,0.3)', border: '1px solid rgba(59,130,246,0.4)' }} />
@@ -129,7 +123,6 @@ export default function Features({ onClose }) {
           </div>
         </div>
 
-        {/* Additional Mini Features Grid */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '20px', marginBottom: '60px' }}>
           <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.1)', padding: '24px', borderRadius: '16px' }}>
             <Clapperboard size={24} color="#a855f7" style={{ marginBottom: '15px' }} />

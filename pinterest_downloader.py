@@ -16,7 +16,6 @@ HEADERS = {
     "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
 }
 
-
 def get_gallery_dl_binary():
     """Locates the gallery-dl executable on the system across common install paths."""
     which_path = shutil.which("gallery-dl")
@@ -36,7 +35,6 @@ def get_gallery_dl_binary():
             return c
     return None
 
-
 def fetch_pinterest_photos_via_gallery_dl(query: str, limit: int = 3, output_dir: str = "pinterest_photos") -> list:
     """
     Programmatic helper: Downloads HD Pinterest photos using gallery-dl / direct web scraping.
@@ -51,7 +49,6 @@ def fetch_pinterest_photos_via_gallery_dl(query: str, limit: int = 3, output_dir
     downloaded_files = []
     gallery_binary = get_gallery_dl_binary()
 
-    # Method 1: gallery-dl CLI execution
     if gallery_binary:
         try:
             cmd = [
@@ -62,7 +59,6 @@ def fetch_pinterest_photos_via_gallery_dl(query: str, limit: int = 3, output_dir
             ]
             subprocess.run(cmd, capture_output=True, text=True, timeout=30)
 
-            # Collect downloaded image files recursively from output_dir
             for root, _, files in os.walk(output_dir):
                 for f in files:
                     if f.lower().endswith(('.jpg', '.jpeg', '.png', '.webp')):
@@ -89,7 +85,6 @@ def fetch_pinterest_photos_via_gallery_dl(query: str, limit: int = 3, output_dir
     else:
         print("ℹ️ [Pinterest gallery-dl] CLI executable not found in PATH, using web scraper fallbacks...")
 
-    # Method 2: Direct Pinterest web HTML scraper fallback
     try:
         resp = requests.get(pinterest_url, headers=HEADERS, timeout=8)
         if resp.status_code == 200:
@@ -118,7 +113,6 @@ def fetch_pinterest_photos_via_gallery_dl(query: str, limit: int = 3, output_dir
     except Exception as e_scrape:
         print(f"⚠️ [Pinterest Scraper warning]: {e_scrape}")
 
-    # Method 3: Bing Pinterest image search fallback
     try:
         bing_url = f"https://www.bing.com/images/search?q={encoded_query}%20site:pinterest.com"
         b_resp = requests.get(bing_url, headers=HEADERS, timeout=8)
@@ -150,7 +144,6 @@ def fetch_pinterest_photos_via_gallery_dl(query: str, limit: int = 3, output_dir
 
     return downloaded_files
 
-
 def download_pinterest_photos():
     query = input("Aapko kis tarah ki photo chahiye? (jaise: spider man comic vintage): ")
 
@@ -168,7 +161,6 @@ def download_pinterest_photos():
         print(f"\nSuccess! Exact {len(files)} photos successfully '{output_dir}' folder mein save ho gayi hain.")
     else:
         print(f"\nError: Could not download photos for '{query}'. Please check gallery-dl or internet connection.")
-
 
 if __name__ == "__main__":
     download_pinterest_photos()

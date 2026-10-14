@@ -53,13 +53,10 @@ def optimize_image_for_ram(file_path: str) -> bool:
         if not os.path.exists(file_path):
             return False
             
-        # Verify it's actually an image
         with Image.open(file_path) as img:
             img.verify()
             
-        # Re-open to process
         with Image.open(file_path) as img:
-            # Reject images that are too small (thumbnails / placeholders)
             if img.width < 400 or img.height < 400:
                 raise ValueError("Image is too small (likely a thumbnail or tracking pixel)")
                 
@@ -71,7 +68,7 @@ def optimize_image_for_ram(file_path: str) -> bool:
         import os
         if os.path.exists(file_path):
             try:
-                os.remove(file_path) # Delete corrupted file so we don't pass it to video editor
+                os.remove(file_path)
             except:
                 pass
         return False
@@ -85,7 +82,6 @@ def fetch_web_image(query: str, save_path: str) -> bool:
     clean_q_term = clean_search_term(english_query)
     print(f"🔎 [Web Image Search Engine] Searching HD Photos for: '{clean_q_term}' (Original Query: '{query}')...")
 
-    # Priority 1: Pinterest HD Photos (No API key needed, high aesthetic quality)
     try:
         from pinterest_downloader import fetch_pinterest_photos_via_gallery_dl
         temp_p_dir = os.path.join(os.path.dirname(save_path) or ".", "pinterest_temp")

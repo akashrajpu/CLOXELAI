@@ -48,7 +48,6 @@ def release_system_memory():
     except Exception:
         pass
 
-# Avoid loading 400MB rembg ONNX model on Render 512MB RAM tier unless explicitly requested
 USE_REMBG = os.getenv("USE_REMBG", "false").lower() in ["true", "1"]
 REMBG_AVAILABLE = False
 
@@ -58,7 +57,6 @@ if USE_REMBG:
         REMBG_AVAILABLE = True
     except ImportError:
         REMBG_AVAILABLE = False
-
 
 def remove_bg_removebg_api(img_bytes: bytes, api_key: str) -> Image.Image:
     """
@@ -77,7 +75,6 @@ def remove_bg_removebg_api(img_bytes: bytes, api_key: str) -> Image.Image:
         return Image.open(io.BytesIO(response.content))
     else:
         raise RuntimeError(f"Remove.bg API Error {response.status_code}: {response.text}")
-
 
 def remove_background_pro(img_pil: Image.Image) -> Image.Image:
     """
@@ -138,7 +135,6 @@ def remove_background_pro(img_pil: Image.Image) -> Image.Image:
     smoothed_mask = fg_mask_pil.filter(ImageFilter.GaussianBlur(radius=1.0))
     img.putalpha(smoothed_mask)
     return img
-
 
 def remove_background(
     input_image: Union[str, Path, Image.Image, bytes],
@@ -205,7 +201,6 @@ def remove_background(
 
     return result_img
 
-
 def remove_background_batch(
     image_paths: List[Union[str, Path]],
     output_dir: Union[str, Path],
@@ -229,7 +224,6 @@ def remove_background_batch(
         saved_files.append(target_path)
 
     return saved_files
-
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:

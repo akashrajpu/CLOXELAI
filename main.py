@@ -313,7 +313,6 @@ def build_youtube_metadata(topic: str, full_script: str = "", video_type: str = 
 
     return clean_title, seo_desc
 
-
 def upload_video_to_youtube_core(user_id: str, video_file: str, title: str, description: str = "", is_short: bool = False) -> Optional[str]:
     """
     Automated YouTube Video Publisher (High-Scale 10,000+ User Ready):
@@ -675,14 +674,13 @@ def process_single_user_schedule(user: dict, now_ist: datetime, today_str: str):
             time_str = fresh_sched.get(f"{kind}_time") or default_scheduled_time
             last_run_key = f"last_{kind}_run"
 
-            # GUARD 1: If already published today, STOP!
             if fresh_sched.get(last_run_key) == today_str:
-                return # Already published today
+                return
 
             five_mins_ago = (datetime.utcnow() - timedelta(minutes=5)).isoformat()
             upload_lock_check = fresh_user.get("auto_locks", {}).get(f"upload_{kind}", {})
             if upload_lock_check.get("date") == today_str and upload_lock_check.get("status") == "success":
-                return # Upload already confirmed successful today
+                return
 
             target_minutes = parse_time_to_minutes(time_str) or (180 if kind in ["short", "ultra"] else 1080)
             mins_until = (target_minutes - current_ist_minutes) % 1440
@@ -694,7 +692,6 @@ def process_single_user_schedule(user: dict, now_ist: datetime, today_str: str):
             staged_map = fresh_user.get("staged_auto_videos", {})
             staged_item = staged_map.get(kind, {})
 
-            # STAGE 1: PREDICTIVE AUTO-STAGING (Pre-render ahead of upload time & save to Cloudinary + MongoDB)
             if 5 < mins_until <= 720:
                 has_valid_staged = bool(staged_item.get("cloudinary_url")) or (staged_item.get("file") and os.path.exists(staged_item.get("file", "")))
                 if not has_valid_staged:
@@ -795,7 +792,6 @@ def process_single_user_schedule(user: dict, now_ist: datetime, today_str: str):
                                 }
                             )
 
-            # STAGE 2: INSTANT BATCH UPLOAD (Publish to YouTube using pre-staged Cloudinary video OR generate fast fallback)
             is_time_to_upload = (diff_current <= 30) or (mins_until >= 1410) or (current_ist_minutes >= target_minutes and fresh_sched.get(last_run_key) != today_str)
             if is_time_to_upload:
                 upload_lock_field = f"auto_locks.upload_{kind}"
@@ -980,7 +976,6 @@ def process_single_user_schedule(user: dict, now_ist: datetime, today_str: str):
     except Exception as e_user:
         print(f"❌ Worker error for user {internal_id}: {e_user}")
 
-
 def check_and_run_auto_schedules():
     """
     Crash-Proof Predictive Pre-Rendering & Multi-Thread Worker Scheduler Engine (200+ User Scale).
@@ -1060,9 +1055,6 @@ def safe_hash_password(password: str) -> str:
     except Exception:
         return pwd_context.hash(password)
 
-# ------------------------------------------------------------------
-# MongoDB AES-256 Field-Level Encryption & SHA-256 Hash Helpers
-# ------------------------------------------------------------------
 def _get_cipher_suite():
     secret = os.getenv("MONGO_ENCRYPTION_KEY") or os.getenv("JWT_SECRET_KEY") or "cloxel-mongo-aes256-secret-key-2026"
     key_32 = hashlib.sha256(secret.encode('utf-8')).digest()
@@ -1153,7 +1145,6 @@ def find_user_in_db(identifier: str) -> dict:
     if user:
         return decrypt_user_doc(user)
 
-    # Fallback decryption scan if not found via index (handles legacy encrypted docs)
     try:
         cursor = users_collection.find({}, {
             "_id": 1, "email": 1, "phone": 1, "email_or_mobile": 1, 
@@ -1184,7 +1175,6 @@ def find_user_in_db(identifier: str) -> dict:
                 match = True
 
             if match:
-                # Auto-backfill hashes
                 updates = {}
                 if not doc.get("phone_hash") and doc_phone_10:
                     updates["phone_hash"] = hash_identifier(doc_phone_10)
@@ -1200,7 +1190,6 @@ def find_user_in_db(identifier: str) -> dict:
         print(f"⚠️ Fallback scan notice in find_user_in_db: {e}")
 
     return None
-
 
 def check_duplicate_user(email: str, phone: str):
     """
@@ -1219,7 +1208,6 @@ def check_duplicate_user(email: str, phone: str):
     raw_digits = "".join(filter(str.isdigit, str(phone or "")))
     phone_10 = raw_digits[-10:] if len(raw_digits) >= 10 else raw_digits
 
-    # 1. Fast MongoDB query with all variations
     phone_variants = set()
     if phone_10:
         phone_variants.add(phone_10)
@@ -1266,27 +1254,22 @@ def check_duplicate_user(email: str, phone: str):
                 return "phone", dec_found
             return "phone", dec_found
 
-    # 2. Comprehensive Decryption Scan across all users
-    # This guarantees 100% protection even if documents were saved before hashes or if hashes differ!
     try:
         cursor = users_collection.find({}, {
             "_id": 1, "email": 1, "phone": 1, "email_or_mobile": 1, 
             "phone_hash": 1, "email_hash": 1, "internal_id": 1
         })
         for doc in cursor:
-            # Check phone
             raw_p = doc.get("phone") or ""
             dec_p = decrypt_field(raw_p) if isinstance(raw_p, str) else str(raw_p)
             doc_p_digits = "".join(filter(str.isdigit, str(dec_p)))
             doc_phone_10 = doc_p_digits[-10:] if len(doc_p_digits) >= 10 else doc_p_digits
 
-            # Check email_or_mobile
             raw_eom = doc.get("email_or_mobile") or ""
             dec_eom = decrypt_field(raw_eom) if isinstance(raw_eom, str) else str(raw_eom)
             doc_eom_digits = "".join(filter(str.isdigit, str(dec_eom)))
             doc_eom_10 = doc_eom_digits[-10:] if len(doc_eom_digits) >= 10 else ""
 
-            # Check email
             raw_e = doc.get("email") or ""
             dec_e = decrypt_field(raw_e) if isinstance(raw_e, str) else str(raw_e)
             doc_email = str(dec_e).strip().lower()
@@ -1296,7 +1279,6 @@ def check_duplicate_user(email: str, phone: str):
             is_email_duplicate = bool(clean_email and (doc_email == clean_email or doc_eom_email == clean_email))
 
             if is_phone_duplicate or is_email_duplicate:
-                # Auto-backfill hashes in MongoDB if missing
                 updates = {}
                 if not doc.get("phone_hash") and doc_phone_10:
                     updates["phone_hash"] = hash_identifier(doc_phone_10)
@@ -1313,7 +1295,6 @@ def check_duplicate_user(email: str, phone: str):
         print(f"⚠️ Decryption scan warning in check_duplicate_user: {e}")
 
     return None
-
 
 from fastapi.middleware.gzip import GZipMiddleware
 
@@ -1402,25 +1383,19 @@ class GoogleVerifyRequest(BaseModel):
     credential: str
     email_or_mobile: Optional[str] = None
 
-
-
-
-
-
-
 class VideoRequest(BaseModel):
     scenes: List[Scene] = []
     user_id: Optional[str] = None
     topic: Optional[str] = ""
-    category: Optional[str] = "Random" # 30+ categories
+    category: Optional[str] = "Random"
     font_name: str = "Arial.ttf"
     font_color: str = "yellow"
     font_size: int = 220
     voice_id: str = "hi-IN-MadhurNeural"
     language: str = "hi"
-    video_type: str = "short"  # 'short', 'long', or 'ultra'
-    full_script: str = ""      # used if video_type is 'long' or 'ultra'
-    bg_music: str = "cool.mp3" # background music track choice
+    video_type: str = "short"
+    full_script: str = ""
+    bg_music: str = "cool.mp3"
     aspect_ratio: Optional[str] = "16:9"
 
 class ScriptRequest(BaseModel):
@@ -1450,7 +1425,6 @@ def full_process(req: VideoRequest, job_id: str):
         print(f"==================================================")
 
         print(f"📊 [PROGRESS 10%] STEP 1/6: Processing Script & Scene Breakdown...")
-        # Prioritize full_script if provided (Long/Ultra editor), matching exact user script
         if req.full_script and req.full_script.strip():
             import re
             raw_sentences = [s.strip() for s in re.split(r'(?<=[.!?])\s+|\n+', req.full_script.strip()) if len(s.strip()) > 3]
@@ -1654,7 +1628,7 @@ def render_video_with_smart_fallback(user_id: str, topic: str, category: str, vo
         target_dur = min(requested_duration, max_allowed)
         duration_steps = [target_dur, 55, 45, 30, 20, 10]
         duration_steps = sorted(list(set([d for d in duration_steps if d <= target_dur])), reverse=True)
-    else:  # long or ultra (16:9 landscape)
+    else:
         target_dur = min(requested_duration, 300)
         duration_steps = [target_dur, 300, 240, 180, 120, 90, 60, 45, 30, 20, 10]
         duration_steps = sorted(list(set([d for d in duration_steps if d <= target_dur])), reverse=True)
@@ -1736,7 +1710,7 @@ def render_video_with_smart_fallback(user_id: str, topic: str, category: str, vo
 
 class CreateOrderRequest(BaseModel):
     internal_id: str
-    plan_type: str  # 'short' (50), 'long' (100), 'combo' (119)
+    plan_type: str
 
 class VerifyPaymentRequest(BaseModel):
     internal_id: str
@@ -1814,7 +1788,6 @@ async def generate_custom_video(req: VideoRequest, background_tasks: BackgroundT
                 if sub_expires and sub_expires > datetime.utcnow():
                     is_active = True
 
-            # Independent Ultra Subscription Check
             ultra_sub = user.get("ultra_subscription", {})
             ultra_status = ultra_sub.get("status")
             ultra_expires = ultra_sub.get("expires_at")
@@ -1830,7 +1803,6 @@ async def generate_custom_video(req: VideoRequest, background_tasks: BackgroundT
 
             v_type = req.video_type
 
-            # 1. Mode Specific Entitlement Check
             if v_type == "ultra":
                 if not has_active_ultra and sub_plan != "ultra":
                     if is_active:
@@ -1840,7 +1812,6 @@ async def generate_custom_video(req: VideoRequest, background_tasks: BackgroundT
             elif sub_plan == "long" and v_type == "short":
                 raise HTTPException(status_code=403, detail="⚠️ Your LONG MASTER plan only permits Long videos (16:9). Please upgrade to SHORT STARTER or PRO COMBO to generate Short videos.")
 
-            # 2. Quota Check (Demo vs Active Subscription)
             if not is_active and not (v_type == "ultra" and has_active_ultra):
                 if user and "free_demo_count" not in user:
                     users_collection.update_one({"internal_id": user_id}, {"$set": {"free_demo_count": 2}})
@@ -2340,8 +2311,6 @@ def get_security_status():
         "total_banned_ips": len(waf.banned_ips)
     }
 
-
-
 PLAN_RANKS = {"ultra": 1, "short": 2, "long": 3, "combo": 4}
 PLAN_NAMES = {
     "ultra": "Ultra Cinematic (₹20/mo)",
@@ -2353,10 +2322,10 @@ PLAN_NAMES = {
 @app.post("/create-razorpay-order")
 async def create_razorpay_order(req: CreateOrderRequest):
     amounts = {
-        "ultra": 2000,    # ₹20
-        "short": 5000,    # ₹50
-        "long": 10000,    # ₹100
-        "combo": 11900    # ₹119
+        "ultra": 2000,
+        "short": 5000,
+        "long": 10000,
+        "combo": 11900
     }
     
     if users_collection is not None and req.internal_id:
@@ -2619,10 +2588,8 @@ def validate_and_rate_limit_email(email: str, cooldown_seconds: int = 60) -> Tup
     _email_dispatch_log[clean_email] = now
     return True, "OK"
 
-
 def send_brevo_qr_email(user_email: str, user_name: str, security_qr_token: str):
     try:
-        # Pre-flight email deliverability & rate limit check to protect Brevo account reputation
         is_valid_email, reason = validate_and_rate_limit_email(user_email)
         if not is_valid_email:
             print(f"⚠️ Brevo Protection Guard: Blocked email dispatch to '{user_email}' ({reason})")
@@ -2683,8 +2650,6 @@ def send_brevo_qr_email(user_email: str, user_name: str, security_qr_token: str)
         </html>
         """
 
-
-        # 1. Try Direct SMTP (Gmail / Custom SMTP) if SMTP_USER and SMTP_PASSWORD exist
         smtp_user = os.getenv("SMTP_USER") or os.getenv("SMTP_LOGIN")
         smtp_password = os.getenv("SMTP_PASSWORD") or os.getenv("SMTP_KEY")
         smtp_host = os.getenv("SMTP_HOST") or ("smtp.gmail.com" if (smtp_user and "gmail" in smtp_user.lower()) else None)
@@ -2730,7 +2695,6 @@ def send_brevo_qr_email(user_email: str, user_name: str, security_qr_token: str)
             except Exception as _smtp_err:
                 print(f"⚠️ SMTP error ({smtp_host or 'smtp.gmail.com'}): {_smtp_err}")
 
-        # 2. Try Resend HTTP API if RESEND_API_KEY exists
         if resend_key:
             try:
                 resend_url = "https://api.resend.com/emails"
@@ -2754,7 +2718,6 @@ def send_brevo_qr_email(user_email: str, user_name: str, security_qr_token: str)
             except Exception as _r_err:
                 print(f"⚠️ Resend API error: {_r_err}")
 
-        # 3. Brevo HTTP API
         brevo_api_key = os.getenv("BREVO_API_KEY") or os.getenv("SMTP_KEY")
         if brevo_api_key:
             try:
@@ -2795,8 +2758,6 @@ def send_brevo_qr_email(user_email: str, user_name: str, security_qr_token: str)
         print(f"❌ Error sending Security QR Email: {e}")
         return False
 
-
-
 @app.post("/register")
 async def register_user(req: UserRegister):
     if users_collection is None:
@@ -2823,7 +2784,6 @@ async def register_user(req: UserRegister):
             detail="⚠️ Registration Failed: Please enter a valid Email ID (e.g. name@domain.com)."
         )
 
-    # 100% Strict Duplicate Check: Blocks duplicate phone number or email across ALL accounts
     dup_result = check_duplicate_user(email=primary_email, phone=primary_phone)
     if dup_result:
         dup_type, _ex_user = dup_result
@@ -2860,7 +2820,6 @@ async def register_user(req: UserRegister):
         "created_at": datetime.utcnow()
     }
     
-    # 1. Attempt sending Brevo Security QR Email FIRST
     email_sent = False
     try:
         email_sent = send_brevo_qr_email(
@@ -2871,7 +2830,6 @@ async def register_user(req: UserRegister):
     except Exception as _e_qr:
         print(f"❌ Brevo QR Email dispatch error: {_e_qr}")
 
-    # 2. Block registration if email delivery failed
     brevo_key = os.getenv("BREVO_API_KEY") or os.getenv("SMTP_KEY")
     if brevo_key and not email_sent:
         raise HTTPException(
@@ -2879,7 +2837,6 @@ async def register_user(req: UserRegister):
             detail=f"⚠️ Registration Blocked: Unable to send Security QR Code email to '{primary_email}'. Please verify your email address and try again."
         )
 
-    # 3. Save new user into MongoDB ONLY if email was sent successfully!
     users_collection.insert_one(new_user)
 
     return {
@@ -2890,7 +2847,6 @@ async def register_user(req: UserRegister):
         "name": req.name.strip(),
         "security_qr_token": security_qr_tok
     }
-
 
 @app.post("/login")
 async def login_user(req: UserLogin):
@@ -3076,7 +3032,6 @@ async def reset_password(req: ResetPasswordRequest):
     user_phone = (user.get("phone") or "").strip()
     user_internal_id = (user.get("internal_id") or "").strip().lower()
 
-    # Security QR Code Token Verification
     stored_qr_tok = user.get("security_qr_token")
     client_qr_tok = (req.qr_token or "").strip()
 
@@ -3114,10 +3069,6 @@ async def reset_password(req: ResetPasswordRequest):
     )
     
     return {"message": "✅ Password reset successfully! You can now log in with your new password."}
-
-
-
-
 
 @app.get("/history/{internal_id}")
 async def get_video_history(internal_id: str):
@@ -3455,14 +3406,13 @@ async def unlink_youtube(req: UnlinkRequest):
     
     return {"message": "YouTube account unlinked successfully. Auto-publishing stopped and all schedule settings reset."}
 
-
 class AIScriptRequest(BaseModel):
     topic: str
-    category: Optional[str] = "Random" # 30+ categories or custom
+    category: Optional[str] = "Random"
     duration_seconds: int = 30
-    video_type: Optional[str] = "short"  # 'short' or 'long'
-    language: Optional[str] = "hinglish" # 'hindi', 'english', 'hinglish'
-    tone: Optional[str] = "viral"        # 'viral', 'informative', 'mysterious', 'funny'
+    video_type: Optional[str] = "short"
+    language: Optional[str] = "hinglish"
+    tone: Optional[str] = "viral"
 
 def generate_ai_script_core(topic: str, duration: int, video_type: str = "short", language: str = "hinglish", tone: str = "viral", category: str = "Random"):
     import random
@@ -3473,7 +3423,6 @@ def generate_ai_script_core(topic: str, duration: int, video_type: str = "short"
     scene_count = max(1, round(duration / scene_duration))
     word_count = int(duration * 2.7)
 
-    # 0. Primary Call: External AI Microservice (https://ai-script-generator-service.onrender.com)
     raw_env_url = os.getenv("AI_SERVER_URL", "").rstrip("/")
     candidate_urls = [
         "https://ai-script-generator-service.onrender.com",
@@ -3540,7 +3489,6 @@ def generate_ai_script_core(topic: str, duration: int, video_type: str = "short"
 
     print("ℹ️ Microservice offline or fallback triggered. Using direct Gemini AI Script Engine...")
 
-    # 1. Fallback Attempt: Collect Gemini API Keys from environment & config.env
     keys = []
     gemini_key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY") or os.getenv("AI_API_KEY")
     if not gemini_key and os.path.exists("config.env"):
@@ -3605,10 +3553,6 @@ def generate_ai_script_core(topic: str, duration: int, video_type: str = "short"
     else:
         type_specific_prompt = ""
 
-    # Gemini API script generation has been disabled as per user request to save API quota.
-    # We will now directly fall back to the offline factual/web research script engine.
-
-    # 2. Attempt Web Research / Factual Wikipedia & Topic Analysis Engine
     research_summary = None
     try:
         clean_q = topic.strip()
@@ -3619,7 +3563,6 @@ def generate_ai_script_core(topic: str, duration: int, video_type: str = "short"
     except Exception:
         pass
 
-    # 3. Factual & Topic-Specific Content Engine (Zero boilerplate repeating text)
     t_lower = topic.lower()
     num_match = re.search(r'\d+', topic)
     hrs_str = num_match.group(0) if num_match else "1"

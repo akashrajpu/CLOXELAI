@@ -12,7 +12,6 @@ from starlette.responses import JSONResponse
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("CloxelFortressWAF")
 
-
 class ThreatSignatures:
     """
     Exhaustive Repository of All Known Attack Vectors & Exploitation Techniques.
@@ -55,14 +54,14 @@ class ThreatSignatures:
         re.compile(r"(`[^`]+`|\$\([^)]+\))"),
         re.compile(r"(system\(|exec\(|passthru\(|shell_exec\(|popen\(|proc_open\(|subprocess)", re.IGNORECASE),
         re.compile(r"(/etc/passwd|/etc/shadow|/etc/group|/proc/self/environ|c:\\boot\.ini)", re.IGNORECASE),
-        re.compile(r"(\\x90\\x90|\\xeb\\xfe|\\xcd\\x80)"), # NOP Sled & Shellcode Markers
+        re.compile(r"(\\x90\\x90|\\xeb\\xfe|\\xcd\\x80)"),
     ]
 
     TRAVERSAL_PATTERNS = [
         re.compile(r"(\.\./|\.\.\\|%2e%2e%2f|%2e%2e/|\.\.%2f|%252e%252e%252f)", re.IGNORECASE),
         re.compile(r"(file://|php://|zlib://|data://|glob://|expect://|zip://|phar://)", re.IGNORECASE),
         re.compile(r"(/WEB-INF/|/META-INF/|\.env|\.git/|\.htaccess|\.ssh/)", re.IGNORECASE),
-        re.compile(r"(\\x00|%00)", re.IGNORECASE), # Null Byte Injection
+        re.compile(r"(\\x00|%00)", re.IGNORECASE),
     ]
 
     SSRF_PATTERNS = [
@@ -72,14 +71,14 @@ class ThreatSignatures:
 
     JWT_ATTACK_PATTERNS = [
         re.compile(r"\"alg\"\s*:\s*\"none\"", re.IGNORECASE),
-        re.compile(r"eyJhbGciOiJub25lIn", re.IGNORECASE), # Base64 encoded {"alg":"none"
+        re.compile(r"eyJhbGciOiJub25lIn", re.IGNORECASE),
     ]
 
     ZERO_DAY_PATTERNS = [
-        re.compile(r"(\$\{jndi:(ldap|rmi|dns|nis|nds|corba|iiop):)", re.IGNORECASE), # Log4j JNDI Exploit
-        re.compile(r"(\(\)\s*\{\s*:;\s*\};)", re.IGNORECASE),                         # Shellshock Exploit
-        re.compile(r"(<!ENTITY|<!DOCTYPE\s+[^>]*SYSTEM)", re.IGNORECASE),             # XXE Injection
-        re.compile(r"(%0d%0a|\\r\\n)\s*(Set-Cookie|Location|Content-Length):", re.IGNORECASE), # CRLF Injection
+        re.compile(r"(\$\{jndi:(ldap|rmi|dns|nis|nds|corba|iiop):)", re.IGNORECASE),
+        re.compile(r"(\(\)\s*\{\s*:;\s*\};)", re.IGNORECASE),
+        re.compile(r"(<!ENTITY|<!DOCTYPE\s+[^>]*SYSTEM)", re.IGNORECASE),
+        re.compile(r"(%0d%0a|\\r\\n)\s*(Set-Cookie|Location|Content-Length):", re.IGNORECASE),
     ]
 
     MALICIOUS_BOTS = [
@@ -88,7 +87,6 @@ class ThreatSignatures:
         "hydra", "medusa", "john", "burpsuite", "owasp", "metasploit", "nuclei",
         "python-urllib/1", "python-urllib/2", "python-requests/0"
     ]
-
 
 class SecurityFirewall:
     """
@@ -239,13 +237,13 @@ class SecurityFirewall:
     def inspect_data(self, data, depth: int = 0) -> Tuple[bool, str]:
         """Deep Recursive Data Scanner with Nesting Depth & Key Count Caps."""
         if depth > 10:
-            return True, "rce_blocked" # JSON Nesting Depth Bomb Guard
+            return True, "rce_blocked"
 
         if isinstance(data, str):
             return self.inspect_text(data)
         elif isinstance(data, dict):
             if len(data.keys()) > 150:
-                return True, "rce_blocked" # Hash Collision DoS Guard
+                return True, "rce_blocked"
             whitelisted_keys = {"font_color", "font_name", "voice_id", "bg_music", "topic", "category", "full_script", "scenes", "video_type", "duration", "email", "password"}
             for k, v in data.items():
                 is_bad_k, threat_k = self.inspect_text(str(k))
@@ -265,10 +263,7 @@ class SecurityFirewall:
                     return True, threat
         return False, ""
 
-
 waf = SecurityFirewall()
-
-
 
 class FirewallMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
@@ -292,7 +287,7 @@ class FirewallMiddleware(BaseHTTPMiddleware):
             )
 
         if path in ThreatSignatures.HONEYPOT_PATHS or any(path.startswith(hp) for hp in ThreatSignatures.HONEYPOT_PATHS):
-            waf.record_threat(client_ip, "honeypot_trap_blocked", weight=10) # Instant Ban
+            waf.record_threat(client_ip, "honeypot_trap_blocked", weight=10)
             return JSONResponse(
                 status_code=status.HTTP_403_FORBIDDEN,
                 content={"status": "blocked", "error": "Honeypot Security Trap Triggered. IP Banned."}
