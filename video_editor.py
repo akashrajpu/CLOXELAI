@@ -817,8 +817,8 @@ def render_scene_native_ffmpeg(
     sub_overlay_files = []
     
     if words:
-        words_per_chunk = max(3, (len(words) + 7) // 8)
-        total_chunks = max(1, (len(words) + words_per_chunk - 1) // words_per_chunk)
+        total_chunks = min(4, max(1, (len(words) + 3) // 4))
+        words_per_chunk = max(1, (len(words) + total_chunks - 1) // total_chunks)
         chunk_dur = duration / float(total_chunks)
         
         has_devanagari = any('\u0900' <= char <= '\u097F' for char in text)
@@ -831,6 +831,8 @@ def render_scene_native_ffmpeg(
         state_counter = 0
         for c_idx in range(total_chunks):
             c_words = words[c_idx * words_per_chunk : (c_idx + 1) * words_per_chunk]
+            if not c_words:
+                continue
             c_start = c_idx * chunk_dur
             c_end = (c_idx + 1) * chunk_dur
             
@@ -851,56 +853,51 @@ def render_scene_native_ffmpeg(
                     category_style = "clean"
                     
             if category_style not in ["history", "ancient"]:
-                # Dynamic active-word karaoke highlight inside modern glassmorphic banner
-                w_slice = (c_end - c_start) / max(1, len(c_words))
-                for w_idx in range(len(c_words)):
-                    t_s = c_start + (w_idx * w_slice)
-                    t_e = c_start + ((w_idx + 1) * w_slice)
+                # High-speed glassmorphic subtitle banner (1 image per chunk -> < 20MB RAM, Zero OOM)
+                sub_canvas = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+                draw = ImageDraw.Draw(sub_canvas)
+                
+                word_metrics = []
+                total_w = 0
+                for idx, cw in enumerate(c_words):
+                    wb = draw.textbbox((0, 0), cw, font=active_font)
+                    ww = wb[2] - wb[0]
+                    sb = draw.textbbox((0, 0), " ", font=active_font)
+                    sw = sb[2] - sb[0]
+                    is_active = (idx == 0)
+                    word_metrics.append((cw, ww, sw, is_active))
+                    total_w += ww + sw
+                if word_metrics:
+                    total_w -= word_metrics[-1][2]
                     
-                    sub_canvas = Image.new("RGBA", (w, h), (0, 0, 0, 0))
-                    draw = ImageDraw.Draw(sub_canvas)
+                pad_x = 24
+                pad_y = 10
+                box_w = total_w + pad_x * 2
+                box_h = fs + pad_y * 2
+                box_x = (w - box_w) // 2
+                box_y = int(h * 0.76)
+                
+                # Rounded dark glass container with golden / neon border
+                draw.rounded_rectangle(
+                    [(box_x, box_y), (box_x + box_w, box_y + box_h)],
+                    radius=12,
+                    fill=(10, 6, 24, 215),
+                    outline=(255, 215, 0, 230),
+                    width=2
+                )
+                
+                curr_x = box_x + pad_x
+                curr_y = box_y + pad_y - 2
+                for cw, ww, sw, is_active in word_metrics:
+                    col = resolved_highlight if is_active else "#FFFFFF"
+                    draw.text((curr_x + 2, curr_y + 2), cw, font=active_font, fill=(0, 0, 0, 230))
+                    draw.text((curr_x, curr_y), cw, font=active_font, fill=col)
+                    curr_x += ww + sw
                     
-                    word_metrics = []
-                    total_w = 0
-                    for idx, cw in enumerate(c_words):
-                        wb = draw.textbbox((0, 0), cw, font=active_font)
-                        ww = wb[2] - wb[0]
-                        sb = draw.textbbox((0, 0), " ", font=active_font)
-                        sw = sb[2] - sb[0]
-                        is_active = (idx == w_idx)
-                        word_metrics.append((cw, ww, sw, is_active))
-                        total_w += ww + sw
-                    if word_metrics:
-                        total_w -= word_metrics[-1][2]
-                        
-                    pad_x = 24
-                    pad_y = 10
-                    box_w = total_w + pad_x * 2
-                    box_h = fs + pad_y * 2
-                    box_x = (w - box_w) // 2
-                    box_y = int(h * 0.76)
-                    
-                    # Rounded dark glass container with golden / neon border
-                    draw.rounded_rectangle(
-                        [(box_x, box_y), (box_x + box_w, box_y + box_h)],
-                        radius=12,
-                        fill=(10, 6, 24, 215),
-                        outline=(255, 215, 0, 230),
-                        width=2
-                    )
-                    
-                    curr_x = box_x + pad_x
-                    curr_y = box_y + pad_y - 2
-                    for cw, ww, sw, is_active in word_metrics:
-                        col = resolved_highlight if is_active else "#FFFFFF"
-                        draw.text((curr_x + 2, curr_y + 2), cw, font=active_font, fill=(0, 0, 0, 230))
-                        draw.text((curr_x, curr_y), cw, font=active_font, fill=col)
-                        curr_x += ww + sw
-                        
-                    sub_path = os.path.abspath(os.path.join(job_dir, f"tmp_sub_{state_counter}_{random.randint(100, 999)}.png"))
-                    sub_canvas.save(sub_path, "PNG")
-                    sub_overlay_files.append((sub_path, t_s, t_e))
-                    state_counter += 1
+                sub_path = os.path.abspath(os.path.join(job_dir, f"tmp_sub_{state_counter}_{random.randint(100, 999)}.png"))
+                sub_canvas.save(sub_path, "PNG")
+                sub_overlay_files.append((sub_path, c_start, c_end))
+                state_counter += 1
 
     # Prepare inputs for FFmpeg
     input_args = []
@@ -1344,57 +1341,47 @@ def merge_and_export(
                 job_dir=job_dir
             )
 
-        # Robust Fallback to MoviePy if Native Render failed
+        # Robust Zero-RAM Fallback if Native Render failed
         if not rendered_successfully or not os.path.exists(scene_output) or os.path.getsize(scene_output) < 1000:
-            print(f"⚠️ Native FFmpeg fallback to MoviePy for Scene {i+1}...")
+            print(f"⚠️ Native FFmpeg fallback to Zero-RAM Stream Stitch for Scene {i+1}...")
             video_path = scene['video'][0] if isinstance(scene['video'], list) else scene['video']
-            is_image = str(video_path).lower().endswith(('.jpg', '.jpeg', '.png', '.webp'))
-            if is_image and os.path.exists(video_path):
-                v_clip = ImageClip(video_path).resize(height=target_size[1])
-            elif os.path.exists(video_path):
-                v_clip = VideoFileClip(video_path, audio=False).resize(height=target_size[1])
+            inp_v = os.path.abspath(video_path) if (video_path and os.path.exists(video_path) and os.path.getsize(video_path) > 500) else None
+            
+            fb_args = []
+            if inp_v:
+                if str(inp_v).lower().endswith(('.jpg', '.jpeg', '.png', '.webp')):
+                    fb_args.extend(["-loop", "1", "-i", inp_v])
+                else:
+                    fb_args.extend(["-stream_loop", "-1", "-i", inp_v])
             else:
-                v_clip = ColorClip(size=target_size, color=(15, 10, 35))
-
-            if v_clip.w > target_size[0]:
-                v_clip = v_clip.crop(x_center=v_clip.w/2, width=target_size[0])
-            elif v_clip.w < target_size[0]:
-                v_clip = v_clip.resize(width=target_size[0])
-                v_clip = v_clip.crop(y_center=v_clip.h/2, height=target_size[1])
-
-            a_clip = AudioFileClip(audio_path)
-            v_clip = v_clip.set_duration(clip_duration).set_audio(a_clip)
-
-            txt_clip = create_dynamic_animated_text(
-                full_text=clip_text_segment,
-                size=target_size,
-                duration=clip_duration,
-                font_path=font_path,
-                font_size=font_size,
-                text_position="random",
-                text_color="random",
-                is_ultra_mode=(mode == "ultra"),
-                category_style=cat_style
-            )
-            scene_combined = CompositeVideoClip([v_clip, txt_clip.set_position('center')])
-            scene_combined.write_videofile(
-                scene_output, 
-                codec="libx264", 
-                audio_codec="aac", 
-                fps=15, 
-                preset="ultrafast", 
-                threads=1, 
-                ffmpeg_params=["-crf", "28", "-pix_fmt", "yuv420p"],
-                logger=None
-            )
-            try: scene_combined.close()
-            except Exception: pass
-            try: v_clip.close()
-            except Exception: pass
-            try: a_clip.close()
-            except Exception: pass
-            try: txt_clip.close()
-            except Exception: pass
+                fb_args.extend(["-f", "lavfi", "-i", f"color=c=0x0f0a23:s={target_size[0]}x{target_size[1]}:r=15"])
+                
+            fb_args.extend(["-i", os.path.abspath(audio_path)])
+            fb_filter = f"[0:v]scale={target_size[0]}:{target_size[1]}:force_original_aspect_ratio=increase,crop={target_size[0]}:{target_size[1]},setsar=1[outv]"
+            
+            fb_cmd = [
+                "ffmpeg", "-y",
+                *fb_args,
+                "-filter_complex", fb_filter,
+                "-map", "[outv]",
+                "-map", "1:a",
+                "-c:v", "libx264",
+                "-preset", "ultrafast",
+                "-crf", "26",
+                "-threads", "2",
+                "-pix_fmt", "yuv420p",
+                "-c:a", "aac",
+                "-b:a", "128k",
+                "-ar", "44100",
+                "-ac", "2",
+                "-t", f"{clip_duration:.2f}",
+                "-shortest",
+                os.path.abspath(scene_output)
+            ]
+            try:
+                subprocess.run(fb_cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=60)
+            except Exception as e_fb:
+                print(f"⚠️ Emergency fallback error: {e_fb}")
 
         release_system_memory()
         

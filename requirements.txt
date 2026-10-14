@@ -9,7 +9,7 @@ numpy
 cloudinary
 moviepy==1.0.3
 apscheduler
-edge-tts
+edge-tts>=7.3.1
 pydantic
 google-api-python-client
 google-auth-oauthlib
