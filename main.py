@@ -1577,6 +1577,12 @@ def full_process(req: VideoRequest, job_id: str):
                 upload_result = cloudinary.uploader.upload(output_file, resource_type="video")
                 cloudinary_url = upload_result.get("secure_url")
                 print(f"✅ Cloudinary HD CDN URL: {cloudinary_url}")
+                if cloudinary_url and os.path.exists(output_file):
+                    try:
+                        os.remove(output_file)
+                        print(f"🧹 Cleaned up local video file after Cloudinary upload: {output_file}")
+                    except Exception:
+                        pass
             except Exception as e:
                 print(f"⚠️ Cloudinary upload warning: {e}")
                 
@@ -1785,11 +1791,11 @@ async def generate_custom_video(req: VideoRequest, background_tasks: BackgroundT
     if not user_id or user_id == "anonymous":
         raise HTTPException(status_code=401, detail="Please login or register to generate videos.")
 
-    if req.full_script and len(req.full_script) > 5000:
-        raise HTTPException(status_code=400, detail="⚠️ Script too long! Maximum script length allowed is 5,000 characters per video.")
+    if req.full_script and len(req.full_script) > 12000:
+        raise HTTPException(status_code=400, detail="⚠️ Script too long! Maximum script length allowed is 12,000 characters per video.")
 
-    if req.scenes and len(req.scenes) > 25:
-        raise HTTPException(status_code=400, detail="⚠️ Too many scenes! Maximum scenes allowed per video is 25.")
+    if req.scenes and len(req.scenes) > 50:
+        raise HTTPException(status_code=400, detail="⚠️ Too many scenes! Maximum scenes allowed per video is 50.")
 
     if users_collection is not None:
         user = users_collection.find_one({"internal_id": user_id})
@@ -3465,7 +3471,8 @@ def generate_ai_script_core(topic: str, duration: int, video_type: str = "short"
     import urllib.parse
     import re
     topic = resolve_random_topic(topic, category)
-    scene_count = max(1, duration // 10)
+    scene_duration = 10 if duration <= 60 else (12 if duration <= 180 else 15)
+    scene_count = max(1, round(duration / scene_duration))
     word_count = int(duration * 2.7)
 
     # 0. Primary Call: External AI Microservice (https://ai-script-generator-service.onrender.com)

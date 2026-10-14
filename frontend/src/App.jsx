@@ -972,7 +972,8 @@ function App() {
       window.history.replaceState({}, document.title, window.location.pathname);
     }
 
-    const chunkCount = Math.max(1, Math.floor(duration / 10));
+    const sceneDuration = duration <= 60 ? 10 : (duration <= 180 ? 12 : 15);
+    const chunkCount = Math.max(1, Math.round(duration / sceneDuration));
     setScenes(prev => {
       if (prev.length === chunkCount) return prev;
       const newScenes = [...prev];
@@ -1091,7 +1092,10 @@ function App() {
       } else if (data.detail) {
         setIsGeneratingVideo(false);
         setJobStatus(null);
-        triggerAlert("⚠️ Daily Limit Reached", data.detail, "⚠️", "warning");
+        const alertTitle = (data.detail && (data.detail.toLowerCase().includes("daily") || data.detail.toLowerCase().includes("quota")))
+          ? "⚠️ Daily Limit Reached"
+          : "⚠️ Generation Notice";
+        triggerAlert(alertTitle, data.detail, "⚠️", "warning");
       } else {
         setIsGeneratingVideo(false);
         setJobStatus(null);

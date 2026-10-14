@@ -817,7 +817,7 @@ def render_scene_native_ffmpeg(
     sub_overlay_files = []
     
     if words:
-        words_per_chunk = 3
+        words_per_chunk = max(3, (len(words) + 7) // 8)
         total_chunks = max(1, (len(words) + words_per_chunk - 1) // words_per_chunk)
         chunk_dur = duration / float(total_chunks)
         
@@ -946,6 +946,7 @@ def render_scene_native_ffmpeg(
         "-c:v", "libx264",
         "-preset", "ultrafast",
         "-crf", "26",
+        "-threads", "2",
         "-pix_fmt", "yuv420p",
         "-c:a", "aac",
         "-b:a", "128k",
@@ -957,8 +958,11 @@ def render_scene_native_ffmpeg(
     ]
     
     try:
-        res = subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=120)
+        res = subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, timeout=120)
         success = (res.returncode == 0 and os.path.exists(scene_output) and os.path.getsize(scene_output) > 1000)
+        if not success and res.stderr:
+            err_msg = res.stderr.decode(errors="ignore")[-400:]
+            print(f"⚠️ Native FFmpeg render notice: {err_msg}")
     except Exception as e_run:
         print(f"⚠️ Native FFmpeg render exception: {e_run}")
         success = False
