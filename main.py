@@ -34,7 +34,7 @@ def release_system_memory():
 
 from fastapi import FastAPI, BackgroundTasks, HTTPException, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, RedirectResponse, HTMLResponse, JSONResponse
+from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from typing import List, Optional, Tuple, Dict, Any
@@ -3884,53 +3884,6 @@ async def get_terms_of_service_page():
 @app.get("/googleaa929f03abece7ff.html", response_class=Response)
 async def get_google_verification_html():
     return Response(content="google-site-verification: googleaa929f03abece7ff.html", media_type="text/html")
-
-# =========================================================================
-# PARUL UNIVERSITY STUDENT DOSSIER GATEWAY
-# =========================================================================
-try:
-    from student_scraper import scrape_student_data, DOSSIERS_DIR
-
-    @app.get("/student", response_class=HTMLResponse)
-    @app.get("/student-scanner", response_class=HTMLResponse)
-    async def serve_student_portal():
-        template_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "templates", "student_scanner.html")
-        if os.path.exists(template_file):
-            with open(template_file, "r", encoding="utf-8") as f:
-                return HTMLResponse(content=f.read())
-        return HTMLResponse(content="<h1>Student Scanner Template Not Found</h1>", status_code=404)
-
-    class StudentScrapePayload(BaseModel):
-        enrollment_no: str
-        dob: str
-        headless: bool = True
-
-    @app.post("/api/student/scrape")
-    @app.post("/api/scrape")
-    async def api_student_scrape(payload: StudentScrapePayload):
-        enroll = payload.enrollment_no.strip()
-        dob_val = payload.dob.strip()
-        if not enroll or not dob_val:
-            raise HTTPException(status_code=400, detail="enrollment_no and dob are required.")
-        res = scrape_student_data(enrollment_no=enroll, dob=dob_val, headless=payload.headless)
-        if not res.get("success"):
-            return JSONResponse(status_code=422, content=res)
-        return JSONResponse(status_code=200, content=res)
-
-    @app.get("/api/student/download/{filename}")
-    @app.get("/api/download/{filename}")
-    async def api_student_download(filename: str):
-        safe_fn = os.path.basename(filename)
-        fpath = os.path.join(DOSSIERS_DIR, safe_fn)
-        if not os.path.exists(fpath):
-            raise HTTPException(status_code=404, detail="File not found")
-        return FileResponse(
-            path=fpath,
-            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            filename=safe_fn
-        )
-except Exception as _student_mount_err:
-    print(f"⚠️ Student Portal Router mount warning: {_student_mount_err}")
 
 if os.path.isdir("frontend/dist"):
     app.mount("/", StaticFiles(directory="frontend/dist", html=True), name="frontend")
