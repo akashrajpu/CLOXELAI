@@ -943,6 +943,8 @@ def render_scene_native_ffmpeg(
         "-c:v", "libx264",
         "-preset", "ultrafast",
         "-crf", "26",
+        "-r", "25",
+        "-g", "50",
         "-threads", "2",
         "-pix_fmt", "yuv420p",
         "-c:a", "aac",
@@ -1404,10 +1406,16 @@ def merge_and_export(
             
     temp_merged = os.path.abspath(os.path.join(job_dir, "temp_merged_final.mp4"))
     try:
-        subprocess.run(["ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i", list_path, "-c", "copy", temp_merged], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    except Exception as e_c_copy:
-        print(f"⚠️ Notice: FFmpeg concat copy mode failed ({e_c_copy}). Retrying with re-encode fallback...")
-        subprocess.run(["ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i", list_path, "-c:v", "libx264", "-preset", "ultrafast", "-c:a", "aac", temp_merged], check=True)
+        subprocess.run([
+            "ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i", list_path,
+            "-c:v", "libx264", "-preset", "ultrafast", "-crf", "24", "-r", "25",
+            "-pix_fmt", "yuv420p",
+            "-c:a", "aac", "-b:a", "128k", "-ar", "44100", "-ac", "2",
+            temp_merged
+        ], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    except Exception as e_c_re:
+        print(f"⚠️ Concat re-encode notice: {e_c_re}. Falling back to copy...")
+        subprocess.run(["ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i", list_path, "-c", "copy", temp_merged], check=True)
 
     bg_music_file = None
     if bg_music and str(bg_music).lower() != "none":
@@ -1427,16 +1435,21 @@ def merge_and_export(
                 bg_music_file = possible[0]
 
     if bg_music_file and os.path.exists(bg_music_file):
-        print(f"🎬 Adding background music: {bg_music_file}...")
+        print(f"🎬 Adding background music with exact sync & smooth fade: {bg_music_file}...")
+        video_dur = get_audio_duration_fast(temp_merged, fallback=0.0)
+        fade_start = max(0.0, video_dur - 2.5) if video_dur > 2.5 else 0.0
         cmd = [
             "ffmpeg", "-y",
             "-i", temp_merged,
             "-i", bg_music_file,
-            "-filter_complex", "[1:a]volume=0.12[a1];[0:a][a1]amix=inputs=2:duration=first[a]",
+            "-filter_complex", f"[1:a]volume=0.10,afade=t=out:st={fade_start:.2f}:d=2.5[a1];[0:a][a1]amix=inputs=2:duration=first:dropout_transition=2[a]",
             "-map", "0:v",
             "-map", "[a]",
             "-c:v", "copy",
             "-c:a", "aac",
+            "-b:a", "128k",
+            "-t", f"{video_dur:.2f}",
+            "-shortest",
             output_name
         ]
         subprocess.run(cmd, check=True)

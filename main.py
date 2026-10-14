@@ -1450,28 +1450,26 @@ def full_process(req: VideoRequest, job_id: str):
         print(f"==================================================")
 
         print(f"📊 [PROGRESS 10%] STEP 1/6: Processing Script & Scene Breakdown...")
-        if req.scenes and len(req.scenes) > 0 and any(s.text and s.text.strip() for s in req.scenes):
-            scenes_data = [{"text": s.text.strip(), "keyword": s.keyword.strip() if s.keyword else "technology"} for s in req.scenes if s.text and s.text.strip()]
-
-        if not scenes_data and req.full_script and req.full_script.strip():
+        # Prioritize full_script if provided (Long/Ultra editor), matching exact user script
+        if req.full_script and req.full_script.strip():
             import re
-            raw_sentences = re.split(r'(?<=[.!?])\s+|\n+', req.full_script.strip())
+            raw_sentences = [s.strip() for s in re.split(r'(?<=[.!?])\s+|\n+', req.full_script.strip()) if len(s.strip()) > 3]
             stop_words = {"aur", "ek", "hai", "ki", "ke", "ka", "jo", "se", "me", "ko", "hi", "to", "ye", "wo", "tha", "thi", "hain", "kya", "toh", "liye", "bhi", "yeh", "kuch", "hoti", "hain", "mil", "sakti"}
             
+            existing_kw_map = {s.text.strip(): s.keyword.strip() for s in (req.scenes or []) if s.text and s.keyword}
+            
+            scenes_data = []
             for sentence in raw_sentences:
-                sentence = sentence.strip()
-                if len(sentence) < 4: continue
-                
-                words = [w.lower() for w in sentence.split() if w.isalpha() and w.lower() not in stop_words]
-                keyword = "technology"
-                if words:
-                    words.sort(key=len, reverse=True)
-                    keyword = words[0]
-                    
-                scenes_data.append({"text": sentence, "keyword": keyword})
+                kw = existing_kw_map.get(sentence)
+                if not kw:
+                    words = [w.lower() for w in sentence.split() if w.isalpha() and w.lower() not in stop_words]
+                    kw = words[0] if words else "technology"
+                scenes_data.append({"text": sentence, "keyword": kw})
                 
             if not scenes_data:
                 scenes_data = [{"text": req.full_script.strip(), "keyword": "technology"}]
+        elif req.scenes and len(req.scenes) > 0 and any(s.text and s.text.strip() for s in req.scenes):
+            scenes_data = [{"text": s.text.strip(), "keyword": s.keyword.strip() if s.keyword else "technology"} for s in req.scenes if s.text and s.text.strip()]
 
         if not scenes_data:
             fallback_text = req.topic if req.topic else "AI Video Generation"
