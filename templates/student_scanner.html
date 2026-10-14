@@ -499,15 +499,20 @@
     // Start Live Camera Stream
     async function startCamera() {
       try {
-        const constraints = {
+        let constraints = {
           video: {
             facingMode: cameraFacingMode,
-            width: { ideal: 1920 },
-            height: { ideal: 1080 }
+            width: { ideal: 1280 },
+            height: { ideal: 720 }
           }
         };
 
-        currentStream = await navigator.mediaDevices.getUserMedia(constraints);
+        try {
+          currentStream = await navigator.mediaDevices.getUserMedia(constraints);
+        } catch (e1) {
+          // Universal fallback without strict resolution
+          currentStream = await navigator.mediaDevices.getUserMedia({ video: true });
+        }
         const video = document.getElementById('videoFeed');
         video.srcObject = currentStream;
         video.classList.remove('hidden');
@@ -577,6 +582,28 @@
       document.getElementById('uploadPreviewBox').classList.add('hidden');
       document.getElementById('dropzone').classList.remove('hidden');
     }
+
+    // Drag and drop listeners
+    document.addEventListener('DOMContentLoaded', () => {
+      const dropzone = document.getElementById('dropzone');
+      if (dropzone) {
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(name => {
+          dropzone.addEventListener(name, e => { e.preventDefault(); e.stopPropagation(); }, false);
+        });
+        ['dragenter', 'dragover'].forEach(name => {
+          dropzone.addEventListener(name, () => dropzone.classList.add('border-portal-accent', 'bg-portal-900'), false);
+        });
+        ['dragleave', 'drop'].forEach(name => {
+          dropzone.addEventListener(name, () => dropzone.classList.remove('border-portal-accent', 'bg-portal-900'), false);
+        });
+        dropzone.addEventListener('drop', e => {
+          const dt = e.dataTransfer;
+          if (dt && dt.files && dt.files[0]) {
+            handleFileSelect({ target: { files: [dt.files[0]] } });
+          }
+        });
+      }
+    });
 
     // Core OCR Execution (Tesseract.js in Browser)
     async function processImageWithOCR(imageData) {
