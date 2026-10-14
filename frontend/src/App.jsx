@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import Auth from './Auth';
 import YouTubeIntegration from './YouTubeIntegration';
-import { Smartphone, Monitor, Zap, Film, Settings, Sparkles, Clock, Palette, Mic, Music, Layout, Hash, Dices, Clapperboard, MonitorPlay, User, Sun, Scroll, Circle, Ban, Rocket, Box, Square, Tv } from 'lucide-react';
+import { Smartphone, Monitor, Zap, Film, Settings, Sparkles, Clock, Palette, Mic, Music, Layout, Hash, Dices, Clapperboard, MonitorPlay, User, Sun, Scroll, Circle, Ban, Rocket, Box, Square, Tv, Compass } from 'lucide-react';
 
 const API_BASE = window.location.hostname === 'localhost' ? 'http://localhost:8000' : '';
 
@@ -218,6 +218,44 @@ const TOUR_STEPS = [
   }
 ];
 
+const SCHEDULE_TOUR_STEPS = [
+  {
+    targetId: 'tour-sched-status',
+    title: '1. Membership Plan & Daily Quota',
+    badge: 'Step 1 • Plan Quota',
+    description: 'Track your current subscription tier, daily video quota (Shorts & Long videos), and remaining stacked plan videos scheduled to be published on YouTube.',
+    icon: '👑'
+  },
+  {
+    targetId: 'tour-sched-engines',
+    title: '2. Live Automation Engines',
+    badge: 'Step 2 • Engine Status',
+    description: 'Monitor real-time status of your 9:16 Short Reels Engine, 16:9 Long Video Engine, and Ultra 3D Motion Engine with exact daily publishing schedules.',
+    icon: '⚡'
+  },
+  {
+    targetId: 'tour-sched-toggle',
+    title: '3. Enable Daily Cloud Automation',
+    badge: 'Step 3 • Master Switch',
+    description: 'Check this box to turn on full autopilot mode. The Cloxel Cloud worker will wake up at your scheduled times, generate videos, and publish them to YouTube automatically.',
+    icon: '🤖'
+  },
+  {
+    targetId: 'tour-sched-settings',
+    title: '4. Timing, Niches & AI Topics',
+    badge: 'Step 4 • Topic Configuration',
+    description: 'Set your preferred daily publishing time (e.g., 10:00 AM) and select your niche. Enable "Auto-Topic" so Cloxel AI dynamically generates fresh viral topics every day.',
+    icon: '⏱️'
+  },
+  {
+    targetId: 'tour-sched-actions',
+    title: '5. Deploy & Activate Engine',
+    badge: 'Step 5 • Launch Autopilot',
+    description: 'Click "Start Auto-Publishing Engine" to save your schedule to the cloud. Your connected YouTube channel will now receive daily videos without any manual intervention!',
+    icon: '🚀'
+  }
+];
+
 function App() {
   const [userId, setUserId] = useState(() => {
     try {
@@ -328,8 +366,10 @@ function App() {
   const [isSavingSchedule, setIsSavingSchedule] = useState(false);
   const [isUploadingPic, setIsUploadingPic] = useState(false);
 
-  const [isTourActive, setIsTourActive] = useState(false);
+  const [activeTourType, setActiveTourType] = useState(null); // 'main', 'schedule', or null
   const [tourStep, setTourStep] = useState(0);
+  const [scheduleTourStep, setScheduleTourStep] = useState(0);
+  const isTourActive = !!activeTourType;
 
   useEffect(() => {
     if (!userId) {
@@ -340,25 +380,40 @@ function App() {
     localStorage.setItem('cloxel_theme', theme);
   }, [theme, userId]);
 
-  // Auto trigger tour for new user or first-time users
+  // Auto trigger main tour for new user or first-time users
   useEffect(() => {
     if (!userId) return;
     const isNew = localStorage.getItem('cloxel_is_new_user');
     const completed = localStorage.getItem('cloxel_tour_completed');
     if (isNew || !completed) {
       const timer = setTimeout(() => {
-        setIsTourActive(true);
+        setActiveTourType('main');
         setTourStep(0);
       }, 700);
       return () => clearTimeout(timer);
     }
   }, [userId]);
 
+  // Auto trigger schedule tour when user opens schedule modal for the first time
+  useEffect(() => {
+    if (!showAutoUploadModal || !userId) return;
+    const completed = localStorage.getItem('cloxel_schedule_tour_completed');
+    if (!completed) {
+      const timer = setTimeout(() => {
+        setActiveTourType('schedule');
+        setScheduleTourStep(0);
+      }, 600);
+      return () => clearTimeout(timer);
+    }
+  }, [showAutoUploadModal, userId]);
+
   const [spotlightRect, setSpotlightRect] = useState(null);
 
   const updateSpotlight = () => {
-    if (!isTourActive) return;
-    const stepTarget = TOUR_STEPS[tourStep]?.targetId;
+    if (!activeTourType) return;
+    const steps = activeTourType === 'schedule' ? SCHEDULE_TOUR_STEPS : TOUR_STEPS;
+    const currentStep = activeTourType === 'schedule' ? scheduleTourStep : tourStep;
+    const stepTarget = steps[currentStep]?.targetId;
     if (stepTarget) {
       const el = document.getElementById(stepTarget);
       if (el) {
@@ -415,7 +470,7 @@ function App() {
     const isTargetOnRight = targetCenterX > vw / 2;
 
     // Header actions (Step 7)
-    if (targetTop < 120) {
+    if (targetTop < 120 && activeTourType !== 'schedule') {
       return {
         cardStyle: {
           right: '28px',
@@ -428,7 +483,49 @@ function App() {
       };
     }
 
-    // If target is on the right side of the screen (e.g. Generate button or Video Settings)
+    // Schedule Modal tour placement: modal targets are centered
+    if (activeTourType === 'schedule') {
+      if (spaceRight >= 360) {
+        const calculatedTop = Math.max(28, Math.min(vh - cardHeight - 28, targetTop));
+        return {
+          cardStyle: {
+            right: '28px',
+            top: `${calculatedTop}px`,
+            left: 'auto',
+            bottom: 'auto',
+            maxWidth: `${Math.min(cardWidth, spaceRight - 10)}px`
+          },
+          arrowDir: 'left'
+        };
+      } else if (spaceLeft >= 360) {
+        const calculatedTop = Math.max(28, Math.min(vh - cardHeight - 28, targetTop));
+        return {
+          cardStyle: {
+            left: '28px',
+            top: `${calculatedTop}px`,
+            right: 'auto',
+            bottom: 'auto',
+            maxWidth: `${Math.min(cardWidth, spaceLeft - 10)}px`
+          },
+          arrowDir: 'right'
+        };
+      } else {
+        const isTargetInBottomHalf = targetCenterY > vh / 2;
+        return {
+          cardStyle: {
+            left: '50%',
+            transform: 'translateX(-50%)',
+            top: isTargetInBottomHalf ? '20px' : 'auto',
+            bottom: isTargetInBottomHalf ? 'auto' : '20px',
+            maxWidth: `${Math.min(cardWidth, vw - 32)}px`,
+            width: 'calc(100% - 32px)'
+          },
+          arrowDir: isTargetInBottomHalf ? 'down' : 'up'
+        };
+      }
+    }
+
+    // Main Tour: If target is on the right side of the screen (e.g. Generate button or Video Settings)
     if (isTargetOnRight) {
       if (spaceLeft >= 360) {
         // Place card directly next to target on its left side!
@@ -501,11 +598,13 @@ function App() {
 
   // Smooth scroll and calculate spotlight cutout coordinates on each tour step
   useEffect(() => {
-    if (!isTourActive) {
+    if (!activeTourType) {
       setSpotlightRect(null);
       return;
     }
-    const stepTarget = TOUR_STEPS[tourStep]?.targetId;
+    const currentSteps = activeTourType === 'schedule' ? SCHEDULE_TOUR_STEPS : TOUR_STEPS;
+    const currentStepIndex = activeTourType === 'schedule' ? scheduleTourStep : tourStep;
+    const stepTarget = currentSteps[currentStepIndex]?.targetId;
     if (stepTarget) {
       const el = document.getElementById(stepTarget);
       if (el) {
@@ -521,36 +620,52 @@ function App() {
         };
       }
     }
-  }, [isTourActive, tourStep]);
+  }, [activeTourType, tourStep, scheduleTourStep]);
 
   useEffect(() => {
-    if (!isTourActive) return;
+    if (!activeTourType) return;
     window.addEventListener('resize', updateSpotlight);
     window.addEventListener('scroll', updateSpotlight, true);
     return () => {
       window.removeEventListener('resize', updateSpotlight);
       window.removeEventListener('scroll', updateSpotlight, true);
     };
-  }, [isTourActive, tourStep]);
+  }, [activeTourType, tourStep, scheduleTourStep]);
 
   const handleCloseTour = () => {
-    setIsTourActive(false);
+    if (activeTourType === 'schedule') {
+      localStorage.setItem('cloxel_schedule_tour_completed', 'true');
+    } else {
+      localStorage.setItem('cloxel_tour_completed', 'true');
+      localStorage.removeItem('cloxel_is_new_user');
+    }
+    setActiveTourType(null);
     setSpotlightRect(null);
-    localStorage.setItem('cloxel_tour_completed', 'true');
-    localStorage.removeItem('cloxel_is_new_user');
   };
 
   const handleNextTourStep = () => {
-    if (tourStep < TOUR_STEPS.length - 1) {
-      setTourStep(prev => prev + 1);
+    const currentSteps = activeTourType === 'schedule' ? SCHEDULE_TOUR_STEPS : TOUR_STEPS;
+    const currentStepIndex = activeTourType === 'schedule' ? scheduleTourStep : tourStep;
+    if (currentStepIndex < currentSteps.length - 1) {
+      if (activeTourType === 'schedule') {
+        setScheduleTourStep(prev => prev + 1);
+      } else {
+        setTourStep(prev => prev + 1);
+      }
     } else {
       handleCloseTour();
     }
   };
 
   const handlePrevTourStep = () => {
-    if (tourStep > 0) {
-      setTourStep(prev => prev - 1);
+    if (activeTourType === 'schedule') {
+      if (scheduleTourStep > 0) {
+        setScheduleTourStep(prev => prev - 1);
+      }
+    } else {
+      if (tourStep > 0) {
+        setTourStep(prev => prev - 1);
+      }
     }
   };
 
@@ -1212,24 +1327,14 @@ function App() {
           <button 
             type="button"
             className="btn-tour-pill" 
-            onClick={() => { setIsTourActive(true); setTourStep(0); }}
+            onClick={() => { setActiveTourType('main'); setTourStep(0); }}
             title="Interactive App Guide / Walkthrough"
-            style={{
-              background: theme === 'pastel' ? 'rgba(168, 85, 247, 0.15)' : 'rgba(255, 255, 255, 0.08)',
-              border: theme === 'pastel' ? '1.5px solid #a855f7' : '1px solid rgba(255, 255, 255, 0.2)',
-              color: theme === 'pastel' ? '#6b21a8' : '#ffffff',
-              padding: '6px 12px',
-              borderRadius: '20px',
-              fontSize: '0.82rem',
-              fontWeight: '800',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '5px',
-              transition: 'all 0.2s ease'
-            }}
           >
-            💡 Guide
+            <span className="btn-tour-pill-beacon" />
+            <span className="btn-tour-pill-icon">
+              <Compass size={16} strokeWidth={2.4} />
+            </span>
+            <span>App Guide</span>
           </button>
           {isAutoScheduleActive && (
             <div style={{ background: 'rgba(34, 197, 94, 0.15)', border: '1px solid rgba(34, 197, 94, 0.4)', color: '#4ade80', padding: '5px 12px', borderRadius: '20px', fontSize: '0.8rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px', boxShadow: '0 0 12px rgba(34, 197, 94, 0.3)' }}>
@@ -2228,9 +2333,21 @@ function App() {
       )}
       {/* Auto-Upload Settings Modal (Secret Page) */}
       {showAutoUploadModal && (
-        <div className="pricing-modal-overlay" onClick={() => setShowAutoUploadModal(false)} style={{ zIndex: 3000 }}>
+        <div className="pricing-modal-overlay" onClick={() => {
+          setShowAutoUploadModal(false);
+          if (activeTourType === 'schedule') {
+            setActiveTourType(null);
+            setSpotlightRect(null);
+          }
+        }} style={{ zIndex: 3000 }}>
           <div className="pricing-modal-card" style={{ maxWidth: '680px', padding: '36px' }} onClick={e => e.stopPropagation()}>
-            <button className="sidebar-close-btn" style={{ position: 'absolute', top: '20px', right: '20px', background: 'none', border: 'none', color: '#fff', fontSize: '1.8rem', cursor: 'pointer' }} onClick={() => setShowAutoUploadModal(false)}>×</button>
+            <button className="sidebar-close-btn" style={{ position: 'absolute', top: '20px', right: '20px', background: 'none', border: 'none', color: '#fff', fontSize: '1.8rem', cursor: 'pointer' }} onClick={() => {
+              setShowAutoUploadModal(false);
+              if (activeTourType === 'schedule') {
+                setActiveTourType(null);
+                setSpotlightRect(null);
+              }
+            }}>×</button>
 
             <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', width: '100%', marginBottom: '24px' }}>
               <span className="pricing-badge" style={{ background: 'rgba(6, 182, 212, 0.2)', color: '#38bdf8' }}>🤖 AUTOMATED YOUTUBE ENGINE</span>
@@ -2240,10 +2357,27 @@ function App() {
               <p style={{ color: '#94a3b8', fontSize: '0.85rem', textAlign: 'center', display: 'block', width: '100%', margin: '4px auto 0 auto' }}>
                 Configure daily automatic video generation and YouTube channel publishing.
               </p>
+              <div style={{ display: 'flex', justifyContent: 'center', marginTop: '12px' }}>
+                <button 
+                  type="button"
+                  className="btn-tour-pill"
+                  onClick={() => {
+                    setActiveTourType('schedule');
+                    setScheduleTourStep(0);
+                  }}
+                  title="Interactive Schedule Walkthrough"
+                >
+                  <span className="btn-tour-pill-beacon" />
+                  <span className="btn-tour-pill-icon">
+                    <Compass size={15} strokeWidth={2.4} />
+                  </span>
+                  <span>Schedule Guide</span>
+                </button>
+              </div>
             </div>
 
             {/* Current Active Plan Status Card */}
-            <div style={{ background: 'rgba(255,255,255,0.04)', padding: '18px 20px', borderRadius: '16px', border: '1px solid rgba(6, 182, 212, 0.3)', marginBottom: '20px' }}>
+            <div id="tour-sched-status" style={{ background: 'rgba(255,255,255,0.04)', padding: '18px 20px', borderRadius: '16px', border: '1px solid rgba(6, 182, 212, 0.3)', marginBottom: '20px' }}>
               <h4 style={{ color: '#38bdf8', marginBottom: '10px', fontSize: '1rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
                 👑 Active Membership Plan Status
               </h4>
@@ -2287,7 +2421,7 @@ function App() {
               </div>
 
               {/* LIVE ENGINES STATUS DASHBOARD */}
-              <div style={{ background: 'rgba(15, 23, 42, 0.6)', border: '1px solid rgba(148, 163, 184, 0.2)', borderRadius: '14px', padding: '16px', marginBottom: '20px' }}>
+              <div id="tour-sched-engines" style={{ background: 'rgba(15, 23, 42, 0.6)', border: '1px solid rgba(148, 163, 184, 0.2)', borderRadius: '14px', padding: '16px', marginBottom: '20px' }}>
                 <h4 style={{ color: '#f8fafc', fontSize: '0.92rem', fontWeight: '800', margin: '0 0 12px 0', display: 'flex', alignItems: 'center', gap: '8px' }}>
                   ⚡ Live Automation Engines Status Breakdown
                 </h4>
@@ -2319,7 +2453,7 @@ function App() {
               </div>
 
               {/* Auto Schedule Switch */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px', background: 'rgba(255,255,255,0.03)', padding: '12px 16px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.08)' }}>
+              <div id="tour-sched-toggle" style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px', background: 'rgba(255,255,255,0.03)', padding: '12px 16px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.08)' }}>
                 <input 
                   type="checkbox" 
                   id="auto-schedule-enable"
@@ -2332,8 +2466,10 @@ function App() {
                 </label>
               </div>
 
-              {/* 1. SHORT REEL SCHEDULE PROFILE (If Short Starter or Pro Combo) */}
-              {(subStatus.plan_type === 'short' || subStatus.plan_type === 'combo') && (
+              {/* Schedule Timing & Topics Settings */}
+              <div id="tour-sched-settings">
+                {/* 1. SHORT REEL SCHEDULE PROFILE (If Short Starter or Pro Combo) */}
+                {(subStatus.plan_type === 'short' || subStatus.plan_type === 'combo') && (
                 <div style={{ background: 'rgba(168,85,247,0.08)', padding: '18px', borderRadius: '14px', border: '1px solid rgba(168,85,247,0.3)', marginBottom: '20px' }}>
                   <h4 style={{ color: '#c084fc', marginBottom: '14px', fontSize: '1rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
                     📱 9:16 Short Reels Automation Settings
@@ -2663,41 +2799,56 @@ function App() {
                 </div>
               )}
 
-              {subStatus.has_active_subscription ? (
-                isAutoScheduleActive ? (
-                  <button 
-                    className="btn-hero-cta" 
-                    style={{ width: '100%', padding: '14px', fontSize: '1rem', background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)', boxShadow: '0 4px 20px rgba(239, 68, 68, 0.4)' }}
-                    onClick={() => setShowStopScheduleWarningModal(true)}
-                  >
-                    🛑 Stop Auto-Publishing Engine →
-                  </button>
+              </div>
+
+              {/* Engine Activation / Deactivation Action Section */}
+              <div id="tour-sched-actions" style={{ width: '100%' }}>
+                {subStatus.has_active_subscription ? (
+                  isAutoScheduleActive ? (
+                    <button 
+                      className="btn-hero-cta" 
+                      style={{ width: '100%', padding: '14px', fontSize: '1rem', background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)', boxShadow: '0 4px 20px rgba(239, 68, 68, 0.4)' }}
+                      onClick={() => setShowStopScheduleWarningModal(true)}
+                    >
+                      🛑 Stop Auto-Publishing Engine →
+                    </button>
+                  ) : (
+                    <button 
+                      className="btn-hero-cta" 
+                      disabled={isSavingSchedule}
+                      style={{ width: '100%', padding: '14px', fontSize: '1rem', background: isSavingSchedule ? 'rgba(255,255,255,0.15)' : 'linear-gradient(135deg, #06b6d4 0%, #3b82f6 100%)', boxShadow: isSavingSchedule ? 'none' : '0 4px 20px rgba(6, 182, 212, 0.4)', opacity: isSavingSchedule ? 0.6 : 1, cursor: isSavingSchedule ? 'not-allowed' : 'pointer' }}
+                      onClick={() => handleSaveAutoSchedule(true)}
+                    >
+                      {isSavingSchedule ? '⏳ Saving Settings to DB...' : '⚡ Start Auto-Publishing Engine →'}
+                    </button>
+                  )
                 ) : (
                   <button 
                     className="btn-hero-cta" 
-                    disabled={isSavingSchedule}
-                    style={{ width: '100%', padding: '14px', fontSize: '1rem', background: isSavingSchedule ? 'rgba(255,255,255,0.15)' : 'linear-gradient(135deg, #06b6d4 0%, #3b82f6 100%)', boxShadow: isSavingSchedule ? 'none' : '0 4px 20px rgba(6, 182, 212, 0.4)', opacity: isSavingSchedule ? 0.6 : 1, cursor: isSavingSchedule ? 'not-allowed' : 'pointer' }}
-                    onClick={() => handleSaveAutoSchedule(true)}
+                    style={{ width: '100%', padding: '14px', fontSize: '0.92rem', background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)', boxShadow: '0 4px 20px rgba(239, 68, 68, 0.4)', opacity: 0.95 }}
+                    onClick={() => {
+                      setShowAutoUploadModal(false);
+                      if (activeTourType === 'schedule') {
+                        setActiveTourType(null);
+                        setSpotlightRect(null);
+                      }
+                      setShowPricingModal(true);
+                    }}
                   >
-                    {isSavingSchedule ? '⏳ Saving Settings to DB...' : '⚡ Start Auto-Publishing Engine →'}
+                    🔒 Active Membership Required — Click to Upgrade Plan & Unlock Auto-Schedule 👑
                   </button>
-                )
-              ) : (
-                <button 
-                  className="btn-hero-cta" 
-                  style={{ width: '100%', padding: '14px', fontSize: '0.92rem', background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)', boxShadow: '0 4px 20px rgba(239, 68, 68, 0.4)', opacity: 0.95 }}
-                  onClick={() => {
-                    setShowAutoUploadModal(false);
-                    setShowPricingModal(true);
-                  }}
-                >
-                  🔒 Active Membership Required — Click to Upgrade Plan & Unlock Auto-Schedule 👑
-                </button>
-              )}
+                )}
+              </div>
             </div>
 
             <div style={{ textAlign: 'center' }}>
-              <button className="button secondary" style={{ width: 'auto', padding: '8px 24px' }} onClick={() => setShowAutoUploadModal(false)}>
+              <button className="button secondary" style={{ width: 'auto', padding: '8px 24px' }} onClick={() => {
+                setShowAutoUploadModal(false);
+                if (activeTourType === 'schedule') {
+                  setActiveTourType(null);
+                  setSpotlightRect(null);
+                }
+              }}>
                 Close Settings
               </button>
             </div>
@@ -2847,105 +2998,112 @@ function App() {
         </div>
       )}
 
-      {/* Interactive Onboarding Product Tour (New User Walkthrough) */}
-      {isTourActive && (
-        <>
-          <div className="cloxel-tour-backdrop" onClick={handleCloseTour} />
+      {/* Interactive Onboarding Product Tour (App & Schedule Walkthrough) */}
+      {isTourActive && (() => {
+        const currentSteps = activeTourType === 'schedule' ? SCHEDULE_TOUR_STEPS : TOUR_STEPS;
+        const currentStepIndex = activeTourType === 'schedule' ? scheduleTourStep : tourStep;
+        const currentStepData = currentSteps[currentStepIndex] || {};
+        const setCurrentStep = activeTourType === 'schedule' ? setScheduleTourStep : setTourStep;
 
-          {/* Transparent Spotlight Window with Dark Perimeter & Glowing Neon Frame */}
-          {spotlightRect && (
-            <div 
-              className="tour-spotlight-box"
-              style={{
-                left: `${spotlightRect.left - 8}px`,
-                top: `${spotlightRect.top - 8}px`,
-                width: `${spotlightRect.width + 16}px`,
-                height: `${spotlightRect.height + 16}px`
-              }}
-            >
-              <div 
-                className="tour-spotlight-tag"
-                style={spotlightRect.top < 50 ? { bottom: '-34px', top: 'auto' } : { top: '-34px', bottom: 'auto' }}
-              >
-                <span className="tour-spotlight-tag-pulse" />
-                {TOUR_STEPS[tourStep]?.badge || 'Target Element'}
-              </div>
-            </div>
-          )}
+        return (
+          <>
+            <div className="cloxel-tour-backdrop" onClick={handleCloseTour} />
 
-          {(() => {
-            const { cardStyle, arrowDir } = getTourPlacement();
-            return (
+            {/* Transparent Spotlight Window with Dark Perimeter & Glowing Neon Frame */}
+            {spotlightRect && (
               <div 
-                className="tour-card" 
-                style={cardStyle} 
-                onClick={e => e.stopPropagation()}
+                className="tour-spotlight-box"
+                style={{
+                  left: `${spotlightRect.left - 8}px`,
+                  top: `${spotlightRect.top - 8}px`,
+                  width: `${spotlightRect.width + 16}px`,
+                  height: `${spotlightRect.height + 16}px`
+                }}
               >
-                {arrowDir && <div className={`tour-card-arrow tour-card-arrow-${arrowDir}`} />}
-                
-                <div className="tour-card-header">
-                  <span className="tour-step-badge">
-                    {TOUR_STEPS[tourStep]?.badge || `Step ${tourStep + 1} of ${TOUR_STEPS.length}`}
-                  </span>
-                  <button className="tour-close-btn" onClick={handleCloseTour} title="Close Tour">×</button>
+                <div 
+                  className="tour-spotlight-tag"
+                  style={spotlightRect.top < 50 ? { bottom: '-34px', top: 'auto' } : { top: '-34px', bottom: 'auto' }}
+                >
+                  <span className="tour-spotlight-tag-pulse" />
+                  {currentStepData.badge || 'Target Element'}
                 </div>
+              </div>
+            )}
 
-                <h3 className="tour-card-title">
-                  <span>{TOUR_STEPS[tourStep]?.icon}</span>
-                  <span>{TOUR_STEPS[tourStep]?.title}</span>
-                </h3>
-
-                <p className="tour-card-desc">
-                  {TOUR_STEPS[tourStep]?.description}
-                </p>
-
-                <div className="tour-card-footer">
-                  <div className="tour-dots-container">
-                    {TOUR_STEPS.map((_, idx) => (
-                      <div 
-                        key={idx} 
-                        className={`tour-dot ${idx === tourStep ? 'active' : ''}`}
-                        onClick={() => setTourStep(idx)}
-                        style={{ cursor: 'pointer' }}
-                        title={`Go to step ${idx + 1}`}
-                      />
-                    ))}
+            {(() => {
+              const { cardStyle, arrowDir } = getTourPlacement();
+              return (
+                <div 
+                  className="tour-card" 
+                  style={cardStyle} 
+                  onClick={e => e.stopPropagation()}
+                >
+                  {arrowDir && <div className={`tour-card-arrow tour-card-arrow-${arrowDir}`} />}
+                  
+                  <div className="tour-card-header">
+                    <span className="tour-step-badge">
+                      {currentStepData.badge || `Step ${currentStepIndex + 1} of ${currentSteps.length}`}
+                    </span>
+                    <button className="tour-close-btn" onClick={handleCloseTour} title="Close Tour">×</button>
                   </div>
 
-                  <div className="tour-actions">
-                    <button 
-                      type="button" 
-                      className="tour-btn-secondary" 
-                      onClick={handleCloseTour}
-                      style={{ marginRight: '4px' }}
-                    >
-                      Skip
-                    </button>
+                  <h3 className="tour-card-title">
+                    <span>{currentStepData.icon}</span>
+                    <span>{currentStepData.title}</span>
+                  </h3>
 
-                    {tourStep > 0 && (
+                  <p className="tour-card-desc">
+                    {currentStepData.description}
+                  </p>
+
+                  <div className="tour-card-footer">
+                    <div className="tour-dots-container">
+                      {currentSteps.map((_, idx) => (
+                        <div 
+                          key={idx} 
+                          className={`tour-dot ${idx === currentStepIndex ? 'active' : ''}`}
+                          onClick={() => setCurrentStep(idx)}
+                          style={{ cursor: 'pointer' }}
+                          title={`Go to step ${idx + 1}`}
+                        />
+                      ))}
+                    </div>
+
+                    <div className="tour-actions">
                       <button 
                         type="button" 
                         className="tour-btn-secondary" 
-                        onClick={handlePrevTourStep}
+                        onClick={handleCloseTour}
+                        style={{ marginRight: '4px' }}
                       >
-                        ← Back
+                        Skip
                       </button>
-                    )}
 
-                    <button 
-                      type="button" 
-                      className="tour-btn-primary" 
-                      onClick={handleNextTourStep}
-                    >
-                      {tourStep === TOUR_STEPS.length - 1 ? '🎉 Done / Start! 🚀' : 'Next →'}
-                    </button>
+                      {currentStepIndex > 0 && (
+                        <button 
+                          type="button" 
+                          className="tour-btn-secondary" 
+                          onClick={handlePrevTourStep}
+                        >
+                          ← Back
+                        </button>
+                      )}
+
+                      <button 
+                        type="button" 
+                        className="tour-btn-primary" 
+                        onClick={handleNextTourStep}
+                      >
+                        {currentStepIndex === currentSteps.length - 1 ? '🎉 Done / Start! 🚀' : 'Next →'}
+                      </button>
+                    </div>
                   </div>
                 </div>
-              </div>
-            );
-          })()}
-        </>
-      )}
+              );
+            })()}
+          </>
+        );
+      })()}
     </div>
   );
 }
