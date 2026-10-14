@@ -7,6 +7,7 @@ frontend/node_modules/
 .DS_Store
 
 # Scratch and test files
+scratch/
 test_*.py
 debug_*.py
 pro_contour_cutout.py

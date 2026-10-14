@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gemini AI MP4 Video Generator Engine | Live Logs</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+        }
+
+        body {
+            background-color: #0f172a;
+            color: #f8fafc;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 2rem 1rem;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #38bdf8, #818cf8, #c084fc);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 0.5rem;
+        }
+
+        .header p {
+            color: #94a3b8;
+            font-size: 1.1rem;
+        }
+
+        .main-container {
+            width: 100%;
+            max-width: 1040px;
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 1.5rem;
+        }
+
+        @media(min-width: 768px) {
+            .main-container {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+
+        .card {
+            background: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 1rem;
+            padding: 1.5rem;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+        }
+
+        .card-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            color: #e2e8f0;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .form-group {
+            margin-bottom: 1rem;
+        }
+
+        .form-label {
+            font-size: 0.85rem;
+            color: #94a3b8;
+            margin-bottom: 0.4rem;
+            display: block;
+        }
+
+        .form-control {
+            width: 100%;
+            background: #0f172a;
+            border: 1px solid #475569;
+            border-radius: 0.5rem;
+            padding: 0.75rem;
+            color: #f8fafc;
+            font-size: 0.95rem;
+            outline: none;
+        }
+
+        .form-control:focus {
+            border-color: #38bdf8;
+        }
+
+        .prompt-input {
+            width: 100%;
+            height: 140px;
+            background: #0f172a;
+            border: 1px solid #475569;
+            border-radius: 0.75rem;
+            padding: 1rem;
+            color: #f8fafc;
+            font-size: 1rem;
+            resize: none;
+            outline: none;
+        }
+
+        .select-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.75rem;
+        }
+
+        .generate-btn {
+            width: 100%;
+            margin-top: 1rem;
+            background: linear-gradient(135deg, #0284c7, #4f46e5);
+            color: white;
+            border: none;
+            padding: 0.95rem;
+            border-radius: 0.75rem;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 0.5rem;
+            transition: transform 0.1s, filter 0.2s;
+        }
+
+        .generate-btn:hover {
+            filter: brightness(1.1);
+        }
+
+        .generate-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        /* Progress Bar */
+        .progress-container {
+            margin-top: 1.25rem;
+            display: none;
+        }
+
+        .progress-label-box {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.85rem;
+            color: #94a3b8;
+            margin-bottom: 0.4rem;
+        }
+
+        .progress-track {
+            width: 100%;
+            height: 10px;
+            background: #0f172a;
+            border-radius: 5px;
+            overflow: hidden;
+            border: 1px solid #334155;
+        }
+
+        .progress-fill {
+            width: 0%;
+            height: 100%;
+            background: linear-gradient(90deg, #38bdf8, #818cf8, #c084fc);
+            transition: width 0.3s ease;
+        }
+
+        /* Live Terminal Log Window */
+        .terminal-box {
+            margin-top: 1.25rem;
+            background: #090d16;
+            border: 1px solid #334155;
+            border-radius: 0.75rem;
+            overflow: hidden;
+        }
+
+        .terminal-header {
+            background: #1e293b;
+            padding: 0.5rem 0.85rem;
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: #94a3b8;
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+            border-bottom: 1px solid #334155;
+        }
+
+        .terminal-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+
+        .terminal-body {
+            font-family: 'Fira Code', monospace, sans-serif;
+            font-size: 0.82rem;
+            line-height: 1.5;
+            color: #38bdf8;
+            padding: 0.85rem;
+            height: 160px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+
+        .log-line {
+            margin-bottom: 0.25rem;
+        }
+
+        .log-line.success { color: #4ade80; }
+        .log-line.error { color: #f87171; }
+        .log-line.step { color: #38bdf8; }
+
+        .preview-box {
+            width: 100%;
+            aspect-ratio: 16 / 9;
+            background: #000000;
+            border: 2px solid #334155;
+            border-radius: 0.75rem;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .preview-video {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            display: none;
+        }
+
+        .placeholder-text {
+            color: #64748b;
+            text-align: center;
+            padding: 1rem;
+        }
+
+        .metadata-box {
+            margin-top: 1rem;
+            background: #0f172a;
+            border: 1px solid #334155;
+            border-radius: 0.5rem;
+            padding: 0.75rem 1rem;
+            font-size: 0.9rem;
+            display: none;
+        }
+
+        .meta-tag {
+            display: inline-block;
+            background: #334155;
+            padding: 0.25rem 0.6rem;
+            border-radius: 0.3rem;
+            margin-right: 0.4rem;
+            margin-bottom: 0.4rem;
+            font-size: 0.8rem;
+            color: #38bdf8;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <h1>🎬 Gemini AI MP4 Video Generator</h1>
+        <p>Type any Hinglish or English prompt / script to generate full HD MP4 videos</p>
+    </div>
+
+    <div class="main-container">
+        <!-- Control Panel -->
+        <div class="card">
+            <div class="card-title">✍️ Enter Prompt / Multi-Scene Script</div>
+            
+            <div class="form-group">
+                <label class="form-label">🔑 Gemini API Key (Optional / Auto-Fallback):</label>
+                <input id="apiKeyInput" type="password" class="form-control" placeholder="Paste your Gemini API Key here...">
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">📝 Hinglish Prompt or Multi-Scene Story Script:</label>
+                <textarea id="promptInput" class="prompt-input" placeholder="Type prompt or paste story script with Scene 1, Scene 2... e.g. Harry, Ramesh aur Jadui Seb"></textarea>
+            </div>
+
+            <div class="select-grid">
+                <div class="form-group">
+                    <label class="form-label">⏱️ Duration:</label>
+                    <select id="durationSelect" class="form-control">
+                        <option value="20">20 Seconds</option>
+                        <option value="30" selected>30 Seconds</option>
+                        <option value="60">1 Minute (60s)</option>
+                        <option value="180">3 Minutes (180s)</option>
+                        <option value="300">5 Minutes (300s)</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">📐 Aspect Ratio:</label>
+                    <select id="aspectSelect" class="form-control">
+                        <option value="16:9" selected>16:9 Landscape (TV/YouTube)</option>
+                        <option value="9:16">9:16 Portrait (Reels/Shorts)</option>
+                    </select>
+                </div>
+            </div>
+
+            <button id="generateBtn" class="generate-btn" onclick="startGeneration()">
+                <span>🎬 Generate MP4 Video</span>
+            </button>
+
+            <!-- Live Progress Bar -->
+            <div id="progressContainer" class="progress-container">
+                <div class="progress-label-box">
+                    <span id="progressStep">Rendering video...</span>
+                    <span id="progressPercent">0%</span>
+                </div>
+                <div class="progress-track">
+                    <div id="progressFill" class="progress-fill"></div>
+                </div>
+            </div>
+
+            <!-- Real-Time Terminal Log Viewer -->
+            <div class="terminal-box">
+                <div class="terminal-header">
+                    <span class="terminal-dot" style="background:#ef4444;"></span>
+                    <span class="terminal-dot" style="background:#eab308;"></span>
+                    <span class="terminal-dot" style="background:#22c55e;"></span>
+                    <span style="margin-left: 0.5rem;">🖥️ Real-Time Terminal Console Logs</span>
+                </div>
+                <div id="terminalBody" class="terminal-body">
+[00:00:00] Waiting for prompt generation to start...
+                </div>
+            </div>
+        </div>
+
+        <!-- Output Preview Panel -->
+        <div class="card">
+            <div class="card-title">🎥 Live MP4 Video Player</div>
+
+            <div class="preview-box">
+                <div id="placeholderText" class="placeholder-text">
+                    <div style="font-size: 3rem; margin-bottom: 0.5rem;">🎬</div>
+                    Your MP4 Video will play here live
+                </div>
+                <video id="previewVideo" class="preview-video" controls autoplay loop></video>
+            </div>
+
+            <div id="metadataBox" class="metadata-box">
+                <div style="font-weight: 600; margin-bottom: 0.5rem; color: #cbd5e1;">🔍 Video Scene Breakdown:</div>
+                <div id="metaTags"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let pollTimer = null;
+
+        async function startGeneration() {
+            const prompt = document.getElementById('promptInput').value.trim();
+            const apiKey = document.getElementById('apiKeyInput').value.trim();
+            const duration = document.getElementById('durationSelect').value;
+            const aspectRatio = document.getElementById('aspectSelect').value;
+
+            if (!prompt) {
+                alert('Please enter a prompt or script!');
+                return;
+            }
+
+            const btn = document.getElementById('generateBtn');
+            const progressContainer = document.getElementById('progressContainer');
+            const progressFill = document.getElementById('progressFill');
+            const progressPercent = document.getElementById('progressPercent');
+            const progressStep = document.getElementById('progressStep');
+            const terminalBody = document.getElementById('terminalBody');
+            const placeholder = document.getElementById('placeholderText');
+            const previewVideo = document.getElementById('previewVideo');
+            const metadataBox = document.getElementById('metadataBox');
+
+            btn.disabled = true;
+            btn.innerHTML = '<span>Rendering MP4 Video...</span>';
+            progressContainer.style.display = 'block';
+            progressFill.style.width = '5%';
+            progressPercent.innerText = '5%';
+            progressStep.innerText = 'Starting background job...';
+            terminalBody.innerHTML = '';
+            placeholder.style.display = 'block';
+            previewVideo.style.display = 'none';
+            metadataBox.style.display = 'none';
+
+            try {
+                const response = await fetch('/generate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        prompt: prompt,
+                        api_key: apiKey,
+                        duration: duration,
+                        aspect_ratio: aspectRatio
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.status === 'processing' && data.job_id) {
+                    pollJobStatus(data.job_id);
+                } else {
+                    alert('Error starting job: ' + (data.message || 'Unknown error'));
+                    btn.disabled = false;
+                    btn.innerHTML = '<span>🎬 Generate MP4 Video</span>';
+                }
+            } catch (err) {
+                alert('Failed to connect to video web server.');
+                console.error(err);
+                btn.disabled = false;
+                btn.innerHTML = '<span>🎬 Generate MP4 Video</span>';
+            }
+        }
+
+        function pollJobStatus(jobId) {
+            if (pollTimer) clearInterval(pollTimer);
+
+            pollTimer = setInterval(async () => {
+                try {
+                    const res = await fetch('/job_status/' + jobId);
+                    const job = await res.json();
+
+                    if (job.logs && job.logs.length > 0) {
+                        const terminalBody = document.getElementById('terminalBody');
+                        let logsHtml = '';
+                        job.logs.forEach(msg => {
+                            let cls = 'step';
+                            if (msg.includes('🎉') || msg.includes('✅') || msg.includes('rendered')) cls = 'success';
+                            if (msg.includes('❌') || msg.includes('Error')) cls = 'error';
+                            logsHtml += `<div class="log-line ${cls}">${escapeHtml(msg)}</div>`;
+                        });
+                        terminalBody.innerHTML = logsHtml;
+                        terminalBody.scrollTop = terminalBody.scrollHeight;
+                    }
+
+                    if (job.progress) {
+                        const fill = document.getElementById('progressFill');
+                        const pct = document.getElementById('progressPercent');
+                        fill.style.width = job.progress + '%';
+                        pct.innerText = job.progress + '%';
+                    }
+
+                    if (job.status === 'completed' && job.result) {
+                        clearInterval(pollTimer);
+                        const btn = document.getElementById('generateBtn');
+                        const placeholder = document.getElementById('placeholderText');
+                        const previewVideo = document.getElementById('previewVideo');
+                        const metadataBox = document.getElementById('metadataBox');
+                        const metaTags = document.getElementById('metaTags');
+
+                        btn.disabled = false;
+                        btn.innerHTML = '<span>🎬 Generate MP4 Video</span>';
+
+                        previewVideo.src = job.result.video_url;
+                        previewVideo.style.display = 'block';
+                        placeholder.style.display = 'none';
+                        previewVideo.play();
+
+                        let tagsHtml = `
+                            <span class="meta-tag">Title: ${job.result.title || 'AI Video'}</span>
+                            <span class="meta-tag">Duration: ${job.result.duration}s</span>
+                            <span class="meta-tag">Scenes: ${job.result.scenes ? job.result.scenes.length : 0}</span>
+                        `;
+                        metaTags.innerHTML = tagsHtml;
+                        metadataBox.style.display = 'block';
+                    } else if (job.status === 'error') {
+                        clearInterval(pollTimer);
+                        const btn = document.getElementById('generateBtn');
+                        btn.disabled = false;
+                        btn.innerHTML = '<span>🎬 Generate MP4 Video</span>';
+                        alert('Video Generation Error: ' + (job.error || 'Check logs for details'));
+                    }
+                } catch (e) {
+                    console.error('Polling error:', e);
+                }
+            }, 1000);
+        }
+
+        function escapeHtml(text) {
+            return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+        }
+    </script>
+</body>
+</html>
