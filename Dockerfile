@@ -34,4 +34,4 @@ COPY --from=frontend-builder /app/frontend/dist ./frontend/dist
 EXPOSE 8000
 
 # Command to run the application (Uses PORT from Render if available)
-CMD sh -c "uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000}"
+CMD sh -c "uvicorn ${APP_MODULE:-student_app:app} --host 0.0.0.0 --port ${PORT:-8000}"

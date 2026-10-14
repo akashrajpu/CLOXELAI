@@ -1,9 +1,11 @@
 services:
   - type: web
-    name: cloxel-ai-studio
+    name: parul-student-dossier-portal
     env: python
     buildCommand: pip install -r requirements.txt
-    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    startCommand: uvicorn student_app:app --host 0.0.0.0 --port $PORT
     envVars:
-      - key: REMOVE_BG_API_KEY
-        sync: false
+      - key: PYTHON_VERSION
+        value: 3.11.8
+      - key: SELENIUM_CACHE_DIR
+        value: /tmp/.selenium
