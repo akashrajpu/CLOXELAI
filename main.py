@@ -598,6 +598,8 @@ auto_worker_executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="Aut
 render_queue_lock = threading.Lock()
 manual_job_lock = threading.Lock()
 active_manual_jobs_count = 0
+active_auto_users_lock = threading.Lock()
+active_auto_users = set()
 
 def register_manual_job_start():
     global active_manual_jobs_count
@@ -730,7 +732,7 @@ def process_single_user_schedule(user: dict, now_ist: datetime, today_str: str):
                         voice = fresh_sched.get(f"{kind}_voice") or "hi-IN-MadhurNeural"
                         font = fresh_sched.get(f"{kind}_font") or "Arial.ttf"
                         color = fresh_sched.get(f"{kind}_color") or "yellow"
-                        aspect_ratio = fresh_sched.get(f"{kind}_aspect_ratio") or ("16:9" if kind in ["long"] else "9:16")
+                        aspect_ratio = "9:16" if kind == "short" else ("16:9" if kind == "long" else (fresh_sched.get(f"{kind}_aspect_ratio") or "9:16"))
                         duration = int(fresh_sched.get(f"{kind}_duration") or default_dur)
 
                         res = render_video_with_smart_fallback(
@@ -778,11 +780,12 @@ def process_single_user_schedule(user: dict, now_ist: datetime, today_str: str):
                             print(f"✅ [PREDICTIVE STAGING COMPLETE - Node: {node_name}] {kind.upper()} video pre-rendered & saved to Cloudinary for user {internal_id}. Waiting for {time_str} IST to publish!")
                             staged_item = staged_data
                         else:
+                            cooldown_claimed_at = (datetime.utcnow() + timedelta(minutes=20)).isoformat()
                             users_collection.update_one(
                                 {"internal_id": internal_id},
                                 {
-                                    "$unset": {lock_field: ""},
                                     "$set": {
+                                        f"{lock_field}.claimed_at": cooldown_claimed_at,
                                         f"auto_schedule_status.{kind}": {
                                             "status": "STAGING_FAILED",
                                             "error": res.get("error", "Rendering failed"),
@@ -976,6 +979,15 @@ def process_single_user_schedule(user: dict, now_ist: datetime, today_str: str):
     except Exception as e_user:
         print(f"❌ Worker error for user {internal_id}: {e_user}")
 
+def process_single_user_schedule_wrapper(user: dict, now_ist: datetime, today_str: str):
+    internal_id = user.get("internal_id")
+    try:
+        process_single_user_schedule(user, now_ist, today_str)
+    finally:
+        if internal_id:
+            with active_auto_users_lock:
+                active_auto_users.discard(internal_id)
+
 def check_and_run_auto_schedules():
     """
     Crash-Proof Predictive Pre-Rendering & Multi-Thread Worker Scheduler Engine (200+ User Scale).
@@ -1021,7 +1033,14 @@ def check_and_run_auto_schedules():
             print(f"⏰ [AUTO SCHEDULER TICK] Scanned & priority-queued {len(users)} active user schedule(s) at {now_ist.strftime('%H:%M:%S')} IST")
 
         for user in users:
-            auto_worker_executor.submit(process_single_user_schedule, user, now_ist, today_str)
+            uid = user.get("internal_id")
+            if not uid:
+                continue
+            with active_auto_users_lock:
+                if uid in active_auto_users:
+                    continue
+                active_auto_users.add(uid)
+            auto_worker_executor.submit(process_single_user_schedule_wrapper, user, now_ist, today_str)
     except Exception as e:
         print(f"❌ Error in check_and_run_auto_schedules loop: {e}")
 
@@ -1467,7 +1486,12 @@ def full_process(req: VideoRequest, job_id: str):
                 print(f"   ⚠️ Voice synthesis warning (Scene {i+1}): {e_aud}")
 
             is_ultra = (req.video_type == "ultra")
-            is_16_9 = (req.aspect_ratio == "16:9") if req.aspect_ratio else (req.video_type in ["long", "ultra"])
+            if req.video_type == "short":
+                is_16_9 = False
+            elif req.video_type == "long":
+                is_16_9 = True
+            else:
+                is_16_9 = (req.aspect_ratio == "16:9")
             orientation = "landscape" if is_16_9 else "portrait"
             
             cat_lower_req = str(req.category).lower()
@@ -1532,6 +1556,7 @@ def full_process(req: VideoRequest, job_id: str):
                     "text": sc["text"]
                 })
                 print(f"   ✅ Scene {i+1}/{total_scenes} ready for video assembly.")
+            release_system_memory()
 
         if taiyaar_scenes:
             print(f"\n🎬 [PROGRESS 65%] STEP 4 & 5: Entering FFmpeg & 3D Motion Render Queue...")
@@ -1665,7 +1690,7 @@ def render_video_with_smart_fallback(user_id: str, topic: str, category: str, vo
                 full_script=full_script,
                 scenes=scenes_obj,
                 bg_music=bg_music,
-                aspect_ratio=aspect_ratio or ("16:9" if video_type in ["long", "ultra"] else "9:16")
+                aspect_ratio="9:16" if video_type == "short" else ("16:9" if video_type == "long" else (aspect_ratio or "9:16"))
             )
 
             job_id = str(uuid.uuid4())
@@ -1695,7 +1720,7 @@ def render_video_with_smart_fallback(user_id: str, topic: str, category: str, vo
             full_script="Space exploration brings incredible technology and futuristic discoveries to humanity every day.",
             scenes=[Scene(text="Space exploration brings incredible technology to humanity.", keyword="space technology")],
             bg_music=bg_music or "cool.mp3",
-            aspect_ratio=aspect_ratio or ("16:9" if video_type in ["long", "ultra"] else "9:16")
+            aspect_ratio="9:16" if video_type == "short" else ("16:9" if video_type == "long" else (aspect_ratio or "9:16"))
         )
         job_id = str(uuid.uuid4())
         full_process(fb_req, job_id)

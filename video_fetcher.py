@@ -25,13 +25,8 @@ def fetch_pexels_videos(keyword, job_id, count=1, orientation="portrait"):
         if 'videos' in data and len(data['videos']) > 0:
             for i, video_data in enumerate(data['videos']):
                 valid_files = [vf for vf in video_data.get('video_files', []) if vf.get('link')]
-                if not valid_files: continue
-                valid_files.sort(key=lambda x: x.get('width', 0) * x.get('height', 0))
+                valid_files.sort(key=lambda x: abs(x.get('height', 720) - 720))
                 best_file = valid_files[0]
-                for vf in valid_files:
-                    if 720 <= vf.get('height', 0) <= 1080:
-                        best_file = vf
-                        break
                 video_url = best_file['link']
                 dir_name = os.path.dirname(job_id)
                 base_name = os.path.basename(job_id)
