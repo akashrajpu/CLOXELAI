@@ -3821,7 +3821,7 @@ def generate_ai_script_core(topic: str, duration: int, video_type: str = "short"
         "tone": tone
     }
 
-    print("🤖 [AI Script Microservice] Requesting script from https://ai-script-generator-service.onrender.com...")
+    print("🤖 [AI Script Microservice] Requesting script from https://ai-script-generator-service.onrender.com (Timeout: 120s / 2 mins)...")
 
     # 1. Primary Dedicated Payload for /generate-script & /api/generate-ai-script
     payload_dedicated = {
@@ -3851,7 +3851,7 @@ def generate_ai_script_core(topic: str, duration: int, video_type: str = "short"
         for endpoint, body in endpoints_to_try:
             target_url = f"{base_url}{endpoint}"
             try:
-                resp = requests.post(target_url, json=body, timeout=35.0)
+                resp = requests.post(target_url, json=body, timeout=120.0)
                 if resp.status_code == 200:
                     data = resp.json()
                     raw_scenes = data.get("scenes") or []
