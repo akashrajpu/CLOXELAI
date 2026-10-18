@@ -965,7 +965,7 @@ def process_single_user_schedule(user: dict, now_ist: datetime, today_str: str):
                         voice = fresh_sched.get(f"{kind}_voice") or "hi-IN-MadhurNeural"
                         font = fresh_sched.get(f"{kind}_font") or "Arial.ttf"
                         color = fresh_sched.get(f"{kind}_color") or "yellow"
-                        aspect_ratio = "9:16" if kind == "short" else ("16:9" if kind == "long" else (fresh_sched.get(f"{kind}_aspect_ratio") or "9:16"))
+                        aspect_ratio = "9:16" if kind == "short" else ("16:9" if kind == "long" else (fresh_sched.get("ultra_aspect_ratio") or "16:9"))
                         duration = int(fresh_sched.get(f"{kind}_duration") or default_dur)
 
                         res = render_video_with_smart_fallback(
@@ -1104,7 +1104,7 @@ def process_single_user_schedule(user: dict, now_ist: datetime, today_str: str):
                     voice = fresh_sched.get(f"{kind}_voice") or "hi-IN-MadhurNeural"
                     font = fresh_sched.get(f"{kind}_font") or "Arial.ttf"
                     color = fresh_sched.get(f"{kind}_color") or "yellow"
-                    aspect_ratio = fresh_sched.get(f"{kind}_aspect_ratio") or ("16:9" if kind in ["long"] else "9:16")
+                    aspect_ratio = "9:16" if kind == "short" else ("16:9" if kind == "long" else (fresh_sched.get("ultra_aspect_ratio") or "16:9"))
                     duration = int(fresh_sched.get(f"{kind}_duration") or default_dur)
 
                     res = render_video_with_smart_fallback(
@@ -1704,6 +1704,35 @@ def full_process(req: VideoRequest, job_id: str):
         total_scenes = len(scenes_data)
         print(f"✅ STEP 1 COMPLETE: Prepared {total_scenes} scenes for rendering.")
         
+        is_ultra = (req.video_type == "ultra")
+        if req.video_type == "short":
+            req.aspect_ratio = "9:16"
+            is_16_9 = False
+            orientation = "portrait"
+            target_w, target_h = (720, 1280)
+            target_size = (540, 960)
+        elif req.video_type == "long":
+            req.aspect_ratio = "16:9"
+            is_16_9 = True
+            orientation = "landscape"
+            target_w, target_h = (1280, 720)
+            target_size = (960, 540)
+        else:
+            req.aspect_ratio = req.aspect_ratio or "16:9"
+            is_16_9 = (req.aspect_ratio == "16:9")
+            if req.aspect_ratio == "16:9":
+                orientation = "landscape"
+                target_w, target_h = (1280, 720)
+                target_size = (960, 540)
+            elif req.aspect_ratio == "1:1":
+                orientation = "portrait"
+                target_w, target_h = (720, 720)
+                target_size = (720, 720)
+            else:
+                orientation = "portrait"
+                target_w, target_h = (720, 1280)
+                target_size = (540, 960)
+
         taiyaar_scenes = []
         for i, sc in enumerate(scenes_data):
             sc_progress = 10 + int(((i + 1) / total_scenes) * 40)
@@ -1718,15 +1747,6 @@ def full_process(req: VideoRequest, job_id: str):
             except Exception as e_aud:
                 print(f"   ⚠️ Voice synthesis warning (Scene {i+1}): {e_aud}")
 
-            is_ultra = (req.video_type == "ultra")
-            if req.video_type == "short":
-                is_16_9 = False
-            elif req.video_type == "long":
-                is_16_9 = True
-            else:
-                is_16_9 = (req.aspect_ratio == "16:9")
-            orientation = "landscape" if is_16_9 else "portrait"
-            
             cat_lower_req = str(req.category).lower()
             is_cartoon_req = any(k in cat_lower_req for k in ["cartoon", "anime", "animation", "character", "comic"])
             is_world_news_req = any(k in cat_lower_req for k in ["world news", "geopolitics", "news"])
@@ -1778,7 +1798,6 @@ def full_process(req: VideoRequest, job_id: str):
                 if not v_paths:
                     fallback_img_path = os.path.join(job_dir, f"fallback_canvas_{i}.jpg")
                     from PIL import Image
-                    target_w, target_h = (1280, 720) if is_16_9 else (720, 1280)
                     blank_img = Image.new('RGB', (target_w, target_h), color=(15, 10, 35))
                     blank_img.save(fallback_img_path)
                     v_paths = [fallback_img_path]
@@ -1794,8 +1813,7 @@ def full_process(req: VideoRequest, job_id: str):
         if taiyaar_scenes:
             print(f"\n🎬 [PROGRESS 65%] STEP 4 & 5: Entering FFmpeg & 3D Motion Render Queue...")
             output_file = f"acoumation_video_{job_id}.mp4"
-            target_size = (960, 540) if is_16_9 else (540, 960)
-            adjusted_font_size = int(req.font_size * 0.7) if is_16_9 else req.font_size
+            adjusted_font_size = int(req.font_size * 0.7) if req.aspect_ratio == "16:9" else req.font_size
             with render_queue_lock:
                 gc.collect()
                 merge_and_export(taiyaar_scenes, output_file, font_path=f"./fonts/{req.font_name}", color=req.font_color, font_size=adjusted_font_size, target_size=target_size, bg_music=req.bg_music, mode=req.video_type, category=req.category or "Random") 
@@ -1881,15 +1899,28 @@ def render_video_with_smart_fallback(user_id: str, topic: str, category: str, vo
     55s -> 45s -> 30s -> 20s -> 10s for short reels, retrying until 100% success!
     """
     import uuid
-    if video_type == "short" or (video_type == "ultra" and aspect_ratio == "9:16"):
-        max_allowed = 60 if (video_type == "ultra" and aspect_ratio == "9:16") else 55
+    if video_type == "short":
+        aspect_ratio = "9:16"
+        max_allowed = 55
         target_dur = min(requested_duration, max_allowed)
         duration_steps = [target_dur, 55, 45, 30, 20, 10]
         duration_steps = sorted(list(set([d for d in duration_steps if d <= target_dur])), reverse=True)
-    else:
+    elif video_type == "long":
+        aspect_ratio = "16:9"
         target_dur = min(requested_duration, 300)
         duration_steps = [target_dur, 300, 240, 180, 120, 90, 60, 45, 30, 20, 10]
         duration_steps = sorted(list(set([d for d in duration_steps if d <= target_dur])), reverse=True)
+    else:
+        aspect_ratio = aspect_ratio or "16:9"
+        if aspect_ratio == "9:16":
+            max_allowed = 60
+            target_dur = min(requested_duration, max_allowed)
+            duration_steps = [target_dur, 60, 45, 30, 20, 10]
+            duration_steps = sorted(list(set([d for d in duration_steps if d <= target_dur])), reverse=True)
+        else:
+            target_dur = min(requested_duration, 300)
+            duration_steps = [target_dur, 300, 240, 180, 120, 90, 60, 45, 30, 20, 10]
+            duration_steps = sorted(list(set([d for d in duration_steps if d <= target_dur])), reverse=True)
 
     last_error = None
     for attempt_idx, dur in enumerate(duration_steps):
@@ -1923,7 +1954,7 @@ def render_video_with_smart_fallback(user_id: str, topic: str, category: str, vo
                 full_script=full_script,
                 scenes=scenes_obj,
                 bg_music=bg_music,
-                aspect_ratio="9:16" if video_type == "short" else ("16:9" if video_type == "long" else (aspect_ratio or "9:16"))
+                aspect_ratio="9:16" if video_type == "short" else ("16:9" if video_type == "long" else (aspect_ratio or "16:9"))
             )
 
             job_id = str(uuid.uuid4())
@@ -1953,7 +1984,7 @@ def render_video_with_smart_fallback(user_id: str, topic: str, category: str, vo
             full_script="Space exploration brings incredible technology and futuristic discoveries to humanity every day.",
             scenes=[Scene(text="Space exploration brings incredible technology to humanity.", keyword="space technology")],
             bg_music=bg_music or "cool.mp3",
-            aspect_ratio="9:16" if video_type == "short" else ("16:9" if video_type == "long" else (aspect_ratio or "9:16"))
+            aspect_ratio="9:16" if video_type == "short" else ("16:9" if video_type == "long" else (aspect_ratio or "16:9"))
         )
         job_id = str(uuid.uuid4())
         full_process(fb_req, job_id)
@@ -2020,6 +2051,15 @@ async def generate_custom_video(req: VideoRequest, background_tasks: BackgroundT
     user_id = req.user_id
     if not user_id or user_id == "anonymous":
         raise HTTPException(status_code=401, detail="Please login or register to generate videos.")
+
+    if req.video_type == "short":
+        req.aspect_ratio = "9:16"
+        req.filter_style = "none"
+    elif req.video_type == "long":
+        req.aspect_ratio = "16:9"
+        req.filter_style = "none"
+    elif req.video_type == "ultra":
+        req.aspect_ratio = req.aspect_ratio if req.aspect_ratio in ["16:9", "9:16", "1:1"] else "16:9"
 
     if req.full_script and len(req.full_script) > 12000:
         raise HTTPException(status_code=400, detail="⚠️ Script too long! Maximum script length allowed is 12,000 characters per video.")

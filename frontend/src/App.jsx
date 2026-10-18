@@ -285,7 +285,7 @@ function App() {
   const [customCategory, setCustomCategory] = useState('');
 
   const [generationMode, setGenerationMode] = useState('ultra');
-  const [aspectRatio, setAspectRatio] = useState('16:9');
+  const [aspectRatio, setAspectRatio] = useState('9:16');
   const [filterStyle, setFilterStyle] = useState('warm_epic');
 
   const [scenes, setScenes] = useState([
@@ -1061,9 +1061,9 @@ function App() {
           full_script: fullScript,
           bg_music: bgMusic,
           user_id: userId,
-          mode: generationMode,
-          aspect_ratio: aspectRatio,
-          filter_style: filterStyle
+          mode: videoType === 'ultra' ? generationMode : 'standard',
+          aspect_ratio: videoType === 'short' ? '9:16' : (videoType === 'long' ? '16:9' : (aspectRatio || '16:9')),
+          filter_style: videoType === 'ultra' ? filterStyle : 'none'
         })
       });
       const data = await response.json();
@@ -1388,6 +1388,7 @@ function App() {
                   className={`button ${videoType === 'short' ? 'primary' : 'secondary'}`}
                   onClick={() => {
                     setVideoType('short');
+                    setAspectRatio('9:16');
                     if (duration > 55) setDuration(30);
                   }}
                   style={{ 
@@ -1416,6 +1417,7 @@ function App() {
                   className={`button ${videoType === 'long' ? 'primary' : 'secondary'}`}
                   onClick={() => {
                     setVideoType('long');
+                    setAspectRatio('16:9');
                     if (duration < 20) setDuration(60);
                   }}
                   style={{ 
@@ -1444,6 +1446,7 @@ function App() {
                   className={`button ${videoType === 'ultra' ? 'primary' : 'secondary'}`}
                   onClick={() => {
                     setVideoType('ultra');
+                    setAspectRatio('16:9');
                     if (duration < 20) setDuration(60);
                   }}
                   style={{ 
@@ -1603,92 +1606,122 @@ function App() {
         <aside className="panel" id="tour-video-settings">
           <h2 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><Settings size={26} /> Video Settings</h2>
 
-          <div className="form-group" style={{ marginBottom: '1.2rem' }}>
-            <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: '800' }}>
-              <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Sparkles size={16} /> Engine Generation Mode</span>
-            </label>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginTop: '6px' }}>
-              <button
-                type="button"
-                onClick={() => setGenerationMode('ultra')}
-                style={{
-                  padding: '10px 12px',
-                  borderRadius: '16px',
-                  border: generationMode === 'ultra' 
-                    ? '2px solid #a855f7' 
-                    : (theme === 'pastel' ? '2px solid #8b5cf6' : '1px solid rgba(255,255,255,0.12)'),
-                  background: generationMode === 'ultra' 
-                    ? 'linear-gradient(135deg, #a855f7 0%, #7e22ce 100%)' 
-                    : (theme === 'pastel' ? 'rgba(255, 255, 255, 0.94)' : 'rgba(15, 23, 42, 0.6)'),
-                  color: generationMode === 'ultra' 
-                    ? '#ffffff' 
-                    : (theme === 'pastel' ? '#581c87' : '#94a3b8'),
-                  fontSize: '0.82rem',
-                  fontWeight: '800',
-                  cursor: 'pointer',
-                  textAlign: 'center',
-                  boxShadow: generationMode === 'ultra' ? '0 4px 15px rgba(168, 85, 247, 0.4)' : 'none',
-                  transition: 'all 0.2s ease'
-                }}
-              >
-                <span style={{ display: 'flex', alignItems: 'center', gap: '6px', justifyContent: 'center' }}><Sparkles size={16} /> Ultra Photo Motion</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setGenerationMode('standard')}
-                style={{
-                  padding: '10px 12px',
-                  borderRadius: '16px',
-                  border: generationMode === 'standard' 
-                    ? '2px solid #a855f7' 
-                    : (theme === 'pastel' ? '2px solid #8b5cf6' : '1px solid rgba(255,255,255,0.12)'),
-                  background: generationMode === 'standard' 
-                    ? 'linear-gradient(135deg, #a855f7 0%, #7e22ce 100%)' 
-                    : (theme === 'pastel' ? 'rgba(255, 255, 255, 0.94)' : 'rgba(15, 23, 42, 0.6)'),
-                  color: generationMode === 'standard' 
-                    ? '#ffffff' 
-                    : (theme === 'pastel' ? '#581c87' : '#94a3b8'),
-                  fontSize: '0.82rem',
-                  fontWeight: '800',
-                  cursor: 'pointer',
-                  textAlign: 'center',
-                  boxShadow: generationMode === 'standard' ? '0 4px 15px rgba(168, 85, 247, 0.4)' : 'none',
-                  transition: 'all 0.2s ease'
-                }}
-              >
-                <span style={{ display: 'flex', alignItems: 'center', gap: '6px', justifyContent: 'center' }}><Clapperboard size={16} /> Standard Stock Video</span>
-              </button>
+          {videoType === 'ultra' ? (
+            <>
+              <div className="form-group" style={{ marginBottom: '1.2rem' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: '800' }}>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Sparkles size={16} /> Engine Generation Mode</span>
+                </label>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginTop: '6px' }}>
+                  <button
+                    type="button"
+                    onClick={() => setGenerationMode('ultra')}
+                    style={{
+                      padding: '10px 12px',
+                      borderRadius: '16px',
+                      border: generationMode === 'ultra' 
+                        ? '2px solid #a855f7' 
+                        : (theme === 'pastel' ? '2px solid #8b5cf6' : '1px solid rgba(255,255,255,0.12)'),
+                      background: generationMode === 'ultra' 
+                        ? 'linear-gradient(135deg, #a855f7 0%, #7e22ce 100%)' 
+                        : (theme === 'pastel' ? 'rgba(255, 255, 255, 0.94)' : 'rgba(15, 23, 42, 0.6)'),
+                      color: generationMode === 'ultra' 
+                        ? '#ffffff' 
+                        : (theme === 'pastel' ? '#581c87' : '#94a3b8'),
+                      fontSize: '0.82rem',
+                      fontWeight: '800',
+                      cursor: 'pointer',
+                      textAlign: 'center',
+                      boxShadow: generationMode === 'ultra' ? '0 4px 15px rgba(168, 85, 247, 0.4)' : 'none',
+                      transition: 'all 0.2s ease'
+                    }}
+                  >
+                    <span style={{ display: 'flex', alignItems: 'center', gap: '6px', justifyContent: 'center' }}><Sparkles size={16} /> Ultra Photo Motion</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setGenerationMode('standard')}
+                    style={{
+                      padding: '10px 12px',
+                      borderRadius: '16px',
+                      border: generationMode === 'standard' 
+                        ? '2px solid #a855f7' 
+                        : (theme === 'pastel' ? '2px solid #8b5cf6' : '1px solid rgba(255,255,255,0.12)'),
+                      background: generationMode === 'standard' 
+                        ? 'linear-gradient(135deg, #a855f7 0%, #7e22ce 100%)' 
+                        : (theme === 'pastel' ? 'rgba(255, 255, 255, 0.94)' : 'rgba(15, 23, 42, 0.6)'),
+                      color: generationMode === 'standard' 
+                        ? '#ffffff' 
+                        : (theme === 'pastel' ? '#581c87' : '#94a3b8'),
+                      fontSize: '0.82rem',
+                      fontWeight: '800',
+                      cursor: 'pointer',
+                      textAlign: 'center',
+                      boxShadow: generationMode === 'standard' ? '0 4px 15px rgba(168, 85, 247, 0.4)' : 'none',
+                      transition: 'all 0.2s ease'
+                    }}
+                  >
+                    <span style={{ display: 'flex', alignItems: 'center', gap: '6px', justifyContent: 'center' }}><Clapperboard size={16} /> Standard Stock Video</span>
+                  </button>
+                </div>
+              </div>
+
+              <div className="form-group" style={{ marginBottom: '1.2rem' }}>
+                <label style={{ fontWeight: '800', display: 'flex', alignItems: 'center', gap: '6px' }}><Layout size={16} /> Aspect Ratio / Video Size</label>
+                <CustomSelect 
+                  theme={theme}
+                  value={aspectRatio} 
+                  onChange={(val) => setAspectRatio(val)}
+                  options={[
+                    { value: '16:9', label: <span style={{display: 'flex', alignItems: 'center', gap: '6px'}}><Tv size={16} /> 16:9 Landscape HD (1920×1080)</span> },
+                    { value: '9:16', label: <span style={{display: 'flex', alignItems: 'center', gap: '6px'}}><Smartphone size={16} /> 9:16 Vertical HD (1080×1920)</span> },
+                    { value: '1:1', label: <span style={{display: 'flex', alignItems: 'center', gap: '6px'}}><Square size={16} /> 1:1 Square HD (1080×1080)</span> }
+                  ]}
+                />
+              </div>
+
+              <div className="form-group" style={{ marginBottom: '1.2rem' }}>
+                <label style={{ fontWeight: '800', display: 'flex', alignItems: 'center', gap: '6px' }}><Palette size={16} /> Cinematic Filter & Style</label>
+                <CustomSelect 
+                  theme={theme}
+                  value={filterStyle} 
+                  onChange={(val) => setFilterStyle(val)}
+                  options={[
+                    { value: 'warm_epic', label: <span style={{display: 'flex', alignItems: 'center', gap: '6px'}}><Sun size={16} /> Warm Epic (Maharana Pratap / Historic / Warrior)</span> },
+                    { value: 'vintage_parchment', label: <span style={{display: 'flex', alignItems: 'center', gap: '6px'}}><Scroll size={16} /> Vintage Parchment (Sepia Canvas)</span> },
+                    { value: 'dramatic_cinematic', label: <span style={{display: 'flex', alignItems: 'center', gap: '6px'}}><Clapperboard size={16} /> Dramatic Cinematic (Teal-Orange Movie Grade)</span> },
+                    { value: 'none', label: <span style={{display: 'flex', alignItems: 'center', gap: '6px'}}><Circle size={16} /> Standard / Original Colors</span> }
+                  ]}
+                />
+              </div>
+            </>
+          ) : (
+            <div className="form-group" style={{ marginBottom: '1.2rem' }}>
+              <label style={{ fontWeight: '800', display: 'flex', alignItems: 'center', gap: '6px' }}><Layout size={16} /> Video Aspect Ratio</label>
+              <div style={{
+                padding: '10px 14px',
+                borderRadius: '12px',
+                background: theme === 'pastel' ? 'rgba(139, 92, 246, 0.08)' : 'rgba(255, 255, 255, 0.05)',
+                border: theme === 'pastel' ? '1px solid rgba(139, 92, 246, 0.25)' : '1px solid rgba(255, 255, 255, 0.12)',
+                color: theme === 'pastel' ? '#581c87' : '#cbd5e1',
+                fontSize: '0.85rem',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between'
+              }}>
+                <span style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: '700' }}>
+                  {videoType === 'short' ? (
+                    <><Smartphone size={16} color="#a855f7" /> 9:16 Vertical HD (Auto-Locked for Shorts)</>
+                  ) : (
+                    <><Tv size={16} color="#06b6d4" /> 16:9 Landscape HD (Auto-Locked for Long)</>
+                  )}
+                </span>
+                <span style={{ fontSize: '0.72rem', background: 'rgba(168, 85, 247, 0.18)', color: '#c084fc', padding: '2px 8px', borderRadius: '6px', fontWeight: 'bold' }}>
+                  LOCKED
+                </span>
+              </div>
             </div>
-          </div>
-
-          <div className="form-group" style={{ marginBottom: '1.2rem' }}>
-            <label style={{ fontWeight: '800', display: 'flex', alignItems: 'center', gap: '6px' }}><Layout size={16} /> Aspect Ratio</label>
-            <CustomSelect 
-              theme={theme}
-              value={aspectRatio} 
-              onChange={(val) => setAspectRatio(val)}
-              options={[
-                { value: '16:9', label: <span style={{display: 'flex', alignItems: 'center', gap: '6px'}}><Tv size={16} /> 16:9 Landscape HD (1920×1080)</span> },
-                { value: '9:16', label: <span style={{display: 'flex', alignItems: 'center', gap: '6px'}}><Smartphone size={16} /> 9:16 Vertical HD (1080×1920)</span> },
-                { value: '1:1', label: <span style={{display: 'flex', alignItems: 'center', gap: '6px'}}><Square size={16} /> 1:1 Square HD (1080×1080)</span> }
-              ]}
-            />
-          </div>
-
-          <div className="form-group" style={{ marginBottom: '1.2rem' }}>
-            <label style={{ fontWeight: '800', display: 'flex', alignItems: 'center', gap: '6px' }}><Palette size={16} /> Cinematic Filter & Style</label>
-            <CustomSelect 
-              theme={theme}
-              value={filterStyle} 
-              onChange={(val) => setFilterStyle(val)}
-              options={[
-                { value: 'warm_epic', label: <span style={{display: 'flex', alignItems: 'center', gap: '6px'}}><Sun size={16} /> Warm Epic (Maharana Pratap / Historic / Warrior)</span> },
-                { value: 'vintage_parchment', label: <span style={{display: 'flex', alignItems: 'center', gap: '6px'}}><Scroll size={16} /> Vintage Parchment (Sepia Canvas)</span> },
-                { value: 'dramatic_cinematic', label: <span style={{display: 'flex', alignItems: 'center', gap: '6px'}}><Clapperboard size={16} /> Dramatic Cinematic (Teal-Orange Movie Grade)</span> },
-                { value: 'none', label: <span style={{display: 'flex', alignItems: 'center', gap: '6px'}}><Circle size={16} /> Standard / Original Colors</span> }
-              ]}
-            />
-          </div>
+          )}
           
           <div className="form-group">
             <label>AI Voice</label>
