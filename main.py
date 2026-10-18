@@ -1649,6 +1649,8 @@ class VideoRequest(BaseModel):
     full_script: str = ""
     bg_music: str = "cool.mp3"
     aspect_ratio: Optional[str] = "16:9"
+    mode: Optional[str] = "standard"
+    filter_style: Optional[str] = "none"
 
 class ScriptRequest(BaseModel):
     topic: str
@@ -2080,11 +2082,13 @@ async def generate_custom_video(req: VideoRequest, background_tasks: BackgroundT
             if sub_status == "active" and sub_expires:
                 if isinstance(sub_expires, str):
                     try:
-                        sub_expires = datetime.fromisoformat(sub_expires)
+                        sub_expires = datetime.fromisoformat(sub_expires.replace('Z', '+00:00'))
                     except Exception:
                         sub_expires = None
-                if sub_expires and sub_expires > datetime.utcnow():
-                    is_active = True
+                if isinstance(sub_expires, datetime):
+                    now_check = datetime.now(timezone.utc) if sub_expires.tzinfo is not None else datetime.utcnow()
+                    if sub_expires > now_check:
+                        is_active = True
 
             ultra_sub = user.get("ultra_subscription", {})
             ultra_status = ultra_sub.get("status")
@@ -2093,11 +2097,13 @@ async def generate_custom_video(req: VideoRequest, background_tasks: BackgroundT
             if ultra_status == "active" and ultra_expires:
                 if isinstance(ultra_expires, str):
                     try:
-                        ultra_expires = datetime.fromisoformat(ultra_expires)
+                        ultra_expires = datetime.fromisoformat(ultra_expires.replace('Z', '+00:00'))
                     except Exception:
                         ultra_expires = None
-                if isinstance(ultra_expires, datetime) and ultra_expires > datetime.utcnow():
-                    has_active_ultra = True
+                if isinstance(ultra_expires, datetime):
+                    now_u = datetime.now(timezone.utc) if ultra_expires.tzinfo is not None else datetime.utcnow()
+                    if ultra_expires > now_u:
+                        has_active_ultra = True
 
             v_type = req.video_type
 

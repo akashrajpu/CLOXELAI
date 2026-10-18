@@ -1074,10 +1074,15 @@ function App() {
       } else if (data.detail) {
         setIsGeneratingVideo(false);
         setJobStatus(null);
-        const alertTitle = (data.detail && (data.detail.toLowerCase().includes("daily") || data.detail.toLowerCase().includes("quota")))
+        const detailStr = typeof data.detail === 'string' ? data.detail : (Array.isArray(data.detail) ? data.detail.map(e => e.msg || JSON.stringify(e)).join(', ') : JSON.stringify(data.detail));
+        const alertTitle = (detailStr && (detailStr.toLowerCase().includes("daily") || detailStr.toLowerCase().includes("quota")))
           ? "⚠️ Daily Limit Reached"
           : "⚠️ Generation Notice";
-        triggerAlert(alertTitle, data.detail, "⚠️", "warning");
+        triggerAlert(alertTitle, detailStr, "⚠️", "warning");
+      } else if (data.error || data.message) {
+        setIsGeneratingVideo(false);
+        setJobStatus(null);
+        triggerAlert("⚠️ Generation Notice", data.error || data.message, "⚠️", "warning");
       } else {
         setIsGeneratingVideo(false);
         setJobStatus(null);
