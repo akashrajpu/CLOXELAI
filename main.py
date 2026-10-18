@@ -912,7 +912,7 @@ def process_single_user_schedule(user: dict, now_ist: datetime, today_str: str):
             if fresh_sched.get(last_run_key) == today_str:
                 return
 
-            five_mins_ago = (datetime.utcnow() - timedelta(minutes=5)).isoformat()
+            lock_timeout_ago = (datetime.utcnow() - timedelta(minutes=25)).isoformat()
             upload_lock_check = fresh_user.get("auto_locks", {}).get(f"upload_{kind}", {})
             if upload_lock_check.get("date") == today_str and upload_lock_check.get("status") == "success":
                 return
@@ -938,7 +938,7 @@ def process_single_user_schedule(user: dict, now_ist: datetime, today_str: str):
                             "internal_id": internal_id,
                             "$or": [
                                 {f"{lock_field}.date": {"$nin": valid_dates}},
-                                {f"{lock_field}.claimed_at": {"$lt": five_mins_ago}}
+                                {f"{lock_field}.claimed_at": {"$lt": lock_timeout_ago}}
                             ]
                         },
                         {
@@ -1041,7 +1041,7 @@ def process_single_user_schedule(user: dict, now_ist: datetime, today_str: str):
                             {f"{upload_lock_field}.date": {"$ne": today_str}},
                             {
                                 f"{upload_lock_field}.status": {"$ne": "success"},
-                                f"{upload_lock_field}.claimed_at": {"$lt": five_mins_ago}
+                                f"{upload_lock_field}.claimed_at": {"$lt": lock_timeout_ago}
                             }
                         ]
                     },
