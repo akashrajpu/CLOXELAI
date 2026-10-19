@@ -890,7 +890,7 @@ def render_scene_native_ffmpeg(
         if str(video_path).lower().endswith(('.jpg', '.jpeg', '.png', '.webp')):
             input_args.extend(["-loop", "1", "-i", os.path.abspath(video_path)])
         else:
-            input_args.extend(["-stream_loop", "-1", "-i", os.path.abspath(video_path)])
+            input_args.extend(["-stream_loop", "-1", "-fflags", "+genpts", "-i", os.path.abspath(video_path)])
     else:
         fallback_created = os.path.abspath(os.path.join(job_dir, f"tmp_fallback_canvas_{random.randint(1000, 9999)}.png"))
         fb_img = Image.new("RGB", (w, h), (15, 10, 35))
@@ -927,7 +927,7 @@ def render_scene_native_ffmpeg(
         "-crf", "26",
         "-r", "25",
         "-g", "50",
-        "-threads", "1",
+        "-threads", "0",
         "-max_muxing_queue_size", "1024",
         "-pix_fmt", "yuv420p",
         "-c:a", "aac",
@@ -935,12 +935,11 @@ def render_scene_native_ffmpeg(
         "-ar", "44100",
         "-ac", "2",
         "-t", f"{duration:.2f}",
-        "-shortest",
         os.path.abspath(scene_output)
     ]
     
     try:
-        res = subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, timeout=120)
+        res = subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, timeout=240)
         success = (res.returncode == 0 and os.path.exists(scene_output) and os.path.getsize(scene_output) > 1000)
         if not success and res.stderr:
             err_msg = res.stderr.decode(errors="ignore")[-400:]
@@ -1332,9 +1331,9 @@ def merge_and_export(
                 if str(inp_v).lower().endswith(('.jpg', '.jpeg', '.png', '.webp')):
                     fb_args.extend(["-loop", "1", "-i", inp_v])
                 else:
-                    fb_args.extend(["-stream_loop", "-1", "-i", inp_v])
+                    fb_args.extend(["-stream_loop", "-1", "-fflags", "+genpts", "-i", inp_v])
             else:
-                fb_args.extend(["-f", "lavfi", "-i", f"color=c=0x0f0a23:s={target_size[0]}x{target_size[1]}:r=15"])
+                fb_args.extend(["-f", "lavfi", "-i", f"color=c=0x0f0a23:s={target_size[0]}x{target_size[1]}:r=25"])
                 
             fb_args.extend(["-i", os.path.abspath(audio_path)])
             fb_filter = f"[0:v]scale={target_size[0]}:{target_size[1]}:force_original_aspect_ratio=increase,crop={target_size[0]}:{target_size[1]},setsar=1[outv]"
@@ -1348,7 +1347,7 @@ def merge_and_export(
                 "-c:v", "libx264",
                 "-preset", "ultrafast",
                 "-crf", "26",
-                "-threads", "1",
+                "-threads", "0",
                 "-max_muxing_queue_size", "1024",
                 "-pix_fmt", "yuv420p",
                 "-c:a", "aac",
@@ -1356,13 +1355,28 @@ def merge_and_export(
                 "-ar", "44100",
                 "-ac", "2",
                 "-t", f"{clip_duration:.2f}",
-                "-shortest",
                 os.path.abspath(scene_output)
             ]
             try:
-                subprocess.run(fb_cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=60)
+                subprocess.run(fb_cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=120)
             except Exception as e_fb:
                 print(f"⚠️ Emergency fallback error: {e_fb}")
+
+        if not os.path.exists(scene_output) or os.path.getsize(scene_output) < 1000:
+            print(f"⚠️ Video stream corrupted or stalled. Using Instant Solid Canvas for Scene {i+1}...")
+            ultra_safe_cmd = [
+                "ffmpeg", "-y",
+                "-f", "lavfi", "-i", f"color=c=0x0f0a23:s={target_size[0]}x{target_size[1]}:r=25",
+                "-i", os.path.abspath(audio_path),
+                "-c:v", "libx264", "-preset", "ultrafast", "-crf", "28",
+                "-c:a", "aac", "-b:a", "96k",
+                "-t", f"{clip_duration:.2f}",
+                os.path.abspath(scene_output)
+            ]
+            try:
+                subprocess.run(ultra_safe_cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=30)
+            except Exception as e_us:
+                print(f"⚠️ Ultra safe canvas fallback notice: {e_us}")
 
         release_system_memory()
         
