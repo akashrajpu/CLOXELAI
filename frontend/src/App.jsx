@@ -1002,7 +1002,9 @@ function App() {
           topic: topic,
           category: finalCategory,
           duration_seconds: duration,
-          video_type: videoType
+          video_type: videoType,
+          language: voiceId && voiceId.startsWith('hi') ? 'hi' : 'en',
+          voice: voiceId
         })
       });
       const data = await response.json();

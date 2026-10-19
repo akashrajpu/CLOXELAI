@@ -963,6 +963,7 @@ def process_single_user_schedule(user: dict, now_ist: datetime, today_str: str):
                         raw_topic = fresh_sched.get(f"{kind}_topic") or default_topic
                         topic = get_daily_unique_subtopic(raw_topic, today_str, internal_id, category)
                         voice = fresh_sched.get(f"{kind}_voice") or "hi-IN-MadhurNeural"
+                        language = fresh_sched.get(f"{kind}_language") or ("hi" if (voice and "hi-" in str(voice).lower()) else "hi")
                         font = fresh_sched.get(f"{kind}_font") or "Arial.ttf"
                         color = fresh_sched.get(f"{kind}_color") or "yellow"
                         aspect_ratio = "9:16" if kind == "short" else ("16:9" if kind == "long" else (fresh_sched.get("ultra_aspect_ratio") or "16:9"))
@@ -977,7 +978,8 @@ def process_single_user_schedule(user: dict, now_ist: datetime, today_str: str):
                             font_color=color,
                             video_type=kind,
                             requested_duration=duration,
-                            aspect_ratio=aspect_ratio
+                            aspect_ratio=aspect_ratio,
+                            language=language
                         )
 
                         if res.get("status") == "completed":
@@ -1102,6 +1104,7 @@ def process_single_user_schedule(user: dict, now_ist: datetime, today_str: str):
                     topic = get_daily_unique_subtopic(raw_topic, today_str, internal_id, category)
                     final_title = topic
                     voice = fresh_sched.get(f"{kind}_voice") or "hi-IN-MadhurNeural"
+                    language = fresh_sched.get(f"{kind}_language") or ("hi" if (voice and "hi-" in str(voice).lower()) else "hi")
                     font = fresh_sched.get(f"{kind}_font") or "Arial.ttf"
                     color = fresh_sched.get(f"{kind}_color") or "yellow"
                     aspect_ratio = "9:16" if kind == "short" else ("16:9" if kind == "long" else (fresh_sched.get("ultra_aspect_ratio") or "16:9"))
@@ -1116,7 +1119,8 @@ def process_single_user_schedule(user: dict, now_ist: datetime, today_str: str):
                         font_color=color,
                         video_type=kind,
                         requested_duration=duration,
-                        aspect_ratio=aspect_ratio
+                        aspect_ratio=aspect_ratio,
+                        language=language
                     )
                     if res.get("status") == "completed":
                         video_file = res.get("file")
@@ -1658,6 +1662,8 @@ class ScriptRequest(BaseModel):
     user_id: Optional[str] = None
     category: Optional[str] = "Random"
     video_type: Optional[str] = "short"
+    language: Optional[str] = "hi"
+    voice: Optional[str] = "hi-IN-MadhurNeural"
 
 jobs = {}
 
@@ -1893,7 +1899,7 @@ def full_process(req: VideoRequest, job_id: str):
         except Exception:
             pass
 
-def render_video_with_smart_fallback(user_id: str, topic: str, category: str, voice_id: str, font_name: str, font_color: str, video_type: str, requested_duration: int, bg_music: str = "cool.mp3", aspect_ratio: str = None):
+def render_video_with_smart_fallback(user_id: str, topic: str, category: str, voice_id: str, font_name: str, font_color: str, video_type: str, requested_duration: int, bg_music: str = "cool.mp3", aspect_ratio: str = None, language: str = None):
     """
     Smart Fallback Retry Engine with Duration Stepping:
     If rendering fails for requested duration (e.g. 300s/5m), automatically steps down
@@ -1901,6 +1907,9 @@ def render_video_with_smart_fallback(user_id: str, topic: str, category: str, vo
     55s -> 45s -> 30s -> 20s -> 10s for short reels, retrying until 100% success!
     """
     import uuid
+    if not language:
+        language = "hi" if (voice_id and "hi-" in str(voice_id).lower()) else "hi"
+
     if video_type == "short":
         aspect_ratio = "9:16"
         max_allowed = 55
@@ -1927,13 +1936,13 @@ def render_video_with_smart_fallback(user_id: str, topic: str, category: str, vo
     last_error = None
     for attempt_idx, dur in enumerate(duration_steps):
         try:
-            print(f"🔄 [SMART RETRY ENGINE] Attempt {attempt_idx + 1}/{len(duration_steps)}: Trying {video_type.upper()} ({dur} seconds)...")
+            print(f"🔄 [SMART RETRY ENGINE] Attempt {attempt_idx + 1}/{len(duration_steps)}: Trying {video_type.upper()} ({dur} seconds, Language: {language})...")
             
             script_data = generate_ai_script_core(
                 topic=topic,
                 duration=dur,
                 video_type=video_type,
-                language="hi",
+                language=language,
                 tone="viral",
                 category=category
             )
@@ -1950,6 +1959,7 @@ def render_video_with_smart_fallback(user_id: str, topic: str, category: str, vo
                 topic=topic,
                 category=category,
                 voice_id=voice_id,
+                language=language,
                 font_name=font_name,
                 font_color=font_color,
                 video_type=video_type,
@@ -1975,16 +1985,22 @@ def render_video_with_smart_fallback(user_id: str, topic: str, category: str, vo
 
     print(f"🚨 [SMART RETRY ENGINE EXHAUSTED] Custom attempts failed. Initiating Ultimate Bulletproof Fallback...")
     try:
+        is_hindi_voice = (language and any(h in str(language).lower() for h in ["hi", "hindi", "hin"])) or (voice_id and "hi-" in str(voice_id).lower())
+        fallback_script = (
+            "विज्ञान और ब्रह्मांड के रहस्य हमेशा से इंसानों को हैरान करते आए हैं।" if is_hindi_voice
+            else "Space exploration brings incredible technology and futuristic discoveries to humanity every day."
+        )
         fb_req = VideoRequest(
             user_id=user_id,
             topic=topic or "Space Exploration and Technology",
             category="Technology",
             voice_id=voice_id or "hi-IN-MadhurNeural",
+            language=language or "hi",
             font_name=font_name or "Arial.ttf",
             font_color=font_color or "yellow",
             video_type=video_type,
-            full_script="Space exploration brings incredible technology and futuristic discoveries to humanity every day.",
-            scenes=[Scene(text="Space exploration brings incredible technology to humanity.", keyword="space technology")],
+            full_script=fallback_script,
+            scenes=[Scene(text=fallback_script, keyword="space technology")],
             bg_music=bg_music or "cool.mp3",
             aspect_ratio="9:16" if video_type == "short" else ("16:9" if video_type == "long" else (aspect_ratio or "16:9"))
         )
@@ -3824,7 +3840,7 @@ def generate_dynamic_procedural_script(topic: str, duration: int, video_type: st
         "description": meta_desc
     }
 
-def generate_ai_script_core(topic: str, duration: int, video_type: str = "short", language: str = "hinglish", tone: str = "viral", category: str = "Random"):
+def generate_ai_script_core(topic: str, duration: int, video_type: str = "short", language: str = "hi", tone: str = "viral", category: str = "Random"):
     import random
     import urllib.parse
     import re
@@ -3844,47 +3860,53 @@ def generate_ai_script_core(topic: str, duration: int, video_type: str = "short"
 
     cat_lower = str(category).lower()
     is_cartoon_cat = any(k in cat_lower for k in ["cartoon", "anime", "animation", "character", "comic"])
-    instruction_topic = topic
+
+    # Strict language determination & enforcement
+    lang_str = str(language or "hi").lower().strip()
+    is_hindi = (lang_str in ["hi", "hindi", "hin", "hinglish"]) or ("hi" in lang_str)
+    
+    if is_hindi:
+        lang_prompt = "Strict Language: Hindi (हिंदी). Spoken narration text MUST be completely in natural Hindi (बोलचाल की हिंदी / देवनागरी लिपि) for Hindi voiceover. Do NOT write in English."
+        target_language = "Hindi"
+    else:
+        lang_prompt = "Strict Language: English. Write narration in English."
+        target_language = "English"
     
     if video_type == "short":
-        instruction_topic = f"{topic} [Strict: Fast-paced short script, approximately {word_count} spoken words across {scene_count} scenes for {duration} seconds duration.]"
+        instruction_topic = f"{topic} [{lang_prompt} Fast-paced short script, approximately {word_count} spoken words across {scene_count} scenes for {duration} seconds duration.]"
     elif video_type == "long":
-        instruction_topic = f"{topic} [Strict: Write a complete, detailed {duration}-second documentary script. MUST be approximately {word_count} spoken words across {scene_count} progressive scenes to cover the entire {duration} seconds without stopping early.]"
+        instruction_topic = f"{topic} [{lang_prompt} Write a complete, detailed {duration}-second documentary script. MUST be approximately {word_count} spoken words across {scene_count} progressive scenes to cover the entire {duration} seconds without stopping early.]"
     elif video_type == "ultra":
         if is_cartoon_cat:
-            instruction_topic = f"{topic} [Strict: Write an entertaining cartoon story script of approximately {word_count} spoken words across {scene_count} scenes for {duration} seconds.]"
+            instruction_topic = f"{topic} [{lang_prompt} Write an entertaining cartoon story script of approximately {word_count} spoken words across {scene_count} scenes for {duration} seconds.]"
         else:
-            instruction_topic = f"{topic} [Strict: Write a narrative script strictly in the style of category '{category}' with approximately {word_count} spoken words across {scene_count} scenes for {duration} seconds.]"
+            instruction_topic = f"{topic} [{lang_prompt} Write a narrative script strictly in the style of category '{category}' with approximately {word_count} spoken words across {scene_count} scenes for {duration} seconds.]"
 
-    payload = {
-        "topic": instruction_topic,
-        "category": category,
-        "duration_seconds": duration,
-        "word_count": word_count,
-        "scene_count": scene_count,
-        "video_type": video_type,
-        "language": language,
-        "tone": tone
-    }
-
-    print("🤖 [AI Script Microservice] Requesting script from https://ai-script-generator-service.onrender.com (Timeout: 120s / 2 mins)...")
+    print(f"🤖 [AI Script Microservice] Requesting {target_language.upper()} script from https://ai-script-generator-service.onrender.com (Timeout: 120s / 2 mins)...")
 
     # 1. Primary Dedicated Payload for /generate-script & /api/generate-ai-script
     payload_dedicated = {
-        "topic": topic,
+        "topic": instruction_topic,
+        "raw_topic": topic,
         "duration_seconds": duration,
         "video_type": "short" if video_type in ["short", "ultra"] else "long",
-        "language": language or "hinglish",
+        "language": target_language,
+        "lang": "hi" if is_hindi else "en",
         "tone": tone or "viral"
     }
 
     # 2. Legacy Payload for /api/generate-script
     payload_legacy = {
-        "topic": topic,
+        "topic": instruction_topic,
+        "raw_topic": topic,
         "target_duration": f"{duration}s",
         "script_type": "shorts" if video_type in ["short", "ultra"] else "youtube_long",
-        "language": "Hinglish" if "hin" in str(language).lower() else "English",
-        "requirements": f"Viral high-retention narration for {duration} seconds with {scene_count} sequential scenes"
+        "language": target_language,
+        "requirements": (
+            f"Viral high-retention narration strictly in Hindi (हिंदी भाषा) for {duration} seconds with {scene_count} sequential scenes. Do NOT write in English."
+            if is_hindi else
+            f"Viral high-retention narration for {duration} seconds with {scene_count} sequential scenes in English"
+        )
     }
 
     endpoints_to_try = [
@@ -3960,7 +3982,7 @@ async def api_generate_ai_script(req: AIScriptRequest):
         topic=req.topic.strip(),
         duration=duration,
         video_type=req.video_type or "short",
-        language=req.language or "hinglish",
+        language=req.language or "hi",
         tone=req.tone or "viral",
         category=req.category or "Random"
     )
@@ -3996,7 +4018,14 @@ async def generate_script(req: ScriptRequest):
                     detail="Demo quota exhausted! You have used your 2 free demo videos & scripts. Please upgrade your plan to continue generating AI scripts & videos."
                 )
 
-    res = generate_ai_script_core(topic=req.topic, duration=req.duration_seconds, category=req.category or "Random", video_type=req.video_type or "short")
+    req_lang = req.language or ("hi" if (req.voice and "hi-" in str(req.voice).lower()) else "hi")
+    res = generate_ai_script_core(
+        topic=req.topic, 
+        duration=req.duration_seconds, 
+        category=req.category or "Random", 
+        video_type=req.video_type or "short",
+        language=req_lang
+    )
     return {"scenes": res["scenes"], "full_script": res["full_script"]}
 
 @app.get("/robots.txt", response_class=Response)
