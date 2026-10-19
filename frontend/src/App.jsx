@@ -853,7 +853,7 @@ function App() {
           short_color: autoSchedule.short_color || 'yellow',
           short_duration: autoSchedule.short_duration || 20,
           short_time: autoSchedule.short_time || '10:00',
-          short_language: 'hi',
+          short_language: (autoSchedule.short_voice || 'hi-IN-MadhurNeural').startsWith('en') ? 'en' : 'hi',
 
           long_auto_topic: autoSchedule.long_auto_topic !== false,
           long_topic: autoSchedule.long_topic || 'Space Exploration, AI Technology',
@@ -863,7 +863,7 @@ function App() {
           long_color: autoSchedule.long_color || 'yellow',
           long_duration: autoSchedule.long_duration || 60,
           long_time: autoSchedule.long_time || '18:00',
-          long_language: 'hi',
+          long_language: (autoSchedule.long_voice || 'hi-IN-MadhurNeural').startsWith('en') ? 'en' : 'hi',
 
           ultra_enabled: autoSchedule.ultra_enabled || false,
           ultra_auto_topic: autoSchedule.ultra_auto_topic !== false,
@@ -875,7 +875,7 @@ function App() {
           ultra_color: autoSchedule.ultra_color || 'yellow',
           ultra_duration: autoSchedule.ultra_duration || 60,
           ultra_time: autoSchedule.ultra_time || '21:00',
-          ultra_language: 'hi'
+          ultra_language: (autoSchedule.ultra_voice || 'hi-IN-MadhurNeural').startsWith('en') ? 'en' : 'hi'
         })
       });
       if (res.ok) {
@@ -1058,7 +1058,7 @@ function App() {
           font_color: fontColor,
           font_size: parseInt(fontSize),
           voice_id: voiceId,
-          language: 'hi',
+          language: voiceId && voiceId.startsWith('en') ? 'en' : 'hi',
           video_type: videoType,
           full_script: fullScript,
           bg_music: bgMusic,

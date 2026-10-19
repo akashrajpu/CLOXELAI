@@ -963,7 +963,8 @@ def process_single_user_schedule(user: dict, now_ist: datetime, today_str: str):
                         raw_topic = fresh_sched.get(f"{kind}_topic") or default_topic
                         topic = get_daily_unique_subtopic(raw_topic, today_str, internal_id, category)
                         voice = fresh_sched.get(f"{kind}_voice") or "hi-IN-MadhurNeural"
-                        language = fresh_sched.get(f"{kind}_language") or ("hi" if (voice and "hi-" in str(voice).lower()) else "hi")
+                        is_eng_voice = voice and str(voice).lower().startswith("en")
+                        language = "en" if is_eng_voice else (fresh_sched.get(f"{kind}_language") or "hi")
                         font = fresh_sched.get(f"{kind}_font") or "Arial.ttf"
                         color = fresh_sched.get(f"{kind}_color") or "yellow"
                         aspect_ratio = "9:16" if kind == "short" else ("16:9" if kind == "long" else (fresh_sched.get("ultra_aspect_ratio") or "16:9"))
@@ -1104,7 +1105,8 @@ def process_single_user_schedule(user: dict, now_ist: datetime, today_str: str):
                     topic = get_daily_unique_subtopic(raw_topic, today_str, internal_id, category)
                     final_title = topic
                     voice = fresh_sched.get(f"{kind}_voice") or "hi-IN-MadhurNeural"
-                    language = fresh_sched.get(f"{kind}_language") or ("hi" if (voice and "hi-" in str(voice).lower()) else "hi")
+                    is_eng_voice = voice and str(voice).lower().startswith("en")
+                    language = "en" if is_eng_voice else (fresh_sched.get(f"{kind}_language") or "hi")
                     font = fresh_sched.get(f"{kind}_font") or "Arial.ttf"
                     color = fresh_sched.get(f"{kind}_color") or "yellow"
                     aspect_ratio = "9:16" if kind == "short" else ("16:9" if kind == "long" else (fresh_sched.get("ultra_aspect_ratio") or "16:9"))
@@ -3748,7 +3750,61 @@ def generate_dynamic_procedural_script(topic: str, duration: int, video_type: st
     words_in_topic = [w for w in re.findall(r'\b[a-zA-Z]{3,}\b', topic) if w.lower() not in {"what", "how", "why", "secret", "facts", "science", "the", "and", "for", "with"}]
     main_kw_base = " ".join(words_in_topic[:2]) if words_in_topic else topic.lower()
 
-    if is_cartoon_cat:
+    lang_str = str(language or "hi").lower().strip()
+    is_hindi = (lang_str in ["hi", "hindi", "hin", "hinglish"]) or ("hi" in lang_str)
+
+    if not is_hindi:
+        if is_cartoon_cat:
+            char_name = words_in_topic[0].capitalize() if words_in_topic else "Our Hero"
+            hooks = [
+                f"Meet our adventurous hero {char_name}, whose everyday routine turns into pure comedy and unexpected chaos!",
+                f"One day {char_name} had a brilliant, out-of-the-box idea that sparked an unforgettable crazy adventure!",
+                f"What happens when {char_name} decides to try the craziest stunt ever? You won't believe what unfolds next!"
+            ]
+            body_pool = [
+                f"{char_name} quickly gathered everyone and revealed the master plan with unmatched confidence.",
+                f"The excitement went through the roof as the hilarious master plan was put into rapid motion.",
+                f"However, an unexpected twist turned the entire situation into absolute comical mayhem.",
+                f"Everyone was laughing uncontrollably while {char_name} tried to figure out a hilarious way out.",
+                f"With quick wit and comic charm, {char_name} turned the crisis around in the most legendary way possible."
+            ]
+            closings = [
+                f"And that was the hilarious adventure of {char_name}! Like and subscribe for more epic cartoon stories!",
+                f"If you loved this funny tale, hit that thumbs up and stay tuned for the next adventure!"
+            ]
+        elif any(k in t_lower for k in ["history", "war", "king", "empire", "pratap", "shivaji", "temple", "pyramid", "ancient"]):
+            hooks = [
+                f"In the deep archives of world history, {topic} stands out as a breathtaking tale of valor and mystery.",
+                f"Thousands of years ago, a monumental event surrounding {topic} changed the course of human history forever.",
+                f"Behind the ancient legends of {topic} lies a profound truth that modern historians are still discovering."
+            ]
+            body_pool = [
+                f"Ancient chronicles and stone inscriptions reveal strategies that were centuries ahead of their time.",
+                f"Through relentless courage and unmatched determination, heroes stood firm against impossible odds.",
+                f"The battlefields and ancient fortresses still echo with tales of extraordinary resilience and sacrifice.",
+                f"Archaeologists and researchers continue to uncover relics that showcase the profound genius of that era."
+            ]
+            closings = [
+                f"This timeless saga of bravery will never be forgotten! Subscribe for more powerful historical epics!",
+                f"That was the true untold history of {topic}. Make sure to like and follow for more legendary stories!"
+            ]
+        else:
+            hooks = [
+                f"Did you know that behind {topic} lies a mind-bending truth that has stunned researchers worldwide?",
+                f"Today we dive into {topic}, a phenomenon that impacts our everyday world in ways most people never imagine.",
+                f"If you think you know everything about {topic}, this video is going to change your perspective forever."
+            ]
+            body_pool = [
+                f"Breakthrough scientific investigations show that the underlying dynamics of {topic} challenge classical physics.",
+                f"Recent discoveries have revealed patterns that are significantly more intricate than previously thought.",
+                f"Top laboratories and experts around the globe are uncovering empirical data that points to revolutionary advancements.",
+                f"Every new observation opens up intriguing possibilities for the future of humanity and modern technology."
+            ]
+            closings = [
+                f"Those were the most astonishing insights about {topic}! Drop your thoughts below and subscribe for more!",
+                f"If you found this mind-blowing, smash that like button and hit the bell for daily viral facts!"
+            ]
+    elif is_cartoon_cat:
         char_name = words_in_topic[0].capitalize() if words_in_topic else "Humara Hero"
         hooks = [
             f"Dosto! Milte hain humare mastmaula hero {char_name} se, jinki har subah ek nayi musibat aur funny hangama leke aati hai!",
