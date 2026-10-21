@@ -1744,6 +1744,7 @@ def full_process(req: VideoRequest, job_id: str):
                 target_size = (540, 960)
 
         taiyaar_scenes = []
+        used_media_ids = set()
         for i, sc in enumerate(scenes_data):
             sc_progress = 10 + int(((i + 1) / total_scenes) * 40)
             print(f"\n🎙️ [PROGRESS {sc_progress}%] STEP 2 & 3 ({i+1}/{total_scenes}): Synthesizing Voice & Fetching Assets for Scene {i+1}...")
@@ -1792,7 +1793,7 @@ def full_process(req: VideoRequest, job_id: str):
                         v_paths.append(fg_img_path)
                         
                     if not v_paths or any(w in scene_specific.lower() for w in ["battle", "war", "action", "fight", "army"]):
-                        vid_list = fetch_videos(f"{main_topic} {scene_specific}", v_path, orientation=orientation, category=req.category or "Random", video_type=req.video_type or "short")
+                        vid_list = fetch_videos(f"{main_topic} {scene_specific}", v_path, orientation=orientation, category=req.category or "Random", video_type=req.video_type or "short", used_media_ids=used_media_ids)
                         if vid_list and os.path.exists(vid_list[0]):
                             if not v_paths:
                                 v_paths = vid_list
@@ -1800,7 +1801,7 @@ def full_process(req: VideoRequest, job_id: str):
                                 v_paths.append(vid_list[0])
                 except Exception as e_img:
                     print(f"   ⚠️ Ultra script image fetch fallback: {e_img}")
-                    v_paths = fetch_videos(sc["keyword"], v_path, orientation=orientation, category=req.category or "Random", video_type=req.video_type or "short", topic=req.topic or "")
+                    v_paths = fetch_videos(sc["keyword"], v_path, orientation=orientation, category=req.category or "Random", video_type=req.video_type or "short", topic=req.topic or "", used_media_ids=used_media_ids)
             else:
                 scene_kw = (sc.get("keyword") or "").strip()
                 scene_text = (sc.get("text") or "").strip()
@@ -1831,7 +1832,8 @@ def full_process(req: VideoRequest, job_id: str):
                     orientation=orientation, 
                     category=req.category or "Random", 
                     video_type=req.video_type or "short",
-                    topic=main_topic
+                    topic=main_topic,
+                    used_media_ids=used_media_ids
                 )
             
             if os.path.exists(a_path):
