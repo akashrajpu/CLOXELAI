@@ -1800,9 +1800,39 @@ def full_process(req: VideoRequest, job_id: str):
                                 v_paths.append(vid_list[0])
                 except Exception as e_img:
                     print(f"   ⚠️ Ultra script image fetch fallback: {e_img}")
-                    v_paths = fetch_videos(sc["keyword"], v_path, orientation=orientation, category=req.category or "Random", video_type=req.video_type or "short")
+                    v_paths = fetch_videos(sc["keyword"], v_path, orientation=orientation, category=req.category or "Random", video_type=req.video_type or "short", topic=req.topic or "")
             else:
-                v_paths = fetch_videos(sc["keyword"], v_path, orientation=orientation, category=req.category or "Random", video_type=req.video_type or "short")
+                scene_kw = (sc.get("keyword") or "").strip()
+                scene_text = (sc.get("text") or "").strip()
+                main_topic = (req.topic or "").strip()
+                
+                search_query_parts = []
+                if main_topic:
+                    topic_words = [w for w in main_topic.split() if len(w) > 2 and w.lower() not in ["and", "the", "for", "with", "from", "about", "hindi", "english"]]
+                    if topic_words:
+                        search_query_parts.extend(topic_words[:3])
+                        
+                if scene_kw:
+                    for kw_word in scene_kw.split():
+                        if kw_word.lower() not in [p.lower() for p in search_query_parts]:
+                            search_query_parts.append(kw_word)
+                elif scene_text:
+                    eng_words = [w for w in scene_text.split() if w.isascii() and len(w) > 3][:3]
+                    if eng_words:
+                        search_query_parts.extend(eng_words)
+                        
+                rich_scene_query = " ".join(search_query_parts).strip()
+                if not rich_scene_query:
+                    rich_scene_query = scene_kw or main_topic or "cinematic hd"
+                    
+                v_paths = fetch_videos(
+                    rich_scene_query, 
+                    v_path, 
+                    orientation=orientation, 
+                    category=req.category or "Random", 
+                    video_type=req.video_type or "short",
+                    topic=main_topic
+                )
             
             if os.path.exists(a_path):
                 if not v_paths:
@@ -3866,7 +3896,14 @@ def generate_dynamic_procedural_script(topic: str, duration: int, video_type: st
     shuffled_body = random.sample(body_pool, min(len(body_pool), max(1, scene_count - 2))) if scene_count > 2 else [body_pool[0]]
 
     scenes = []
-    aspect_keywords = ["cinematic concept", "shocking impact", "science discovery", "futuristic vision", "deep investigation", "hidden reality", "action drama"]
+    aspect_keywords = [
+        "cinematic visual scene", 
+        "dramatic action sequence", 
+        "detailed close up footage", 
+        "futuristic landscape setting", 
+        "atmospheric documentary shot", 
+        "dynamic camera movement"
+    ]
 
     for i in range(scene_count):
         if i == 0:
@@ -3985,6 +4022,8 @@ def generate_ai_script_core(topic: str, duration: int, video_type: str = "short"
                             t = (s.get("text") or s.get("script_chunk") or "").strip()
                             t = re.sub(r"\[.*?\]", "", t).strip()
                             kw = (s.get("keyword") or s.get("video_search_keyword") or topic).strip()
+                            if len(kw.split()) < 3 and topic and topic.lower() not in kw.lower():
+                                kw = f"{topic} {kw}".strip()
                             if t and len(t) > 3:
                                 scenes.append({"text": t, "keyword": kw})
                     full_script = (data.get("full_script") or data.get("script") or "").strip()

@@ -141,16 +141,17 @@ def fetch_pinterest_pins(keyword, job_id, count=1, orientation="portrait"):
         print(f"⚠️ [Pinterest Non-Blocking Warning]: {e}. Falling back to next provider...")
     return []
 
-def fetch_videos(keyword, job_id, count=1, orientation="portrait", category="Random", video_type="short"):
+def fetch_videos(keyword, job_id, count=1, orientation="portrait", category="Random", video_type="short", topic=""):
     """
     Multi-Provider Media Fetcher:
     - For short and long video modes (video_type in ['short', 'long']): ALWAYS fetch real HD video clips from Pexels & Pixabay!
-    - For ultra video mode (video_type == 'ultra'): Pinterest HD Pins can be used as priority if requested.
+    - Uses rich, descriptive multi-word scene search queries so Pexels precisely matches the script context.
+    - Contextual fallbacks based on topic & category instead of random footage.
     """
     cat_lower = str(category).lower()
     is_ultra_mode = (str(video_type).lower() == "ultra")
 
-    noise_words = {"concept", "impact", "science", "reality", "future", "nature", "discovery", "cartoon", "animation", "category", "random"}
+    noise_words = {"category", "random", "concept", "impact"}
     clean_words = [w for w in keyword.replace('🎨', '').replace('🎲', '').replace('✍️', '').split() if w.lower() not in noise_words]
     video_query = " ".join(clean_words) if clean_words else keyword
 
@@ -168,24 +169,57 @@ def fetch_videos(keyword, job_id, count=1, orientation="portrait", category="Ran
             except Exception as e_p:
                 print(f"⚠️ [Pinterest Skip]: {e_p}")
 
-    try:
-        clips = fetch_pexels_videos(video_query, job_id, count=count, orientation=orientation)
-        if clips:
-            return clips
-    except Exception as e_px:
-        print(f"⚠️ [Pexels Skip]: {e_px}")
-        
-    try:
-        clips = fetch_pixabay_videos(video_query, job_id, count=count, orientation=orientation)
-        if clips:
-            return clips
-    except Exception as e_pb:
-        print(f"⚠️ [Pixabay Skip]: {e_pb}")
+    # Build prioritized list of search queries from most specific to broader
+    search_queries = []
+    if video_query:
+        search_queries.append(video_query)
+    if topic and topic.strip() and topic.lower() not in video_query.lower():
+        search_queries.insert(0, f"{topic.strip()} {video_query}".strip())
+    
+    words_list = video_query.split()
+    if len(words_list) > 3:
+        search_queries.append(" ".join(words_list[:3]))
+    if topic and topic.strip() and topic.strip() not in search_queries:
+        search_queries.append(topic.strip())
 
-    for fallback_kw in ["nature", "technology", "abstract", "city", "ocean"]:
-        if fallback_kw != video_query.lower():
+    # Deduplicate queries preserving order
+    seen_q = set()
+    queries_to_try = []
+    for q in search_queries:
+        ql = q.lower().strip()
+        if ql and ql not in seen_q:
+            seen_q.add(ql)
+            queries_to_try.append(q.strip())
+
+    for q_item in queries_to_try:
+        try:
+            clips = fetch_pexels_videos(q_item, job_id, count=count, orientation=orientation)
+            if clips:
+                return clips
+        except Exception as e_px:
+            print(f"⚠️ [Pexels Query Skip]: {e_px}")
+            
+        try:
+            clips = fetch_pixabay_videos(q_item, job_id, count=count, orientation=orientation)
+            if clips:
+                return clips
+        except Exception as e_pb:
+            print(f"⚠️ [Pixabay Query Skip]: {e_pb}")
+
+    # Contextual fallbacks based on topic and category
+    contextual_fallbacks = []
+    if topic and topic.strip():
+        contextual_fallbacks.append(topic.strip())
+    if category and category.lower() not in ["random", "all"]:
+        contextual_fallbacks.append(f"{category} cinematic footage")
+    if clean_words:
+        contextual_fallbacks.append(clean_words[0])
+    contextual_fallbacks.extend(["cinematic atmospheric backdrop", "abstract background motion"])
+
+    for fallback_kw in contextual_fallbacks:
+        if fallback_kw.lower() not in seen_q:
             try:
-                print(f"🔄 Retrying with fallback video clip keyword: '{fallback_kw}'...")
+                print(f"🔄 Retrying with contextual fallback video clip keyword: '{fallback_kw}'...")
                 clips = fetch_pexels_videos(fallback_kw, job_id, count=count, orientation=orientation)
                 if not clips:
                     clips = fetch_pixabay_videos(fallback_kw, job_id, count=count, orientation=orientation)

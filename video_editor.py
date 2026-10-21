@@ -558,13 +558,21 @@ def create_parchment_subtitle_box(text: str, size: tuple, font_size: int = 180) 
     torn_mask = torn_mask.filter(ImageFilter.GaussianBlur(radius=2))
     parchment.putalpha(torn_mask)
     
-    font_candidates = [
-        "./fonts/anton.ttf",
-        "./fonts/bebas.ttf",
-        "./fonts/RaceFlow.ttf",
-        "./fonts/CarbonBlock.ttf"
-    ]
-    
+    has_dev = any('\u0900' <= char <= '\u097F' for char in text)
+    if has_dev:
+        font_candidates = [
+            "./fonts/NotoSansDevanagari-Bold.ttf",
+            "./fonts/NotoSansDevanagari-Regular.ttf",
+            "/System/Library/Fonts/Supplemental/ITFDevanagari.ttc",
+            "/System/Library/Fonts/Supplemental/DevanagariMT.ttc"
+        ]
+    else:
+        font_candidates = [
+            "./fonts/anton.ttf",
+            "./fonts/bebas.ttf",
+            "./fonts/RaceFlow.ttf",
+            "./fonts/CarbonBlock.ttf"
+        ]
     
     optimal_font_size = int(box_h * 0.35)
     
@@ -578,7 +586,7 @@ def create_parchment_subtitle_box(text: str, size: tuple, font_size: int = 180) 
                 pass
     if not chosen_font:
         try:
-            chosen_font = ImageFont.truetype("./fonts/Arial.ttf", optimal_font_size)
+            chosen_font = get_font("./fonts/Arial.ttf", optimal_font_size, has_dev)
         except Exception:
             chosen_font = ImageFont.load_default()
 
@@ -823,7 +831,7 @@ def render_scene_native_ffmpeg(
             c_start = c_idx * chunk_dur
             c_end = (c_idx + 1) * chunk_dur
             
-            if category_style in ["history", "ancient"]:
+            if category_style in ["history", "ancient"] and not has_devanagari:
                 chunk_str = " ".join(c_words)
                 try:
                     parchment_img = create_parchment_subtitle_box(chunk_str, (w, h), font_size=base_fs)
@@ -841,7 +849,7 @@ def render_scene_native_ffmpeg(
                 except Exception as e_p:
                     category_style = "clean"
                     
-            if category_style not in ["history", "ancient"]:
+            if category_style not in ["history", "ancient"] or has_devanagari:
                 sub_canvas = Image.new("RGBA", (w, h), (0, 0, 0, 0))
                 draw = ImageDraw.Draw(sub_canvas)
                 
