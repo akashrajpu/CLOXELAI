@@ -804,14 +804,14 @@ def render_scene_native_ffmpeg(
     sub_overlay_files = []
     
     if words:
-        total_chunks = min(4, max(1, (len(words) + 3) // 4))
+        ideal_wpc = 3 if (w < h) else 4
+        total_chunks = max(1, (len(words) + ideal_wpc - 1) // ideal_wpc)
         words_per_chunk = max(1, (len(words) + total_chunks - 1) // total_chunks)
         chunk_dur = duration / float(total_chunks)
         
         has_devanagari = any('\u0900' <= char <= '\u097F' for char in text)
-        fs = int(h * 0.075) if w > h else int(w * 0.075)
-        fs = max(18, min(fs, 44))
-        active_font = get_font(font_path, fs, has_devanagari)
+        base_fs = int(h * 0.065) if w > h else int(w * 0.062)
+        base_fs = max(18, min(base_fs, 36))
         
         resolved_highlight = random.choice(COLOR_PALETTES) if (not highlight_color or highlight_color == "random") else highlight_color
         
@@ -826,7 +826,7 @@ def render_scene_native_ffmpeg(
             if category_style in ["history", "ancient"]:
                 chunk_str = " ".join(c_words)
                 try:
-                    parchment_img = create_parchment_subtitle_box(chunk_str, (w, h), font_size=fs)
+                    parchment_img = create_parchment_subtitle_box(chunk_str, (w, h), font_size=base_fs)
                     sub_canvas = Image.new("RGBA", (w, h), (0, 0, 0, 0))
                     px = (w - parchment_img.width) // 2
                     py = h - parchment_img.height - int(h * 0.06)
@@ -845,25 +845,76 @@ def render_scene_native_ffmpeg(
                 sub_canvas = Image.new("RGBA", (w, h), (0, 0, 0, 0))
                 draw = ImageDraw.Draw(sub_canvas)
                 
-                word_metrics = []
-                total_w = 0
-                for idx, cw in enumerate(c_words):
-                    wb = draw.textbbox((0, 0), cw, font=active_font)
-                    ww = wb[2] - wb[0]
-                    sb = draw.textbbox((0, 0), " ", font=active_font)
-                    sw = sb[2] - sb[0]
-                    is_active = (idx == 0)
-                    word_metrics.append((cw, ww, sw, is_active))
-                    total_w += ww + sw
-                if word_metrics:
-                    total_w -= word_metrics[-1][2]
-                    
-                pad_x = 24
+                max_box_w = int(w * 0.88)
+                pad_x = min(22, max(12, int(w * 0.04)))
                 pad_y = 10
-                box_w = total_w + pad_x * 2
-                box_h = fs + pad_y * 2
+                max_text_w = max_box_w - pad_x * 2
+
+                fs = base_fs
+                active_font = get_font(font_path, fs, has_devanagari)
+                
+                # Dynamic shrink
+                tot_w = 0
+                while fs > 18:
+                    active_font = get_font(font_path, fs, has_devanagari)
+                    tot_w = sum(draw.textbbox((0, 0), cw, font=active_font)[2] - draw.textbbox((0, 0), cw, font=active_font)[0] for cw in c_words)
+                    sp_w = draw.textbbox((0, 0), " ", font=active_font)[2] - draw.textbbox((0, 0), " ", font=active_font)[0]
+                    tot_w += sp_w * max(0, len(c_words) - 1)
+                    if tot_w <= max_text_w:
+                        break
+                    fs -= 2
+                    
+                lines = []
+                if tot_w <= max_text_w:
+                    lines = [c_words]
+                else:
+                    mid = max(1, (len(c_words) + 1) // 2)
+                    lines = [c_words[:mid], c_words[mid:]]
+                    fs = min(30, base_fs)
+                    while fs > 16:
+                        active_font = get_font(font_path, fs, has_devanagari)
+                        max_lw = 0
+                        for lw in lines:
+                            lw_w = sum(draw.textbbox((0, 0), cw, font=active_font)[2] - draw.textbbox((0, 0), cw, font=active_font)[0] for cw in lw)
+                            sp_w = draw.textbbox((0, 0), " ", font=active_font)[2] - draw.textbbox((0, 0), " ", font=active_font)[0]
+                            lw_w += sp_w * max(0, len(lw) - 1)
+                            if lw_w > max_lw:
+                                max_lw = lw_w
+                        if max_lw <= max_text_w:
+                            break
+                        fs -= 2
+
+                rendered_lines = []
+                max_line_w = 0
+                first_word_done = False
+                for line_words in lines:
+                    line_metrics = []
+                    lw_total = 0
+                    for cw in line_words:
+                        wb = draw.textbbox((0, 0), cw, font=active_font)
+                        ww = wb[2] - wb[0]
+                        sb = draw.textbbox((0, 0), " ", font=active_font)
+                        sw = sb[2] - sb[0]
+                        is_active = (not first_word_done)
+                        first_word_done = True
+                        line_metrics.append((cw, ww, sw, is_active))
+                        lw_total += ww + sw
+                    if line_metrics:
+                        lw_total -= line_metrics[-1][2]
+                    rendered_lines.append((line_metrics, lw_total))
+                    if lw_total > max_line_w:
+                        max_line_w = lw_total
+
+                box_w = min(max_box_w, max_line_w + pad_x * 2)
+                line_height = int(fs * 1.25)
+                box_h = (len(rendered_lines) * line_height) + pad_y * 2
+                
+                margin = int(w * 0.05)
                 box_x = (w - box_w) // 2
-                box_y = int(h * 0.76)
+                box_x = max(margin, min(box_x, w - box_w - margin))
+                box_y = int(h * 0.74)
+                if box_y + box_h > int(h * 0.90):
+                    box_y = int(h * 0.90) - box_h
                 
                 draw.rounded_rectangle(
                     [(box_x, box_y), (box_x + box_w, box_y + box_h)],
@@ -873,13 +924,16 @@ def render_scene_native_ffmpeg(
                     width=2
                 )
                 
-                curr_x = box_x + pad_x
-                curr_y = box_y + pad_y - 2
-                for cw, ww, sw, is_active in word_metrics:
-                    col = resolved_highlight if is_active else "#FFFFFF"
-                    draw.text((curr_x + 2, curr_y + 2), cw, font=active_font, fill=(0, 0, 0, 230))
-                    draw.text((curr_x, curr_y), cw, font=active_font, fill=col)
-                    curr_x += ww + sw
+                curr_y = box_y + pad_y
+                for line_metrics, lw_total in rendered_lines:
+                    line_start_x = box_x + (box_w - lw_total) // 2
+                    curr_x = line_start_x
+                    for cw, ww, sw, is_active in line_metrics:
+                        col = resolved_highlight if is_active else "#FFFFFF"
+                        draw.text((curr_x + 2, curr_y + 2), cw, font=active_font, fill=(0, 0, 0, 230))
+                        draw.text((curr_x, curr_y), cw, font=active_font, fill=col)
+                        curr_x += ww + sw
+                    curr_y += line_height
                     
                 sub_path = os.path.abspath(os.path.join(job_dir, f"tmp_sub_{state_counter}_{random.randint(100, 999)}.png"))
                 sub_canvas.save(sub_path, "PNG")
