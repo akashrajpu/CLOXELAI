@@ -85,6 +85,9 @@ def fetch_pexels_videos(keyword, job_id, count=1, orientation="portrait", used_m
             if not videos and current_page > 1:
                 continue
 
+            # Prioritize clips >= 8 seconds so clips don't loop/repeat inside scenes
+            videos.sort(key=lambda v: (0 if (v.get('duration') or 0) >= 8 else 1))
+
             for video_data in videos:
                 if len(video_paths) >= count:
                     break
@@ -94,8 +97,7 @@ def fetch_pexels_videos(keyword, job_id, count=1, orientation="portrait", used_m
                 slug = extract_pexels_slug(page_url)
                 
                 user_id = str(video_data.get('user', {}).get('id', '')).strip()
-                dur = int(video_data.get('duration') or 0)
-                creator_sig = f"user_{user_id}_dur_{dur}" if (user_id and dur > 0) else None
+                creator_sig = f"creator_{user_id}" if user_id else None
 
                 # Pre-download duplicate checks
                 if vid_id and (vid_id in used_media_ids or vid_id in GLOBAL_USED_MEDIA_IDS):
@@ -108,7 +110,8 @@ def fetch_pexels_videos(keyword, job_id, count=1, orientation="portrait", used_m
                     if slug in used_media_ids or slug in GLOBAL_USED_MEDIA_IDS:
                         continue
 
-                if creator_sig and (creator_sig in used_media_ids or creator_sig in GLOBAL_USED_MEDIA_IDS):
+                # Creator-level block: never use clips from the same creator twice in one video job!
+                if creator_sig and creator_sig in used_media_ids:
                     continue
 
                 valid_files = [vf for vf in video_data.get('video_files', []) if vf.get('link')]
@@ -256,6 +259,9 @@ def fetch_pixabay_videos(keyword, job_id, count=1, orientation="portrait", used_
         dir_name = os.path.dirname(job_id)
         base_name = os.path.basename(job_id)
 
+        # Prioritize clips >= 8 seconds so clips don't loop/repeat inside scenes
+        hits.sort(key=lambda h: (0 if (h.get('duration') or 0) >= 8 else 1))
+
         for hit in hits:
             if len(video_paths) >= count:
                 break
@@ -263,14 +269,13 @@ def fetch_pixabay_videos(keyword, job_id, count=1, orientation="portrait", used_
             hit_id = str(hit.get('id', '')).strip()
             page_url = (hit.get('pageURL') or '').strip()
             user_id = str(hit.get('user_id', '')).strip()
-            dur = int(hit.get('duration') or 0)
-            creator_sig = f"pixabay_user_{user_id}_dur_{dur}" if (user_id and dur > 0) else None
+            creator_sig = f"pixabay_creator_{user_id}" if user_id else None
 
             if hit_id and (hit_id in used_media_ids or hit_id in GLOBAL_USED_MEDIA_IDS):
                 continue
             if page_url and (page_url in used_media_ids or page_url in GLOBAL_USED_MEDIA_IDS):
                 continue
-            if creator_sig and (creator_sig in used_media_ids or creator_sig in GLOBAL_USED_MEDIA_IDS):
+            if creator_sig and creator_sig in used_media_ids:
                 continue
 
             videos = hit.get('videos', {})
@@ -460,7 +465,7 @@ def fetch_videos(keyword, job_id, count=1, orientation="portrait", category="Ran
     if video_query:
         search_queries.append(video_query)
     if topic and topic.strip() and topic.lower() not in video_query.lower():
-        search_queries.insert(0, f"{topic.strip()} {video_query}".strip())
+        search_queries.append(f"{video_query} {topic.strip()}".strip())
     
     words_list = video_query.split()
     if len(words_list) > 3:

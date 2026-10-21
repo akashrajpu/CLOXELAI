@@ -1814,11 +1814,7 @@ def full_process(req: VideoRequest, job_id: str):
                 main_topic = (req.topic or "").strip()
                 
                 search_query_parts = []
-                if main_topic:
-                    topic_words = [w for w in main_topic.split() if len(w) > 2 and w.lower() not in ["and", "the", "for", "with", "from", "about", "hindi", "english"]]
-                    if topic_words:
-                        search_query_parts.extend(topic_words[:3])
-                        
+                # 1. Prioritize scene-specific keyword FIRST so each scene searches its unique visual action
                 if scene_kw:
                     for kw_word in scene_kw.split():
                         if kw_word.lower() not in [p.lower() for p in search_query_parts]:
@@ -1828,6 +1824,13 @@ def full_process(req: VideoRequest, job_id: str):
                     if eng_words:
                         search_query_parts.extend(eng_words)
                         
+                # 2. Add topic context anchor words after scene keyword
+                if main_topic:
+                    topic_words = [w for w in main_topic.split() if len(w) > 2 and w.lower() not in ["and", "the", "for", "with", "from", "about", "hindi", "english"]]
+                    for tw in topic_words[:2]:
+                        if tw.lower() not in [p.lower() for p in search_query_parts]:
+                            search_query_parts.append(tw)
+
                 rich_scene_query = " ".join(search_query_parts).strip()
                 if not rich_scene_query:
                     rich_scene_query = scene_kw or main_topic or "cinematic hd"
@@ -1841,6 +1844,32 @@ def full_process(req: VideoRequest, job_id: str):
                     topic=main_topic,
                     used_media_ids=used_media_ids
                 )
+            
+            # Double Safety Net: Ensure scene video is never identical in size or name to previous scenes in this video
+            if v_paths and os.path.exists(v_paths[0]):
+                current_size = os.path.getsize(v_paths[0])
+                current_name = os.path.basename(v_paths[0])
+                is_duplicate = False
+                for prev_sc in taiyaar_scenes:
+                    prev_v_list = prev_sc.get("video", [])
+                    if prev_v_list and os.path.exists(prev_v_list[0]):
+                        if (os.path.basename(prev_v_list[0]) == current_name or 
+                            os.path.getsize(prev_v_list[0]) == current_size):
+                            is_duplicate = True
+                            break
+                            
+                if is_duplicate:
+                    print(f"⚠️ [main.py Guard] Scene {i+1} got duplicate clip of previous scene! Re-fetching unique footage...")
+                    alt_query = f"{scene_kw or main_topic} cinematic different angle {i+1}"
+                    v_paths = fetch_videos(
+                        alt_query,
+                        v_path,
+                        orientation=orientation,
+                        category=req.category or "Random",
+                        video_type=req.video_type or "short",
+                        topic=main_topic,
+                        used_media_ids=used_media_ids
+                    )
             
             if os.path.exists(a_path):
                 if not v_paths:
