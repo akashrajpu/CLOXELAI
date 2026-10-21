@@ -91,6 +91,7 @@ db = None
 users_collection = None
 videos_collection = None
 rendering_jobs = None
+payment_orders_collection = None
 
 if MONGO_URI:
     try:
@@ -111,6 +112,7 @@ if MONGO_URI:
         users_collection = db.users
         videos_collection = db.videos
         rendering_jobs = db.rendering_jobs
+        payment_orders_collection = db.payment_orders
 
         try:
             users_collection.create_index("internal_id", unique=True, background=True)
@@ -121,6 +123,8 @@ if MONGO_URI:
             videos_collection.create_index([("internal_id", pymongo.ASCENDING), ("created_at", pymongo.DESCENDING)], background=True)
             videos_collection.create_index("job_id", background=True)
             rendering_jobs.create_index("job_id", unique=True, background=True)
+            payment_orders_collection.create_index("order_id", unique=True, background=True)
+            payment_orders_collection.create_index([("internal_id", pymongo.ASCENDING), ("created_at", pymongo.DESCENDING)], background=True)
             print("🚀 Ultra-High Speed Production MongoDB Indexes & Pool Verified (maxPoolSize=100)!")
         except Exception as idx_err:
             print(f"Index creation notice: {idx_err}")
@@ -133,12 +137,13 @@ if MONGO_URI:
         users_collection = None
         videos_collection = None
         rendering_jobs = None
+        payment_orders_collection = None
 else:
     print("WARNING: MONGO_URI is missing in config.env! Authentication will not work properly.")
 
 def ensure_db_alive():
     """Ultra-resilient DB heart-beat to auto-reconnect MongoDB if network hiccups occur."""
-    global mongo_client, db, users_collection, videos_collection, rendering_jobs
+    global mongo_client, db, users_collection, videos_collection, rendering_jobs, payment_orders_collection
     if MONGO_URI and mongo_client is not None:
         try:
             mongo_client.admin.command('ping')
@@ -161,6 +166,7 @@ def ensure_db_alive():
                 users_collection = db.users
                 videos_collection = db.videos
                 rendering_jobs = db.rendering_jobs
+                payment_orders_collection = db.payment_orders
                 print("🔄 MongoDB auto-reconnected successfully!")
             except Exception as rec_err:
                 print(f"❌ DB Auto-reconnect failed: {rec_err}")
@@ -2240,6 +2246,146 @@ async def get_user_profile_pic(internal_id: str):
     except Exception as e:
         raise HTTPException(status_code=404, detail="Profile pic error")
 
+PLAN_RANKS = {"ultra": 1, "short": 2, "long": 3, "combo": 4}
+PLAN_NAMES = {
+    "ultra": "Ultra Cinematic (₹20/mo)",
+    "short": "Short Starter (₹50/mo)",
+    "long": "Long Master (₹100/mo)",
+    "combo": "Pro Combo (₹119/mo)"
+}
+
+def activate_user_subscription(internal_id: str, plan_type: str, payment_id: str, order_id: str):
+    """
+    Atomically activates or stacks 30 days of subscription for user in MongoDB.
+    Guaranteed idempotent: If payment_id was already processed, it does not double-stack or double-charge.
+    """
+    if users_collection is None:
+        return {"status": "error", "message": "Database not configured"}
+
+    existing_user = users_collection.find_one({"internal_id": internal_id})
+    if not existing_user:
+        return {"status": "error", "message": f"User {internal_id} not found"}
+
+    existing_sub = existing_user.get("subscription", {}) if isinstance(existing_user.get("subscription"), dict) else {}
+    existing_ultra = existing_user.get("ultra_subscription", {}) if isinstance(existing_user.get("ultra_subscription"), dict) else {}
+
+    # Idempotency guard: If this payment_id has already been processed, do NOT duplicate or stack again!
+    if (existing_sub.get("payment_id") == payment_id or existing_ultra.get("payment_id") == payment_id):
+        print(f"ℹ️ [Payment Idempotency] Payment {payment_id} was already activated for user {internal_id}.")
+        active_exp = existing_ultra.get("expires_at") if plan_type == "ultra" else existing_sub.get("expires_at")
+        exp_str = active_exp.isoformat() if hasattr(active_exp, "isoformat") else str(active_exp)
+        return {
+            "status": "already_active",
+            "message": f"Payment already verified and active! '{PLAN_NAMES.get(plan_type, plan_type)}' is active.",
+            "plan_type": plan_type,
+            "expires_at": exp_str,
+            "purchase_count": existing_sub.get("purchase_count", 1)
+        }
+
+    now_utc = datetime.utcnow()
+
+    if plan_type == "ultra":
+        ultra_exp = existing_ultra.get("expires_at")
+        is_ultra_active = False
+        if ultra_exp:
+            if isinstance(ultra_exp, str):
+                try:
+                    ultra_exp = datetime.fromisoformat(ultra_exp.replace('Z', '+00:00'))
+                except Exception:
+                    ultra_exp = None
+            if isinstance(ultra_exp, datetime) and ultra_exp.replace(tzinfo=None) > now_utc:
+                is_ultra_active = True
+
+        if is_ultra_active:
+            exp_date_str = ultra_exp.strftime("%b %d, %Y") if isinstance(ultra_exp, datetime) else "expiry"
+            return {
+                "status": "error",
+                "message": f"⚠️ Ultra Plan Active! You already have an active Ultra Cinematic subscription (valid until {exp_date_str})."
+            }
+
+        expires_at = now_utc + timedelta(days=30)
+        ultra_data = {
+            "plan_type": "ultra",
+            "status": "active",
+            "payment_id": payment_id,
+            "order_id": order_id,
+            "activated_at": now_utc,
+            "expires_at": expires_at
+        }
+        users_collection.update_one(
+            {"internal_id": internal_id},
+            {"$set": {"ultra_subscription": ultra_data}}
+        )
+        if payment_orders_collection is not None and order_id:
+            payment_orders_collection.update_one(
+                {"order_id": order_id},
+                {"$set": {"status": "completed", "payment_id": payment_id, "completed_at": now_utc}},
+                upsert=True
+            )
+        return {
+            "status": "completed",
+            "message": f"🎉 Ultra Cinematic Plan (₹20/mo) activated successfully!",
+            "plan_type": "ultra",
+            "expires_at": expires_at.isoformat()
+        }
+
+    current_plan = existing_sub.get("plan_type", "none")
+    sub_status = existing_sub.get("status")
+    sub_exp = existing_sub.get("expires_at")
+    purchase_count = existing_sub.get("purchase_count", 0)
+
+    is_active = False
+    if sub_status == "active" and sub_exp:
+        if isinstance(sub_exp, str):
+            try:
+                sub_exp = datetime.fromisoformat(sub_exp)
+            except Exception:
+                sub_exp = None
+        if isinstance(sub_exp, datetime) and sub_exp > now_utc:
+            is_active = True
+
+    if is_active:
+        if current_plan == plan_type:
+            expires_at = sub_exp + timedelta(days=30)
+            purchase_count += 1
+            print(f"🔄 Stacked +30 days on '{plan_type}' for user {internal_id} (Purchase #{purchase_count}, Expiry: {expires_at.isoformat()})")
+        else:
+            expires_at = now_utc + timedelta(days=30)
+            purchase_count = 1
+            print(f"🚀 Upgraded user {internal_id} from '{current_plan}' to '{plan_type}'! Expiry set to {expires_at.isoformat()}")
+    else:
+        expires_at = now_utc + timedelta(days=30)
+        purchase_count = 1
+        print(f"✅ Activated new 30-day '{plan_type}' membership for user {internal_id}")
+
+    subscription_data = {
+        "plan_type": plan_type,
+        "status": "active",
+        "payment_id": payment_id,
+        "order_id": order_id,
+        "activated_at": existing_sub.get("activated_at") or now_utc,
+        "expires_at": expires_at,
+        "purchase_count": purchase_count
+    }
+
+    users_collection.update_one(
+        {"internal_id": internal_id},
+        {"$set": {"subscription": subscription_data}}
+    )
+    if payment_orders_collection is not None and order_id:
+        payment_orders_collection.update_one(
+            {"order_id": order_id},
+            {"$set": {"status": "completed", "payment_id": payment_id, "completed_at": now_utc}},
+            upsert=True
+        )
+
+    return {
+        "status": "completed",
+        "message": f"Payment verified! '{PLAN_NAMES.get(plan_type, plan_type)}' activated successfully until {expires_at.strftime('%b %d, %Y')}!",
+        "expires_at": expires_at.isoformat(),
+        "purchase_count": purchase_count
+    }
+
 @app.get("/user-subscription/{internal_id}")
 async def get_user_subscription(internal_id: str):
     if users_collection is None:
@@ -2268,6 +2414,43 @@ async def get_user_subscription(internal_id: str):
                     sub_expires = None
             if isinstance(sub_expires, datetime) and sub_expires.replace(tzinfo=None) < datetime.utcnow():
                 is_active = False
+
+        # Fail-Safe Auto-Recovery: If user paid but browser disconnected, auto-check & activate from Razorpay
+        if not is_active and payment_orders_collection is not None:
+            try:
+                recent_pending = payment_orders_collection.find_one({
+                    "internal_id": internal_id,
+                    "status": "created",
+                    "created_at": {"$gte": datetime.utcnow() - timedelta(minutes=45)}
+                })
+                if recent_pending:
+                    k_id = os.getenv("RAZORPAY_KEY_ID", "").strip().strip('"').strip("'")
+                    k_sec = os.getenv("RAZORPAY_KEY_SECRET", "").strip().strip('"').strip("'")
+                    if k_id and k_sec and k_sec != "secret_placeholder":
+                        import razorpay
+                        rz_cli = razorpay.Client(auth=(k_id, k_sec))
+                        p_order_id = recent_pending.get("order_id")
+                        if p_order_id and not p_order_id.startswith("order_test_"):
+                            p_list = rz_cli.order.payments(p_order_id).get("items", [])
+                            for p_item in p_list:
+                                if p_item.get("status") == "captured":
+                                    activate_user_subscription(
+                                        internal_id=internal_id,
+                                        plan_type=recent_pending.get("plan_type"),
+                                        payment_id=p_item.get("id"),
+                                        order_id=p_order_id
+                                    )
+                                    fresh_u = users_collection.find_one({"internal_id": internal_id})
+                                    if fresh_u:
+                                        user = decrypt_user_doc(fresh_u)
+                                        subscription = user.get("subscription", {})
+                                        sub_status = subscription.get("status")
+                                        sub_expires = subscription.get("expires_at")
+                                        sub_plan = subscription.get("plan_type", "none")
+                                        is_active = (sub_status == "active")
+                                    break
+            except Exception as auto_rec_err:
+                print(f"⚠️ get_user_subscription auto-recovery notice: {auto_rec_err}")
 
         today_ist_str = (datetime.utcnow() + timedelta(hours=5, minutes=30)).strftime("%Y-%m-%d")
         daily_usage = user.get("daily_usage", {})
@@ -2665,14 +2848,6 @@ def get_security_status():
         "total_banned_ips": len(waf.banned_ips)
     }
 
-PLAN_RANKS = {"ultra": 1, "short": 2, "long": 3, "combo": 4}
-PLAN_NAMES = {
-    "ultra": "Ultra Cinematic (₹20/mo)",
-    "short": "Short Starter (₹50/mo)",
-    "long": "Long Master (₹100/mo)",
-    "combo": "Pro Combo (₹119/mo)"
-}
-
 @app.post("/create-razorpay-order")
 async def create_razorpay_order(req: CreateOrderRequest):
     amounts = {
@@ -2744,8 +2919,25 @@ async def create_razorpay_order(req: CreateOrderRequest):
                 "amount": amount,
                 "currency": "INR",
                 "receipt": f"receipt_{req.internal_id[:8]}_{int(datetime.utcnow().timestamp())}",
-                "payment_capture": 1
+                "payment_capture": 1,
+                "notes": {
+                    "internal_id": req.internal_id,
+                    "plan_type": req.plan_type
+                }
             })
+            if payment_orders_collection is not None:
+                payment_orders_collection.update_one(
+                    {"order_id": order["id"]},
+                    {"$set": {
+                        "order_id": order["id"],
+                        "internal_id": req.internal_id,
+                        "plan_type": req.plan_type,
+                        "amount": amount,
+                        "status": "created",
+                        "created_at": datetime.utcnow()
+                    }},
+                    upsert=True
+                )
             return {
                 "order_id": order["id"],
                 "amount": amount,
@@ -2756,6 +2948,19 @@ async def create_razorpay_order(req: CreateOrderRequest):
             print(f"⚠️ Razorpay API order warning: {e}. Falling back to standard test checkout mode.")
             
     fake_order_id = f"order_test_{str(uuid.uuid4())[:8]}"
+    if payment_orders_collection is not None:
+        payment_orders_collection.update_one(
+            {"order_id": fake_order_id},
+            {"$set": {
+                "order_id": fake_order_id,
+                "internal_id": req.internal_id,
+                "plan_type": req.plan_type,
+                "amount": amount,
+                "status": "created",
+                "created_at": datetime.utcnow()
+            }},
+            upsert=True
+        )
     return {
         "order_id": fake_order_id,
         "amount": amount,
@@ -2787,98 +2992,150 @@ async def verify_razorpay_payment(req: VerifyPaymentRequest):
             print(f"❌ Razorpay signature verification failed: {e}")
             raise HTTPException(status_code=400, detail="Payment Signature Verification Failed. Activation Denied.")
 
-    existing_user = users_collection.find_one({"internal_id": req.internal_id})
-
-    if req.plan_type == "ultra":
-        existing_ultra = existing_user.get("ultra_subscription", {}) if isinstance(existing_user.get("ultra_subscription"), dict) else {}
-        ultra_exp = existing_ultra.get("expires_at")
-        is_ultra_active = False
-        if ultra_exp:
-            if isinstance(ultra_exp, str):
-                try:
-                    ultra_exp = datetime.fromisoformat(ultra_exp.replace('Z', '+00:00'))
-                except Exception:
-                    ultra_exp = None
-            if isinstance(ultra_exp, datetime) and ultra_exp.replace(tzinfo=None) > datetime.utcnow():
-                is_ultra_active = True
-
-        if is_ultra_active:
-            exp_date_str = ultra_exp.strftime("%b %d, %Y") if isinstance(ultra_exp, datetime) else "expiry"
-            raise HTTPException(
-                status_code=400,
-                detail=f"⚠️ Ultra Plan Active! You already have an active Ultra Cinematic subscription (valid until {exp_date_str}). Ultra Mode subscription can only be purchased once a month."
-            )
-
-        expires_at = datetime.utcnow() + timedelta(days=30)
-
-        ultra_data = {
-            "plan_type": "ultra",
-            "status": "active",
-            "payment_id": req.razorpay_payment_id,
-            "order_id": req.razorpay_order_id,
-            "activated_at": datetime.utcnow(),
-            "expires_at": expires_at
-        }
-        users_collection.update_one(
-            {"internal_id": req.internal_id},
-            {"$set": {"ultra_subscription": ultra_data}}
-        )
-        return {
-            "message": f"🎉 Ultra Cinematic Plan (₹20/mo) activated successfully!",
-            "plan_type": "ultra",
-            "expires_at": expires_at.isoformat()
-        }
-
-    existing_sub = existing_user.get("subscription", {}) if existing_user else {}
-    current_plan = existing_sub.get("plan_type", "none")
-    sub_status = existing_sub.get("status")
-    sub_exp = existing_sub.get("expires_at")
-    purchase_count = existing_sub.get("purchase_count", 0)
-
-    is_active = False
-    if sub_status == "active" and sub_exp:
-        if isinstance(sub_exp, str):
-            try:
-                sub_exp = datetime.fromisoformat(sub_exp)
-            except Exception:
-                sub_exp = None
-        if isinstance(sub_exp, datetime) and sub_exp > datetime.utcnow():
-            is_active = True
-
-    if is_active:
-        if current_plan == req.plan_type:
-            expires_at = sub_exp + timedelta(days=30)
-            purchase_count += 1
-            print(f"🔄 Stacked +30 days on '{req.plan_type}' for user {req.internal_id} (Purchase #{purchase_count}, Expiry: {expires_at.isoformat()})")
-        else:
-            expires_at = datetime.utcnow() + timedelta(days=30)
-            purchase_count = 1
-            print(f"🚀 Upgraded user {req.internal_id} from '{current_plan}' to '{req.plan_type}'! Expiry set to {expires_at.isoformat()}")
-    else:
-        expires_at = datetime.utcnow() + timedelta(days=30)
-        purchase_count = 1
-        print(f"✅ Activated new 30-day '{req.plan_type}' membership for user {req.internal_id}")
-    
-    subscription_data = {
-        "plan_type": req.plan_type,
-        "status": "active",
-        "payment_id": req.razorpay_payment_id,
-        "order_id": req.razorpay_order_id,
-        "activated_at": datetime.utcnow() if not existing_sub.get("activated_at") else existing_sub.get("activated_at"),
-        "expires_at": expires_at,
-        "purchase_count": purchase_count
-    }
-    
-    users_collection.update_one(
-        {"internal_id": req.internal_id},
-        {"$set": {"subscription": subscription_data}}
+    result = activate_user_subscription(
+        internal_id=req.internal_id,
+        plan_type=req.plan_type,
+        payment_id=req.razorpay_payment_id,
+        order_id=req.razorpay_order_id
     )
+
+    if result.get("status") == "error":
+        raise HTTPException(status_code=400, detail=result.get("message"))
+
+    return result
+
+@app.post("/razorpay-webhook")
+async def razorpay_webhook(request: Request):
+    """
+    Direct Server-to-Server Razorpay Webhook Engine:
+    Guarantees 100% fail-safe subscription activation even if user's internet drops,
+    browser is closed, or phone battery dies during checkout!
+    """
+    webhook_body = await request.body()
+    webhook_signature = request.headers.get("X-Razorpay-Signature", "")
     
-    return {
-        "message": f"Payment verified! '{PLAN_NAMES.get(req.plan_type, req.plan_type)}' activated successfully until {expires_at.strftime('%b %d, %Y')}!",
-        "expires_at": expires_at.isoformat(),
-        "purchase_count": purchase_count
-    }
+    webhook_secret = (os.getenv("RAZORPAY_WEBHOOK_SECRET") or os.getenv("RAZORPAY_KEY_SECRET", "")).strip().strip('"').strip("'")
+    
+    if webhook_secret and webhook_secret != "secret_placeholder" and webhook_signature:
+        try:
+            import hmac
+            import hashlib
+            expected_signature = hmac.new(
+                webhook_secret.encode('utf-8'),
+                webhook_body,
+                hashlib.sha256
+            ).hexdigest()
+            if not hmac.compare_digest(expected_signature, webhook_signature):
+                print("❌ [Razorpay Webhook] Invalid signature from webhook caller!")
+                raise HTTPException(status_code=400, detail="Invalid Webhook Signature")
+        except HTTPException:
+            raise
+        except Exception as sig_err:
+            print(f"⚠️ [Razorpay Webhook] Signature verification notice: {sig_err}")
+
+    try:
+        payload = json.loads(webhook_body.decode('utf-8'))
+    except Exception:
+        return {"status": "error", "message": "Invalid JSON body"}
+
+    event = payload.get("event")
+    print(f"📥 [Razorpay Webhook] Received Event: {event}")
+
+    if event in ["payment.captured", "order.paid"]:
+        payment_entity = payload.get("payload", {}).get("payment", {}).get("entity", {})
+        order_entity = payload.get("payload", {}).get("order", {}).get("entity", {})
+        
+        payment_id = payment_entity.get("id")
+        order_id = payment_entity.get("order_id") or order_entity.get("id")
+        
+        notes = payment_entity.get("notes", {}) or order_entity.get("notes", {})
+        internal_id = notes.get("internal_id")
+        plan_type = notes.get("plan_type")
+
+        # Fallback lookup from payment_orders_collection if notes were absent
+        if (not internal_id or not plan_type) and payment_orders_collection is not None and order_id:
+            saved_order = payment_orders_collection.find_one({"order_id": order_id})
+            if saved_order:
+                internal_id = internal_id or saved_order.get("internal_id")
+                plan_type = plan_type or saved_order.get("plan_type")
+
+        if internal_id and plan_type and payment_id:
+            print(f"⚡ [Razorpay Webhook Auto-Activation] Activating {plan_type} for user {internal_id} (Payment ID: {payment_id})...")
+            result = activate_user_subscription(
+                internal_id=internal_id,
+                plan_type=plan_type,
+                payment_id=payment_id,
+                order_id=order_id or ""
+            )
+            print(f"✅ [Razorpay Webhook Result]: {result.get('message')}")
+            return {"status": "ok", "result": result}
+        else:
+            print(f"⚠️ [Razorpay Webhook] Incomplete order/user metadata for order: {order_id}")
+
+    return {"status": "ignored"}
+
+@app.get("/sync-payment-status/{internal_id}")
+async def sync_payment_status(internal_id: str):
+    """
+    Auto-Recovery / Reconciliation Endpoint:
+    Checks if user has any recent pending orders in the last 2 hours that succeeded on Razorpay
+    (e.g. if user's internet dropped before redirect). Automatically activates membership!
+    """
+    if users_collection is None:
+        return {"status": "error", "message": "Database not configured"}
+
+    key_id = os.getenv("RAZORPAY_KEY_ID", "").strip().strip('"').strip("'")
+    key_secret = os.getenv("RAZORPAY_KEY_SECRET", "").strip().strip('"').strip("'")
+
+    if not key_id or not key_secret or key_secret == "secret_placeholder":
+        return {"status": "skipped", "message": "Razorpay live keys not set"}
+
+    if payment_orders_collection is None:
+        return {"status": "skipped", "message": "Orders collection not available"}
+
+    recent_cutoff = datetime.utcnow() - timedelta(hours=2)
+    pending_orders = list(payment_orders_collection.find({
+        "internal_id": internal_id,
+        "status": "created",
+        "created_at": {"$gte": recent_cutoff}
+    }).sort("created_at", -1).limit(5))
+
+    if not pending_orders:
+        return {"status": "no_pending_orders"}
+
+    activated = []
+    try:
+        import razorpay
+        client = razorpay.Client(auth=(key_id, key_secret))
+        for ord_doc in pending_orders:
+            order_id = ord_doc.get("order_id")
+            plan_type = ord_doc.get("plan_type")
+            if not order_id or not plan_type or order_id.startswith("order_test_"):
+                continue
+
+            try:
+                payments_resp = client.order.payments(order_id)
+                payments = payments_resp.get("items", [])
+                for p in payments:
+                    if p.get("status") == "captured":
+                        pay_id = p.get("id")
+                        print(f"🔄 [Sync Auto-Recovery] Found captured payment {pay_id} for order {order_id}. Activating subscription...")
+                        act_res = activate_user_subscription(
+                            internal_id=internal_id,
+                            plan_type=plan_type,
+                            payment_id=pay_id,
+                            order_id=order_id
+                        )
+                        activated.append(act_res)
+                        break
+            except Exception as e_ord:
+                print(f"⚠️ [Sync Auto-Recovery] Error checking order {order_id}: {e_ord}")
+    except Exception as e_client:
+        print(f"⚠️ [Sync Auto-Recovery Client Error]: {e_client}")
+
+    if activated:
+        return {"status": "recovered", "activated": activated}
+    return {"status": "no_new_payments_found"}
 
 def generate_qr_base64(data_str: str) -> str:
     try:

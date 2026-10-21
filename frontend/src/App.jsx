@@ -1177,6 +1177,7 @@ function App() {
   const PLAN_NAMES = { ultra: 'Ultra Cinematic (₹20)', short: 'Short Starter (₹50)', long: 'Long Master (₹100)', combo: 'Pro Combo (₹119)' };
 
   const executeCheckout = async (planType) => {
+    if (isPaymentProcessing) return;
     try {
       setIsPaymentProcessing(true);
       const response = await fetch(`${API_BASE}/create-razorpay-order`, {
@@ -1185,9 +1186,9 @@ function App() {
         body: JSON.stringify({ internal_id: userId, plan_type: planType })
       });
       const orderData = await response.json();
-      setIsPaymentProcessing(false);
       
       if (!response.ok) {
+        setIsPaymentProcessing(false);
         triggerAlert("Order Creation Failed", orderData.detail || "Failed to create order.", "❌", "danger");
         return;
       }
@@ -1206,31 +1207,41 @@ function App() {
             contact: "9876543210"
           },
           handler: async function (res) {
-            const verifyResp = await fetch(`${API_BASE}/verify-razorpay-payment`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                internal_id: userId,
-                plan_type: planType,
-                razorpay_order_id: res.razorpay_order_id,
-                razorpay_payment_id: res.razorpay_payment_id,
-                razorpay_signature: res.razorpay_signature
-              })
-            });
-            
-            const verifyData = await verifyResp.json();
-            if (verifyResp.ok) {
-              setShowPricingModal(false);
-              setShowPaymentSuccessModal(true);
+            try {
+              const verifyResp = await fetch(`${API_BASE}/verify-razorpay-payment`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  internal_id: userId,
+                  plan_type: planType,
+                  razorpay_order_id: res.razorpay_order_id,
+                  razorpay_payment_id: res.razorpay_payment_id,
+                  razorpay_signature: res.razorpay_signature
+                })
+              });
+              
+              const verifyData = await verifyResp.json();
+              setIsPaymentProcessing(false);
+              if (verifyResp.ok) {
+                setShowPricingModal(false);
+                setShowPaymentSuccessModal(true);
+                fetchSubscriptionStatus();
+                fetchAutoSchedule();
+              } else {
+                triggerAlert("Payment Verification Notice", verifyData.detail || verifyData.message || "Payment Verification Notice.", "ℹ️", "info");
+                fetchSubscriptionStatus();
+              }
+            } catch (vErr) {
+              setIsPaymentProcessing(false);
+              triggerAlert("Verification Pending", "Payment received! Syncing your active subscription status...", "⏳", "info");
               fetchSubscriptionStatus();
-              fetchAutoSchedule();
-            } else {
-              triggerAlert("Payment Verification Failed", verifyData.detail || "Payment Verification Failed.", "❌", "danger");
             }
           },
           modal: {
             ondismiss: function () {
+              setIsPaymentProcessing(false);
               triggerAlert("Payment Cancelled", "Transaction was cancelled.", "ℹ️", "info");
+              fetchSubscriptionStatus();
             }
           }
         };
@@ -1238,6 +1249,7 @@ function App() {
         const rzp = new window.Razorpay(options);
         rzp.open();
       } else {
+        setIsPaymentProcessing(false);
         triggerAlert("Razorpay Notice", "Live Razorpay API Keys are not configured in Cloxel Server Environment. Please configure RAZORPAY_KEY_ID & RAZORPAY_KEY_SECRET.", "⚠️", "info");
       }
     } catch (err) {
@@ -1247,6 +1259,7 @@ function App() {
   };
 
   const handleBuyPlan = async (planType) => {
+    if (isPaymentProcessing) return;
     if (planType === 'ultra') {
       if (subStatus.has_active_ultra_subscription) {
         triggerAlert(
