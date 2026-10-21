@@ -1693,25 +1693,69 @@ def full_process(req: VideoRequest, job_id: str):
         print(f"==================================================")
 
         print(f"📊 [PROGRESS 10%] STEP 1/6: Processing Script & Scene Breakdown...")
-        if req.full_script and req.full_script.strip():
-            import re
-            raw_sentences = [s.strip() for s in re.split(r'(?<=[.!?])\s+|\n+', req.full_script.strip()) if len(s.strip()) > 3]
-            stop_words = {"aur", "ek", "hai", "ki", "ke", "ka", "jo", "se", "me", "ko", "hi", "to", "ye", "wo", "tha", "thi", "hain", "kya", "toh", "liye", "bhi", "yeh", "kuch", "hoti", "hain", "mil", "sakti"}
-            
-            existing_kw_map = {s.text.strip(): s.keyword.strip() for s in (req.scenes or []) if s.text and s.keyword}
-            
-            scenes_data = []
-            for sentence in raw_sentences:
-                kw = existing_kw_map.get(sentence)
-                if not kw:
-                    words = [w.lower() for w in sentence.split() if w.isalpha() and w.lower() not in stop_words]
-                    kw = words[0] if words else "technology"
-                scenes_data.append({"text": sentence, "keyword": kw})
+        if req.video_type == "short":
+            # For SHORT videos:
+            # 1. First Priority: If structured scenes were provided (with dedicated video search keywords & script chunks), PRESERVE THEM!
+            valid_scenes = [s for s in (req.scenes or []) if (s.text and s.text.strip()) or (s.keyword and s.keyword.strip())]
+            if valid_scenes:
+                scenes_data = []
+                for s in valid_scenes:
+                    txt = s.text.strip() if s.text else ""
+                    kw = s.keyword.strip() if s.keyword else ""
+                    scenes_data.append({"text": txt or req.topic or "short scene", "keyword": kw})
+            elif req.full_script and req.full_script.strip():
+                # 2. Manual script provided for SHORT without pre-split scene cards:
+                # Break down script into individual scene sentences
+                import re
+                raw_sentences = [s.strip() for s in re.split(r'(?<=[.!?])\s+|\n+', req.full_script.strip()) if len(s.strip()) > 3]
+                if not raw_sentences:
+                    raw_sentences = [req.full_script.strip()]
                 
-            if not scenes_data:
-                scenes_data = [{"text": req.full_script.strip(), "keyword": "technology"}]
-        elif req.scenes and len(req.scenes) > 0 and any(s.text and s.text.strip() for s in req.scenes):
-            scenes_data = [{"text": s.text.strip(), "keyword": s.keyword.strip() if s.keyword else "technology"} for s in req.scenes if s.text and s.text.strip()]
+                scenes_data = []
+                for sc_idx, sentence in enumerate(raw_sentences):
+                    # Extract big, meaningful English keywords from script (length >= 4, filtered against stop words)
+                    eng_words = [w for w in re.findall(r'[a-zA-Z]+', sentence) if len(w) >= 4 and w.lower() not in {
+                        "this", "that", "with", "from", "have", "been", "will", "would", "could", "should",
+                        "what", "when", "where", "which", "there", "their", "about", "your", "they", "them",
+                        "more", "some", "into", "then", "than", "very", "also", "just", "like", "make", "take",
+                        "know", "come", "give", "look", "time", "year", "people", "thing", "tell"
+                    }]
+                    if eng_words:
+                        kw = " ".join(eng_words[:3])
+                    else:
+                        # Script in Hindi/Devanagari: Use topic with visual angles (never single Hindi stopwords!)
+                        main_t = (req.topic or "cinematic").strip()
+                        visual_angles = [
+                            f"{main_t} action visual",
+                            f"{main_t} close up scene",
+                            f"{main_t} cinematic dramatic",
+                            f"{main_t} detailed view",
+                            f"{main_t} atmosphere",
+                            f"{main_t} dynamic motion"
+                        ]
+                        kw = visual_angles[sc_idx % len(visual_angles)]
+                    scenes_data.append({"text": sentence, "keyword": kw})
+        else:
+            # For LONG or ULTRA: Keep existing behavior untouched
+            if req.full_script and req.full_script.strip():
+                import re
+                raw_sentences = [s.strip() for s in re.split(r'(?<=[.!?])\s+|\n+', req.full_script.strip()) if len(s.strip()) > 3]
+                stop_words = {"aur", "ek", "hai", "ki", "ke", "ka", "jo", "se", "me", "ko", "hi", "to", "ye", "wo", "tha", "thi", "hain", "kya", "toh", "liye", "bhi", "yeh", "kuch", "hoti", "hain", "mil", "sakti"}
+                
+                existing_kw_map = {s.text.strip(): s.keyword.strip() for s in (req.scenes or []) if s.text and s.keyword}
+                
+                scenes_data = []
+                for sentence in raw_sentences:
+                    kw = existing_kw_map.get(sentence)
+                    if not kw:
+                        words = [w.lower() for w in sentence.split() if w.isalpha() and w.lower() not in stop_words]
+                        kw = words[0] if words else "technology"
+                    scenes_data.append({"text": sentence, "keyword": kw})
+                    
+                if not scenes_data:
+                    scenes_data = [{"text": req.full_script.strip(), "keyword": "technology"}]
+            elif req.scenes and len(req.scenes) > 0 and any(s.text and s.text.strip() for s in req.scenes):
+                scenes_data = [{"text": s.text.strip(), "keyword": s.keyword.strip() if s.keyword else "technology"} for s in req.scenes if s.text and s.text.strip()]
 
         if not scenes_data:
             fallback_text = req.topic if req.topic else "AI Video Generation"
@@ -1813,27 +1857,59 @@ def full_process(req: VideoRequest, job_id: str):
                 scene_text = (sc.get("text") or "").strip()
                 main_topic = (req.topic or "").strip()
                 
-                search_query_parts = []
-                # 1. Prioritize scene-specific keyword FIRST so each scene searches its unique visual action
-                if scene_kw:
-                    for kw_word in scene_kw.split():
-                        if kw_word.lower() not in [p.lower() for p in search_query_parts]:
-                            search_query_parts.append(kw_word)
-                elif scene_text:
-                    eng_words = [w for w in scene_text.split() if w.isascii() and len(w) > 3][:3]
-                    if eng_words:
-                        search_query_parts.extend(eng_words)
-                        
-                # 2. Add topic context anchor words after scene keyword
-                if main_topic:
-                    topic_words = [w for w in main_topic.split() if len(w) > 2 and w.lower() not in ["and", "the", "for", "with", "from", "about", "hindi", "english"]]
-                    for tw in topic_words[:2]:
-                        if tw.lower() not in [p.lower() for p in search_query_parts]:
-                            search_query_parts.append(tw)
+                import re
+                if req.video_type == "short":
+                    # SHORT VIDEO: Use scene's dedicated video search keyword + topic context (e.g. "surgeon operating room" + "doctor" = "surgeon operating room doctor")
+                    # Clean English alphanumeric words only (strictly eliminates Hindi Devanagari words like 'पर', 'तब')
+                    clean_kw_words = [w for w in re.findall(r'[a-zA-Z0-9]+', scene_kw) if len(w) > 1]
+                    
+                    if not clean_kw_words and scene_text:
+                        # If scene_kw was missing, extract big English words from script text (e.g. "doctor", "hospital", "prescription")
+                        clean_kw_words = [w for w in re.findall(r'[a-zA-Z]+', scene_text) if len(w) >= 4 and w.lower() not in {
+                            "this", "that", "with", "from", "have", "been", "will", "would", "could", "should",
+                            "what", "when", "where", "which", "there", "their", "about", "your", "they", "them",
+                            "more", "some", "into", "then", "than", "very", "also", "just", "like"
+                        }][:3]
 
-                rich_scene_query = " ".join(search_query_parts).strip()
-                if not rich_scene_query:
-                    rich_scene_query = scene_kw or main_topic or "cinematic hd"
+                    search_query_parts = []
+                    # 1. Video search keyword first (e.g. "surgeon operating room")
+                    for w in clean_kw_words:
+                        if w.lower() not in [p.lower() for p in search_query_parts]:
+                            search_query_parts.append(w)
+
+                    # 2. Append topic context (e.g. "doctor") -> "surgeon operating room doctor"
+                    if main_topic:
+                        clean_topic_words = [w for w in re.findall(r'[a-zA-Z0-9]+', main_topic) if len(w) > 1 and w.lower() not in ["and", "the", "for", "with", "from", "about", "hindi", "english"]]
+                        for tw in clean_topic_words[:2]:
+                            if tw.lower() not in [p.lower() for p in search_query_parts]:
+                                search_query_parts.append(tw)
+
+                    rich_scene_query = " ".join(search_query_parts).strip()
+                    if not rich_scene_query:
+                        rich_scene_query = main_topic or "cinematic hd"
+                else:
+                    # LONG or ULTRA: Keep existing search behavior untouched
+                    search_query_parts = []
+                    # 1. Prioritize scene-specific keyword FIRST so each scene searches its unique visual action
+                    if scene_kw:
+                        for kw_word in scene_kw.split():
+                            if kw_word.lower() not in [p.lower() for p in search_query_parts]:
+                                search_query_parts.append(kw_word)
+                    elif scene_text:
+                        eng_words = [w for w in scene_text.split() if w.isascii() and len(w) > 3][:3]
+                        if eng_words:
+                            search_query_parts.extend(eng_words)
+                            
+                    # 2. Add topic context anchor words after scene keyword
+                    if main_topic:
+                        topic_words = [w for w in main_topic.split() if len(w) > 2 and w.lower() not in ["and", "the", "for", "with", "from", "about", "hindi", "english"]]
+                        for tw in topic_words[:2]:
+                            if tw.lower() not in [p.lower() for p in search_query_parts]:
+                                search_query_parts.append(tw)
+
+                    rich_scene_query = " ".join(search_query_parts).strip()
+                    if not rich_scene_query:
+                        rich_scene_query = scene_kw or main_topic or "cinematic hd"
                     
                 v_paths = fetch_videos(
                     rich_scene_query, 
@@ -1860,7 +1936,8 @@ def full_process(req: VideoRequest, job_id: str):
                             
                 if is_duplicate:
                     print(f"⚠️ [main.py Guard] Scene {i+1} got duplicate clip of previous scene! Re-fetching unique footage...")
-                    alt_query = f"{scene_kw or main_topic} cinematic different angle {i+1}"
+                    clean_guard_kw = " ".join([w for w in re.findall(r'[a-zA-Z0-9]+', scene_kw) if len(w) > 1]) if scene_kw else ""
+                    alt_query = f"{clean_guard_kw or main_topic} cinematic different angle {i+1}"
                     v_paths = fetch_videos(
                         alt_query,
                         v_path,

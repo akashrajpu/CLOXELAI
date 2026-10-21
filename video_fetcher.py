@@ -443,8 +443,11 @@ def fetch_videos(keyword, job_id, count=1, orientation="portrait", category="Ran
     is_ultra_mode = (str(video_type).lower() == "ultra")
 
     noise_words = {"category", "random", "concept", "impact"}
-    clean_words = [w for w in keyword.replace('🎨', '').replace('🎲', '').replace('✍️', '').split() if w.lower() not in noise_words]
-    video_query = " ".join(clean_words) if clean_words else keyword
+    raw_words = [w for w in keyword.replace('🎨', '').replace('🎲', '').replace('✍️', '').split() if w.lower() not in noise_words]
+    # Filter out non-ASCII tokens (Devanagari Hindi characters) if English words are available
+    ascii_words = [w for w in raw_words if w.isascii() and any(c.isalnum() for c in w)]
+    clean_words = ascii_words if ascii_words else raw_words
+    video_query = " ".join(clean_words) if clean_words else (topic or keyword)
 
     if is_ultra_mode:
         prefer_pinterest = any(c in cat_lower for c in ['cartoon', 'animation', 'documentary', 'comedy', 'horror', 'mythology', 'history', 'anime', 'art', 'photo'])
