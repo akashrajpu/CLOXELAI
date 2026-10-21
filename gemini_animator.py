@@ -491,6 +491,7 @@ def render_pil_frames_to_mp4(frames: list, output_mp4: str, w: int, h: int, fps:
             "-r", str(fps),
             "-i", "-",
             "-c:v", "libx264",
+            "-threads", "1",
             "-pix_fmt", "yuv420p",
             output_mp4
         ]
@@ -609,7 +610,7 @@ def create_pro_cartoon_canvas_mp4(user_prompt: str, output_mp4: str, duration: f
             "ffmpeg", "-y", "-f", "lavfi",
             "-i", f"color=c=0x64b4ff:s={w}x{h}:r={fps}",
             "-vf", "drawtext=text='2D Cartoon Scene':fontcolor=white:fontsize=24:x=(w-text_w)/2:y=(h-text_h)/2",
-            "-t", dur_str, "-c:v", "libx264", "-pix_fmt", "yuv420p", output_mp4
+            "-t", dur_str, "-c:v", "libx264", "-threads", "1", "-pix_fmt", "yuv420p", output_mp4
         ]
         subprocess.run(cmd, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         return output_mp4

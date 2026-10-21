@@ -41,7 +41,7 @@ def render_single_micro_clip(script_text: str, audio_path: str, output_mp4: str,
     cmd = [
         "ffmpeg", "-y", "-r", "20",
         "-i", os.path.join(temp_frames_dir, "frame_%04d.png"),
-        "-c:v", "libx264", "-preset", "ultrafast", "-pix_fmt", "yuv420p",
+        "-c:v", "libx264", "-preset", "ultrafast", "-threads", "1", "-pix_fmt", "yuv420p",
         temp_video_only
     ]
     subprocess.run(cmd, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)

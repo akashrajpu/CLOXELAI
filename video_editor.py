@@ -833,6 +833,9 @@ def render_scene_native_ffmpeg(
                     sub_canvas.paste(parchment_img, (px, py), mask=parchment_img)
                     sub_path = os.path.abspath(os.path.join(job_dir, f"tmp_sub_{state_counter}_{random.randint(100, 999)}.png"))
                     sub_canvas.save(sub_path, "PNG")
+                    try: sub_canvas.close()
+                    except Exception: pass
+                    del sub_canvas
                     sub_overlay_files.append((sub_path, c_start, c_end))
                     state_counter += 1
                 except Exception as e_p:
@@ -880,6 +883,10 @@ def render_scene_native_ffmpeg(
                     
                 sub_path = os.path.abspath(os.path.join(job_dir, f"tmp_sub_{state_counter}_{random.randint(100, 999)}.png"))
                 sub_canvas.save(sub_path, "PNG")
+                try: sub_canvas.close()
+                except Exception: pass
+                del sub_canvas
+                del draw
                 sub_overlay_files.append((sub_path, c_start, c_end))
                 state_counter += 1
 
@@ -927,7 +934,7 @@ def render_scene_native_ffmpeg(
         "-crf", "26",
         "-r", "25",
         "-g", "50",
-        "-threads", "0",
+        "-threads", "1",
         "-max_muxing_queue_size", "1024",
         "-pix_fmt", "yuv420p",
         "-c:a", "aac",
@@ -938,6 +945,7 @@ def render_scene_native_ffmpeg(
         os.path.abspath(scene_output)
     ]
     
+    release_system_memory()
     try:
         res = subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, timeout=240)
         success = (res.returncode == 0 and os.path.exists(scene_output) and os.path.getsize(scene_output) > 1000)
@@ -1139,7 +1147,7 @@ def merge_and_export(
             subprocess.run(["ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i", list_path, "-c", "copy", temp_merged], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         except Exception as e_c_copy:
             print(f"⚠️ Notice: FFmpeg concat copy mode failed ({e_c_copy}). Retrying with re-encode fallback...")
-            subprocess.run(["ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i", list_path, "-c:v", "libx264", "-preset", "ultrafast", "-c:a", "aac", temp_merged], check=True)
+            subprocess.run(["ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i", list_path, "-c:v", "libx264", "-preset", "ultrafast", "-threads", "1", "-c:a", "aac", temp_merged], check=True)
 
         if bg_music and str(bg_music).lower() != "none":
             bg_music_file = bg_music if os.path.exists(bg_music) else (os.path.join(".", bg_music) if os.path.exists(os.path.join(".", bg_music)) else None)
@@ -1169,6 +1177,7 @@ def merge_and_export(
         return output_name
 
     for i, scene in enumerate(scene_list):
+        release_system_memory()
         audio_path = scene['audio']
         
         if not audio_path or not os.path.exists(audio_path) or os.path.getsize(audio_path) < 1000:
@@ -1347,7 +1356,7 @@ def merge_and_export(
                 "-c:v", "libx264",
                 "-preset", "ultrafast",
                 "-crf", "26",
-                "-threads", "0",
+                "-threads", "1",
                 "-max_muxing_queue_size", "1024",
                 "-pix_fmt", "yuv420p",
                 "-c:a", "aac",
@@ -1369,6 +1378,7 @@ def merge_and_export(
                 "-f", "lavfi", "-i", f"color=c=0x0f0a23:s={target_size[0]}x{target_size[1]}:r=25",
                 "-i", os.path.abspath(audio_path),
                 "-c:v", "libx264", "-preset", "ultrafast", "-crf", "28",
+                "-threads", "1",
                 "-c:a", "aac", "-b:a", "96k",
                 "-t", f"{clip_duration:.2f}",
                 os.path.abspath(scene_output)
@@ -1402,6 +1412,7 @@ def merge_and_export(
         subprocess.run([
             "ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i", list_path,
             "-c:v", "libx264", "-preset", "ultrafast", "-crf", "24", "-r", "25",
+            "-threads", "1",
             "-pix_fmt", "yuv420p",
             "-c:a", "aac", "-b:a", "128k", "-ar", "44100", "-ac", "2",
             temp_merged

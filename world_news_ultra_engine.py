@@ -141,7 +141,7 @@ Output ONLY the complete, copy-paste ready, single-file HTML code without placeh
             try:
                 subprocess.run([
                     "ffmpeg", "-y", "-i", webm_file, 
-                    "-c:v", "libx264", "-preset", "ultrafast", "-crf", "23",
+                    "-c:v", "libx264", "-preset", "ultrafast", "-crf", "23", "-threads", "1",
                     "-vf", f"scale={w}:{h},format=yuv420p",
                     output_mp4
                 ], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)

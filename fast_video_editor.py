@@ -83,7 +83,7 @@ def fast_merge_and_export(scene_list: List[Dict[str, Any]], output_name: str,
             "ffmpeg", "-y", "-loop", "1", "-i", canvas_path,
             "-i", audio_path,
             "-t", str(duration),
-            "-c:v", "libx264", "-preset", "ultrafast", "-tune", "stillimage",
+            "-c:v", "libx264", "-preset", "ultrafast", "-threads", "1", "-tune", "stillimage",
             "-c:a", "aac", "-b:a", "128k", "-pix_fmt", "yuv420p",
             "-shortest", scene_mp4
         ]
