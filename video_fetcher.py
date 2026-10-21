@@ -1,5 +1,7 @@
 import requests
 import os
+import re
+import hashlib
 
 PEXELS_API_KEY = os.getenv("PEXELS_API_KEY", "jqGZN1a4uHQFpxqdFAdVaD1l1eyjW1kzHqtdlNJ1TPkSmOEXcbAL7yhN")
 PIXABAY_API_KEY = os.getenv("PIXABAY_API_KEY", "39827606-4df15a6b0c26bbef50352ef2e")
@@ -7,6 +9,39 @@ UNSPLASH_ACCESS_KEY = os.getenv("UNSPLASH_ACCESS_KEY", "")
 PINTEREST_ACCESS_TOKEN = os.getenv("PINTEREST_ACCESS_TOKEN", "")
 
 GLOBAL_USED_MEDIA_IDS = set()
+GLOBAL_USED_FILE_HASHES = set()
+GLOBAL_USED_FILE_SIZES = set()
+
+GENERIC_SLUGS = {"video", "free-video", "stock-video", "pexels", "pexels-video", "clip"}
+
+def extract_pexels_slug(url):
+    """Extracts base title slug from Pexels webpage URL stripping trailing ID numbers"""
+    if not url:
+        return ""
+    parts = url.rstrip("/").split("/")
+    last_part = parts[-1].split("?")[0]
+    # Remove trailing digits like -1234567
+    slug = re.sub(r'-\d+$', '', last_part).strip().lower()
+    return slug
+
+def compute_quick_file_hash(filepath):
+    """Calculates MD5 hash using file size + sample chunks for instant duplicate file detection"""
+    try:
+        size = os.path.getsize(filepath)
+        if size == 0:
+            return None
+        h = hashlib.md5()
+        h.update(str(size).encode())
+        with open(filepath, "rb") as f:
+            if size <= 1024 * 1024:
+                h.update(f.read())
+            else:
+                h.update(f.read(512 * 1024))
+                f.seek(size - 512 * 1024)
+                h.update(f.read(512 * 1024))
+        return h.hexdigest()
+    except Exception:
+        return None
 
 def fetch_pexels_videos(keyword, job_id, count=1, orientation="portrait", used_media_ids=None):
     """Pexels API se HD stock video clips download karta hai with zero-duplicate protection"""
@@ -23,87 +58,168 @@ def fetch_pexels_videos(keyword, job_id, count=1, orientation="portrait", used_m
 
     page = 1
     if used_media_ids:
-        page = min(5, 1 + (len(used_media_ids) // 20))
-        
-    url = f"https://api.pexels.com/videos/search?query={requests.utils.quote(keyword)}&per_page={per_page}&page={page}&orientation={orientation}"
+        page = min(5, 1 + (len(used_media_ids) // 25))
+
+    video_paths = []
+    dir_name = os.path.dirname(job_id)
+    base_name = os.path.basename(job_id)
+
+    pages_to_query = [page]
+    if page < 5:
+        pages_to_query.append(page + 1)
 
     try:
-        res = requests.get(url, headers=headers, timeout=12)
-        data = res.json() if res.status_code == 200 else {}
-        videos = data.get('videos', [])
-        
-        # Fallback to page 1 if current page has no results
-        if not videos and page > 1:
-            url_p1 = f"https://api.pexels.com/videos/search?query={requests.utils.quote(keyword)}&per_page={per_page}&page=1&orientation={orientation}"
-            res_p1 = requests.get(url_p1, headers=headers, timeout=12)
-            if res_p1.status_code == 200:
-                videos = res_p1.json().get('videos', [])
+        for current_page in pages_to_query:
+            if len(video_paths) >= count:
+                break
+                
+            url = f"https://api.pexels.com/videos/search?query={requests.utils.quote(keyword)}&per_page={per_page}&page={current_page}&orientation={orientation}"
+            try:
+                res = requests.get(url, headers=headers, timeout=12)
+                data = res.json() if res.status_code == 200 else {}
+                videos = data.get('videos', [])
+            except Exception as e_req:
+                print(f"⚠️ [Pexels Page {current_page} Fetch Error]: {e_req}")
+                continue
 
-        video_paths = []
-        if videos:
-            selected_videos = []
-            # Pass 1: Fresh videos never seen globally or in this job
+            if not videos and current_page > 1:
+                continue
+
             for video_data in videos:
-                vid_id = str(video_data.get('id', ''))
+                if len(video_paths) >= count:
+                    break
+
+                vid_id = str(video_data.get('id', '')).strip()
+                page_url = (video_data.get('url') or '').strip()
+                slug = extract_pexels_slug(page_url)
+                
+                user_id = str(video_data.get('user', {}).get('id', '')).strip()
+                dur = int(video_data.get('duration') or 0)
+                creator_sig = f"user_{user_id}_dur_{dur}" if (user_id and dur > 0) else None
+
+                # Pre-download duplicate checks
                 if vid_id and (vid_id in used_media_ids or vid_id in GLOBAL_USED_MEDIA_IDS):
                     continue
+
+                if page_url and (page_url in used_media_ids or page_url in GLOBAL_USED_MEDIA_IDS):
+                    continue
+
+                if slug and slug not in GENERIC_SLUGS and len(slug) > 3:
+                    if slug in used_media_ids or slug in GLOBAL_USED_MEDIA_IDS:
+                        continue
+
+                if creator_sig and (creator_sig in used_media_ids or creator_sig in GLOBAL_USED_MEDIA_IDS):
+                    continue
+
                 valid_files = [vf for vf in video_data.get('video_files', []) if vf.get('link')]
                 if not valid_files:
                     continue
-                video_url = valid_files[0]['link']
-                if video_url in used_media_ids or video_url in GLOBAL_USED_MEDIA_IDS:
+
+                is_link_used = False
+                for vf in valid_files:
+                    link = vf.get('link', '')
+                    if link and (link in used_media_ids or link in GLOBAL_USED_MEDIA_IDS):
+                        is_link_used = True
+                        break
+                if is_link_used:
                     continue
-                selected_videos.append(video_data)
-                if len(selected_videos) >= count:
-                    break
 
-            # Pass 2: If needed, allow videos unused in current video job
-            if len(selected_videos) < count:
-                for video_data in videos:
-                    vid_id = str(video_data.get('id', ''))
-                    if vid_id and vid_id in used_media_ids:
-                        continue
-                    if video_data not in selected_videos:
-                        selected_videos.append(video_data)
-                        if len(selected_videos) >= count:
-                            break
-
-            dir_name = os.path.dirname(job_id)
-            base_name = os.path.basename(job_id)
-
-            for i, video_data in enumerate(selected_videos):
-                vid_id = str(video_data.get('id', ''))
-                valid_files = [vf for vf in video_data.get('video_files', []) if vf.get('link')]
                 valid_files.sort(key=lambda x: abs(x.get('height', 720) - 720))
                 best_file = valid_files[0]
                 video_url = best_file['link']
-                filename = os.path.join(dir_name, f"clip_{base_name}_{i}.mp4") if dir_name else f"clip_{base_name}_{i}.mp4"
-                
-                with requests.get(video_url, stream=True, timeout=20) as r_vid:
-                    r_vid.raise_for_status()
-                    with open(filename, "wb") as f:
-                        for chunk in r_vid.iter_content(chunk_size=64*1024):
-                            if chunk:
-                                f.write(chunk)
-                                
+
+                clip_idx = len(video_paths)
+                temp_filename = os.path.join(dir_name, f"clip_{base_name}_{clip_idx}.mp4") if dir_name else f"clip_{base_name}_{clip_idx}.mp4"
+
+                # Download candidate clip
+                try:
+                    with requests.get(video_url, stream=True, timeout=20) as r_vid:
+                        r_vid.raise_for_status()
+                        with open(temp_filename, "wb") as f:
+                            for chunk in r_vid.iter_content(chunk_size=64*1024):
+                                if chunk:
+                                    f.write(chunk)
+                except Exception as e_dl:
+                    print(f"⚠️ [Pexels Download Error (ID: {vid_id})]: {e_dl}")
+                    if os.path.exists(temp_filename):
+                        try:
+                            os.remove(temp_filename)
+                        except Exception:
+                            pass
+                    continue
+
+                # Post-download duplicate & integrity verification
+                f_size = os.path.getsize(temp_filename) if os.path.exists(temp_filename) else 0
+                if f_size < 1000:
+                    if os.path.exists(temp_filename):
+                        try:
+                            os.remove(temp_filename)
+                        except Exception:
+                            pass
+                    continue
+
+                f_hash = compute_quick_file_hash(temp_filename)
+
+                # Check if file size or hash matches any previously used video
+                if (f_size in GLOBAL_USED_FILE_SIZES or 
+                    f_hash in GLOBAL_USED_FILE_HASHES or 
+                    f"size_{f_size}" in used_media_ids or 
+                    (f_hash and f"hash_{f_hash}" in used_media_ids)):
+                    print(f"⚠️ [Pexels Duplicate Detected] Video file matches already used footage (ID: {vid_id}, Size: {f_size} bytes). Discarding duplicate and taking next candidate...")
+                    if os.path.exists(temp_filename):
+                        try:
+                            os.remove(temp_filename)
+                        except Exception:
+                            pass
+                    if vid_id:
+                        used_media_ids.add(vid_id)
+                        GLOBAL_USED_MEDIA_IDS.add(vid_id)
+                    continue
+
+                # Candidate successfully passed all tests! Register signatures
                 if vid_id:
                     used_media_ids.add(vid_id)
                     GLOBAL_USED_MEDIA_IDS.add(vid_id)
-                used_media_ids.add(video_url)
-                GLOBAL_USED_MEDIA_IDS.add(video_url)
-                
-                video_paths.append(filename)
-                print(f"✅ [Pexels] Video clip downloaded (ID: {vid_id}): {filename}")
-                
-            if len(GLOBAL_USED_MEDIA_IDS) > 500:
-                to_remove = len(GLOBAL_USED_MEDIA_IDS) - 250
-                for _ in range(to_remove):
-                    GLOBAL_USED_MEDIA_IDS.pop()
-                    
-            return video_paths
+                if page_url:
+                    used_media_ids.add(page_url)
+                    GLOBAL_USED_MEDIA_IDS.add(page_url)
+                if slug and slug not in GENERIC_SLUGS and len(slug) > 3:
+                    used_media_ids.add(slug)
+                    GLOBAL_USED_MEDIA_IDS.add(slug)
+                if creator_sig:
+                    used_media_ids.add(creator_sig)
+                    GLOBAL_USED_MEDIA_IDS.add(creator_sig)
+                for vf in valid_files:
+                    if vf.get('link'):
+                        used_media_ids.add(vf['link'])
+                        GLOBAL_USED_MEDIA_IDS.add(vf['link'])
+
+                GLOBAL_USED_FILE_SIZES.add(f_size)
+                used_media_ids.add(f"size_{f_size}")
+                if f_hash:
+                    GLOBAL_USED_FILE_HASHES.add(f_hash)
+                    used_media_ids.add(f"hash_{f_hash}")
+
+                video_paths.append(temp_filename)
+                print(f"✅ [Pexels] Fresh unique video clip downloaded (ID: {vid_id}, Size: {f_size} bytes): {temp_filename}")
+
+        if len(GLOBAL_USED_MEDIA_IDS) > 600:
+            to_remove = len(GLOBAL_USED_MEDIA_IDS) - 300
+            for _ in range(to_remove):
+                GLOBAL_USED_MEDIA_IDS.pop()
+        if len(GLOBAL_USED_FILE_SIZES) > 600:
+            to_remove = len(GLOBAL_USED_FILE_SIZES) - 300
+            for _ in range(to_remove):
+                GLOBAL_USED_FILE_SIZES.pop()
+        if len(GLOBAL_USED_FILE_HASHES) > 600:
+            to_remove = len(GLOBAL_USED_FILE_HASHES) - 300
+            for _ in range(to_remove):
+                GLOBAL_USED_FILE_HASHES.pop()
+
+        return video_paths
     except Exception as e:
         print(f"⚠️ [Pexels] Error: {e}")
-    return []
+    return video_paths
 
 def fetch_pixabay_videos(keyword, job_id, count=1, orientation="portrait", used_media_ids=None):
     """Pixabay API se free HD stock videos download karta hai with zero-duplicate protection"""
@@ -113,75 +229,126 @@ def fetch_pixabay_videos(keyword, job_id, count=1, orientation="portrait", used_
         
     print(f"📥 [Pixabay] '{keyword}' ke liye video clip ({orientation}) dhoondh rahe hain...")
     v_type = "film" if orientation == "landscape" else "all"
-    per_page = max(15, count * 4)
-    url = f"https://pixabay.com/api/videos/?key={key}&q={requests.utils.quote(keyword)}&video_type={v_type}&per_page={per_page}"
+    per_page = max(20, count * 5)
     
     if used_media_ids is None:
         used_media_ids = set()
+
+    page = 1
+    if used_media_ids:
+        page = min(5, 1 + (len(used_media_ids) // 25))
+
+    url = f"https://pixabay.com/api/videos/?key={key}&q={requests.utils.quote(keyword)}&video_type={v_type}&per_page={per_page}&page={page}"
 
     try:
         res = requests.get(url, timeout=12)
         if res.status_code != 200:
             return []
         data = res.json()
-        video_paths = []
         hits = data.get('hits', [])
-        if hits:
-            selected_hits = []
-            for hit in hits:
-                hit_id = str(hit.get('id', ''))
-                if hit_id and (hit_id in used_media_ids or hit_id in GLOBAL_USED_MEDIA_IDS):
-                    continue
-                videos = hit.get('videos', {})
-                best_vid = videos.get('medium') or videos.get('large') or videos.get('small')
-                if not best_vid or not best_vid.get('url'):
-                    continue
-                if best_vid['url'] in used_media_ids or best_vid['url'] in GLOBAL_USED_MEDIA_IDS:
-                    continue
-                selected_hits.append(hit)
-                if len(selected_hits) >= count:
-                    break
+        if not hits and page > 1:
+            url_p1 = f"https://pixabay.com/api/videos/?key={key}&q={requests.utils.quote(keyword)}&video_type={v_type}&per_page={per_page}&page=1"
+            res_p1 = requests.get(url_p1, timeout=12)
+            if res_p1.status_code == 200:
+                hits = res_p1.json().get('hits', [])
 
-            if len(selected_hits) < count:
-                for hit in hits:
-                    hit_id = str(hit.get('id', ''))
-                    if hit_id and hit_id in used_media_ids:
-                        continue
-                    if hit not in selected_hits:
-                        selected_hits.append(hit)
-                        if len(selected_hits) >= count:
-                            break
+        video_paths = []
+        dir_name = os.path.dirname(job_id)
+        base_name = os.path.basename(job_id)
 
-            dir_name = os.path.dirname(job_id)
-            base_name = os.path.basename(job_id)
-
-            for i, hit in enumerate(selected_hits):
-                hit_id = str(hit.get('id', ''))
-                videos = hit.get('videos', {})
-                best_vid = videos.get('medium') or videos.get('large') or videos.get('small')
-                if not best_vid or not best_vid.get('url'): continue
-                video_url = best_vid['url']
-                filename = os.path.join(dir_name, f"pixabay_{base_name}_{i}.mp4") if dir_name else f"pixabay_{base_name}_{i}.mp4"
+        for hit in hits:
+            if len(video_paths) >= count:
+                break
                 
+            hit_id = str(hit.get('id', '')).strip()
+            page_url = (hit.get('pageURL') or '').strip()
+            user_id = str(hit.get('user_id', '')).strip()
+            dur = int(hit.get('duration') or 0)
+            creator_sig = f"pixabay_user_{user_id}_dur_{dur}" if (user_id and dur > 0) else None
+
+            if hit_id and (hit_id in used_media_ids or hit_id in GLOBAL_USED_MEDIA_IDS):
+                continue
+            if page_url and (page_url in used_media_ids or page_url in GLOBAL_USED_MEDIA_IDS):
+                continue
+            if creator_sig and (creator_sig in used_media_ids or creator_sig in GLOBAL_USED_MEDIA_IDS):
+                continue
+
+            videos = hit.get('videos', {})
+            best_vid = videos.get('medium') or videos.get('large') or videos.get('small')
+            if not best_vid or not best_vid.get('url'):
+                continue
+            video_url = best_vid['url']
+            if video_url in used_media_ids or video_url in GLOBAL_USED_MEDIA_IDS:
+                continue
+
+            clip_idx = len(video_paths)
+            filename = os.path.join(dir_name, f"pixabay_{base_name}_{clip_idx}.mp4") if dir_name else f"pixabay_{base_name}_{clip_idx}.mp4"
+
+            try:
                 with requests.get(video_url, stream=True, timeout=20) as r_vid:
                     r_vid.raise_for_status()
                     with open(filename, "wb") as f:
                         for chunk in r_vid.iter_content(chunk_size=64*1024):
                             if chunk:
                                 f.write(chunk)
-                                
+            except Exception as e_dl:
+                if os.path.exists(filename):
+                    try:
+                        os.remove(filename)
+                    except Exception:
+                        pass
+                continue
+
+            f_size = os.path.getsize(filename) if os.path.exists(filename) else 0
+            if f_size < 1000:
+                if os.path.exists(filename):
+                    try:
+                        os.remove(filename)
+                    except Exception:
+                        pass
+                continue
+
+            f_hash = compute_quick_file_hash(filename)
+            if (f_size in GLOBAL_USED_FILE_SIZES or 
+                f_hash in GLOBAL_USED_FILE_HASHES or 
+                f"size_{f_size}" in used_media_ids or 
+                (f_hash and f"hash_{f_hash}" in used_media_ids)):
+                print(f"⚠️ [Pixabay Duplicate Detected] Video file matches already used clip (ID: {hit_id}). Discarding duplicate and taking next candidate...")
+                if os.path.exists(filename):
+                    try:
+                        os.remove(filename)
+                    except Exception:
+                        pass
                 if hit_id:
                     used_media_ids.add(hit_id)
                     GLOBAL_USED_MEDIA_IDS.add(hit_id)
-                used_media_ids.add(video_url)
-                GLOBAL_USED_MEDIA_IDS.add(video_url)
-                
-                video_paths.append(filename)
-                print(f"✅ [Pixabay] Video clip downloaded (ID: {hit_id}): {filename}")
-            return video_paths
+                continue
+
+            if hit_id:
+                used_media_ids.add(hit_id)
+                GLOBAL_USED_MEDIA_IDS.add(hit_id)
+            if page_url:
+                used_media_ids.add(page_url)
+                GLOBAL_USED_MEDIA_IDS.add(page_url)
+            if creator_sig:
+                used_media_ids.add(creator_sig)
+                GLOBAL_USED_MEDIA_IDS.add(creator_sig)
+            used_media_ids.add(video_url)
+            GLOBAL_USED_MEDIA_IDS.add(video_url)
+
+            GLOBAL_USED_FILE_SIZES.add(f_size)
+            used_media_ids.add(f"size_{f_size}")
+            if f_hash:
+                GLOBAL_USED_FILE_HASHES.add(f_hash)
+                used_media_ids.add(f"hash_{f_hash}")
+
+            video_paths.append(filename)
+            print(f"✅ [Pixabay] Fresh unique video clip downloaded (ID: {hit_id}): {filename}")
+
+        return video_paths
     except Exception as e:
         print(f"⚠️ [Pixabay] Error: {e}")
-    return []
+    return video_paths
 
 def fetch_pinterest_pins(keyword, job_id, count=1, orientation="portrait", used_media_ids=None):
     """Pinterest HD Pins media download karta hai using gallery-dl & fail-safe API/scraper"""
@@ -280,9 +447,9 @@ def fetch_videos(keyword, job_id, count=1, orientation="portrait", category="Ran
             try:
                 print(f"🎨 [Ultra Mode Priority: {category}] Trying Pinterest HD Pins...")
                 search_term = f"{keyword} {category.replace('🎲', '').replace('🎨', '').replace('✍️', '').strip()}"
-                pins = fetch_pinterest_pins(search_term, job_id, count=count, orientation=orientation)
+                pins = fetch_pinterest_pins(search_term, job_id, count=count, orientation=orientation, used_media_ids=used_media_ids)
                 if not pins:
-                    pins = fetch_pinterest_pins(keyword, job_id, count=count, orientation=orientation)
+                    pins = fetch_pinterest_pins(keyword, job_id, count=count, orientation=orientation, used_media_ids=used_media_ids)
                 if pins:
                     return pins
             except Exception as e_p:
