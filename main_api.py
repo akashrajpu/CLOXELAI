@@ -140,7 +140,8 @@ def process_video_task(job_id, data: VideoRequest):
             else: clip_count = 10 
 
         jobs[job_id]["status"] = f"Fetching {clip_count} media assets for {d}s video..."
-        video_clips = fetch_videos(data.topic, job_id, count=clip_count)
+        orient = "landscape" if data.aspect_ratio == "16:9" else "portrait"
+        video_clips = fetch_videos(data.topic, job_id, count=clip_count, orientation=orient, topic=data.topic)
 
         if not video_clips:
             raise Exception("Media assets download nahi ho payin")

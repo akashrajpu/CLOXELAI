@@ -3868,7 +3868,12 @@ def generate_dynamic_procedural_script(topic: str, duration: int, video_type: st
             f"Durgam pahadon aur vishal kilon ke beech veeron ne matribhumi ki raksha ke liye apna sarvasva nyochhavar karne ka sankalp liya.",
             f"Ranbhoomi mein shatruon ki vishal sena ke chakke chhoot gaye jab achanak gurella yudh aur achook nishanon ka vaar shuru hua.",
             f"Itihaaskar maante hain ki is sangharsh ne na sirf aane wali peedhiyon ko prerit kiya balki shaurya ka naya kirtimaan sthaapit kiya.",
-            f"Vigyaan aur puratattva vibhag aaj bhi in sthanon se aisi nayi khojein nikaal rahe hain jo us daur ke unnat gyan ko darshati hain."
+            f"Vigyaan aur puratattva vibhag aaj bhi in sthanon se aisi nayi khojein nikaal rahe hain jo us daur ke unnat gyan ko darshati hain.",
+            f"Pracheen dharohar aur shastra kala ke anokhe namoone ye saaf darshate hain ki yoddhaon ki tayari kitni adbhut aur satik thi.",
+            f"Yudh kshetra ke rannkosh aur kootneetigya faislon ne itihas ke rukh ko hamesha ke liye ek nayi disha de di thi.",
+            f"Pratyek sainik ke man mein vijay ki aisi aag thi jise dekhkar dushman sena ka aatmarakshan bhi asambhav ho gaya tha.",
+            f"Sanskritik dharohar aur paramparaon mein aaj bhi in adig sahasik ghatnaon ka varnan vishisht roop se milta hai.",
+            f"Antatah, is aitihasik yatra ne ye saabit kiya ki dridh sankalp ke aage vishal se vishal shaktiyaan bhi jhook jati hain."
         ]
         closings = [
             f"Swabhiman aur balidan ki ye amar gatha hamesha zinda rahegi! Agar video garv mehsoos karwaye toh like aur subscribe zaroor karein!",
@@ -3878,7 +3883,7 @@ def generate_dynamic_procedural_script(topic: str, duration: int, video_type: st
         hooks = [
             f"Dosto! Kya aap jaante hain ki {topic} ke peeche ek aisa hairan kar dene wala raaz chhipa hai jo scientists ko bhi dang kar chuka hai?",
             f"Aaj hum baat kar rahe hain {topic} ki, jiske baare mein 99% log poori tarah anjaan hain lekin iska asar hamari duniya par sabse gehra hai.",
-            f"Agar aapko lagta hai ki aap {topic} ke baare mein sabkuch jaante hain, toh ye video aapki soch ko hamesha ke liye badal degi.",
+            f"Agar aapko lagta ki aap {topic} ke baare mein sabkuch jaante hain, toh ye video aapki soch ko hamesha ke liye badal degi.",
             f"Vigyan aur modern research ne {topic} ko lekar ek aisi shocking discovery ki hai jisne poori duniya mein tehelka macha diya hai."
         ]
         body_pool = [
@@ -3886,7 +3891,12 @@ def generate_dynamic_procedural_script(topic: str, duration: int, video_type: st
             f"Haal hi mein hui research mein ye saaf hua ki iske microscopic aur macroscopic factors aam dharana se 10 guna zyada complex hain.",
             f"Real-world data aur empirical evidence dikhata hai ki aane wale dashak mein ye breakthrough technology ya phenomenon ek naya mod le sakti hai.",
             f"Scientists ne is baat ki pushti ki hai ki iske parameters human body aur technology par unexpected tarike se impact daalte hain.",
-            f"Har naye observation ke sath naye sawal khade ho rahe hain jinhe solve karne ke liye world-class labs lagataar kaam kar rahi hain."
+            f"Har naye observation ke sath naye sawal khade ho rahe hain jinhe solve karne ke liye world-class labs lagataar kaam kar rahi hain.",
+            f"Cutting-edge sensors aur observational data ne aise patterns capture kiye hain jo pehle kabhi record nahi kiye gaye the.",
+            f"Global research community is baat par sehmat hai ki iske applications futuristic engineering mein kranti la sakte hain.",
+            f"Pichle kuch varshon ke comparative data se ye pata chalta hai ki iska evolutionary pace pehle ke anumanon se kayi guna tezi se badh raha hai.",
+            f"Theoretical physics aur modern computational models iske naye aspects ko decode karne ke liye advance simulations run kar rahe hain.",
+            f"Duniya bhar ke visheshagya is naye aayam ko humanity ke agle vikas ki kunji maan rahe hain."
         ]
         closings = [
             f"Toh ye the {topic} se jude sabse shocking aur zaroori facts! Aapki ispar kya rai hai, comment mein batayein aur subscribe karein!",
@@ -3904,7 +3914,16 @@ def generate_dynamic_procedural_script(topic: str, duration: int, video_type: st
         "detailed close up footage", 
         "futuristic landscape setting", 
         "atmospheric documentary shot", 
-        "dynamic camera movement"
+        "dynamic camera movement",
+        "epic wide angle aerial view",
+        "scientific research laboratory",
+        "stunning high quality landscape",
+        "slow motion cinematic detail",
+        "deep exploration journey",
+        "impressive cinematic perspective",
+        "authentic documentary footage",
+        "high tech futuristic visuals",
+        "breathtaking panoramic backdrop"
     ]
 
     for i in range(scene_count):

@@ -16,19 +16,30 @@ def fetch_pexels_videos(keyword, job_id, count=1, orientation="portrait", used_m
         
     print(f"📥 [Pexels] '{keyword}' ke liye video clip ({orientation}) dhoondh rahe hain...")
     headers = {"Authorization": key}
-    per_page = max(15, count * 4)
-    url = f"https://api.pexels.com/videos/search?query={requests.utils.quote(keyword)}&per_page={per_page}&orientation={orientation}"
+    per_page = 40 if orientation == "landscape" else max(25, count * 4)
     
     if used_media_ids is None:
         used_media_ids = set()
 
+    page = 1
+    if used_media_ids:
+        page = min(5, 1 + (len(used_media_ids) // 20))
+        
+    url = f"https://api.pexels.com/videos/search?query={requests.utils.quote(keyword)}&per_page={per_page}&page={page}&orientation={orientation}"
+
     try:
         res = requests.get(url, headers=headers, timeout=12)
-        if res.status_code != 200:
-            return []
-        data = res.json()
-        video_paths = []
+        data = res.json() if res.status_code == 200 else {}
         videos = data.get('videos', [])
+        
+        # Fallback to page 1 if current page has no results
+        if not videos and page > 1:
+            url_p1 = f"https://api.pexels.com/videos/search?query={requests.utils.quote(keyword)}&per_page={per_page}&page=1&orientation={orientation}"
+            res_p1 = requests.get(url_p1, headers=headers, timeout=12)
+            if res_p1.status_code == 200:
+                videos = res_p1.json().get('videos', [])
+
+        video_paths = []
         if videos:
             selected_videos = []
             # Pass 1: Fresh videos never seen globally or in this job
@@ -318,11 +329,17 @@ def fetch_videos(keyword, job_id, count=1, orientation="portrait", category="Ran
     contextual_fallbacks = []
     if topic and topic.strip():
         contextual_fallbacks.append(topic.strip())
+        if orientation == "landscape" or str(video_type).lower() == "long":
+            contextual_fallbacks.append(f"{topic.strip()} documentary scene")
+            contextual_fallbacks.append(f"{topic.strip()} cinematic landscape")
     if category and category.lower() not in ["random", "all"]:
         contextual_fallbacks.append(f"{category} cinematic footage")
     if clean_words:
         contextual_fallbacks.append(clean_words[0])
-    contextual_fallbacks.extend(["cinematic atmospheric backdrop", "abstract background motion"])
+    if orientation == "landscape" or str(video_type).lower() == "long":
+        contextual_fallbacks.extend(["cinematic documentary landscape", "atmospheric wide angle scene", "epic landscape backdrop"])
+    else:
+        contextual_fallbacks.extend(["cinematic atmospheric backdrop", "abstract background motion"])
 
     for fallback_kw in contextual_fallbacks:
         if fallback_kw.lower() not in seen_q:
