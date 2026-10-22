@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import Auth from './Auth';
 import YouTubeIntegration from './YouTubeIntegration';
 import { Smartphone, Monitor, Zap, Film, Settings, Sparkles, Clock, Palette, Mic, Music, Layout, Hash, Dices, Clapperboard, MonitorPlay, User, Sun, Scroll, Circle, Ban, Rocket, Box, Square, Tv, Compass } from 'lucide-react';
@@ -297,6 +297,77 @@ function App() {
     { text: '', keyword: '' },
     { text: '', keyword: '' }
   ]);
+
+  // Combined script text across fullScript and scenes chunks to detect video language in real-time
+  const combinedScriptText = useMemo(() => {
+    const fromScenes = (scenes || []).map(s => s.text || '').join(' ');
+    return `${fullScript || ''} ${fromScenes}`.trim();
+  }, [fullScript, scenes]);
+
+  // Determine whether current video is Hindi, Hinglish, or English
+  const scriptLanguage = useMemo(() => {
+    // 1. If script text contains any Devanagari Hindi characters, it's 100% Hindi
+    if (/[\u0900-\u097F]/.test(combinedScriptText)) {
+      return 'hindi';
+    }
+
+    // 2. If script text is in Latin/English alphabet, check if it's Hinglish
+    if (combinedScriptText.length > 5) {
+      const lower = combinedScriptText.toLowerCase();
+      const words = lower.replace(/[^a-z0-9\s]/g, ' ').split(/\s+/).filter(Boolean);
+      const hinglishMarkers = new Set([
+        "hai", "hain", "kya", "aap", "aur", "toh", "liye", "bhi", "nahi", "karein", "karenge",
+        "hoga", "dost", "bhai", "sab", "yeh", "woh", "ek", "kar", "rahe", "the", "tha", "thi",
+        "kaise", "kahan", "kab", "kyun", "sirf", "lekin", "agar", "apne", "apna", "meri", "mera",
+        "tere", "tera", "hum", "tum", "wali", "wala", "wale", "batayein", "dekho", "dekhein",
+        "karte", "karta", "karti", "raha", "rahi", "jaise", "waisa", "kuch", "baat", "pehle",
+        "baad", "zaroor", "accha", "bahut", "shuru", "khatam"
+      ]);
+      const matchCount = words.filter(w => hinglishMarkers.has(w)).length;
+      if (matchCount >= 2 || (voiceId && voiceId.startsWith('hi')) || (words.length > 0 && matchCount / words.length > 0.08)) {
+        return 'hinglish';
+      }
+      return 'english';
+    }
+
+    // 3. Fallback when text is empty (initial state before generating/typing)
+    if (voiceId && voiceId.startsWith('hi')) {
+      return 'hindi';
+    }
+    return 'english';
+  }, [combinedScriptText, voiceId]);
+
+  const HINGLISH_FONT_SET = useMemo(() => new Set([
+    'anton.ttf', 'bebas.ttf', 'roboto.ttf', 'arial.ttf', 'raceflow.ttf',
+    'highlevel.ttf', 'carbonblock.ttf', 'grapesoda.ttf', 'tonight.ttf',
+    'agentorange.ttf', 'cartoon blocks.ttf', 'funsized.ttf', 'gamebox-regular.ttf',
+    'north face.ttf', 'vegasneon.ttf', 'wedgie regular.ttf', 'sf funk master.ttf'
+  ]), []);
+
+  // Filter font list dynamically: Hindi -> only Hindi fonts; Hinglish -> only Hinglish fonts; English -> only English fonts
+  const filteredFontList = useMemo(() => {
+    if (!fontList || fontList.length === 0) return ['Arial.ttf'];
+
+    const isHindiFont = (f) => f.toLowerCase().startsWith('ams ') || f.toLowerCase().includes('devanagari');
+
+    if (scriptLanguage === 'hindi') {
+      const hindiFonts = fontList.filter(f => isHindiFont(f));
+      return hindiFonts.length > 0 ? hindiFonts : fontList;
+    } else if (scriptLanguage === 'hinglish') {
+      const hinglishFonts = fontList.filter(f => !isHindiFont(f) && HINGLISH_FONT_SET.has(f.toLowerCase()));
+      return hinglishFonts.length > 0 ? hinglishFonts : fontList.filter(f => !isHindiFont(f));
+    } else {
+      const engFonts = fontList.filter(f => !isHindiFont(f));
+      return engFonts.length > 0 ? engFonts : fontList;
+    }
+  }, [fontList, scriptLanguage, HINGLISH_FONT_SET]);
+
+  // Keep fontName synchronized with the active language font list
+  useEffect(() => {
+    if (filteredFontList.length > 0 && !filteredFontList.includes(fontName)) {
+      setFontName(filteredFontList[0]);
+    }
+  }, [filteredFontList, fontName]);
   
   const [jobId, setJobId] = useState(null);
   const [jobStatus, setJobStatus] = useState(null);
@@ -1764,17 +1835,25 @@ function App() {
           </div>
 
           <div className="form-group">
-            <label>Font Family (Visual Preview)</label>
+            <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.6rem' }}>
+              <span>Font Family (Visual Preview)</span>
+              <span style={{ fontSize: '0.72rem', padding: '2px 8px', borderRadius: '6px', background: 'rgba(168, 85, 247, 0.2)', color: '#c084fc', fontWeight: 'bold' }}>
+                {scriptLanguage === 'hindi' ? '🇮🇳 Hindi Fonts Active' : (scriptLanguage === 'hinglish' ? '⚡ Hinglish Fonts Active' : '🌐 English Fonts Active')}
+              </span>
+            </label>
             <CustomSelect 
               theme={theme}
               value={fontName} 
               onChange={(val) => setFontName(val)}
-              options={fontList.map(f => {
+              options={filteredFontList.map(f => {
                 const fontClean = f.replace(/\.[^/.]+$/, "");
                 const isHindi = f.toLowerCase().startsWith("ams ") || f.toLowerCase().includes("devanagari");
+                let tag = "";
+                if (scriptLanguage === 'hindi' || isHindi) tag = " (Hindi)";
+                else if (scriptLanguage === 'hinglish') tag = " (Hinglish)";
                 return {
                   value: f,
-                  label: isHindi ? `${fontClean} (Hindi)` : fontClean,
+                  label: `${fontClean}${tag}`,
                   fontFamily: `'${fontClean}', Montserrat, Poppins, Arial, sans-serif`
                 };
               })}
@@ -2541,9 +2620,12 @@ function App() {
                     </div>
 
                     <div>
-                      <label style={{ color: '#cbd5e1', display: 'block', marginBottom: '4px' }}>Font Family:</label>
-                      <select value={autoSchedule.short_font || 'Arial.ttf'} onChange={(e) => setAutoSchedule({ ...autoSchedule, short_font: e.target.value })} style={{ width: '100%', padding: '8px', background: '#1e1738', border: '1px solid rgba(255,255,255,0.15)', color: '#fff', borderRadius: '8px' }}>
-                        {fontList.map((f, i) => {
+                      <label style={{ color: '#cbd5e1', display: 'block', marginBottom: '4px' }}>Font Family ({(autoSchedule.short_voice || '').startsWith('hi') ? 'Hindi' : 'English'}):</label>
+                      <select value={autoSchedule.short_font || ((autoSchedule.short_voice || '').startsWith('hi') ? 'Ams Aaditya.ttf' : 'Arial.ttf')} onChange={(e) => setAutoSchedule({ ...autoSchedule, short_font: e.target.value })} style={{ width: '100%', padding: '8px', background: '#1e1738', border: '1px solid rgba(255,255,255,0.15)', color: '#fff', borderRadius: '8px' }}>
+                        {fontList.filter(f => {
+                          const isH = f.toLowerCase().startsWith("ams ") || f.toLowerCase().includes("devanagari");
+                          return (autoSchedule.short_voice || '').startsWith('hi') ? isH : !isH;
+                        }).map((f, i) => {
                           const isHindi = f.toLowerCase().startsWith("ams ") || f.toLowerCase().includes("devanagari");
                           const fontClean = f.replace(/\.[^/.]+$/, "");
                           return (
@@ -2630,9 +2712,12 @@ function App() {
                     </div>
 
                     <div>
-                      <label style={{ color: '#cbd5e1', display: 'block', marginBottom: '4px' }}>Font Family:</label>
-                      <select value={autoSchedule.long_font || 'Arial.ttf'} onChange={(e) => setAutoSchedule({ ...autoSchedule, long_font: e.target.value })} style={{ width: '100%', padding: '8px', background: '#1e1738', border: '1px solid rgba(255,255,255,0.15)', color: '#fff', borderRadius: '8px' }}>
-                        {fontList.map((f, i) => {
+                      <label style={{ color: '#cbd5e1', display: 'block', marginBottom: '4px' }}>Font Family ({(autoSchedule.long_voice || '').startsWith('hi') ? 'Hindi' : 'English'}):</label>
+                      <select value={autoSchedule.long_font || ((autoSchedule.long_voice || '').startsWith('hi') ? 'Ams Aaditya.ttf' : 'Arial.ttf')} onChange={(e) => setAutoSchedule({ ...autoSchedule, long_font: e.target.value })} style={{ width: '100%', padding: '8px', background: '#1e1738', border: '1px solid rgba(255,255,255,0.15)', color: '#fff', borderRadius: '8px' }}>
+                        {fontList.filter(f => {
+                          const isH = f.toLowerCase().startsWith("ams ") || f.toLowerCase().includes("devanagari");
+                          return (autoSchedule.long_voice || '').startsWith('hi') ? isH : !isH;
+                        }).map((f, i) => {
                           const isHindi = f.toLowerCase().startsWith("ams ") || f.toLowerCase().includes("devanagari");
                           const fontClean = f.replace(/\.[^/.]+$/, "");
                           return (
@@ -2790,9 +2875,12 @@ function App() {
                             return (
                               <>
                                 <div>
-                                  <label style={{ color: '#cbd5e1', display: 'block', marginBottom: '4px' }}>Font Family:</label>
-                                  <select value={autoSchedule.ultra_font || 'Arial.ttf'} onChange={(e) => setAutoSchedule({ ...autoSchedule, ultra_font: e.target.value })} style={{ width: '100%', padding: '8px', background: '#1e1738', border: '1px solid rgba(255,255,255,0.15)', color: '#fff', borderRadius: '8px' }}>
-                                    {(fontList && fontList.length > 0 ? fontList : ['Arial.ttf']).map((font, i) => {
+                                  <label style={{ color: '#cbd5e1', display: 'block', marginBottom: '4px' }}>Font Family ({(autoSchedule.ultra_voice || '').startsWith('hi') ? 'Hindi' : 'English'}):</label>
+                                  <select value={autoSchedule.ultra_font || ((autoSchedule.ultra_voice || '').startsWith('hi') ? 'Ams Aaditya.ttf' : 'Arial.ttf')} onChange={(e) => setAutoSchedule({ ...autoSchedule, ultra_font: e.target.value })} style={{ width: '100%', padding: '8px', background: '#1e1738', border: '1px solid rgba(255,255,255,0.15)', color: '#fff', borderRadius: '8px' }}>
+                                    {(fontList && fontList.length > 0 ? fontList : ['Arial.ttf']).filter(f => {
+                                      const isH = f.toLowerCase().startsWith("ams ") || f.toLowerCase().includes("devanagari");
+                                      return (autoSchedule.ultra_voice || '').startsWith('hi') ? isH : !isH;
+                                    }).map((font, i) => {
                                       const isHindi = font.toLowerCase().startsWith("ams ") || font.toLowerCase().includes("devanagari");
                                       const fontClean = font.replace(/\.[^/.]+$/, "");
                                       return (
