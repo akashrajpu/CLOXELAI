@@ -3883,9 +3883,13 @@ async def get_fonts_list():
     fonts = ["Arial.ttf"]
     if os.path.exists(fonts_dir):
         all_files = [f for f in os.listdir(fonts_dir) if f.lower().endswith(('.ttf', '.otf')) and f != "MyFont.ttf"]
-        eng_fonts = sorted([f for f in all_files if not (f.lower().startswith("ams ") or "devanagari" in f.lower())])
-        hindi_fonts = sorted([f for f in all_files if (f.lower().startswith("ams ") or "devanagari" in f.lower())])
-        fonts = eng_fonts + hindi_fonts
+        is_hindi = lambda f: any(k in f.lower() for k in ["ams ", "devanagari", "yatra", "rozha", "kalam", "mukta", "modak", "ranga", "tiro"])
+        eng_fonts = sorted([f for f in all_files if not is_hindi(f)])
+        unicode_devanagari = ["YatraOne-Regular.ttf", "RozhaOne-Regular.ttf", "Kalam-Bold.ttf", "Mukta-Bold.ttf", "NotoSansDevanagari-Bold.ttf", "NotoSansDevanagari-Regular.ttf", "Modak-Regular.ttf", "Ranga-Bold.ttf", "TiroDevanagariHindi-Regular.ttf"]
+        all_hindi = [f for f in all_files if is_hindi(f)]
+        hindi_priority = [f for f in unicode_devanagari if f in all_hindi]
+        hindi_rest = sorted([f for f in all_hindi if f not in unicode_devanagari])
+        fonts = eng_fonts + hindi_priority + hindi_rest
     return {"fonts": fonts}
 
 @app.post("/cleanup/{job_id}")

@@ -276,9 +276,10 @@ function App() {
   const [fontName, setFontName] = useState('Arial.ttf');
   const [fontList, setFontList] = useState([
     'Arial.ttf', 'AgentOrange.ttf', 'BetsyFlanagan.ttf', 'CarbonBlock.ttf', 'Cartoon Blocks.ttf', 'GrapeSoda.ttf', 'HighLevel.ttf', 'RaceFlow.ttf',
+    'YatraOne-Regular.ttf', 'RozhaOne-Regular.ttf', 'Kalam-Bold.ttf', 'Mukta-Bold.ttf', 'NotoSansDevanagari-Bold.ttf', 'NotoSansDevanagari-Regular.ttf', 'Modak-Regular.ttf', 'Ranga-Bold.ttf', 'TiroDevanagariHindi-Regular.ttf',
     'Ams Aaditya.ttf', 'Ams Aakash.ttf', 'Ams Aakul_1.ttf', 'Ams Aakul_2.ttf', 'Ams Aakul_3.ttf', 'Ams Aakul_7.ttf', 'Ams Aasmi.ttf', 'Ams Bhumi.ttf',
     'Ams Ganesh.ttf', 'Ams Glassy.ttf', 'Ams Jambo.ttf', 'Ams Kangna.ttf', 'Ams Kartik.ttf', 'Ams Manthan.ttf', 'Ams Minar.ttf', 'Ams Sandhya.ttf',
-    'Ams Shikha.ttf', 'Ams Sudha.ttf', 'Ams Tushar.ttf', 'Ams Vasudeva.ttf', 'Ams Vedant.ttf', 'Ams kashi.ttf', 'NotoSansDevanagari-Bold.ttf'
+    'Ams Shikha.ttf', 'Ams Sudha.ttf', 'Ams Tushar.ttf', 'Ams Vasudeva.ttf', 'Ams Vedant.ttf', 'Ams kashi.ttf'
   ]);
   const [fontSize, setFontSize] = useState(220);
   const [fontColor, setFontColor] = useState('yellow');
@@ -348,10 +349,22 @@ function App() {
   const filteredFontList = useMemo(() => {
     if (!fontList || fontList.length === 0) return ['Arial.ttf'];
 
-    const isHindiFont = (f) => f.toLowerCase().startsWith('ams ') || f.toLowerCase().includes('devanagari');
+    const isHindiFont = (f) => {
+      const fl = f.toLowerCase();
+      return fl.startsWith('ams ') || fl.includes('devanagari') || fl.includes('yatra') || fl.includes('rozha') || fl.includes('kalam') || fl.includes('mukta') || fl.includes('modak') || fl.includes('ranga') || fl.includes('tiro');
+    };
 
     if (scriptLanguage === 'hindi') {
+      const unicodeDevanagari = ['YatraOne-Regular.ttf', 'RozhaOne-Regular.ttf', 'Kalam-Bold.ttf', 'Mukta-Bold.ttf', 'NotoSansDevanagari-Bold.ttf', 'NotoSansDevanagari-Regular.ttf', 'Modak-Regular.ttf', 'Ranga-Bold.ttf', 'TiroDevanagariHindi-Regular.ttf'];
       const hindiFonts = fontList.filter(f => isHindiFont(f));
+      hindiFonts.sort((a, b) => {
+        const aRank = unicodeDevanagari.indexOf(a);
+        const bRank = unicodeDevanagari.indexOf(b);
+        if (aRank !== -1 && bRank !== -1) return aRank - bRank;
+        if (aRank !== -1) return -1;
+        if (bRank !== -1) return 1;
+        return a.localeCompare(b);
+      });
       return hindiFonts.length > 0 ? hindiFonts : fontList;
     } else if (scriptLanguage === 'hinglish') {
       const hinglishFonts = fontList.filter(f => !isHindiFont(f) && HINGLISH_FONT_SET.has(f.toLowerCase()));
@@ -1847,7 +1860,7 @@ function App() {
               onChange={(val) => setFontName(val)}
               options={filteredFontList.map(f => {
                 const fontClean = f.replace(/\.[^/.]+$/, "");
-                const isHindi = f.toLowerCase().startsWith("ams ") || f.toLowerCase().includes("devanagari");
+                const isHindi = f.toLowerCase().startsWith("ams ") || f.toLowerCase().includes("devanagari") || f.toLowerCase().includes("yatra") || f.toLowerCase().includes("rozha") || f.toLowerCase().includes("kalam") || f.toLowerCase().includes("mukta") || f.toLowerCase().includes("modak") || f.toLowerCase().includes("ranga") || f.toLowerCase().includes("tiro");
                 let tag = "";
                 if (scriptLanguage === 'hindi' || isHindi) tag = " (Hindi)";
                 else if (scriptLanguage === 'hinglish') tag = " (Hinglish)";
@@ -2626,7 +2639,7 @@ function App() {
                           const isH = f.toLowerCase().startsWith("ams ") || f.toLowerCase().includes("devanagari");
                           return (autoSchedule.short_voice || '').startsWith('hi') ? isH : !isH;
                         }).map((f, i) => {
-                          const isHindi = f.toLowerCase().startsWith("ams ") || f.toLowerCase().includes("devanagari");
+                          const isHindi = f.toLowerCase().startsWith("ams ") || f.toLowerCase().includes("devanagari") || f.toLowerCase().includes("yatra") || f.toLowerCase().includes("rozha") || f.toLowerCase().includes("kalam") || f.toLowerCase().includes("mukta") || f.toLowerCase().includes("modak") || f.toLowerCase().includes("ranga") || f.toLowerCase().includes("tiro");
                           const fontClean = f.replace(/\.[^/.]+$/, "");
                           return (
                             <option key={i} value={f}>{isHindi ? `${fontClean} (Hindi)` : fontClean}</option>
@@ -2718,7 +2731,7 @@ function App() {
                           const isH = f.toLowerCase().startsWith("ams ") || f.toLowerCase().includes("devanagari");
                           return (autoSchedule.long_voice || '').startsWith('hi') ? isH : !isH;
                         }).map((f, i) => {
-                          const isHindi = f.toLowerCase().startsWith("ams ") || f.toLowerCase().includes("devanagari");
+                          const isHindi = f.toLowerCase().startsWith("ams ") || f.toLowerCase().includes("devanagari") || f.toLowerCase().includes("yatra") || f.toLowerCase().includes("rozha") || f.toLowerCase().includes("kalam") || f.toLowerCase().includes("mukta") || f.toLowerCase().includes("modak") || f.toLowerCase().includes("ranga") || f.toLowerCase().includes("tiro");
                           const fontClean = f.replace(/\.[^/.]+$/, "");
                           return (
                             <option key={i} value={f}>{isHindi ? `${fontClean} (Hindi)` : fontClean}</option>

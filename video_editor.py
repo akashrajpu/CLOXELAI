@@ -83,6 +83,15 @@ POSITIONS = ["center", "bottom", "top"]
 
 _FONT_CACHE = {}
 
+def check_font_supports_devanagari(f_obj):
+    if f_obj is None:
+        return False
+    try:
+        bbox = f_obj.getbbox("शिव")
+        return bool(bbox and (bbox[3] - bbox[1]) > 0 and (bbox[2] - bbox[0]) > 0)
+    except Exception:
+        return False
+
 def get_font(font_path_arg: str, fs: int, has_devanagari: bool):
     cache_key = (font_path_arg, fs, has_devanagari)
     if cache_key in _FONT_CACHE:
@@ -91,13 +100,15 @@ def get_font(font_path_arg: str, fs: int, has_devanagari: bool):
     font_obj = None
     
     hindi_font_candidates = [
-        "./fonts/Ams Aaditya.ttf",
-        "./fonts/Ams Manthan.ttf",
-        "./fonts/Ams Aakash.ttf",
-        "./fonts/Ams Kartik.ttf",
-        "./fonts/Ams Bhumi.ttf",
+        "./fonts/YatraOne-Regular.ttf",
+        "./fonts/RozhaOne-Regular.ttf",
+        "./fonts/Kalam-Bold.ttf",
+        "./fonts/Mukta-Bold.ttf",
         "./fonts/NotoSansDevanagari-Bold.ttf",
         "./fonts/NotoSansDevanagari-Regular.ttf",
+        "./fonts/Modak-Regular.ttf",
+        "./fonts/Ranga-Bold.ttf",
+        "./fonts/TiroDevanagariHindi-Regular.ttf",
         "/System/Library/Fonts/Supplemental/ITFDevanagari.ttc",
         "/System/Library/Fonts/Supplemental/DevanagariMT.ttc",
         "/System/Library/Fonts/Supplemental/Devanagari Sangam MN.ttc",
@@ -105,24 +116,29 @@ def get_font(font_path_arg: str, fs: int, has_devanagari: bool):
     ]
 
     base_name = os.path.basename(font_path_arg or "").lower()
-    is_explicit_hindi_font = (base_name.startswith("ams ") or "devanagari" in base_name)
     is_default_generic_font = (not font_path_arg or "arial" in base_name or "default" in base_name)
 
-    # 1. If user explicitly chose a font (e.g. an AMS Hindi font or custom font), load it directly
+    # 1. If user explicitly chose a font, try loading it
     if font_path_arg and os.path.exists(font_path_arg):
-        if is_explicit_hindi_font or not (has_devanagari and is_default_generic_font):
+        if not (has_devanagari and is_default_generic_font):
             try:
                 font_obj = ImageFont.truetype(font_path_arg, fs)
+                # CRITICAL: Verify that the loaded font can actually render Devanagari text!
+                # If font cannot render Devanagari (like legacy non-Unicode AMS fonts with 0 height), discard it!
+                if has_devanagari and not check_font_supports_devanagari(font_obj):
+                    font_obj = None
             except Exception:
                 font_obj = None
 
-    # 2. If text contains Hindi/Devanagari and no font loaded yet (or default generic Arial was given)
+    # 2. If text contains Hindi/Devanagari and no working font loaded yet
     if font_obj is None and has_devanagari:
         for df_path in hindi_font_candidates:
             if os.path.exists(df_path):
                 try:
-                    font_obj = ImageFont.truetype(df_path, fs)
-                    break
+                    candidate_obj = ImageFont.truetype(df_path, fs)
+                    if check_font_supports_devanagari(candidate_obj):
+                        font_obj = candidate_obj
+                        break
                 except Exception:
                     pass
 
