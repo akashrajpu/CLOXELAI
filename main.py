@@ -51,10 +51,13 @@ from apscheduler.schedulers.background import BackgroundScheduler
 import requests
 from firewall_security import FirewallMiddleware, waf
 try:
-    from web_image_fetcher import fetch_web_image
+    from web_image_fetcher import fetch_web_image, extract_rich_scene_visual_keywords, clean_topic_title, HINDI_STOPWORDS
 except Exception as _w_err:
     print(f"⚠️ web_image_fetcher top import warning: {_w_err}")
     fetch_web_image = None
+    extract_rich_scene_visual_keywords = None
+    clean_topic_title = lambda x: str(x)
+    HINDI_STOPWORDS = set()
 
 os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
 os.environ['OAUTHLIB_RELAX_TOKEN_SCOPE'] = '1'
@@ -1736,26 +1739,41 @@ def full_process(req: VideoRequest, job_id: str):
                         kw = visual_angles[sc_idx % len(visual_angles)]
                     scenes_data.append({"text": sentence, "keyword": kw})
         else:
-            # For LONG or ULTRA: Keep existing behavior untouched
+            # For LONG or ULTRA: Extract rich, descriptive keywords according to script so exact assets download without tiny fragments
             if req.full_script and req.full_script.strip():
                 import re
                 raw_sentences = [s.strip() for s in re.split(r'(?<=[.!?])\s+|\n+', req.full_script.strip()) if len(s.strip()) > 3]
-                stop_words = {"aur", "ek", "hai", "ki", "ke", "ka", "jo", "se", "me", "ko", "hi", "to", "ye", "wo", "tha", "thi", "hain", "kya", "toh", "liye", "bhi", "yeh", "kuch", "hoti", "hain", "mil", "sakti"}
-                
                 existing_kw_map = {s.text.strip(): s.keyword.strip() for s in (req.scenes or []) if s.text and s.keyword}
                 
                 scenes_data = []
-                for sentence in raw_sentences:
+                for sc_idx, sentence in enumerate(raw_sentences):
                     kw = existing_kw_map.get(sentence)
-                    if not kw:
-                        words = [w.lower() for w in sentence.split() if w.isalpha() and w.lower() not in stop_words]
-                        kw = words[0] if words else "technology"
+                    # If keyword is missing, tiny (1 word), or a stopword (like 'यह' or 'woh'):
+                    # Generate rich, descriptive visual keywords from the script sentence + topic
+                    if not kw or len(kw.split()) < 2 or (kw.lower() in HINDI_STOPWORDS or kw in HINDI_STOPWORDS):
+                        if extract_rich_scene_visual_keywords:
+                            _, _, rich_phrase = extract_rich_scene_visual_keywords(req.topic or "", sentence, kw or "", sc_idx, req.category)
+                            kw = rich_phrase or req.topic or "cinematic hd"
+                        else:
+                            kw = req.topic or "cinematic hd"
                     scenes_data.append({"text": sentence, "keyword": kw})
                     
                 if not scenes_data:
-                    scenes_data = [{"text": req.full_script.strip(), "keyword": "technology"}]
+                    scenes_data = [{"text": req.full_script.strip(), "keyword": "cinematic hd"}]
             elif req.scenes and len(req.scenes) > 0 and any(s.text and s.text.strip() for s in req.scenes):
-                scenes_data = [{"text": s.text.strip(), "keyword": s.keyword.strip() if s.keyword else "technology"} for s in req.scenes if s.text and s.text.strip()]
+                scenes_data = []
+                for sc_idx, s in enumerate(req.scenes):
+                    if not s.text or not s.text.strip():
+                        continue
+                    txt = s.text.strip()
+                    k_raw = (s.keyword or "").strip()
+                    if not k_raw or len(k_raw.split()) < 2 or (k_raw.lower() in HINDI_STOPWORDS or k_raw in HINDI_STOPWORDS):
+                        if extract_rich_scene_visual_keywords:
+                            _, _, rich_phrase = extract_rich_scene_visual_keywords(req.topic or "", txt, k_raw, sc_idx, req.category)
+                            k_raw = rich_phrase or req.topic or "cinematic hd"
+                        else:
+                            k_raw = req.topic or "cinematic hd"
+                    scenes_data.append({"text": txt, "keyword": k_raw})
 
         if not scenes_data:
             fallback_text = req.topic if req.topic else "AI Video Generation"
@@ -1824,13 +1842,18 @@ def full_process(req: VideoRequest, job_id: str):
                     scene_text = sc.get('text', '')
                     scene_kw = sc.get('keyword', '').strip()
                     
-                    scene_specific = scene_kw if (scene_kw and len(scene_kw.split()) <= 4) else ""
-                    if not scene_specific and scene_text:
-                        words = [w for w in scene_text.split() if len(w) > 3][:3]
-                        scene_specific = " ".join(words)
-                        
-                    bg_query = f"{main_topic} {scene_specific} landscape wallpaper photo".strip()
-                    fg_query = f"{main_topic} {scene_specific} character hero portrait".strip()
+                    if extract_rich_scene_visual_keywords:
+                        bg_query, fg_query, scene_visual_phrase = extract_rich_scene_visual_keywords(
+                            topic=main_topic,
+                            scene_text=scene_text,
+                            scene_kw=scene_kw,
+                            scene_idx=i,
+                            category=req.category
+                        )
+                    else:
+                        bg_query = f"{main_topic} {scene_kw} dramatic landscape wallpaper photo".strip()
+                        fg_query = f"{main_topic} {scene_kw} realistic character hero portrait".strip()
+                        scene_visual_phrase = scene_kw or main_topic
                     
                     print(f"   📥 Fetching Dual HD Assets: BG='{bg_query}', FG='{fg_query}'...")
                     fetch_web_image(bg_query, bg_img_path)
@@ -1842,8 +1865,8 @@ def full_process(req: VideoRequest, job_id: str):
                     if os.path.exists(fg_img_path):
                         v_paths.append(fg_img_path)
                         
-                    if not v_paths or any(w in scene_specific.lower() for w in ["battle", "war", "action", "fight", "army"]):
-                        vid_list = fetch_videos(f"{main_topic} {scene_specific}", v_path, orientation=orientation, category=req.category or "Random", video_type=req.video_type or "short", used_media_ids=used_media_ids)
+                    if not v_paths or any(w in scene_visual_phrase.lower() for w in ["battle", "war", "action", "fight", "army"]):
+                        vid_list = fetch_videos(f"{main_topic} {scene_visual_phrase}", v_path, orientation=orientation, category=req.category or "Random", video_type=req.video_type or "short", used_media_ids=used_media_ids)
                         if vid_list and os.path.exists(vid_list[0]):
                             if not v_paths:
                                 v_paths = vid_list
@@ -1893,10 +1916,11 @@ def full_process(req: VideoRequest, job_id: str):
                     # 1. Prioritize scene-specific keyword FIRST so each scene searches its unique visual action
                     if scene_kw:
                         for kw_word in scene_kw.split():
-                            if kw_word.lower() not in [p.lower() for p in search_query_parts]:
-                                search_query_parts.append(kw_word)
+                            if kw_word.lower() not in HINDI_STOPWORDS and kw_word not in HINDI_STOPWORDS:
+                                if kw_word.lower() not in [p.lower() for p in search_query_parts]:
+                                    search_query_parts.append(kw_word)
                     elif scene_text:
-                        eng_words = [w for w in scene_text.split() if w.isascii() and len(w) > 3][:3]
+                        eng_words = [w for w in scene_text.split() if w.isascii() and len(w) > 3 and w.lower() not in HINDI_STOPWORDS][:3]
                         if eng_words:
                             search_query_parts.extend(eng_words)
                             

@@ -3,6 +3,12 @@ import os
 import re
 import hashlib
 
+try:
+    from web_image_fetcher import HINDI_STOPWORDS, translate_query
+except Exception:
+    HINDI_STOPWORDS = {"यह", "वह", "yeh", "woh", "tha", "hai", "aur", "ek"}
+    translate_query = lambda q: str(q)
+
 PEXELS_API_KEY = os.getenv("PEXELS_API_KEY", "jqGZN1a4uHQFpxqdFAdVaD1l1eyjW1kzHqtdlNJ1TPkSmOEXcbAL7yhN")
 PIXABAY_API_KEY = os.getenv("PIXABAY_API_KEY", "39827606-4df15a6b0c26bbef50352ef2e")
 UNSPLASH_ACCESS_KEY = os.getenv("UNSPLASH_ACCESS_KEY", "")
@@ -442,8 +448,10 @@ def fetch_videos(keyword, job_id, count=1, orientation="portrait", category="Ran
     cat_lower = str(category).lower()
     is_ultra_mode = (str(video_type).lower() == "ultra")
 
-    noise_words = {"category", "random", "concept", "impact"}
-    raw_words = [w for w in keyword.replace('🎨', '').replace('🎲', '').replace('✍️', '').split() if w.lower() not in noise_words]
+    # Translate Hinglish/Hindi concepts to rich English and remove stop words like 'यह' or 'woh'
+    translated_kw = translate_query(keyword)
+    noise_words = {"category", "random", "concept", "impact"}.union(HINDI_STOPWORDS)
+    raw_words = [w for w in translated_kw.replace('🎨', '').replace('🎲', '').replace('✍️', '').split() if w.lower() not in noise_words and w not in noise_words]
     # Filter out non-ASCII tokens (Devanagari Hindi characters) if English words are available
     ascii_words = [w for w in raw_words if w.isascii() and any(c.isalnum() for c in w)]
     clean_words = ascii_words if ascii_words else raw_words
@@ -454,10 +462,10 @@ def fetch_videos(keyword, job_id, count=1, orientation="portrait", category="Ran
         if prefer_pinterest:
             try:
                 print(f"🎨 [Ultra Mode Priority: {category}] Trying Pinterest HD Pins...")
-                search_term = f"{keyword} {category.replace('🎲', '').replace('🎨', '').replace('✍️', '').strip()}"
+                search_term = f"{video_query} {category.replace('🎲', '').replace('🎨', '').replace('✍️', '').strip()}".strip()
                 pins = fetch_pinterest_pins(search_term, job_id, count=count, orientation=orientation, used_media_ids=used_media_ids)
                 if not pins:
-                    pins = fetch_pinterest_pins(keyword, job_id, count=count, orientation=orientation, used_media_ids=used_media_ids)
+                    pins = fetch_pinterest_pins(video_query, job_id, count=count, orientation=orientation, used_media_ids=used_media_ids)
                 if pins:
                     return pins
             except Exception as e_p:
