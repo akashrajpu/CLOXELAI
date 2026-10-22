@@ -89,7 +89,13 @@ def get_font(font_path_arg: str, fs: int, has_devanagari: bool):
         return _FONT_CACHE[cache_key]
 
     font_obj = None
-    devanagari_font_candidates = [
+    
+    hindi_font_candidates = [
+        "./fonts/Ams Aaditya.ttf",
+        "./fonts/Ams Manthan.ttf",
+        "./fonts/Ams Aakash.ttf",
+        "./fonts/Ams Kartik.ttf",
+        "./fonts/Ams Bhumi.ttf",
         "./fonts/NotoSansDevanagari-Bold.ttf",
         "./fonts/NotoSansDevanagari-Regular.ttf",
         "/System/Library/Fonts/Supplemental/ITFDevanagari.ttc",
@@ -98,8 +104,21 @@ def get_font(font_path_arg: str, fs: int, has_devanagari: bool):
         "/usr/share/fonts/truetype/noto/NotoSansDevanagari-Bold.ttf"
     ]
 
-    if has_devanagari:
-        for df_path in devanagari_font_candidates:
+    base_name = os.path.basename(font_path_arg or "").lower()
+    is_explicit_hindi_font = (base_name.startswith("ams ") or "devanagari" in base_name)
+    is_default_generic_font = (not font_path_arg or "arial" in base_name or "default" in base_name)
+
+    # 1. If user explicitly chose a font (e.g. an AMS Hindi font or custom font), load it directly
+    if font_path_arg and os.path.exists(font_path_arg):
+        if is_explicit_hindi_font or not (has_devanagari and is_default_generic_font):
+            try:
+                font_obj = ImageFont.truetype(font_path_arg, fs)
+            except Exception:
+                font_obj = None
+
+    # 2. If text contains Hindi/Devanagari and no font loaded yet (or default generic Arial was given)
+    if font_obj is None and has_devanagari:
+        for df_path in hindi_font_candidates:
             if os.path.exists(df_path):
                 try:
                     font_obj = ImageFont.truetype(df_path, fs)
@@ -107,14 +126,16 @@ def get_font(font_path_arg: str, fs: int, has_devanagari: bool):
                 except Exception:
                     pass
 
-    if font_obj is None:
+    # 3. If still None, try font_path_arg as requested
+    if font_obj is None and font_path_arg and os.path.exists(font_path_arg):
         try:
             font_obj = ImageFont.truetype(font_path_arg, fs)
         except Exception:
             pass
 
+    # 4. Fallback candidates if still None
     if font_obj is None:
-        fallback_candidates = devanagari_font_candidates + [
+        fallback_candidates = hindi_font_candidates + [
             "arial.ttf",
             "/Library/Fonts/Arial.ttf",
             "/System/Library/Fonts/Supplemental/Arial.ttf"

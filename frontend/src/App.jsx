@@ -274,7 +274,12 @@ function App() {
   const [fullScript, setFullScript] = useState('');
 
   const [fontName, setFontName] = useState('Arial.ttf');
-  const [fontList, setFontList] = useState(['Arial.ttf', 'AgentOrange.ttf', 'BetsyFlanagan.ttf', 'CarbonBlock.ttf', 'Cartoon Blocks.ttf', 'GrapeSoda.ttf', 'HighLevel.ttf', 'RaceFlow.ttf']);
+  const [fontList, setFontList] = useState([
+    'Arial.ttf', 'AgentOrange.ttf', 'BetsyFlanagan.ttf', 'CarbonBlock.ttf', 'Cartoon Blocks.ttf', 'GrapeSoda.ttf', 'HighLevel.ttf', 'RaceFlow.ttf',
+    'Ams Aaditya.ttf', 'Ams Aakash.ttf', 'Ams Aakul_1.ttf', 'Ams Aakul_2.ttf', 'Ams Aakul_3.ttf', 'Ams Aakul_7.ttf', 'Ams Aasmi.ttf', 'Ams Bhumi.ttf',
+    'Ams Ganesh.ttf', 'Ams Glassy.ttf', 'Ams Jambo.ttf', 'Ams Kangna.ttf', 'Ams Kartik.ttf', 'Ams Manthan.ttf', 'Ams Minar.ttf', 'Ams Sandhya.ttf',
+    'Ams Shikha.ttf', 'Ams Sudha.ttf', 'Ams Tushar.ttf', 'Ams Vasudeva.ttf', 'Ams Vedant.ttf', 'Ams kashi.ttf', 'NotoSansDevanagari-Bold.ttf'
+  ]);
   const [fontSize, setFontSize] = useState(220);
   const [fontColor, setFontColor] = useState('yellow');
   const [voiceId, setVoiceId] = useState('hi-IN-MadhurNeural');
@@ -1766,9 +1771,10 @@ function App() {
               onChange={(val) => setFontName(val)}
               options={fontList.map(f => {
                 const fontClean = f.replace(/\.[^/.]+$/, "");
+                const isHindi = f.toLowerCase().startsWith("ams ") || f.toLowerCase().includes("devanagari");
                 return {
                   value: f,
-                  label: fontClean,
+                  label: isHindi ? `${fontClean} (Hindi)` : fontClean,
                   fontFamily: `'${fontClean}', Montserrat, Poppins, Arial, sans-serif`
                 };
               })}
@@ -2537,9 +2543,13 @@ function App() {
                     <div>
                       <label style={{ color: '#cbd5e1', display: 'block', marginBottom: '4px' }}>Font Family:</label>
                       <select value={autoSchedule.short_font || 'Arial.ttf'} onChange={(e) => setAutoSchedule({ ...autoSchedule, short_font: e.target.value })} style={{ width: '100%', padding: '8px', background: '#1e1738', border: '1px solid rgba(255,255,255,0.15)', color: '#fff', borderRadius: '8px' }}>
-                        {fontList.map((f, i) => (
-                          <option key={i} value={f}>{f.replace(/\.[^/.]+$/, "")}</option>
-                        ))}
+                        {fontList.map((f, i) => {
+                          const isHindi = f.toLowerCase().startsWith("ams ") || f.toLowerCase().includes("devanagari");
+                          const fontClean = f.replace(/\.[^/.]+$/, "");
+                          return (
+                            <option key={i} value={f}>{isHindi ? `${fontClean} (Hindi)` : fontClean}</option>
+                          );
+                        })}
                       </select>
                     </div>
 
@@ -2622,9 +2632,13 @@ function App() {
                     <div>
                       <label style={{ color: '#cbd5e1', display: 'block', marginBottom: '4px' }}>Font Family:</label>
                       <select value={autoSchedule.long_font || 'Arial.ttf'} onChange={(e) => setAutoSchedule({ ...autoSchedule, long_font: e.target.value })} style={{ width: '100%', padding: '8px', background: '#1e1738', border: '1px solid rgba(255,255,255,0.15)', color: '#fff', borderRadius: '8px' }}>
-                        {fontList.map((f, i) => (
-                          <option key={i} value={f}>{f.replace(/\.[^/.]+$/, "")}</option>
-                        ))}
+                        {fontList.map((f, i) => {
+                          const isHindi = f.toLowerCase().startsWith("ams ") || f.toLowerCase().includes("devanagari");
+                          const fontClean = f.replace(/\.[^/.]+$/, "");
+                          return (
+                            <option key={i} value={f}>{isHindi ? `${fontClean} (Hindi)` : fontClean}</option>
+                          );
+                        })}
                       </select>
                     </div>
 
@@ -2778,9 +2792,13 @@ function App() {
                                 <div>
                                   <label style={{ color: '#cbd5e1', display: 'block', marginBottom: '4px' }}>Font Family:</label>
                                   <select value={autoSchedule.ultra_font || 'Arial.ttf'} onChange={(e) => setAutoSchedule({ ...autoSchedule, ultra_font: e.target.value })} style={{ width: '100%', padding: '8px', background: '#1e1738', border: '1px solid rgba(255,255,255,0.15)', color: '#fff', borderRadius: '8px' }}>
-                                    {(fontList && fontList.length > 0 ? fontList : ['Arial.ttf']).map((font, i) => (
-                                      <option key={i} value={font}>{font.replace(/\.[^/.]+$/, "")}</option>
-                                    ))}
+                                    {(fontList && fontList.length > 0 ? fontList : ['Arial.ttf']).map((font, i) => {
+                                      const isHindi = font.toLowerCase().startsWith("ams ") || font.toLowerCase().includes("devanagari");
+                                      const fontClean = font.replace(/\.[^/.]+$/, "");
+                                      return (
+                                        <option key={i} value={font}>{isHindi ? `${fontClean} (Hindi)` : fontClean}</option>
+                                      );
+                                    })}
                                   </select>
                                 </div>
 

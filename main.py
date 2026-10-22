@@ -3882,8 +3882,11 @@ async def get_fonts_list():
     fonts_dir = "./fonts"
     fonts = ["Arial.ttf"]
     if os.path.exists(fonts_dir):
-        fonts = [f for f in os.listdir(fonts_dir) if f.lower().endswith(('.ttf', '.otf'))]
-    return {"fonts": sorted(fonts)}
+        all_files = [f for f in os.listdir(fonts_dir) if f.lower().endswith(('.ttf', '.otf')) and f != "MyFont.ttf"]
+        eng_fonts = sorted([f for f in all_files if not (f.lower().startswith("ams ") or "devanagari" in f.lower())])
+        hindi_fonts = sorted([f for f in all_files if (f.lower().startswith("ams ") or "devanagari" in f.lower())])
+        fonts = eng_fonts + hindi_fonts
+    return {"fonts": fonts}
 
 @app.post("/cleanup/{job_id}")
 async def cleanup(job_id: str):
