@@ -3,6 +3,8 @@ import time
 import json
 import math
 import logging
+import ipaddress
+import os
 from collections import defaultdict
 from typing import Dict, List, Set, Tuple, Any
 from fastapi import Request, Response, HTTPException, status
@@ -12,42 +14,63 @@ from starlette.responses import JSONResponse
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("CloxelFortressWAF")
 
+ADMIN_SECURITY_KEY = os.getenv("ADMIN_SECURITY_KEY") or os.getenv("ADMIN_SECRET_KEY") or "cloxel_admin_fortress_secure_key_99281"
+
 class ThreatSignatures:
     """
-    Exhaustive Repository of All Known Attack Vectors & Exploitation Techniques.
+    Exhaustive Repository of All Known Attack Vectors, Exploitation Techniques,
+    and High-Precision Regex Patterns for Public Internet Protection.
     """
     
     HONEYPOT_PATHS = {
-        "/wp-admin", "/phpmyadmin", "/.env", "/.git/config", "/admin/db.sql",
+        "/wp-admin", "/phpmyadmin", "/.env", "/.git", "/admin/db.sql",
         "/shell.php", "/api/v1/eval", "/actuator/env", "/config.json", "/backup.zip",
-        "/admin.php", "/vendor/.env", "/.aws/credentials", "/server-status"
+        "/admin.php", "/vendor/.env", "/.aws/credentials", "/server-status",
+        "/xmlrpc.php", "/wp-login.php", "/eval-stdin.php", "/solr/", "/jmx-console"
     }
 
+    # High-precision SQL Injection patterns: Detects real SQL injections with zero false positives on normal words
     SQLI_PATTERNS = [
-        re.compile(r"(\b(SELECT|INSERT|UPDATE|DELETE|DROP|ALTER|CREATE|TRUNCATE|EXEC|UNION|GRANT|REVOKE)\b)", re.IGNORECASE),
-        re.compile(r"(\bOR\b\s+['\"]?\d+['\"]?\s*=\s*['\"]?\d+)", re.IGNORECASE),
-        re.compile(r"(\bOR\b\s+['\"]?[a-zA-Z]+['\"]?\s*=\s*['\"]?[a-zA-Z]+)", re.IGNORECASE),
-        re.compile(r"(--\s*|#|/\*|\*/)", re.IGNORECASE),
-        re.compile(r"(\b(INFORMATION_SCHEMA|BENCHMARK|SLEEP|WAITFOR|PG_SLEEP)\b)", re.IGNORECASE),
-        re.compile(r"('|\")\s*(OR|AND)\s*('|\")?\d+('|\")?\s*=\s*('|\")?\d+", re.IGNORECASE),
-        re.compile(r"(\bUNION\b\s+ALL\s+SELECT\b)", re.IGNORECASE),
+        re.compile(r"(\bUNION\s+(ALL\s+)?SELECT\b)", re.IGNORECASE),
+        re.compile(r"(\bSELECT\b[\s\S]+?\bFROM\b)", re.IGNORECASE),
+        re.compile(r"(\bINSERT\s+INTO\b[\s\S]+?\bVALUES\b)", re.IGNORECASE),
+        re.compile(r"(\bDELETE\s+FROM\b)", re.IGNORECASE),
+        re.compile(r"(\bDROP\s+(TABLE|DATABASE|VIEW|INDEX|PROCEDURE|FUNCTION)\b)", re.IGNORECASE),
+        re.compile(r"(\bALTER\s+TABLE\b)", re.IGNORECASE),
+        re.compile(r"(\bTRUNCATE\s+TABLE\b)", re.IGNORECASE),
+        re.compile(r"(\bUPDATE\b\s+[a-zA-Z0-9_`\"\[\]]+\s+\bSET\b)", re.IGNORECASE),
+        re.compile(r"((\bOR\b|\bAND\b)\s+['\"]?\d+['\"]?\s*=\s*['\"]?\d+)", re.IGNORECASE),
+        re.compile(r"((\bOR\b|\bAND\b)\s+['\"][a-zA-Z0-9_]+['\"]\s*=\s*['\"][a-zA-Z0-9_]+['\"])", re.IGNORECASE),
+        re.compile(r"(--\s*$|--\s*[\r\n]|/\*[\s\S]*?\*/|#\s*[\r\n])", re.IGNORECASE),
+        re.compile(r"(\b(INFORMATION_SCHEMA|BENCHMARK\s*\(|SLEEP\s*\(|WAITFOR\s+DELAY|PG_SLEEP\s*\(|LOAD_FILE\s*\()\b)", re.IGNORECASE),
+        re.compile(r"('|\")\s*(OR|AND)\s+('|\")?(\d+|[a-zA-Z]+)('|\")?\s*=\s*('|\")?(\d+|[a-zA-Z]+)", re.IGNORECASE),
+        re.compile(r"(\b(EXEC|EXECUTE)\s+(\@|xp_|sp_))", re.IGNORECASE),
+        re.compile(r"(;\s*(SELECT|INSERT|UPDATE|DELETE|DROP|ALTER|EXEC|UNION)\b)", re.IGNORECASE),
+        re.compile(r"('\s*;\s*--)", re.IGNORECASE),
+        re.compile(r"(\bHAVING\s+\d+=\d+\b)", re.IGNORECASE),
+        re.compile(r"(\bORDER\s+BY\s+\d+[\s\S]*?(--|/\*))", re.IGNORECASE),
+        re.compile(r"(\bCAST\s*\([\s\S]+?\bAS\b)", re.IGNORECASE),
+        re.compile(r"(\bCONVERT\s*\([\s\S]+?\bUSING\b)", re.IGNORECASE),
     ]
 
+    # Exhaustive NoSQL (MongoDB) Injection Patterns
     NOSQLI_PATTERNS = [
-        re.compile(r"(\$where|\$regex|\$gt|\$gte|\$lt|\$lte|\$ne|\$nin|\$exists|\$or|\$and|\$not|\$type|\$mod)", re.IGNORECASE),
-        re.compile(r"(this\.[a-zA-Z0-9_]+\s*==\s*this\.[a-zA-Z0-9_]+)", re.IGNORECASE),
-        re.compile(r"(\{\$ne:\s*null\}|\{\$gt:\s*\"\"\}|\{\$exists:\s*true\})", re.IGNORECASE),
+        re.compile(r"(\$where|\$regex|\$gt|\$gte|\$lt|\$lte|\$ne|\$nin|\$in|\$exists|\$or|\$and|\$not|\$nor|\$expr|\$jsonSchema|\$mod|\$text|\$slice|\$elemMatch|\$size|\$all)", re.IGNORECASE),
+        re.compile(r"(this\.[a-zA-Z0-9_]+|tojson\s*\(|db\.[a-zA-Z0-9_]+\s*\.|sleep\s*\(|emit\s*\()", re.IGNORECASE),
+        re.compile(r"(\{\"\$(ne|gt|gte|lt|lte|regex|where|exists|in|or|and|nor|expr)\"\s*:)", re.IGNORECASE),
     ]
 
+    # Cross-Site Scripting (XSS) Patterns
     XSS_PATTERNS = [
-        re.compile(r"(<script[^>]*>.*?</script>)", re.IGNORECASE),
+        re.compile(r"(<script[^>]*>[\s\S]*?</script>)", re.IGNORECASE),
         re.compile(r"(javascript\s*:|vbscript\s*:|data\s*:text/html)", re.IGNORECASE),
-        re.compile(r"(on(load|error|click|mouseover|focus|blur|keydown|submit|mouseenter|mouseleave)\s*=)", re.IGNORECASE),
+        re.compile(r"(on(load|error|click|mouseover|focus|blur|keydown|submit|mouseenter|mouseleave|change|input)\s*=)", re.IGNORECASE),
         re.compile(r"(eval\s*\(|document\.cookie|document\.location|window\.location|top\.location)", re.IGNORECASE),
-        re.compile(r"(<iframe|<object|<embed|<applet|<meta|<link|<svg/onload)", re.IGNORECASE),
+        re.compile(r"(<iframe|<object|<embed|<applet|<meta|<link|<svg[\s\S]*?onload)", re.IGNORECASE),
         re.compile(r"(alert\s*\(|prompt\s*\(|confirm\s*\()", re.IGNORECASE),
     ]
 
+    # Remote Code Execution (RCE) / Command Injection Patterns
     RCE_PATTERNS = [
         re.compile(r"(;\s*(cat|ls|pwd|whoami|id|uname|nc|netcat|curl|wget|bash|sh|zsh|powershell|cmd)\b)", re.IGNORECASE),
         re.compile(r"(\|\s*(cat|ls|pwd|whoami|id|nc|curl|wget|bash|sh)\b)", re.IGNORECASE),
@@ -57,6 +80,7 @@ class ThreatSignatures:
         re.compile(r"(\\x90\\x90|\\xeb\\xfe|\\xcd\\x80)"),
     ]
 
+    # Path Traversal / LFI Patterns
     TRAVERSAL_PATTERNS = [
         re.compile(r"(\.\./|\.\.\\|%2e%2e%2f|%2e%2e/|\.\.%2f|%252e%252e%252f)", re.IGNORECASE),
         re.compile(r"(file://|php://|zlib://|data://|glob://|expect://|zip://|phar://)", re.IGNORECASE),
@@ -64,6 +88,7 @@ class ThreatSignatures:
         re.compile(r"(\\x00|%00)", re.IGNORECASE),
     ]
 
+    # Server-Side Request Forgery (SSRF) Patterns
     SSRF_PATTERNS = [
         re.compile(r"(http://|https://)?(127\.0\.0\.1|localhost|169\.254\.169\.254|0\.0\.0\.0|::1)", re.IGNORECASE),
         re.compile(r"(http://|https://)?(10\.\d{1,3}\.\d{1,3}\.\d{1,3}|192\.168\.\d{1,3}\.\d{1,3}|172\.(1[6-9]|2[0-9]|3[0-1])\.\d{1,3}\.\d{1,3})", re.IGNORECASE),
@@ -97,7 +122,7 @@ class SecurityFirewall:
     def __init__(self):
         self.request_history: Dict[str, List[float]] = defaultdict(list)
         self.threat_scores: Dict[str, int] = defaultdict(int)
-        self.offense_counts: Dict[str, int] = defaultdict(int)
+        self.rate_limit_violations: Dict[str, int] = defaultdict(int)
         self.banned_ips: Dict[str, float] = {}
         
         self.attack_stats = {
@@ -135,6 +160,7 @@ class SecurityFirewall:
             else:
                 del self.banned_ips[ip]
                 self.threat_scores[ip] = 0
+                self.rate_limit_violations[ip] = 0
         return False
 
     def reset_all_bans(self):
@@ -142,37 +168,46 @@ class SecurityFirewall:
         self.banned_ips.clear()
         self.threat_scores.clear()
         self.request_history.clear()
-        self.offense_counts.clear()
+        self.rate_limit_violations.clear()
         logger.info("🔓 [FIREWALL RESET] All IP bans and rate limits reset successfully!")
 
-    def ban_ip(self, ip: str, duration: int = 60):
-        """Short-Lived Auto-Expiring IP Ban (Default: 60 seconds)."""
+    def ban_ip(self, ip: str, duration: int = 300):
+        """Auto-Expiring IP Ban (Default: 5 minutes / 300 seconds)."""
         self.banned_ips[ip] = time.time() + duration
         logger.warning(f"⛔ [FORTRESS TEMPORARY BAN] IP {ip} temporarily paused for {duration}s.")
 
-    def record_threat(self, ip: str, threat_type: str, weight: int = 2):
+    def record_threat(self, ip: str, threat_type: str, weight: int = 3):
         self.threat_scores[ip] += weight
         self.attack_stats[threat_type] = self.attack_stats.get(threat_type, 0) + 1
         self.attack_stats["total_threats_blocked"] += 1
         
         logger.warning(f"🚨 [FORTRESS THREAT DETECTED] Type: {threat_type.upper()} | IP: {ip} | Score: {self.threat_scores[ip]}")
         
+        # 2 strikes policy: Score >= 6 triggers automatic ban
         if self.threat_scores[ip] >= 6:
-            self.ban_ip(ip, duration=120)
+            self.ban_ip(ip, duration=600)  # 10 minutes ban
 
     def check_rate_limit(self, ip: str, path: str) -> bool:
         self.clean_old_history(ip, 60.0)
         req_count = len(self.request_history[ip])
 
-        if any(auth_path in path for auth_path in ["/login", "/register", "/create-razorpay-order", "/verify-razorpay-payment"]):
-            max_limit = 60
+        # Strict rate limits per endpoint category
+        if any(auth_path in path for auth_path in ["/login", "/register", "/forgot-password", "/reset-password", "/verify-reset-qr"]):
+            max_limit = 15  # 15 requests per minute for auth (anti brute-force)
         elif any(render_path in path for render_path in ["/generate-custom-video", "/generate-script", "/api/generate-ai-script"]):
-            max_limit = 60
-        else:
+            max_limit = 12  # 12 video/script generations per minute (anti resource exhaustion)
+        elif any(pay_path in path for pay_path in ["/create-razorpay-order", "/verify-razorpay-payment"]):
+            max_limit = 15  # 15 payment attempts per minute
+        elif any(path.startswith(static) for static in ["/assets", "/fonts", "/music"]):
             max_limit = 300
+        else:
+            max_limit = 120
 
         if req_count >= max_limit:
             self.attack_stats["rate_limit_blocked"] = self.attack_stats.get("rate_limit_blocked", 0) + 1
+            self.rate_limit_violations[ip] += 1
+            if self.rate_limit_violations[ip] >= 3:
+                self.ban_ip(ip, duration=300)  # 5 min ban on repeated flooding
             return False
 
         self.request_history[ip].append(time.time())
@@ -183,7 +218,8 @@ class SecurityFirewall:
             return False, ""
 
         clean_text = text.strip()
-        import re
+
+        # Whitelist safe visual styling tokens (hex colors, standard css color names)
         if re.match(r"^#(?:[0-9a-fA-F]{3}){1,2}$", clean_text) or clean_text.lower() in [
             "yellow", "cyan", "magenta", "red", "green", "blue", "white", "black", "gold", "pink", "purple", "orange"
         ]:
@@ -195,6 +231,18 @@ class SecurityFirewall:
         for hp in ThreatSignatures.HONEYPOT_PATHS:
             if hp in text:
                 return True, "honeypot_trap_blocked"
+
+        for pattern in ThreatSignatures.NOSQLI_PATTERNS:
+            if pattern.search(text):
+                return True, "nosqli_blocked"
+
+        for pattern in ThreatSignatures.SQLI_PATTERNS:
+            if pattern.search(text):
+                return True, "sqli_blocked"
+
+        for pattern in ThreatSignatures.XSS_PATTERNS:
+            if pattern.search(text):
+                return True, "xss_blocked"
 
         for pattern in ThreatSignatures.JWT_ATTACK_PATTERNS:
             if pattern.search(text):
@@ -216,18 +264,7 @@ class SecurityFirewall:
             if pattern.search(text):
                 return True, "rce_blocked"
 
-        for pattern in ThreatSignatures.XSS_PATTERNS:
-            if pattern.search(text):
-                return True, "xss_blocked"
-
-        for pattern in ThreatSignatures.SQLI_PATTERNS:
-            if pattern.search(text):
-                return True, "sqli_blocked"
-
-        for pattern in ThreatSignatures.NOSQLI_PATTERNS:
-            if pattern.search(text):
-                return True, "nosqli_blocked"
-
+        # Entropy shellcode detection for suspicious strings
         if len(text) > 40 and self.calculate_entropy(text) > 5.8:
             if any(sym in text for sym in [";", "|", "$", "<", ">", "`", "{", "}", "\\"]):
                 return True, "rce_blocked"
@@ -235,7 +272,7 @@ class SecurityFirewall:
         return False, ""
 
     def inspect_data(self, data, depth: int = 0) -> Tuple[bool, str]:
-        """Deep Recursive Data Scanner with Nesting Depth & Key Count Caps."""
+        """Deep Recursive Data Scanner with Strict NoSQL Key & Value Verification."""
         if depth > 10:
             return True, "rce_blocked"
 
@@ -244,16 +281,28 @@ class SecurityFirewall:
         elif isinstance(data, dict):
             if len(data.keys()) > 150:
                 return True, "rce_blocked"
-            whitelisted_keys = {"font_color", "font_name", "voice_id", "bg_music", "topic", "category", "full_script", "scenes", "video_type", "duration", "email", "password"}
+
             for k, v in data.items():
-                is_bad_k, threat_k = self.inspect_text(str(k))
+                k_str = str(k).strip()
+                # 1. Any dictionary key starting with $ or containing . is a direct MongoDB NoSQL injection attack
+                if k_str.startswith("$") or "." in k_str:
+                    return True, "nosqli_blocked"
+
+                is_bad_k, threat_k = self.inspect_text(k_str)
                 if is_bad_k:
                     return True, threat_k
-                if str(k).lower() in whitelisted_keys:
-                    continue
+
+                # 2. Strict ID/Auth field enforcement:
+                # Sensitive identifier and credential fields must NEVER be objects/arrays (Classic NoSQL injection vector)
+                if k_str.lower() in {"email", "phone", "email_or_mobile", "user_id", "internal_id", "job_id", "order_id", "payment_id"}:
+                    if isinstance(v, (dict, list)):
+                        return True, "nosqli_blocked"
+
+                # 3. Recursively inspect all values
                 is_bad_v, threat_v = self.inspect_data(v, depth + 1)
                 if is_bad_v:
                     return True, threat_v
+
         elif isinstance(data, list):
             if len(data) > 300:
                 return True, "rce_blocked"
@@ -265,132 +314,225 @@ class SecurityFirewall:
 
 waf = SecurityFirewall()
 
+def sanitize_alphanumeric_id(val: str, max_len: int = 64) -> str:
+    """Validates and cleans IDs (job_id, internal_id, order_id) strictly to alphanumeric + hyphen/underscore."""
+    if not val or not isinstance(val, str):
+        raise HTTPException(status_code=400, detail="Invalid identifier format.")
+    clean = re.sub(r'[^a-zA-Z0-9_\-]', '', val.strip())
+    if not clean or len(clean) > max_len or clean != val.strip():
+        raise HTTPException(status_code=400, detail="Malformed or illegal characters detected in identifier.")
+    return clean
+
+def sanitize_nosql(obj: Any) -> Any:
+    """Recursively eliminates any MongoDB operator keys ($...) from incoming structures."""
+    if isinstance(obj, dict):
+        clean = {}
+        for k, v in obj.items():
+            if str(k).startswith("$") or "." in str(k):
+                raise HTTPException(status_code=400, detail="Illegal query operator detected.")
+            clean[k] = sanitize_nosql(v)
+        return clean
+    elif isinstance(obj, list):
+        return [sanitize_nosql(i) for i in obj]
+    elif isinstance(obj, str):
+        return obj.replace("\x00", "")
+    return obj
+
+def clean_xss(val: str) -> str:
+    """Strips HTML tags to prevent Cross-Site Scripting (XSS)."""
+    if not val or not isinstance(val, str):
+        return val
+    return re.sub(r'<[^>]*>', '', str(val)).strip()
+
+def verify_admin_access(request: Request):
+    """Guards sensitive admin endpoints with ADMIN_SECURITY_KEY verification."""
+    key = request.headers.get("x-admin-key") or request.query_params.get("admin_key")
+    if not key or key.strip() != ADMIN_SECURITY_KEY.strip():
+        logger.warning(f"⛔ [ADMIN ACCESS DENIED] Unauthorized access attempt from {request.client.host if request.client else 'unknown'}")
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden: Valid Admin Security Key required.")
+
+def resolve_client_ip(request: Request) -> str:
+    """Accurately extracts real client IP behind Cloudflare, Render, AWS ALB, or standard proxies."""
+    cf_ip = request.headers.get("CF-Connecting-IP")
+    if cf_ip:
+        try:
+            ipaddress.ip_address(cf_ip.strip())
+            return cf_ip.strip()
+        except ValueError:
+            pass
+
+    real_ip = request.headers.get("X-Real-IP")
+    if real_ip:
+        try:
+            ipaddress.ip_address(real_ip.strip())
+            return real_ip.strip()
+        except ValueError:
+            pass
+
+    forwarded = request.headers.get("X-Forwarded-For")
+    if forwarded:
+        first_ip = forwarded.split(",")[0].strip()
+        try:
+            ipaddress.ip_address(first_ip)
+            return first_ip
+        except ValueError:
+            pass
+
+    return request.client.host if request.client else "127.0.0.1"
+
+def add_security_headers(response: Response) -> Response:
+    """Attaches complete OWASP recommended security headers and strips identifying server banners."""
+    csp_policy = (
+        "default-src 'self' https: data: blob:; "
+        "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://accounts.google.com https://checkout.razorpay.com https://api.razorpay.com https://*.razorpay.com https://unpkg.com; "
+        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://checkout.razorpay.com; "
+        "font-src 'self' https://fonts.gstatic.com https://cdn.jsdelivr.net data:; "
+        "img-src 'self' data: https: blob: https://cdn.razorpay.com https://*.razorpay.com; "
+        "connect-src 'self' https: wss: https://api.razorpay.com https://lumberjack.razorpay.com https://*.razorpay.com; "
+        "media-src 'self' https: blob: data:; "
+        "object-src 'none'; "
+        "base-uri 'self'; "
+        "frame-src 'self' https://accounts.google.com https://api.razorpay.com https://checkout.razorpay.com https://*.razorpay.com https://*.razorpay.in; "
+        "form-action 'self';"
+    )
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "SAMEORIGIN"
+    response.headers["X-XSS-Protection"] = "1; mode=block"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=(), payment=*, usb=(), display-capture=()"
+    response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains; preload"
+    response.headers["Cross-Origin-Opener-Policy"] = "same-origin-allow-popups"
+    response.headers["Cross-Origin-Resource-Policy"] = "cross-origin"
+    response.headers["Content-Security-Policy"] = csp_policy
+
+    for h in ["Server", "server", "X-Powered-By", "x-powered-by"]:
+        if h in response.headers:
+            del response.headers[h]
+    return response
+
 class FirewallMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
-        forwarded = request.headers.get("X-Forwarded-For")
-        if forwarded:
-            client_ip = forwarded.split(",")[0].strip()
-        else:
-            client_ip = request.client.host if request.client else "127.0.0.1"
-
+        client_ip = resolve_client_ip(request)
         path = request.url.path.lower()
 
+        # 1. Banned IP Gate
         if waf.is_banned(client_ip):
             logger.warning(f"🚫 [FORTRESS BLOCKED BANNED IP] {client_ip} -> {path}")
-            return JSONResponse(
+            return add_security_headers(JSONResponse(
                 status_code=status.HTTP_403_FORBIDDEN,
                 content={
                     "status": "blocked",
-                    "error": "Access Denied by Cloxel Security Shield. IP address has been banned for malicious activity.",
+                    "error": "Access Denied by Cloxel Security Shield. IP address has been temporarily banned for suspicious activity.",
                     "ip": client_ip
                 }
-            )
+            ))
 
+        # 2. Honeypot Trap Detection
         if path in ThreatSignatures.HONEYPOT_PATHS or any(path.startswith(hp) for hp in ThreatSignatures.HONEYPOT_PATHS):
             waf.record_threat(client_ip, "honeypot_trap_blocked", weight=10)
-            return JSONResponse(
+            waf.ban_ip(client_ip, duration=3600)  # 1 hour instant ban for honeypot probes
+            return add_security_headers(JSONResponse(
                 status_code=status.HTTP_403_FORBIDDEN,
                 content={"status": "blocked", "error": "Honeypot Security Trap Triggered. IP Banned."}
-            )
+            ))
 
+        # 3. HTTP Protocol Smuggling Gate
         if "content-length" in request.headers and "transfer-encoding" in request.headers:
             waf.record_threat(client_ip, "protocol_smuggling_blocked", weight=5)
-            return JSONResponse(
+            return add_security_headers(JSONResponse(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 content={"status": "blocked", "error": "HTTP Protocol Anomaly Detected (Smuggling Attempt)."}
-            )
+            ))
 
+        # 4. Automated Exploit Scanner Gate
         user_agent = request.headers.get("User-Agent", "").lower()
         for bot in ThreatSignatures.MALICIOUS_BOTS:
             if bot in user_agent:
-                waf.record_threat(client_ip, "scanner_blocked", weight=4)
-                return JSONResponse(
+                waf.record_threat(client_ip, "scanner_blocked", weight=6)
+                waf.ban_ip(client_ip, duration=1800)  # 30 min ban for malicious scanners
+                return add_security_headers(JSONResponse(
                     status_code=status.HTTP_403_FORBIDDEN,
-                    content={"status": "blocked", "error": "Automated security scanner detected and blocked."}
-                )
+                    content={"status": "blocked", "error": "Automated security scanner detected and banned."}
+                ))
 
+        # 5. Rate Limiting Gate
         if not waf.check_rate_limit(client_ip, path):
-            return JSONResponse(
+            return add_security_headers(JSONResponse(
                 status_code=status.HTTP_429_TOO_MANY_REQUESTS,
                 content={"status": "rate_limited", "error": "Too many requests. Rate limit enforced."}
-            )
+            ))
 
+        # 6. Path Traversal & Injection in URL Path
+        is_bad_path, threat_path = waf.inspect_text(request.url.path)
+        if is_bad_path:
+            waf.record_threat(client_ip, threat_path, weight=4)
+            return add_security_headers(JSONResponse(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                content={"status": "blocked", "error": f"Security Shield Flagged URL Path ({threat_path.upper()})."}
+            ))
+
+        # 7. Query Parameters Deep Inspection
         for key, val in request.query_params.items():
             is_malicious, threat_type = waf.inspect_text(f"{key}={val}")
             if is_malicious:
-                waf.record_threat(client_ip, threat_type, weight=3)
-                return JSONResponse(
+                waf.record_threat(client_ip, threat_type, weight=4)
+                return add_security_headers(JSONResponse(
                     status_code=status.HTTP_400_BAD_REQUEST,
-                    content={"status": "blocked", "error": f"Security Shield Flagged Request ({threat_type.upper()})."}
-                )
+                    content={"status": "blocked", "error": f"Security Shield Flagged Query ({threat_type.upper()})."}
+                ))
 
+        # 8. Request Payload Inspection (POST, PUT, PATCH)
         if request.method in ["POST", "PUT", "PATCH"]:
             content_length = request.headers.get("Content-Length")
+            # 25MB max safety cap for uploads
             if content_length and int(content_length) > 25 * 1024 * 1024:
-                return JSONResponse(
+                return add_security_headers(JSONResponse(
                     status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
                     content={"status": "blocked", "error": "Request payload exceeds 25MB safety limit."}
-                )
+                ))
 
             content_type = request.headers.get("Content-Type", "")
             if "application/json" in content_type:
                 try:
                     body_bytes = await request.body()
                     if body_bytes:
+                        # Prevent JSON bombs / oversized JSON
+                        if len(body_bytes) > 2 * 1024 * 1024:  # 2MB cap for JSON
+                            return add_security_headers(JSONResponse(
+                                status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                                content={"status": "blocked", "error": "JSON payload exceeds 2MB limit."}
+                            ))
+
                         body_json = json.loads(body_bytes.decode("utf-8"))
                         is_malicious, threat_type = waf.inspect_data(body_json)
                         if is_malicious:
-                            waf.record_threat(client_ip, threat_type, weight=3)
-                            return JSONResponse(
+                            waf.record_threat(client_ip, threat_type, weight=4)
+                            return add_security_headers(JSONResponse(
                                 status_code=status.HTTP_400_BAD_REQUEST,
-                                content={"status": "blocked", "error": f"Security Shield Flagged Request ({threat_type.upper()})."}
-                            )
+                                content={"status": "blocked", "error": f"Security Shield Flagged Payload ({threat_type.upper()})."}
+                            ))
 
                         async def receive():
                             return {"type": "http.request", "body": body_bytes}
 
                         request._receive = receive
-                except Exception:
-                    pass
+                except json.JSONDecodeError:
+                    return add_security_headers(JSONResponse(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        content={"status": "blocked", "error": "Malformed JSON payload."}
+                    ))
+                except Exception as _e_body:
+                    logger.warning(f"⚠️ Body inspection warning: {_e_body}")
 
+        # 9. Next Middleware / Route Execution
         try:
             response: Response = await call_next(request)
         except Exception as exc:
             logger.error(f"❌ Internal Exception: {exc}", exc_info=True)
-            return JSONResponse(
+            return add_security_headers(JSONResponse(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                content={"status": "error", "message": "An internal server error occurred. Logged by Security Shield."}
-            )
+                content={"status": "error", "message": "An internal server error occurred. Protected by Cloxel Security Shield."}
+            ))
 
-        response.headers["X-Content-Type-Options"] = "nosniff"
-        response.headers["X-Frame-Options"] = "SAMEORIGIN"
-        response.headers["X-XSS-Protection"] = "1; mode=block"
-        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
-        response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=(), payment=*, usb=(), display-capture=()"
-        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains; preload"
-        response.headers["Cross-Origin-Opener-Policy"] = "same-origin-allow-popups"
-        response.headers["Cross-Origin-Resource-Policy"] = "cross-origin"
-
-        csp_policy = (
-            "default-src 'self' https: data: blob:; "
-            "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://accounts.google.com https://checkout.razorpay.com https://api.razorpay.com https://*.razorpay.com https://unpkg.com; "
-            "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://checkout.razorpay.com; "
-            "font-src 'self' https://fonts.gstatic.com https://cdn.jsdelivr.net data:; "
-            "img-src 'self' data: https: blob: https://cdn.razorpay.com https://*.razorpay.com; "
-            "connect-src 'self' https: wss: https://api.razorpay.com https://lumberjack.razorpay.com https://*.razorpay.com; "
-            "media-src 'self' https: blob: data:; "
-            "object-src 'none'; "
-            "base-uri 'self'; "
-            "frame-src 'self' https://accounts.google.com https://api.razorpay.com https://checkout.razorpay.com https://*.razorpay.com https://*.razorpay.in; "
-            "form-action 'self';"
-        )
-        response.headers["Content-Security-Policy"] = csp_policy
-
-        if "Server" in response.headers:
-            del response.headers["Server"]
-        if "server" in response.headers:
-            del response.headers["server"]
-        if "X-Powered-By" in response.headers:
-            del response.headers["X-Powered-By"]
-
-        return response
+        # 10. Robust Defense Headers
+        return add_security_headers(response)

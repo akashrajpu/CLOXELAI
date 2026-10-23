@@ -49,7 +49,10 @@ except Exception as _g_err:
 
 from apscheduler.schedulers.background import BackgroundScheduler
 import requests
-from firewall_security import FirewallMiddleware, waf
+from firewall_security import (
+    FirewallMiddleware, waf, verify_admin_access, 
+    sanitize_alphanumeric_id, sanitize_nosql, clean_xss
+)
 try:
     from web_image_fetcher import fetch_web_image, extract_rich_scene_visual_keywords, clean_topic_title, HINDI_STOPWORDS
 except Exception as _w_err:
@@ -1564,16 +1567,37 @@ def check_duplicate_user(email: str, phone: str):
     return None
 
 from fastapi.middleware.gzip import GZipMiddleware
+from fastapi.middleware.cors import CORSMiddleware
 
-app = FastAPI()
+# Production Hardening: Disable Swagger & ReDoc to prevent attacker schema enumeration
+app = FastAPI(title="Cloxel AI", docs_url=None, redoc_url=None, openapi_url=None)
+
+ALLOWED_ORIGINS = [
+    "https://cloxelai.onrender.com",
+    "http://localhost:5173",
+    "http://localhost:3000",
+    "http://127.0.0.1:5173",
+    "http://127.0.0.1:3000",
+]
+frontend_env = os.getenv("FRONTEND_URL")
+if frontend_env and frontend_env.strip() not in ALLOWED_ORIGINS:
+    ALLOWED_ORIGINS.append(frontend_env.strip())
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=ALLOWED_ORIGINS,
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+    allow_headers=["*"],
+)
 app.add_middleware(GZipMiddleware, minimum_size=500)
+app.add_middleware(FirewallMiddleware)
 
 @app.get("/api/admin/unblock-firewall")
-async def unblock_firewall():
+async def unblock_firewall(request: Request):
+    verify_admin_access(request)
     waf.reset_all_bans()
     return {"message": "🔓 Firewall IP bans & rate limits reset successfully!"}
-
-app.add_middleware(FirewallMiddleware)
 
 try:
     from bg_remover import remove_background
@@ -2351,9 +2375,18 @@ async def update_profile_pic(req: ProfilePicRequest):
     if users_collection is None:
         raise HTTPException(status_code=500, detail="Database not configured")
         
+    clean_id = sanitize_alphanumeric_id(req.internal_id)
+    pic = req.profile_pic.strip()
+    
+    # Strict Image Security Verification (prevents XSS, SSRF, & Malicious Redirects)
+    is_valid_base64_img = pic.startswith("data:image/") and len(pic) < 6 * 1024 * 1024
+    is_valid_https_url = pic.startswith("https://") and len(pic) < 1000
+    if not (is_valid_base64_img or is_valid_https_url):
+        raise HTTPException(status_code=400, detail="Invalid profile picture format. Must be a valid image.")
+
     users_collection.update_one(
-        {"internal_id": req.internal_id},
-        {"$set": {"profile_pic": req.profile_pic}}
+        {"internal_id": clean_id},
+        {"$set": {"profile_pic": pic}}
     )
     return {"message": "Profile picture updated successfully!"}
 
@@ -2362,18 +2395,25 @@ async def get_user_profile_pic(internal_id: str):
     if users_collection is None:
         raise HTTPException(status_code=404, detail="Not found")
     try:
-        user = users_collection.find_one({"internal_id": internal_id}, {"profile_pic": 1})
+        clean_id = sanitize_alphanumeric_id(internal_id)
+        user = users_collection.find_one({"internal_id": clean_id}, {"profile_pic": 1})
         if not user or not user.get("profile_pic"):
             raise HTTPException(status_code=404, detail="No profile pic")
         pic = user.get("profile_pic")
         if pic.startswith("data:image"):
             import base64
             header, encoded = pic.split(",", 1)
-            mime = header.split(";")[0].split(":")[1]
+            mime = header.split(";")[0].split(":")[1].lower().strip()
+            if mime not in {"image/png", "image/jpeg", "image/jpg", "image/webp", "image/gif"}:
+                raise HTTPException(status_code=400, detail="Illegal image mime type")
             data = base64.b64decode(encoded)
             return Response(content=data, media_type=mime)
-        return RedirectResponse(url=pic)
-    except Exception as e:
+        elif pic.startswith("https://"):
+            return RedirectResponse(url=pic)
+        raise HTTPException(status_code=400, detail="Invalid profile picture URL")
+    except HTTPException:
+        raise
+    except Exception:
         raise HTTPException(status_code=404, detail="Profile pic error")
 
 PLAN_RANKS = {"ultra": 1, "short": 2, "long": 3, "combo": 4}
@@ -2518,10 +2558,11 @@ def activate_user_subscription(internal_id: str, plan_type: str, payment_id: str
 
 @app.get("/user-subscription/{internal_id}")
 async def get_user_subscription(internal_id: str):
+    clean_id = sanitize_alphanumeric_id(internal_id)
     if users_collection is None:
         return {"free_demo_count": 2, "has_active_subscription": False, "plan_type": "none"}
     try:
-        user = users_collection.find_one({"internal_id": internal_id})
+        user = users_collection.find_one({"internal_id": clean_id})
         user = decrypt_user_doc(user)
         if not user:
             return {"free_demo_count": 2, "has_active_subscription": False, "plan_type": "none"}
@@ -2529,7 +2570,7 @@ async def get_user_subscription(internal_id: str):
         free_demo = user.get("free_demo_count")
         if free_demo is None:
             free_demo = 2
-            users_collection.update_one({"internal_id": internal_id}, {"$set": {"free_demo_count": 2}})
+            users_collection.update_one({"internal_id": clean_id}, {"$set": {"free_demo_count": 2}})
         subscription = user.get("subscription", {})
         sub_status = subscription.get("status")
         sub_expires = subscription.get("expires_at")
@@ -2768,6 +2809,7 @@ async def save_auto_schedule(req: AutoScheduleRequest):
 
 @app.get("/get-auto-schedule/{internal_id}")
 async def get_auto_schedule(internal_id: str):
+    clean_id = sanitize_alphanumeric_id(internal_id)
     if users_collection is None:
         return {
             "schedule_enabled": False,
@@ -2794,7 +2836,7 @@ async def get_auto_schedule(internal_id: str):
             "next_scheduled_run": "Not Scheduled"
         }
 
-    user = users_collection.find_one({"internal_id": internal_id})
+    user = users_collection.find_one({"internal_id": clean_id})
     if not user:
         return {
             "schedule_enabled": False,
@@ -2937,8 +2979,9 @@ async def get_auto_schedule(internal_id: str):
     }
 
 @app.get("/admin/active-schedules")
-async def get_active_schedules_admin():
-    """Admin inspection endpoint listing all accounts with active auto-upload enabled"""
+async def get_active_schedules_admin(request: Request):
+    """Admin inspection endpoint listing all accounts with active auto-upload enabled (Protected)"""
+    verify_admin_access(request)
     if users_collection is None:
         return {"total_active_accounts": 0, "active_schedules": []}
 
@@ -2968,8 +3011,9 @@ async def get_active_schedules_admin():
     }
 
 @app.get("/admin/security-status")
-def get_security_status():
-    """Admin inspection endpoint displaying active WAF security metrics and threat logs"""
+def get_security_status(request: Request):
+    """Admin inspection endpoint displaying active WAF security metrics and threat logs (Protected)"""
+    verify_admin_access(request)
     return {
         "waf_status": "ACTIVE_ENFORCED",
         "shield_version": "Cloxel Ultimate WAF v2.0",
@@ -3109,7 +3153,9 @@ async def verify_razorpay_payment(req: VerifyPaymentRequest):
     key_id = os.getenv("RAZORPAY_KEY_ID", "").strip().strip('"').strip("'")
     key_secret = os.getenv("RAZORPAY_KEY_SECRET", "").strip().strip('"').strip("'")
 
-    if key_id and key_secret and req.razorpay_signature and key_secret != "secret_placeholder":
+    if key_id and key_secret and key_secret != "secret_placeholder":
+        if not req.razorpay_signature:
+            raise HTTPException(status_code=400, detail="Payment Signature Missing. Activation Denied.")
         try:
             import razorpay
             client = razorpay.Client(auth=(key_id, key_secret))
@@ -3146,7 +3192,9 @@ async def razorpay_webhook(request: Request):
     
     webhook_secret = (os.getenv("RAZORPAY_WEBHOOK_SECRET") or os.getenv("RAZORPAY_KEY_SECRET", "")).strip().strip('"').strip("'")
     
-    if webhook_secret and webhook_secret != "secret_placeholder" and webhook_signature:
+    if webhook_secret and webhook_secret != "secret_placeholder":
+        if not webhook_signature:
+            raise HTTPException(status_code=400, detail="Missing Webhook Signature")
         try:
             import hmac
             import hashlib
@@ -3162,6 +3210,7 @@ async def razorpay_webhook(request: Request):
             raise
         except Exception as sig_err:
             print(f"⚠️ [Razorpay Webhook] Signature verification notice: {sig_err}")
+            raise HTTPException(status_code=400, detail="Signature Verification Error")
 
     try:
         payload = json.loads(webhook_body.decode('utf-8'))
@@ -3507,8 +3556,10 @@ async def register_user(req: UserRegister):
     primary_email = req.email.strip().lower()
     raw_digits = "".join(filter(str.isdigit, req.phone))
     primary_phone = raw_digits[-10:] if len(raw_digits) >= 10 else raw_digits
+    clean_name = clean_xss(req.name.strip())
+    clean_country = clean_xss(req.country.strip())
     
-    if not primary_email or not primary_phone or not req.name.strip() or not req.country.strip():
+    if not primary_email or not primary_phone or not clean_name or not clean_country:
         raise HTTPException(status_code=400, detail="All fields (Name, Country, Phone, Email, Password) are mandatory.")
         
     if len(primary_phone) != 10:
@@ -3516,6 +3567,12 @@ async def register_user(req: UserRegister):
             status_code=400,
             detail="⚠️ Registration Failed: Mobile Number must be exactly 10 digits (e.g. 9876543210)."
         )
+
+    if len(primary_email) > 120:
+        raise HTTPException(status_code=400, detail="⚠️ Registration Failed: Email address is too long.")
+
+    if len(req.password) < 6 or len(req.password) > 128:
+        raise HTTPException(status_code=400, detail="⚠️ Registration Failed: Password must be between 6 and 128 characters.")
 
     import re
     email_format_regex = re.compile(r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$")
@@ -3547,8 +3604,8 @@ async def register_user(req: UserRegister):
     security_qr_tok = f"CLOXEL-SEC-{uuid.uuid4().hex[:12].upper()}"
 
     new_user = {
-        "name": encrypt_field(req.name.strip()),
-        "country": req.country.strip(),
+        "name": encrypt_field(clean_name),
+        "country": clean_country,
         "phone": encrypt_field(primary_phone),
         "email": encrypt_field(primary_email),
         "email_or_mobile": encrypt_field(primary_email),
@@ -3585,7 +3642,7 @@ async def register_user(req: UserRegister):
         "internal_id": internal_id,
         "email": primary_email,
         "phone": primary_phone,
-        "name": req.name.strip(),
+        "name": clean_name,
         "security_qr_token": security_qr_tok
     }
 
@@ -3748,7 +3805,7 @@ async def verify_reset_qr(req: VerifyQRRequest):
         except Exception:
             pass
     
-    if stored_qr_tok and extracted_token.strip() != stored_qr_tok.strip():
+    if not stored_qr_tok or extracted_token.strip() != stored_qr_tok.strip():
         raise HTTPException(
             status_code=400,
             detail="⚠️ Security Verification Failed: Invalid QR Code! The uploaded/scanned QR code does not belong to this account."
@@ -3790,14 +3847,14 @@ async def reset_password(req: ResetPasswordRequest):
         except Exception:
             pass
     
-    if stored_qr_tok and extracted_token.strip() != stored_qr_tok.strip():
+    if not stored_qr_tok or extracted_token.strip() != stored_qr_tok.strip():
         raise HTTPException(
             status_code=400,
             detail="⚠️ Security Error: Invalid QR Code! The uploaded QR Code token does not match your registered account credential."
         )
         
-    if not req.new_password or len(req.new_password.strip()) < 4:
-        raise HTTPException(status_code=400, detail="⚠️ New password must be at least 4 characters long.")
+    if not req.new_password or len(req.new_password.strip()) < 6 or len(req.new_password.strip()) > 128:
+        raise HTTPException(status_code=400, detail="⚠️ New password must be between 6 and 128 characters long.")
 
     new_hash = safe_hash_password(req.new_password.strip())
     
@@ -3813,13 +3870,14 @@ async def reset_password(req: ResetPasswordRequest):
 
 @app.get("/history/{internal_id}")
 async def get_video_history(internal_id: str):
+    clean_id = sanitize_alphanumeric_id(internal_id)
     if videos_collection is None:
         raise HTTPException(status_code=500, detail="Database not configured")
     
     try:
-        user_or_terms = [{"internal_id": internal_id}, {"user_id": internal_id}]
+        user_or_terms = [{"internal_id": clean_id}, {"user_id": clean_id}]
         if users_collection is not None:
-            user = users_collection.find_one({"internal_id": internal_id})
+            user = users_collection.find_one({"internal_id": clean_id})
             if user:
                 if user.get("email"):
                     user_or_terms.append({"internal_id": user.get("email")})
@@ -3861,24 +3919,26 @@ async def get_video_history(internal_id: str):
 
 @app.get("/status/{job_id}")
 async def get_status(job_id: str):
-    if job_id in jobs:
-        return jobs[job_id]
+    clean_job_id = sanitize_alphanumeric_id(job_id)
+    if clean_job_id in jobs:
+        return jobs[clean_job_id]
     if rendering_jobs is not None:
         try:
-            job_doc = rendering_jobs.find_one({"job_id": job_id}, {"_id": 0})
+            job_doc = rendering_jobs.find_one({"job_id": clean_job_id}, {"_id": 0})
             if job_doc:
-                jobs[job_id] = job_doc
+                jobs[clean_job_id] = job_doc
                 return job_doc
         except Exception as e:
-            print(f"⚠️ DB status lookup exception for {job_id}: {e}")
+            print(f"⚠️ DB status lookup exception for {clean_job_id}: {e}")
     return {"status": "not_found"}
 
 @app.get("/download/{job_id}")
 async def download_video(job_id: str):
-    job = jobs.get(job_id)
+    clean_job_id = sanitize_alphanumeric_id(job_id)
+    job = jobs.get(clean_job_id)
     if not job and rendering_jobs is not None:
         try:
-            job = rendering_jobs.find_one({"job_id": job_id}, {"_id": 0})
+            job = rendering_jobs.find_one({"job_id": clean_job_id}, {"_id": 0})
         except Exception:
             pass
     if job and job.get("status") == "completed":
@@ -3919,7 +3979,8 @@ async def get_fonts_list():
 @app.post("/cleanup/{job_id}")
 async def cleanup(job_id: str):
     """Video download hone ke baad server saaf karne ke liye"""
-    job = jobs.get(job_id)
+    clean_job_id = sanitize_alphanumeric_id(job_id)
+    job = jobs.get(clean_job_id)
     if job:
         if os.path.exists(job.get("file", "")): os.remove(job["file"])
         if os.path.exists(job.get("dir", "")): shutil.rmtree(job["dir"])
@@ -3958,11 +4019,9 @@ class UnlinkRequest(BaseModel):
 
 @app.get("/youtube/auth-url")
 async def get_youtube_auth_url(internal_id: str):
-    if not internal_id:
-        raise HTTPException(status_code=400, detail="Missing user internal_id")
-
+    clean_id = sanitize_alphanumeric_id(internal_id)
     if users_collection is not None:
-        user = users_collection.find_one({"internal_id": internal_id})
+        user = users_collection.find_one({"internal_id": clean_id})
         if user:
             sub = user.get("subscription", {})
             sub_status = sub.get("status")
@@ -4004,7 +4063,8 @@ async def get_youtube_auth_url(internal_id: str):
 
 @app.get("/youtube/callback")
 async def youtube_callback(state: str, code: str):
-    internal_id = state
+    clean_id = sanitize_alphanumeric_id(state)
+    internal_id = clean_id
     client_id = os.getenv("YOUTUBE_CLIENT_ID")
     client_secret = os.getenv("YOUTUBE_CLIENT_SECRET")
     redirect_uri = os.getenv("YOUTUBE_REDIRECT_URI", "https://cloxelai.onrender.com/youtube/callback")
@@ -4030,7 +4090,7 @@ async def youtube_callback(state: str, code: str):
             frontend_url = os.getenv("FRONTEND_URL", "https://cloxelai.onrender.com")
             return RedirectResponse(url=f"{frontend_url}/?yt_error={error_msg}")
             
-        user = users_collection.find_one({"internal_id": internal_id}) if users_collection is not None else None
+        user = users_collection.find_one({"internal_id": clean_id}) if users_collection is not None else None
         existing_creds = user.get("youtube_credentials", {}) if user else {}
         fresh_refresh_token = res_json.get('refresh_token') or existing_creds.get('refresh_token')
 
@@ -4081,11 +4141,12 @@ async def youtube_callback(state: str, code: str):
 
 @app.get("/youtube/status/{internal_id}")
 async def get_youtube_status(internal_id: str):
+    clean_id = sanitize_alphanumeric_id(internal_id)
     if users_collection is None:
         return {"linked": False}
     try:
         projection = {"youtube_credentials": 1, "youtube_linked_at": 1}
-        user = users_collection.find_one({"internal_id": internal_id}, projection)
+        user = users_collection.find_one({"internal_id": clean_id}, projection)
         if not user or "youtube_credentials" not in user:
             return {"linked": False}
 
@@ -4656,6 +4717,24 @@ async def get_terms_of_service_page():
 @app.get("/googleaa929f03abece7ff.html", response_class=Response)
 async def get_google_verification_html():
     return Response(content="google-site-verification: googleaa929f03abece7ff.html", media_type="text/html")
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    if isinstance(exc, HTTPException):
+        return JSONResponse(
+            status_code=exc.status_code,
+            content={"status": "error", "message": exc.detail}
+        )
+    incident_id = uuid.uuid4().hex[:10].upper()
+    print(f"❌ [INTERNAL SERVER EXCEPTION] Incident #{incident_id}: {exc}")
+    return JSONResponse(
+        status_code=500,
+        content={
+            "status": "error",
+            "message": "An unexpected server error occurred. Protected by Cloxel Security Shield.",
+            "incident_id": incident_id
+        }
+    )
 
 if os.path.isdir("frontend/dist"):
     app.mount("/", StaticFiles(directory="frontend/dist", html=True), name="frontend")
