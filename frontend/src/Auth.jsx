@@ -337,7 +337,7 @@ function Auth({ onLoginSuccess }) {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.detail || data.error || 'Authentication failed');
+        throw new Error(data.error || data.detail || 'Authentication failed');
       }
 
       if (data.internal_id) {

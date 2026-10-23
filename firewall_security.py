@@ -53,6 +53,30 @@ class ThreatSignatures:
         re.compile(r"(\bCONVERT\s*\([\s\S]+?\bUSING\b)", re.IGNORECASE),
     ]
 
+    # Exhaustive SQL Injection Patterns specifically for Credentials, Usernames & Auth Fields
+    AUTH_SQLI_PATTERNS = [
+        re.compile(r"(\bUNION\s+(ALL\s+)?SELECT\b)", re.IGNORECASE),
+        re.compile(r"(\bSELECT\b[\s\S]+?\bFROM\b)", re.IGNORECASE),
+        re.compile(r"(\bINSERT\s+INTO\b)", re.IGNORECASE),
+        re.compile(r"(\bDELETE\s+FROM\b)", re.IGNORECASE),
+        re.compile(r"(\bDROP\s+(TABLE|DATABASE)\b)", re.IGNORECASE),
+        re.compile(r"(\bALTER\s+TABLE\b)", re.IGNORECASE),
+        re.compile(r"(\bTRUNCATE\s+TABLE\b)", re.IGNORECASE),
+        re.compile(r"(\bUPDATE\b\s+.*?\bSET\b)", re.IGNORECASE),
+        re.compile(r"((\bOR\b|\bAND\b)\s+['\"]?\w*['\"]?\s*=\s*['\"]?\w*['\"])", re.IGNORECASE),
+        re.compile(r"((\bOR\b|\bAND\b)\s+['\"]?\d+['\"]?\s*=\s*['\"]?\d+)", re.IGNORECASE),
+        re.compile(r"((\bOR\b|\bAND\b)\s+(TRUE|FALSE)\b)", re.IGNORECASE),
+        re.compile(r"('|\")\s*(;?\s*--|#|/\*)", re.IGNORECASE),
+        re.compile(r"(/\*[\s\S]*?\*/)", re.IGNORECASE),
+        re.compile(r"('|\")\s*(OR|AND)\s+.*(=|>|<|LIKE|IN)", re.IGNORECASE),
+        re.compile(r"('|\")\s*(OR|AND)\s+", re.IGNORECASE),
+        re.compile(r"(\b(INFORMATION_SCHEMA|BENCHMARK|SLEEP|WAITFOR|PG_SLEEP)\b)", re.IGNORECASE),
+        re.compile(r"(\bEXEC(UTE)?\s+(\@|xp_|sp_))", re.IGNORECASE),
+        re.compile(r"(;\s*(SELECT|INSERT|UPDATE|DELETE|DROP|ALTER|EXEC|UNION)\b)", re.IGNORECASE),
+        re.compile(r"(\bHAVING\s+\d+=\d+\b)", re.IGNORECASE),
+        re.compile(r"(\bORDER\s+BY\s+\d+)", re.IGNORECASE),
+    ]
+
     # Exhaustive NoSQL (MongoDB) Injection Patterns
     NOSQLI_PATTERNS = [
         re.compile(r"(\$where|\$regex|\$gt|\$gte|\$lt|\$lte|\$ne|\$nin|\$in|\$exists|\$or|\$and|\$not|\$nor|\$expr|\$jsonSchema|\$mod|\$text|\$slice|\$elemMatch|\$size|\$all)", re.IGNORECASE),
@@ -185,9 +209,9 @@ class SecurityFirewall:
         logger.warning(f"⛔ [FORTRESS TEMPORARY BAN] IP {ip} temporarily locked for {duration}s.")
 
     def is_login_locked(self, ip: str, identifier: str = "") -> Tuple[bool, int]:
-        """Checks if device IP or account is temporarily locked due to 6 consecutive failed logins."""
+        """Checks if device IP is temporarily locked due to 6 consecutive failed logins."""
         now = time.time()
-        key = f"{ip}_{identifier}".strip("_")
+        key = ip  # Track strictly by device IP so page refreshes or typing different usernames never reset the counter!
         with self.auth_lock:
             self.failed_login_attempts[key] = [t for t in self.failed_login_attempts[key] if now - t < 900.0]
             failures = len(self.failed_login_attempts[key])
@@ -198,21 +222,21 @@ class SecurityFirewall:
             return False, 0
 
     def record_failed_login(self, ip: str, identifier: str = "") -> int:
-        """Records failed login attempt. At 6 failures, triggers immediate 15-minute ban."""
+        """Records failed login attempt by device IP. At 6 failures, triggers immediate 15-minute ban."""
         now = time.time()
-        key = f"{ip}_{identifier}".strip("_")
+        key = ip  # Track strictly by device IP
         with self.auth_lock:
             self.failed_login_attempts[key].append(now)
             failures = len([t for t in self.failed_login_attempts[key] if now - t < 900.0])
             if failures >= 6:
                 self.attack_stats["brute_force_blocked"] = self.attack_stats.get("brute_force_blocked", 0) + 1
                 self.ban_ip(ip, duration=900)
-                logger.warning(f"🚨 [BRUTE FORCE LOCKOUT] IP {ip} locked out after 6 consecutive failed logins.")
+                logger.warning(f"🚨 [BRUTE FORCE LOCKOUT] Device IP {ip} locked out after 6 consecutive failed logins.")
             return failures
 
     def record_successful_login(self, ip: str, identifier: str = ""):
         """Resets failed attempts upon successful authentication."""
-        key = f"{ip}_{identifier}".strip("_")
+        key = ip
         with self.auth_lock:
             if key in self.failed_login_attempts:
                 del self.failed_login_attempts[key]
@@ -274,7 +298,7 @@ class SecurityFirewall:
 
             return True
 
-    def inspect_text(self, text: str) -> Tuple[bool, str]:
+    def inspect_text(self, text: str, is_auth_field: bool = False) -> Tuple[bool, str]:
         if not text or not isinstance(text, str):
             return False, ""
 
@@ -297,7 +321,9 @@ class SecurityFirewall:
             if pattern.search(text):
                 return True, "nosqli_blocked"
 
-        for pattern in ThreatSignatures.SQLI_PATTERNS:
+        # Check SQL Injection (Auth fields get exhaustive AUTH_SQLI_PATTERNS, content fields get safe SQLI_PATTERNS)
+        sqli_patterns = ThreatSignatures.AUTH_SQLI_PATTERNS if is_auth_field else ThreatSignatures.SQLI_PATTERNS
+        for pattern in sqli_patterns:
             if pattern.search(text):
                 return True, "sqli_blocked"
 
@@ -332,13 +358,17 @@ class SecurityFirewall:
 
         return False, ""
 
-    def inspect_data(self, data, depth: int = 0) -> Tuple[bool, str]:
-        """Deep Recursive Data Scanner with Strict NoSQL Key & Value Verification."""
+    def inspect_data(self, data, depth: int = 0, parent_key: str = "") -> Tuple[bool, str]:
+        """Deep Recursive Data Scanner with Context-Aware Auth & NoSQL Key & Value Verification."""
         if depth > 10:
             return True, "rce_blocked"
 
         if isinstance(data, str):
-            return self.inspect_text(data)
+            is_auth_field = parent_key.lower() in {
+                "email", "phone", "email_or_mobile", "username", "password", 
+                "new_password", "user_id", "internal_id", "job_id", "order_id"
+            }
+            return self.inspect_text(data, is_auth_field=is_auth_field)
         elif isinstance(data, dict):
             if len(data.keys()) > 150:
                 return True, "rce_blocked"
@@ -349,7 +379,7 @@ class SecurityFirewall:
                 if k_str.startswith("$") or "." in k_str:
                     return True, "nosqli_blocked"
 
-                is_bad_k, threat_k = self.inspect_text(k_str)
+                is_bad_k, threat_k = self.inspect_text(k_str, is_auth_field=True)
                 if is_bad_k:
                     return True, threat_k
 
@@ -367,8 +397,8 @@ class SecurityFirewall:
                         if v.startswith("data:image/") and len(v) <= 10 * 1024 * 1024:
                             continue
 
-                # 4. Recursively inspect all values
-                is_bad_v, threat_v = self.inspect_data(v, depth + 1)
+                # 4. Recursively inspect all values with parent_key context
+                is_bad_v, threat_v = self.inspect_data(v, depth + 1, parent_key=k_str)
                 if is_bad_v:
                     return True, threat_v
 
@@ -376,7 +406,7 @@ class SecurityFirewall:
             if len(data) > 300:
                 return True, "rce_blocked"
             for item in data:
-                is_bad, threat = self.inspect_data(item, depth + 1)
+                is_bad, threat = self.inspect_data(item, depth + 1, parent_key=parent_key)
                 if is_bad:
                     return True, threat
         return False, ""
@@ -545,7 +575,7 @@ class FirewallMiddleware(BaseHTTPMiddleware):
 
         # 7. Query Parameters Deep Inspection
         for key, val in request.query_params.items():
-            is_malicious, threat_type = waf.inspect_text(f"{key}={val}")
+            is_malicious, threat_type = waf.inspect_text(f"{key}={val}", is_auth_field=True)
             if is_malicious:
                 waf.record_threat(client_ip, threat_type, weight=10)
                 waf.ban_ip(client_ip, duration=3600)  # Immediate 1st-attempt ban for cyber attacks
