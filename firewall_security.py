@@ -120,6 +120,7 @@ class SecurityFirewall:
     """
     def __init__(self):
         self.request_history: Dict[str, List[float]] = defaultdict(list)
+        self.auth_request_history: Dict[str, List[float]] = defaultdict(list)
         self.threat_scores: Dict[str, int] = defaultdict(int)
         self.rate_limit_violations: Dict[str, int] = defaultdict(int)
         self.banned_ips: Dict[str, float] = {}
@@ -153,6 +154,7 @@ class SecurityFirewall:
     def clean_old_history(self, ip: str, window_seconds: float = 60.0):
         now = time.time()
         self.request_history[ip] = [ts for ts in self.request_history[ip] if now - ts < window_seconds]
+        self.auth_request_history[ip] = [ts for ts in self.auth_request_history[ip] if now - ts < window_seconds]
 
     def is_banned(self, ip: str) -> bool:
         now = time.time()
@@ -172,6 +174,7 @@ class SecurityFirewall:
             self.banned_ips.clear()
             self.threat_scores.clear()
             self.request_history.clear()
+            self.auth_request_history.clear()
             self.rate_limit_violations.clear()
             self.failed_login_attempts.clear()
         logger.info("🔓 [FIREWALL RESET] All IP bans and rate limits reset successfully!")
@@ -182,29 +185,29 @@ class SecurityFirewall:
         logger.warning(f"⛔ [FORTRESS TEMPORARY BAN] IP {ip} temporarily locked for {duration}s.")
 
     def is_login_locked(self, ip: str, identifier: str = "") -> Tuple[bool, int]:
-        """Checks if device IP or account is temporarily locked due to 5 consecutive failed logins."""
+        """Checks if device IP or account is temporarily locked due to 6 consecutive failed logins."""
         now = time.time()
         key = f"{ip}_{identifier}".strip("_")
         with self.auth_lock:
             self.failed_login_attempts[key] = [t for t in self.failed_login_attempts[key] if now - t < 900.0]
             failures = len(self.failed_login_attempts[key])
-            if failures >= 5:
+            if failures >= 6:
                 self.ban_ip(ip, duration=900)
                 remaining = int(900 - (now - self.failed_login_attempts[key][0]))
                 return True, max(1, remaining)
             return False, 0
 
     def record_failed_login(self, ip: str, identifier: str = "") -> int:
-        """Records failed login attempt. At 5 failures, triggers immediate 15-minute ban."""
+        """Records failed login attempt. At 6 failures, triggers immediate 15-minute ban."""
         now = time.time()
         key = f"{ip}_{identifier}".strip("_")
         with self.auth_lock:
             self.failed_login_attempts[key].append(now)
             failures = len([t for t in self.failed_login_attempts[key] if now - t < 900.0])
-            if failures >= 5:
+            if failures >= 6:
                 self.attack_stats["brute_force_blocked"] = self.attack_stats.get("brute_force_blocked", 0) + 1
                 self.ban_ip(ip, duration=900)
-                logger.warning(f"🚨 [BRUTE FORCE LOCKOUT] IP {ip} locked out after 5 consecutive failed logins.")
+                logger.warning(f"🚨 [BRUTE FORCE LOCKOUT] IP {ip} locked out after 6 consecutive failed logins.")
             return failures
 
     def record_successful_login(self, ip: str, identifier: str = ""):
@@ -222,24 +225,37 @@ class SecurityFirewall:
             
             logger.warning(f"🚨 [FORTRESS THREAT DETECTED] Type: {threat_type.upper()} | IP: {ip} | Score: {self.threat_scores[ip]}")
             
-            # 2 strikes policy: Score >= 6 triggers automatic ban
-            if self.threat_scores[ip] >= 6:
-                self.ban_ip(ip, duration=900)  # 15 minutes ban
+            # Instant ban for real cyber attacks (SQLi, NoSQLi, RCE, Traversal)
+            if threat_type in ["sqli_blocked", "nosqli_blocked", "xss_blocked", "rce_blocked", "traversal_blocked"]:
+                self.ban_ip(ip, duration=3600)  # 1 hour instant ban for cyber attack attempts
+            elif self.threat_scores[ip] >= 6:
+                self.ban_ip(ip, duration=900)  # 15 minutes ban for repeated threats
 
     def check_rate_limit(self, ip: str, path: str) -> bool:
         now = time.time()
         with self.auth_lock:
             self.clean_old_history(ip, 60.0)
-            req_count = len(self.request_history[ip])
 
             is_auth_route = any(auth_path in path for auth_path in [
                 "/login", "/register", "/forgot-password", "/reset-password", "/verify-reset-qr"
             ])
 
             if is_auth_route:
-                max_limit = 8  # Maximum 8 auth attempts per minute (Anti Credential Stuffing & Distributed Flooding)
-            elif any(render_path in path for render_path in ["/generate-custom-video", "/generate-script", "/api/generate-ai-script", "/api/remove-bg"]):
-                max_limit = 12  # 12 video/script/image generations per minute (anti resource exhaustion)
+                # Track auth route requests separately so webpage asset loads NEVER consume auth quota!
+                self.auth_request_history[ip].append(now)
+                auth_count = len(self.auth_request_history[ip])
+                max_auth_limit = 25  # Up to 25 auth requests per minute (allows typing/retries, blocks 200-tab bot floods)
+                if auth_count > max_auth_limit:
+                    self.attack_stats["rate_limit_blocked"] = self.attack_stats.get("rate_limit_blocked", 0) + 1
+                    self.ban_ip(ip, duration=900)  # 15-minute ban for distributed bot flooding (e.g. 200 tabs)
+                    logger.warning(f"🚨 [AUTH BOT FLOOD BLOCKED] IP {ip} flooded auth route {path} ({auth_count} reqs in 60s). Banned for 15 mins.")
+                    return False
+                return True
+
+            # General routes:
+            req_count = len(self.request_history[ip])
+            if any(render_path in path for render_path in ["/generate-custom-video", "/generate-script", "/api/generate-ai-script", "/api/remove-bg"]):
+                max_limit = 12  # 12 video/script/image generations per minute
             elif any(pay_path in path for pay_path in ["/create-razorpay-order", "/verify-razorpay-payment"]):
                 max_limit = 15  # 15 payment attempts per minute
             elif any(path.startswith(static) for static in ["/assets", "/fonts", "/music", "/status/"]):
@@ -247,20 +263,13 @@ class SecurityFirewall:
             else:
                 max_limit = 120
 
-            # Atomic registration of this request BEFORE check
             self.request_history[ip].append(now)
 
             if req_count >= max_limit:
                 self.attack_stats["rate_limit_blocked"] = self.attack_stats.get("rate_limit_blocked", 0) + 1
                 self.rate_limit_violations[ip] += 1
-                
-                # Immediate Escalating Ban for Auth Flooding (Credential Stuffing / 200+ tabs brute force)
-                if is_auth_route:
-                    self.ban_ip(ip, duration=900)  # 15-minute immediate ban on auth flooding
-                    logger.warning(f"🚨 [BRUTE FORCE FLOOD BLOCKED] IP {ip} flooded auth route {path} ({req_count} reqs). Banned for 15 mins.")
-                elif self.rate_limit_violations[ip] >= 2:
-                    self.ban_ip(ip, duration=300)  # 5 min ban on repeated general flooding
-                    
+                if self.rate_limit_violations[ip] >= 2:
+                    self.ban_ip(ip, duration=300)
                 return False
 
             return True
@@ -538,10 +547,17 @@ class FirewallMiddleware(BaseHTTPMiddleware):
         for key, val in request.query_params.items():
             is_malicious, threat_type = waf.inspect_text(f"{key}={val}")
             if is_malicious:
-                waf.record_threat(client_ip, threat_type, weight=4)
+                waf.record_threat(client_ip, threat_type, weight=10)
+                waf.ban_ip(client_ip, duration=3600)  # Immediate 1st-attempt ban for cyber attacks
+                attack_label = "SQL Injection Attack" if "sqli" in threat_type else threat_type.upper().replace('_', ' ')
                 return add_security_headers(JSONResponse(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    content={"status": "blocked", "error": f"Security Shield Flagged Query ({threat_type.upper()})."}
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    content={
+                        "status": "blocked",
+                        "error": f"🚨 Cyber Threat Alert: Malicious {attack_label} detected in URL query! Your IP address has been immediately blocked on the 1st attempt.",
+                        "ip": client_ip,
+                        "attack_type": threat_type
+                    }
                 ))
 
         # 8. Request Payload Inspection (POST, PUT, PATCH)
@@ -577,10 +593,26 @@ class FirewallMiddleware(BaseHTTPMiddleware):
                         body_json = json.loads(body_bytes.decode("utf-8"))
                         is_malicious, threat_type = waf.inspect_data(body_json)
                         if is_malicious:
-                            waf.record_threat(client_ip, threat_type, weight=4)
+                            waf.record_threat(client_ip, threat_type, weight=10)
+                            waf.ban_ip(client_ip, duration=3600)  # Immediate 1st-attempt ban for cyber attacks
+                            
+                            if threat_type in ["sqli_blocked", "nosqli_blocked"]:
+                                attack_label = "SQL / Database Injection Attack"
+                            elif threat_type == "xss_blocked":
+                                attack_label = "Script / XSS Injection Attack"
+                            elif threat_type in ["rce_blocked", "traversal_blocked"]:
+                                attack_label = "Remote Code Execution / Traversal Attack"
+                            else:
+                                attack_label = threat_type.upper().replace('_', ' ')
+
                             return add_security_headers(JSONResponse(
-                                status_code=status.HTTP_400_BAD_REQUEST,
-                                content={"status": "blocked", "error": f"Security Shield Flagged Payload ({threat_type.upper()})."}
+                                status_code=status.HTTP_403_FORBIDDEN,
+                                content={
+                                    "status": "blocked",
+                                    "error": f"🚨 Cyber Threat Alert: Malicious {attack_label} detected! Your IP address has been immediately blocked on the 1st attempt.",
+                                    "ip": client_ip,
+                                    "attack_type": threat_type
+                                }
                             ))
 
                         async def receive():

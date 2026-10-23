@@ -3657,7 +3657,7 @@ async def login_user(req: UserLogin, request: Request):
     client_ip = resolve_client_ip(request)
     raw_identifier = req.email_or_mobile.strip().lower()
 
-    # 1. Anti-Brute-Force check: If 5 failed attempts reached, lock out immediately for 15 minutes
+    # 1. Anti-Brute-Force check: If 6 failed attempts reached, lock out for 15 minutes
     is_locked, remaining_secs = waf.is_login_locked(client_ip, raw_identifier)
     if is_locked:
         mins = max(1, remaining_secs // 60)
@@ -3670,9 +3670,9 @@ async def login_user(req: UserLogin, request: Request):
     
     if not user:
         failed_count = waf.record_failed_login(client_ip, raw_identifier)
-        remaining = max(0, 5 - failed_count)
+        remaining = max(0, 6 - failed_count)
         if remaining == 0:
-            raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail="⛔ Too many failed login attempts (5/5). Device temporarily locked out for 15 minutes.")
+            raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail="⛔ Account Security Lockout: 6 failed attempts reached. Device temporarily locked for 15 minutes.")
         raise HTTPException(status_code=400, detail=f"⚠️ Account Not Found: Please check your Email / Mobile Number ({remaining} attempts remaining before temporary lockout).")
         
     stored_hash = user.get("password_hash") or user.get("password")
@@ -3683,10 +3683,10 @@ async def login_user(req: UserLogin, request: Request):
 
     if not is_valid:
         failed_count = waf.record_failed_login(client_ip, raw_identifier)
-        remaining = max(0, 5 - failed_count)
+        remaining = max(0, 6 - failed_count)
         if remaining == 0:
-            raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail="⛔ Too many incorrect password attempts (5/5). Device temporarily locked out for 15 minutes.")
-        raise HTTPException(status_code=400, detail=f"⚠️ Incorrect Password: Please check your password ({remaining} attempts remaining before temporary lockout).")
+            raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail="⛔ Account Security Lockout: 6 failed password attempts reached. Device temporarily locked for 15 minutes.")
+        raise HTTPException(status_code=400, detail=f"⚠️ Incorrect Password! Please check your password ({remaining} attempts remaining before 15-minute temporary lockout).")
         
     # Login Successful: Reset failed attempts counter
     waf.record_successful_login(client_ip, raw_identifier)
