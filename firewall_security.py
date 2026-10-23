@@ -32,21 +32,20 @@ class ThreatSignatures:
     # High-precision SQL Injection patterns: Detects real SQL injections with zero false positives on normal words
     SQLI_PATTERNS = [
         re.compile(r"(\bUNION\s+(ALL\s+)?SELECT\b)", re.IGNORECASE),
-        re.compile(r"(\bSELECT\b[\s\S]+?\bFROM\b)", re.IGNORECASE),
+        re.compile(r"(\bSELECT\b\s+[\*\w,\s`]+\s+\bFROM\b\s+[\w`\.]+\s+(\bWHERE\b|\bHAVING\b|\bORDER\s+BY\b|\bGROUP\s+BY\b|--|;))", re.IGNORECASE),
         re.compile(r"(\bINSERT\s+INTO\b[\s\S]+?\bVALUES\b)", re.IGNORECASE),
-        re.compile(r"(\bDELETE\s+FROM\b)", re.IGNORECASE),
+        re.compile(r"(\bDELETE\s+FROM\b\s+[\w`\.]+\s+(\bWHERE\b|--|;))", re.IGNORECASE),
         re.compile(r"(\bDROP\s+(TABLE|DATABASE|VIEW|INDEX|PROCEDURE|FUNCTION)\b)", re.IGNORECASE),
         re.compile(r"(\bALTER\s+TABLE\b)", re.IGNORECASE),
         re.compile(r"(\bTRUNCATE\s+TABLE\b)", re.IGNORECASE),
         re.compile(r"(\bUPDATE\b\s+[a-zA-Z0-9_`\"\[\]]+\s+\bSET\b)", re.IGNORECASE),
         re.compile(r"((\bOR\b|\bAND\b)\s+['\"]?\d+['\"]?\s*=\s*['\"]?\d+)", re.IGNORECASE),
         re.compile(r"((\bOR\b|\bAND\b)\s+['\"][a-zA-Z0-9_]+['\"]\s*=\s*['\"][a-zA-Z0-9_]+['\"])", re.IGNORECASE),
-        re.compile(r"(--\s*$|--\s*[\r\n]|/\*[\s\S]*?\*/|#\s*[\r\n])", re.IGNORECASE),
+        re.compile(r"('\s*;\s*--|'\s*--|\"\s*--|/\*[\s\S]*?\*/)", re.IGNORECASE),
         re.compile(r"(\b(INFORMATION_SCHEMA|BENCHMARK\s*\(|SLEEP\s*\(|WAITFOR\s+DELAY|PG_SLEEP\s*\(|LOAD_FILE\s*\()\b)", re.IGNORECASE),
         re.compile(r"('|\")\s*(OR|AND)\s+('|\")?(\d+|[a-zA-Z]+)('|\")?\s*=\s*('|\")?(\d+|[a-zA-Z]+)", re.IGNORECASE),
         re.compile(r"(\b(EXEC|EXECUTE)\s+(\@|xp_|sp_))", re.IGNORECASE),
         re.compile(r"(;\s*(SELECT|INSERT|UPDATE|DELETE|DROP|ALTER|EXEC|UNION)\b)", re.IGNORECASE),
-        re.compile(r"('\s*;\s*--)", re.IGNORECASE),
         re.compile(r"(\bHAVING\s+\d+=\d+\b)", re.IGNORECASE),
         re.compile(r"(\bORDER\s+BY\s+\d+[\s\S]*?(--|/\*))", re.IGNORECASE),
         re.compile(r"(\bCAST\s*\([\s\S]+?\bAS\b)", re.IGNORECASE),
@@ -60,22 +59,21 @@ class ThreatSignatures:
         re.compile(r"(\{\"\$(ne|gt|gte|lt|lte|regex|where|exists|in|or|and|nor|expr)\"\s*:)", re.IGNORECASE),
     ]
 
-    # Cross-Site Scripting (XSS) Patterns
+    # Cross-Site Scripting (XSS) Patterns (Detects real HTML/JS injections without blocking plain English words)
     XSS_PATTERNS = [
         re.compile(r"(<script[^>]*>[\s\S]*?</script>)", re.IGNORECASE),
         re.compile(r"(javascript\s*:|vbscript\s*:|data\s*:text/html)", re.IGNORECASE),
         re.compile(r"(on(load|error|click|mouseover|focus|blur|keydown|submit|mouseenter|mouseleave|change|input)\s*=)", re.IGNORECASE),
         re.compile(r"(eval\s*\(|document\.cookie|document\.location|window\.location|top\.location)", re.IGNORECASE),
         re.compile(r"(<iframe|<object|<embed|<applet|<meta|<link|<svg[\s\S]*?onload)", re.IGNORECASE),
-        re.compile(r"(alert\s*\(|prompt\s*\(|confirm\s*\()", re.IGNORECASE),
+        re.compile(r"(<[^>]+(alert|prompt|confirm)\s*\()", re.IGNORECASE),
     ]
 
     # Remote Code Execution (RCE) / Command Injection Patterns
     RCE_PATTERNS = [
-        re.compile(r"(;\s*(cat|ls|pwd|whoami|id|uname|nc|netcat|curl|wget|bash|sh|zsh|powershell|cmd)\b)", re.IGNORECASE),
-        re.compile(r"(\|\s*(cat|ls|pwd|whoami|id|nc|curl|wget|bash|sh)\b)", re.IGNORECASE),
+        re.compile(r"([;|&`]\s*(cat\s+[/\.\-~]|ls\s+[/\.\-~]|whoami\b|id\s*$|uname\s+[/\.\-]|nc\s+|netcat\s+|curl\s+https?:|wget\s+https?:|bash\s+-|/bin/sh|cmd\.exe|powershell))", re.IGNORECASE),
         re.compile(r"(`[^`]+`|\$\([^)]+\))"),
-        re.compile(r"(system\(|exec\(|passthru\(|shell_exec\(|popen\(|proc_open\(|subprocess)", re.IGNORECASE),
+        re.compile(r"(system\(|passthru\(|shell_exec\(|popen\(|proc_open\(|subprocess\.(Popen|run|call))", re.IGNORECASE),
         re.compile(r"(/etc/passwd|/etc/shadow|/etc/group|/proc/self/environ|c:\\boot\.ini)", re.IGNORECASE),
         re.compile(r"(\\x90\\x90|\\xeb\\xfe|\\xcd\\x80)"),
     ]
@@ -298,7 +296,15 @@ class SecurityFirewall:
                     if isinstance(v, (dict, list)):
                         return True, "nosqli_blocked"
 
-                # 3. Recursively inspect all values
+                # 3. Base64 profile picture handling (Fast & safe check, avoids scanning 4MB base64 with regexes)
+                if k_str.lower() == "profile_pic" or (isinstance(v, str) and v.startswith("data:image/")):
+                    if isinstance(v, str):
+                        if "\x00" in v or "%00" in v or "<script" in v.lower():
+                            return True, "xss_blocked"
+                        if v.startswith("data:image/") and len(v) <= 10 * 1024 * 1024:
+                            continue
+
+                # 4. Recursively inspect all values
                 is_bad_v, threat_v = self.inspect_data(v, depth + 1)
                 if is_bad_v:
                     return True, threat_v
@@ -496,12 +502,20 @@ class FirewallMiddleware(BaseHTTPMiddleware):
                 try:
                     body_bytes = await request.body()
                     if body_bytes:
-                        # Prevent JSON bombs / oversized JSON
-                        if len(body_bytes) > 2 * 1024 * 1024:  # 2MB cap for JSON
+                        # Prevent JSON bombs / oversized JSON (allows up to 15MB for high-res profile images)
+                        if len(body_bytes) > 15 * 1024 * 1024:  # 15MB cap for JSON
                             return add_security_headers(JSONResponse(
                                 status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-                                content={"status": "blocked", "error": "JSON payload exceeds 2MB limit."}
+                                content={"status": "blocked", "error": "JSON payload exceeds 15MB limit."}
                             ))
+
+                        # Allow direct HMAC processing for official Razorpay Webhooks
+                        if path == "/razorpay-webhook":
+                            async def receive():
+                                return {"type": "http.request", "body": body_bytes}
+                            request._receive = receive
+                            response: Response = await call_next(request)
+                            return add_security_headers(response)
 
                         body_json = json.loads(body_bytes.decode("utf-8"))
                         is_malicious, threat_type = waf.inspect_data(body_json)
