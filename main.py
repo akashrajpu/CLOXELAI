@@ -51,7 +51,7 @@ from apscheduler.schedulers.background import BackgroundScheduler
 import requests
 from firewall_security import (
     FirewallMiddleware, waf, verify_admin_access, 
-    sanitize_alphanumeric_id, sanitize_nosql, clean_xss
+    sanitize_alphanumeric_id, sanitize_nosql, clean_xss, resolve_client_ip
 )
 try:
     from web_image_fetcher import fetch_web_image, extract_rich_scene_visual_keywords, clean_topic_title, HINDI_STOPWORDS
@@ -3650,15 +3650,30 @@ async def register_user(req: UserRegister):
     }
 
 @app.post("/login")
-async def login_user(req: UserLogin):
+async def login_user(req: UserLogin, request: Request):
     if users_collection is None:
         raise HTTPException(status_code=500, detail="Database not configured")
         
-    raw_identifier = req.email_or_mobile.strip()
+    client_ip = resolve_client_ip(request)
+    raw_identifier = req.email_or_mobile.strip().lower()
+
+    # 1. Anti-Brute-Force check: If 5 failed attempts reached, lock out immediately for 15 minutes
+    is_locked, remaining_secs = waf.is_login_locked(client_ip, raw_identifier)
+    if is_locked:
+        mins = max(1, remaining_secs // 60)
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS, 
+            detail=f"⛔ Account Security Lockout: Too many failed login attempts. Access temporarily locked for {mins} minutes to protect your account. Please try again later."
+        )
+
     user = find_user_in_db(raw_identifier)
     
     if not user:
-        raise HTTPException(status_code=400, detail="⚠️ Account Not Found: Please check your Email / Mobile Number or click Register.")
+        failed_count = waf.record_failed_login(client_ip, raw_identifier)
+        remaining = max(0, 5 - failed_count)
+        if remaining == 0:
+            raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail="⛔ Too many failed login attempts (5/5). Device temporarily locked out for 15 minutes.")
+        raise HTTPException(status_code=400, detail=f"⚠️ Account Not Found: Please check your Email / Mobile Number ({remaining} attempts remaining before temporary lockout).")
         
     stored_hash = user.get("password_hash") or user.get("password")
     if not stored_hash:
@@ -3667,8 +3682,14 @@ async def login_user(req: UserLogin):
     is_valid = safe_verify_password(req.password, stored_hash)
 
     if not is_valid:
-        raise HTTPException(status_code=400, detail="⚠️ Incorrect Password: Please check your password and try again.")
+        failed_count = waf.record_failed_login(client_ip, raw_identifier)
+        remaining = max(0, 5 - failed_count)
+        if remaining == 0:
+            raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail="⛔ Too many incorrect password attempts (5/5). Device temporarily locked out for 15 minutes.")
+        raise HTTPException(status_code=400, detail=f"⚠️ Incorrect Password: Please check your password ({remaining} attempts remaining before temporary lockout).")
         
+    # Login Successful: Reset failed attempts counter
+    waf.record_successful_login(client_ip, raw_identifier)
     return {
         "message": "Login successful",
         "internal_id": user["internal_id"],

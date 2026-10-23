@@ -5,6 +5,7 @@ import math
 import logging
 import ipaddress
 import os
+import threading
 from collections import defaultdict
 from typing import Dict, List, Set, Tuple, Any
 from fastapi import Request, Response, HTTPException, status
@@ -122,6 +123,8 @@ class SecurityFirewall:
         self.threat_scores: Dict[str, int] = defaultdict(int)
         self.rate_limit_violations: Dict[str, int] = defaultdict(int)
         self.banned_ips: Dict[str, float] = {}
+        self.failed_login_attempts: Dict[str, List[float]] = defaultdict(list)
+        self.auth_lock = threading.Lock()
         
         self.attack_stats = {
             "sqli_blocked": 0,
@@ -136,6 +139,7 @@ class SecurityFirewall:
             "scanner_blocked": 0,
             "protocol_smuggling_blocked": 0,
             "rate_limit_blocked": 0,
+            "brute_force_blocked": 0,
             "total_threats_blocked": 0
         }
 
@@ -152,64 +156,114 @@ class SecurityFirewall:
 
     def is_banned(self, ip: str) -> bool:
         now = time.time()
-        if ip in self.banned_ips:
-            if now < self.banned_ips[ip]:
-                return True
-            else:
-                del self.banned_ips[ip]
-                self.threat_scores[ip] = 0
-                self.rate_limit_violations[ip] = 0
+        with self.auth_lock:
+            if ip in self.banned_ips:
+                if now < self.banned_ips[ip]:
+                    return True
+                else:
+                    del self.banned_ips[ip]
+                    self.threat_scores[ip] = 0
+                    self.rate_limit_violations[ip] = 0
         return False
 
     def reset_all_bans(self):
         """Resets and unblocks all banned IPs instantly."""
-        self.banned_ips.clear()
-        self.threat_scores.clear()
-        self.request_history.clear()
-        self.rate_limit_violations.clear()
+        with self.auth_lock:
+            self.banned_ips.clear()
+            self.threat_scores.clear()
+            self.request_history.clear()
+            self.rate_limit_violations.clear()
+            self.failed_login_attempts.clear()
         logger.info("🔓 [FIREWALL RESET] All IP bans and rate limits reset successfully!")
 
-    def ban_ip(self, ip: str, duration: int = 300):
-        """Auto-Expiring IP Ban (Default: 5 minutes / 300 seconds)."""
+    def ban_ip(self, ip: str, duration: int = 900):
+        """Auto-Expiring IP Ban (Default: 15 minutes / 900 seconds)."""
         self.banned_ips[ip] = time.time() + duration
-        logger.warning(f"⛔ [FORTRESS TEMPORARY BAN] IP {ip} temporarily paused for {duration}s.")
+        logger.warning(f"⛔ [FORTRESS TEMPORARY BAN] IP {ip} temporarily locked for {duration}s.")
+
+    def is_login_locked(self, ip: str, identifier: str = "") -> Tuple[bool, int]:
+        """Checks if device IP or account is temporarily locked due to 5 consecutive failed logins."""
+        now = time.time()
+        key = f"{ip}_{identifier}".strip("_")
+        with self.auth_lock:
+            self.failed_login_attempts[key] = [t for t in self.failed_login_attempts[key] if now - t < 900.0]
+            failures = len(self.failed_login_attempts[key])
+            if failures >= 5:
+                self.ban_ip(ip, duration=900)
+                remaining = int(900 - (now - self.failed_login_attempts[key][0]))
+                return True, max(1, remaining)
+            return False, 0
+
+    def record_failed_login(self, ip: str, identifier: str = "") -> int:
+        """Records failed login attempt. At 5 failures, triggers immediate 15-minute ban."""
+        now = time.time()
+        key = f"{ip}_{identifier}".strip("_")
+        with self.auth_lock:
+            self.failed_login_attempts[key].append(now)
+            failures = len([t for t in self.failed_login_attempts[key] if now - t < 900.0])
+            if failures >= 5:
+                self.attack_stats["brute_force_blocked"] = self.attack_stats.get("brute_force_blocked", 0) + 1
+                self.ban_ip(ip, duration=900)
+                logger.warning(f"🚨 [BRUTE FORCE LOCKOUT] IP {ip} locked out after 5 consecutive failed logins.")
+            return failures
+
+    def record_successful_login(self, ip: str, identifier: str = ""):
+        """Resets failed attempts upon successful authentication."""
+        key = f"{ip}_{identifier}".strip("_")
+        with self.auth_lock:
+            if key in self.failed_login_attempts:
+                del self.failed_login_attempts[key]
 
     def record_threat(self, ip: str, threat_type: str, weight: int = 3):
-        self.threat_scores[ip] += weight
-        self.attack_stats[threat_type] = self.attack_stats.get(threat_type, 0) + 1
-        self.attack_stats["total_threats_blocked"] += 1
-        
-        logger.warning(f"🚨 [FORTRESS THREAT DETECTED] Type: {threat_type.upper()} | IP: {ip} | Score: {self.threat_scores[ip]}")
-        
-        # 2 strikes policy: Score >= 6 triggers automatic ban
-        if self.threat_scores[ip] >= 6:
-            self.ban_ip(ip, duration=600)  # 10 minutes ban
+        with self.auth_lock:
+            self.threat_scores[ip] += weight
+            self.attack_stats[threat_type] = self.attack_stats.get(threat_type, 0) + 1
+            self.attack_stats["total_threats_blocked"] += 1
+            
+            logger.warning(f"🚨 [FORTRESS THREAT DETECTED] Type: {threat_type.upper()} | IP: {ip} | Score: {self.threat_scores[ip]}")
+            
+            # 2 strikes policy: Score >= 6 triggers automatic ban
+            if self.threat_scores[ip] >= 6:
+                self.ban_ip(ip, duration=900)  # 15 minutes ban
 
     def check_rate_limit(self, ip: str, path: str) -> bool:
-        self.clean_old_history(ip, 60.0)
-        req_count = len(self.request_history[ip])
+        now = time.time()
+        with self.auth_lock:
+            self.clean_old_history(ip, 60.0)
+            req_count = len(self.request_history[ip])
 
-        # Strict rate limits per endpoint category
-        if any(auth_path in path for auth_path in ["/login", "/register", "/forgot-password", "/reset-password", "/verify-reset-qr"]):
-            max_limit = 15  # 15 requests per minute for auth (anti brute-force)
-        elif any(render_path in path for render_path in ["/generate-custom-video", "/generate-script", "/api/generate-ai-script", "/api/remove-bg"]):
-            max_limit = 12  # 12 video/script/image generations per minute (anti resource exhaustion)
-        elif any(pay_path in path for pay_path in ["/create-razorpay-order", "/verify-razorpay-payment"]):
-            max_limit = 15  # 15 payment attempts per minute
-        elif any(path.startswith(static) for static in ["/assets", "/fonts", "/music", "/status/"]):
-            max_limit = 300  # High limit for static assets & video status polling
-        else:
-            max_limit = 120
+            is_auth_route = any(auth_path in path for auth_path in [
+                "/login", "/register", "/forgot-password", "/reset-password", "/verify-reset-qr"
+            ])
 
-        if req_count >= max_limit:
-            self.attack_stats["rate_limit_blocked"] = self.attack_stats.get("rate_limit_blocked", 0) + 1
-            self.rate_limit_violations[ip] += 1
-            if self.rate_limit_violations[ip] >= 3:
-                self.ban_ip(ip, duration=300)  # 5 min ban on repeated flooding
-            return False
+            if is_auth_route:
+                max_limit = 8  # Maximum 8 auth attempts per minute (Anti Credential Stuffing & Distributed Flooding)
+            elif any(render_path in path for render_path in ["/generate-custom-video", "/generate-script", "/api/generate-ai-script", "/api/remove-bg"]):
+                max_limit = 12  # 12 video/script/image generations per minute (anti resource exhaustion)
+            elif any(pay_path in path for pay_path in ["/create-razorpay-order", "/verify-razorpay-payment"]):
+                max_limit = 15  # 15 payment attempts per minute
+            elif any(path.startswith(static) for static in ["/assets", "/fonts", "/music", "/status/"]):
+                max_limit = 300  # High limit for static assets & video status polling
+            else:
+                max_limit = 120
 
-        self.request_history[ip].append(time.time())
-        return True
+            # Atomic registration of this request BEFORE check
+            self.request_history[ip].append(now)
+
+            if req_count >= max_limit:
+                self.attack_stats["rate_limit_blocked"] = self.attack_stats.get("rate_limit_blocked", 0) + 1
+                self.rate_limit_violations[ip] += 1
+                
+                # Immediate Escalating Ban for Auth Flooding (Credential Stuffing / 200+ tabs brute force)
+                if is_auth_route:
+                    self.ban_ip(ip, duration=900)  # 15-minute immediate ban on auth flooding
+                    logger.warning(f"🚨 [BRUTE FORCE FLOOD BLOCKED] IP {ip} flooded auth route {path} ({req_count} reqs). Banned for 15 mins.")
+                elif self.rate_limit_violations[ip] >= 2:
+                    self.ban_ip(ip, duration=300)  # 5 min ban on repeated general flooding
+                    
+                return False
+
+            return True
 
     def inspect_text(self, text: str) -> Tuple[bool, str]:
         if not text or not isinstance(text, str):
@@ -423,13 +477,16 @@ class FirewallMiddleware(BaseHTTPMiddleware):
 
         # 1. Banned IP Gate
         if waf.is_banned(client_ip):
-            logger.warning(f"🚫 [FORTRESS BLOCKED BANNED IP] {client_ip} -> {path}")
+            ban_expiry = waf.banned_ips.get(client_ip, 0)
+            remaining_secs = max(1, int(ban_expiry - time.time()))
+            logger.warning(f"🚫 [FORTRESS BLOCKED BANNED IP] {client_ip} -> {path} (Locked for {remaining_secs}s)")
             return add_security_headers(JSONResponse(
                 status_code=status.HTTP_403_FORBIDDEN,
                 content={
                     "status": "blocked",
-                    "error": "Access Denied by Cloxel Security Shield. IP address has been temporarily banned for suspicious activity.",
-                    "ip": client_ip
+                    "error": f"Access Denied by Cloxel Security Shield. Too many unauthorized requests or failed login attempts. Device temporarily locked. Auto-unlocks in {remaining_secs} seconds.",
+                    "ip": client_ip,
+                    "retry_after_seconds": remaining_secs
                 }
             ))
 
