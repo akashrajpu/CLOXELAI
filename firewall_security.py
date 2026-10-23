@@ -192,12 +192,12 @@ class SecurityFirewall:
         # Strict rate limits per endpoint category
         if any(auth_path in path for auth_path in ["/login", "/register", "/forgot-password", "/reset-password", "/verify-reset-qr"]):
             max_limit = 15  # 15 requests per minute for auth (anti brute-force)
-        elif any(render_path in path for render_path in ["/generate-custom-video", "/generate-script", "/api/generate-ai-script"]):
-            max_limit = 12  # 12 video/script generations per minute (anti resource exhaustion)
+        elif any(render_path in path for render_path in ["/generate-custom-video", "/generate-script", "/api/generate-ai-script", "/api/remove-bg"]):
+            max_limit = 12  # 12 video/script/image generations per minute (anti resource exhaustion)
         elif any(pay_path in path for pay_path in ["/create-razorpay-order", "/verify-razorpay-payment"]):
             max_limit = 15  # 15 payment attempts per minute
-        elif any(path.startswith(static) for static in ["/assets", "/fonts", "/music"]):
-            max_limit = 300
+        elif any(path.startswith(static) for static in ["/assets", "/fonts", "/music", "/status/"]):
+            max_limit = 300  # High limit for static assets & video status polling
         else:
             max_limit = 120
 

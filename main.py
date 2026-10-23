@@ -1574,6 +1574,9 @@ app = FastAPI(title="Cloxel AI", docs_url=None, redoc_url=None, openapi_url=None
 
 ALLOWED_ORIGINS = [
     "https://cloxelai.onrender.com",
+    "https://cloxel.onrender.com",
+    "https://cloxel.ai",
+    "https://cloxelai.com",
     "http://localhost:5173",
     "http://localhost:3000",
     "http://127.0.0.1:5173",
@@ -1634,7 +1637,7 @@ async def api_remove_bg(request: Request):
 
     except Exception as e:
         print(f"❌ Server Error during /api/remove-bg: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Background removal service encountered an error.")
 
 class Scene(BaseModel):
     text: str
