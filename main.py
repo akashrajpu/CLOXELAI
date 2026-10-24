@@ -1627,6 +1627,9 @@ async def api_remove_bg(request: Request):
             raise HTTPException(status_code=400, detail="No image file provided in upload")
 
         contents = await file_obj.read()
+        if len(contents) > 10 * 1024 * 1024:
+            raise HTTPException(status_code=400, detail="Image file too large! Maximum image upload size is 10MB.")
+
         bg_color = form.get("bg_color")
 
         processed_img = remove_background(
@@ -2274,6 +2277,14 @@ async def generate_custom_video(req: VideoRequest, background_tasks: BackgroundT
     if not user_id or user_id == "anonymous":
         raise HTTPException(status_code=401, detail="Please login or register to generate videos.")
 
+    clean_user_id = sanitize_alphanumeric_id(user_id)
+    if users_collection is None:
+        raise HTTPException(status_code=500, detail="Database not configured")
+
+    user = users_collection.find_one({"internal_id": clean_user_id})
+    if not user:
+        raise HTTPException(status_code=401, detail="⚠️ Authentication Error: Invalid or non-existent user account. Please login or register to generate videos.")
+
     if req.video_type == "short":
         req.aspect_ratio = "9:16"
         req.filter_style = "none"
@@ -2289,90 +2300,102 @@ async def generate_custom_video(req: VideoRequest, background_tasks: BackgroundT
     if req.scenes and len(req.scenes) > 50:
         raise HTTPException(status_code=400, detail="⚠️ Too many scenes! Maximum scenes allowed per video is 50.")
 
-    if users_collection is not None:
-        user = users_collection.find_one({"internal_id": user_id})
-        if user:
-            free_demo = user.get("free_demo_count", 2)
-            subscription = user.get("subscription", {})
-            sub_status = subscription.get("status")
-            sub_expires = subscription.get("expires_at")
-            sub_plan = subscription.get("plan_type", "none")
-            
-            is_active = False
-            if sub_status == "active" and sub_expires:
-                if isinstance(sub_expires, str):
-                    try:
-                        sub_expires = datetime.fromisoformat(sub_expires.replace('Z', '+00:00'))
-                    except Exception:
-                        sub_expires = None
-                if isinstance(sub_expires, datetime):
-                    now_check = datetime.now(timezone.utc) if sub_expires.tzinfo is not None else datetime.utcnow()
-                    if sub_expires > now_check:
-                        is_active = True
+    # 1. Inspect Subscriptions
+    subscription = user.get("subscription", {})
+    sub_status = subscription.get("status")
+    sub_expires = subscription.get("expires_at")
+    sub_plan = subscription.get("plan_type", "none")
+    
+    is_active = False
+    if sub_status == "active" and sub_expires:
+        if isinstance(sub_expires, str):
+            try:
+                sub_expires = datetime.fromisoformat(sub_expires.replace('Z', '+00:00'))
+            except Exception:
+                sub_expires = None
+        if isinstance(sub_expires, datetime):
+            now_check = datetime.now(timezone.utc) if sub_expires.tzinfo is not None else datetime.utcnow()
+            if sub_expires > now_check:
+                is_active = True
 
-            ultra_sub = user.get("ultra_subscription", {})
-            ultra_status = ultra_sub.get("status")
-            ultra_expires = ultra_sub.get("expires_at")
-            has_active_ultra = False
-            if ultra_status == "active" and ultra_expires:
-                if isinstance(ultra_expires, str):
-                    try:
-                        ultra_expires = datetime.fromisoformat(ultra_expires.replace('Z', '+00:00'))
-                    except Exception:
-                        ultra_expires = None
-                if isinstance(ultra_expires, datetime):
-                    now_u = datetime.now(timezone.utc) if ultra_expires.tzinfo is not None else datetime.utcnow()
-                    if ultra_expires > now_u:
-                        has_active_ultra = True
+    ultra_sub = user.get("ultra_subscription", {})
+    ultra_status = ultra_sub.get("status")
+    ultra_expires = ultra_sub.get("expires_at")
+    has_active_ultra = False
+    if ultra_status == "active" and ultra_expires:
+        if isinstance(ultra_expires, str):
+            try:
+                ultra_expires = datetime.fromisoformat(ultra_expires.replace('Z', '+00:00'))
+            except Exception:
+                ultra_expires = None
+        if isinstance(ultra_expires, datetime):
+            now_u = datetime.now(timezone.utc) if ultra_expires.tzinfo is not None else datetime.utcnow()
+            if ultra_expires > now_u:
+                has_active_ultra = True
 
-            v_type = req.video_type
+    v_type = req.video_type
 
-            if v_type == "ultra":
-                if not has_active_ultra and sub_plan != "ultra":
-                    if is_active:
-                        raise HTTPException(status_code=403, detail="⚠️ Ultra Mode requires a dedicated ULTRA CINEMATIC plan (₹20/mo). Please subscribe to the Ultra Cinematic plan to generate Ultra videos.")
-            elif sub_plan == "short" and v_type == "long":
-                raise HTTPException(status_code=403, detail="⚠️ Your SHORT STARTER plan only permits Short videos (9:16). Please upgrade to LONG MASTER or PRO COMBO to generate Long videos.")
-            elif sub_plan == "long" and v_type == "short":
-                raise HTTPException(status_code=403, detail="⚠️ Your LONG MASTER plan only permits Long videos (16:9). Please upgrade to SHORT STARTER or PRO COMBO to generate Short videos.")
+    # 2. Strict Plan Tier Enforcements (Cannot bypass tiers)
+    if v_type == "ultra":
+        if not has_active_ultra and sub_plan != "ultra":
+            raise HTTPException(
+                status_code=403, 
+                detail="⚠️ Ultra Mode requires a dedicated ULTRA CINEMATIC plan (₹20/mo). Please subscribe to the Ultra Cinematic plan to generate Ultra videos."
+            )
+    elif sub_plan == "short" and v_type == "long":
+        raise HTTPException(status_code=403, detail="⚠️ Your SHORT STARTER plan only permits Short videos (9:16). Please upgrade to LONG MASTER or PRO COMBO to generate Long videos.")
+    elif sub_plan == "long" and v_type == "short":
+        raise HTTPException(status_code=403, detail="⚠️ Your LONG MASTER plan only permits Long videos (16:9). Please upgrade to SHORT STARTER or PRO COMBO to generate Short videos.")
 
-            if not is_active and not (v_type == "ultra" and has_active_ultra):
-                if user and "free_demo_count" not in user:
-                    users_collection.update_one({"internal_id": user_id}, {"$set": {"free_demo_count": 2}})
-                res = users_collection.update_one(
-                    {"internal_id": user_id, "free_demo_count": {"$gt": 0}},
-                    {"$inc": {"free_demo_count": -1}}
-                )
-                if res.modified_count == 0:
-                    raise HTTPException(status_code=402, detail="Demo quota exhausted! You have used your 2 free demo videos. Please upgrade your plan to continue generating videos.")
-            else:
-                today_str = datetime.utcnow().strftime("%Y-%m-%d")
-                daily_usage = user.get("daily_usage", {})
-                if daily_usage.get("date") != today_str:
-                    daily_usage = {"date": today_str, "short_count": 0, "long_count": 0, "ultra_count": 0}
-                
-                short_count = daily_usage.get("short_count", 0)
-                long_count = daily_usage.get("long_count", 0)
+    # 3. Quota Deductions & Limits
+    if not is_active and not (v_type == "ultra" and has_active_ultra):
+        # Free Demo User (Strict 2 Free Videos Lifetime, Atomic Deduction)
+        if "free_demo_count" not in user:
+            users_collection.update_one({"internal_id": clean_user_id}, {"$set": {"free_demo_count": 2}})
+        
+        res = users_collection.update_one(
+            {"internal_id": clean_user_id, "free_demo_count": {"$gt": 0}},
+            {"$inc": {"free_demo_count": -1}}
+        )
+        if res.modified_count == 0:
+            raise HTTPException(status_code=402, detail="Demo quota exhausted! You have used your 2 free demo videos. Please upgrade your plan to continue generating videos.")
+    else:
+        # Active Paid Plan User (Enforce Daily Limits strictly)
+        today_str = datetime.utcnow().strftime("%Y-%m-%d")
+        daily_usage = user.get("daily_usage", {})
+        if daily_usage.get("date") != today_str:
+            daily_usage = {"date": today_str, "short_count": 0, "long_count": 0, "ultra_count": 0}
+            users_collection.update_one(
+                {"internal_id": clean_user_id},
+                {"$set": {"daily_usage": daily_usage}}
+            )
+        
+        short_count = daily_usage.get("short_count", 0)
+        long_count = daily_usage.get("long_count", 0)
+        ultra_count = daily_usage.get("ultra_count", 0)
 
-                if v_type == "short" and sub_plan == "short" and short_count >= 1:
-                    raise HTTPException(status_code=429, detail="⚠️ Daily video limit reached! Your SHORT STARTER plan permits 1 Short video daily. Please try again tomorrow or upgrade to PRO COMBO.")
-                elif v_type == "long" and sub_plan == "long" and long_count >= 1:
-                    raise HTTPException(status_code=429, detail="⚠️ Daily video limit reached! Your LONG MASTER plan permits 1 Long video daily. Please try again tomorrow or upgrade to PRO COMBO.")
+        # Enforce exact daily video caps:
+        # Short Starter: 1 Short daily
+        # Long Master: 1 Long daily
+        # Pro Combo: 1 Short + 1 Long daily
+        # Ultra: 1 Ultra daily
+        if v_type == "short" and sub_plan in ["short", "combo"] and short_count >= 1:
+            raise HTTPException(status_code=429, detail=f"⚠️ Daily video limit reached! Your {PLAN_NAMES.get(sub_plan, 'membership')} permits 1 Short video daily. Please try again tomorrow or upgrade plan.")
+        elif v_type == "long" and sub_plan in ["long", "combo"] and long_count >= 1:
+            raise HTTPException(status_code=429, detail=f"⚠️ Daily video limit reached! Your {PLAN_NAMES.get(sub_plan, 'membership')} permits 1 Long video daily. Please try again tomorrow or upgrade plan.")
+        elif v_type == "ultra" and (has_active_ultra or sub_plan == "ultra") and ultra_count >= 1:
+            raise HTTPException(status_code=429, detail="⚠️ Daily video limit reached! Your ULTRA CINEMATIC plan permits 1 Ultra video daily. Please try again tomorrow.")
 
-                if v_type == "short":
-                    daily_usage["short_count"] = short_count + 1
-                elif v_type == "long":
-                    daily_usage["long_count"] = long_count + 1
-                elif v_type == "ultra":
-                    daily_usage["ultra_count"] = daily_usage.get("ultra_count", 0) + 1
+        count_field = "ultra_count" if v_type == "ultra" else ("short_count" if v_type == "short" else "long_count")
+        daily_usage[count_field] = daily_usage.get(count_field, 0) + 1
 
-                users_collection.update_one(
-                    {"internal_id": user_id},
-                    {"$set": {"daily_usage": daily_usage}}
-                )
+        users_collection.update_one(
+            {"internal_id": clean_user_id},
+            {"$set": {"daily_usage": daily_usage}}
+        )
 
     job_id = str(uuid.uuid4())
-    update_job_status(job_id, {"status": "processing", "user_id": req.user_id})
+    update_job_status(job_id, {"status": "processing", "user_id": clean_user_id})
     background_tasks.add_task(full_process, req, job_id)
     return {"job_id": job_id, "status": "Processing Started"}
 
@@ -3178,9 +3201,22 @@ async def verify_razorpay_payment(req: VerifyPaymentRequest):
             print(f"❌ Razorpay signature verification failed: {e}")
             raise HTTPException(status_code=400, detail="Payment Signature Verification Failed. Activation Denied.")
 
+    # Anti-Tampering Guard: Ensure plan_type and internal_id match the server-recorded Razorpay order
+    verified_plan = req.plan_type
+    if payment_orders_collection is not None and req.razorpay_order_id:
+        stored_order = payment_orders_collection.find_one({"order_id": req.razorpay_order_id})
+        if stored_order:
+            if stored_order.get("internal_id") and stored_order.get("internal_id") != req.internal_id:
+                raise HTTPException(status_code=403, detail="⚠️ Security Error: Payment order does not match your user account.")
+            verified_plan = stored_order.get("plan_type", req.plan_type)
+            payment_orders_collection.update_one(
+                {"_id": stored_order["_id"]},
+                {"$set": {"status": "paid", "payment_id": req.razorpay_payment_id}}
+            )
+
     result = activate_user_subscription(
         internal_id=req.internal_id,
-        plan_type=req.plan_type,
+        plan_type=verified_plan,
         payment_id=req.razorpay_payment_id,
         order_id=req.razorpay_order_id
     )
@@ -4275,6 +4311,7 @@ async def unlink_youtube(req: UnlinkRequest):
 
 class AIScriptRequest(BaseModel):
     topic: str
+    user_id: Optional[str] = None
     category: Optional[str] = "Random"
     duration_seconds: int = 30
     video_type: Optional[str] = "short"
@@ -4597,14 +4634,40 @@ def generate_ai_script_core(topic: str, duration: int, video_type: str = "short"
     )
 
 @app.post("/api/generate-ai-script")
-async def api_generate_ai_script(req: AIScriptRequest):
+async def api_generate_ai_script(req: AIScriptRequest, request: Request):
     """
     Dedicated AI Script Generation API for Render/Remote clients.
-    Takes topic, duration_seconds, video_type, language, and tone.
-    Returns full_script and scene breakdown.
+    Protected against unauthenticated bot abuse and quota bypass.
     """
     if not req.topic or not req.topic.strip():
         raise HTTPException(status_code=400, detail="Topic title is required")
+
+    # Verify authorization: Must be Admin OR a registered user with active quota
+    admin_key = request.headers.get("x-admin-key") or request.query_params.get("admin_key")
+    from firewall_security import ADMIN_SECURITY_KEY
+    is_admin = bool(admin_key and admin_key.strip() == ADMIN_SECURITY_KEY.strip())
+
+    if not is_admin:
+        if not req.user_id or req.user_id == "anonymous":
+            raise HTTPException(status_code=401, detail="Please provide a valid user_id or admin key to generate AI scripts.")
+        clean_user_id = sanitize_alphanumeric_id(req.user_id)
+        if users_collection is not None:
+            user = users_collection.find_one({"internal_id": clean_user_id})
+            if not user:
+                raise HTTPException(status_code=401, detail="⚠️ Authentication Error: User account not found.")
+            subscription = user.get("subscription", {})
+            sub_status = subscription.get("status")
+            sub_expires = subscription.get("expires_at")
+            is_active = False
+            if sub_status == "active" and sub_expires:
+                if isinstance(sub_expires, str):
+                    try: sub_expires = datetime.fromisoformat(sub_expires.replace('Z', '+00:00'))
+                    except Exception: sub_expires = None
+                if isinstance(sub_expires, datetime) and sub_expires.replace(tzinfo=None) > datetime.utcnow():
+                    is_active = True
+            free_demo = user.get("free_demo_count", 2)
+            if not is_active and free_demo <= 0:
+                raise HTTPException(status_code=402, detail="Demo quota exhausted! Please upgrade your plan to generate AI scripts.")
         
     duration = max(10, min(300, req.duration_seconds))
     return generate_ai_script_core(
@@ -4618,34 +4681,52 @@ async def api_generate_ai_script(req: AIScriptRequest):
 
 @app.post("/generate-script")
 async def generate_script(req: ScriptRequest):
-    """Script generation endpoint with Free Quota & Security Protection"""
+    """Script generation endpoint with Strict Free Quota & Security Protection"""
     user_id = req.user_id
-    if user_id and user_id != "anonymous" and users_collection is not None:
-        user = users_collection.find_one({"internal_id": user_id})
-        if user:
-            subscription = user.get("subscription", {})
-            sub_status = subscription.get("status")
-            sub_expires = subscription.get("expires_at")
-            is_active = False
-            if sub_status == "active" and sub_expires:
-                if isinstance(sub_expires, str):
-                    try:
-                        sub_expires = datetime.fromisoformat(sub_expires)
-                    except Exception:
-                        sub_expires = None
-                if sub_expires and sub_expires > datetime.utcnow():
-                    is_active = True
-            
-            free_demo = user.get("free_demo_count")
-            if free_demo is None:
-                free_demo = 2
-                users_collection.update_one({"internal_id": user_id}, {"$set": {"free_demo_count": 2}})
+    if not user_id or user_id == "anonymous":
+        raise HTTPException(status_code=401, detail="Please login or register to generate AI scripts.")
 
-            if not is_active and free_demo <= 0:
-                raise HTTPException(
-                    status_code=402, 
-                    detail="Demo quota exhausted! You have used your 2 free demo videos & scripts. Please upgrade your plan to continue generating AI scripts & videos."
-                )
+    clean_user_id = sanitize_alphanumeric_id(user_id)
+    if users_collection is None:
+        raise HTTPException(status_code=500, detail="Database not configured")
+
+    user = users_collection.find_one({"internal_id": clean_user_id})
+    if not user:
+        raise HTTPException(status_code=401, detail="⚠️ Authentication Error: Invalid or non-existent user account. Please login to generate AI scripts.")
+
+    subscription = user.get("subscription", {})
+    sub_status = subscription.get("status")
+    sub_expires = subscription.get("expires_at")
+    is_active = False
+    if sub_status == "active" and sub_expires:
+        if isinstance(sub_expires, str):
+            try:
+                sub_expires = datetime.fromisoformat(sub_expires.replace('Z', '+00:00'))
+            except Exception:
+                sub_expires = None
+        if isinstance(sub_expires, datetime) and sub_expires.replace(tzinfo=None) > datetime.utcnow():
+            is_active = True
+    
+    ultra_sub = user.get("ultra_subscription", {})
+    has_active_ultra = False
+    if ultra_sub.get("status") == "active":
+        u_exp = ultra_sub.get("expires_at")
+        if isinstance(u_exp, str):
+            try: u_exp = datetime.fromisoformat(u_exp.replace('Z', '+00:00'))
+            except Exception: u_exp = None
+        if isinstance(u_exp, datetime) and u_exp.replace(tzinfo=None) > datetime.utcnow():
+            has_active_ultra = True
+
+    free_demo = user.get("free_demo_count")
+    if free_demo is None:
+        free_demo = 2
+        users_collection.update_one({"internal_id": clean_user_id}, {"$set": {"free_demo_count": 2}})
+
+    if not is_active and not has_active_ultra and free_demo <= 0:
+        raise HTTPException(
+            status_code=402, 
+            detail="Demo quota exhausted! You have used your 2 free demo videos & scripts. Please upgrade your plan to continue generating AI scripts & videos."
+        )
 
     req_lang = req.language or ("hi" if (req.voice and "hi-" in str(req.voice).lower()) else "hi")
     res = generate_ai_script_core(
