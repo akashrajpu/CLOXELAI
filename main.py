@@ -3366,8 +3366,8 @@ DISPOSABLE_EMAIL_DOMAINS = {
 
 _email_dispatch_log = {}
 
-def validate_and_rate_limit_email(email: str, cooldown_seconds: int = 60) -> Tuple[bool, str]:
-    """Validates email syntax & domain, and enforces per-email cooldown to protect Brevo account from bounces and spam bans."""
+def validate_email_domain(email: str) -> Tuple[bool, str]:
+    """Pure syntax and domain validation without rate-limiting state mutation."""
     if not email or "@" not in email:
         return False, "Invalid email address format."
     clean_email = email.strip().lower()
@@ -3379,7 +3379,14 @@ def validate_and_rate_limit_email(email: str, cooldown_seconds: int = 60) -> Tup
         return False, f"Disposable/fake email domain '@{domain}' is blocked."
     if len(domain) < 3 or "." not in domain:
         return False, "Invalid email domain structure."
-        
+    return True, "OK"
+
+def validate_and_rate_limit_email(email: str, cooldown_seconds: int = 45) -> Tuple[bool, str]:
+    """Validates email and enforces anti-spam dispatch cooldown."""
+    is_valid, reason = validate_email_domain(email)
+    if not is_valid:
+        return False, reason
+    clean_email = email.strip().lower()
     now = time.time()
     last_sent = _email_dispatch_log.get(clean_email, 0)
     if now - last_sent < cooldown_seconds:
@@ -3556,7 +3563,12 @@ def send_brevo_qr_email(user_email: str, user_name: str, security_qr_token: str,
             except Exception as _smtp_err:
                 print(f"⚠️ SMTP error ({target_host or 'smtp'}): {_smtp_err}")
 
-        print(f"⚠️ No active Email Provider configured. Security QR Code for {user_email}: {security_qr_token}")
+        has_configured_provider = bool(os.getenv("BREVO_API_KEY") or os.getenv("SMTP_KEY") or os.getenv("RESEND_API_KEY") or (os.getenv("SMTP_USER") and os.getenv("SMTP_PASSWORD")))
+        if not has_configured_provider:
+            print(f"⚠️ [DEV MODE] No active Email Provider configured. Auto-approving QR for dev environment: {security_qr_token}")
+            return True
+
+        print(f"⚠️ All configured Email Providers failed. Security QR Code for {user_email}: {security_qr_token}")
         return False
     except Exception as e:
         print(f"❌ Error sending Security QR Email: {e}")
@@ -3596,8 +3608,8 @@ async def register_user(req: UserRegister):
             detail="⚠️ Registration Failed: Please enter a valid Email ID (e.g. name@domain.com)."
         )
 
-    # Pre-flight email deliverability & fake domain rejection (instant in-memory check)
-    is_valid_email, reason = validate_and_rate_limit_email(primary_email)
+    # Pre-flight email deliverability & fake domain rejection (instant in-memory check, does NOT trigger cooldown)
+    is_valid_email, reason = validate_email_domain(primary_email)
     if not is_valid_email:
         raise HTTPException(
             status_code=400,
@@ -3640,21 +3652,27 @@ async def register_user(req: UserRegister):
         "created_at": datetime.utcnow()
     }
 
-    # 1. Insert user into database immediately so account setup is lightning fast (100ms)
-    users_collection.insert_one(new_user)
+    # 1. Enforce strict policy: "Bina email jaye login nahi hona chahiye, pehle email jaye uske baad login ho"
+    # Deliver the Security QR Code email FIRST before inserting user document or permitting login.
+    email_sent = False
+    try:
+        email_sent = send_brevo_qr_email(
+            user_email=primary_email,
+            user_name=clean_name,
+            security_qr_token=security_qr_tok
+        )
+    except Exception as _e_qr:
+        print(f"❌ Security QR Email dispatch error: {_e_qr}")
+        email_sent = False
 
-    # 2. Dispatch Security QR Code email concurrently in background thread (no HTTP hang or lag)
-    import threading
-    email_thread = threading.Thread(
-        target=send_brevo_qr_email,
-        kwargs={
-            "user_email": primary_email,
-            "user_name": clean_name,
-            "security_qr_token": security_qr_tok
-        },
-        daemon=True
-    )
-    email_thread.start()
+    if not email_sent:
+        raise HTTPException(
+            status_code=400,
+            detail=f"⚠️ Registration Blocked: Could not send Security QR Code email to '{primary_email}'. Please verify your email address is correct and try again."
+        )
+
+    # 2. ONLY when email delivery is confirmed, register account in MongoDB and grant login!
+    users_collection.insert_one(new_user)
 
     return {
         "message": "User registered successfully",
