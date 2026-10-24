@@ -1320,7 +1320,7 @@ def safe_verify_password(plain_password: str, hashed_password: str) -> bool:
 
 def safe_hash_password(password: str) -> str:
     try:
-        salt = _raw_bcrypt.gensalt()
+        salt = _raw_bcrypt.gensalt(rounds=10)
         return _raw_bcrypt.hashpw(password.encode('utf-8'), salt).decode('utf-8')
     except Exception:
         return pwd_context.hash(password)
@@ -1525,10 +1525,17 @@ def check_duplicate_user(email: str, phone: str):
             return "phone", dec_found
 
     try:
-        cursor = users_collection.find({}, {
+        cursor = users_collection.find({
+            "$or": [
+                {"email_hash": {"$exists": False}},
+                {"phone_hash": {"$exists": False}}
+            ]
+        }, {
             "_id": 1, "email": 1, "phone": 1, "email_or_mobile": 1, 
             "phone_hash": 1, "email_hash": 1, "internal_id": 1
         })
+        if hasattr(cursor, "limit"):
+            cursor = cursor.limit(50)
         for doc in cursor:
             raw_p = doc.get("phone") or ""
             dec_p = decrypt_field(raw_p) if isinstance(raw_p, str) else str(raw_p)
@@ -3381,7 +3388,7 @@ def validate_and_rate_limit_email(email: str, cooldown_seconds: int = 60) -> Tup
     _email_dispatch_log[clean_email] = now
     return True, "OK"
 
-def send_brevo_qr_email(user_email: str, user_name: str, security_qr_token: str):
+def send_brevo_qr_email(user_email: str, user_name: str, security_qr_token: str, **kwargs):
     try:
         is_valid_email, reason = validate_and_rate_limit_email(user_email)
         if not is_valid_email:
@@ -3389,12 +3396,9 @@ def send_brevo_qr_email(user_email: str, user_name: str, security_qr_token: str)
             return False
 
         brevo_api_key = os.getenv("BREVO_API_KEY") or os.getenv("SMTP_KEY")
-        smtp_login = os.getenv("SMTP_LOGIN", os.getenv("BREVO_SMTP_LOGIN", "9d55c8001@smtp-brevo.com"))
-        smtp_key = os.getenv("SMTP_KEY", os.getenv("BREVO_SMTP_KEY", os.getenv("SMTP_PASSWORD")))
         sender_email = os.getenv("SENDER_EMAIL") or "dr2829242627@gmail.com"
         brevo_sender_email = os.getenv("BREVO_SENDER_EMAIL") or os.getenv("SENDER_EMAIL") or "dr2829242627@gmail.com"
         sender_name = os.getenv("SENDER_NAME", "cloxel.AI")
-
         
         qr_payload = json.dumps({
             "security_token": security_qr_token,
@@ -3443,12 +3447,66 @@ def send_brevo_qr_email(user_email: str, user_name: str, security_qr_token: str)
         </html>
         """
 
+        # 1. Brevo HTTP REST API (Priority #1: High-Speed HTTPS REST API, ~200ms, zero connection hang)
+        if brevo_api_key:
+            try:
+                url = "https://api.brevo.com/v3/smtp/email"
+                headers = {
+                    "accept": "application/json",
+                    "api-key": brevo_api_key,
+                    "content-type": "application/json"
+                }
+                payload = {
+                    "sender": {"name": sender_name, "email": brevo_sender_email},
+                    "to": [{"email": user_email, "name": user_name}],
+                    "subject": "✦ Cloxel AI - Official Security QR Code Credential",
+                    "htmlContent": html_content
+                }
+                if qr_b64:
+                    payload["attachment"] = [
+                        {
+                            "content": qr_b64,
+                            "name": "cloxel_security_qr.png"
+                        }
+                    ]
+                
+                res = requests.post(url, json=payload, headers=headers, timeout=5)
+                if res.status_code in [200, 201, 202]:
+                    print(f"✅ Brevo QR Email sent successfully via REST API to {user_email}")
+                    return True
+                else:
+                    print(f"⚠️ Brevo API Response ({res.status_code}): {res.text}")
+            except Exception as _b_err:
+                print(f"⚠️ Brevo API error: {_b_err}")
+
+        # 2. Resend API (Priority #2: High-Speed REST API fallback)
+        resend_key = os.getenv("RESEND_API_KEY")
+        if resend_key:
+            try:
+                resend_url = "https://api.resend.com/emails"
+                resend_headers = {
+                    "Authorization": f"Bearer {resend_key}",
+                    "Content-Type": "application/json"
+                }
+                resend_from = os.getenv("RESEND_FROM_EMAIL", f"{sender_name} <onboarding@resend.dev>")
+                resend_payload = {
+                    "from": resend_from,
+                    "to": [user_email],
+                    "subject": "✦ Cloxel AI - Official Security QR Code Credential",
+                    "html": html_content
+                }
+                res_r = requests.post(resend_url, json=resend_payload, headers=resend_headers, timeout=5)
+                if res_r.status_code in [200, 201]:
+                    print(f"✅ Security QR Email sent successfully via Resend API to {user_email}")
+                    return True
+                else:
+                    print(f"⚠️ Resend API Response ({res_r.status_code}): {res_r.text}")
+            except Exception as _r_err:
+                print(f"⚠️ Resend API error: {_r_err}")
+
+        # 3. SMTP (Priority #3: Fallback only when explicit credentials/host are configured)
         smtp_user = os.getenv("SMTP_USER") or os.getenv("SMTP_LOGIN")
         smtp_password = os.getenv("SMTP_PASSWORD") or os.getenv("SMTP_KEY")
-        smtp_host = os.getenv("SMTP_HOST") or ("smtp.gmail.com" if (smtp_user and "gmail" in smtp_user.lower()) else None)
-        smtp_port = int(os.getenv("SMTP_PORT", "587"))
-        resend_key = os.getenv("RESEND_API_KEY")
-
         if smtp_user and smtp_password:
             try:
                 import smtplib
@@ -3457,7 +3515,16 @@ def send_brevo_qr_email(user_email: str, user_name: str, security_qr_token: str)
                 from email.mime.base import MIMEBase
                 from email import encoders
 
-                target_host = smtp_host or "smtp.gmail.com"
+                if os.getenv("SMTP_HOST"):
+                    target_host = os.getenv("SMTP_HOST")
+                elif "brevo" in smtp_user.lower():
+                    target_host = "smtp-relay.brevo.com"
+                elif "gmail" in smtp_user.lower():
+                    target_host = "smtp.gmail.com"
+                else:
+                    target_host = "smtp-relay.brevo.com"
+
+                smtp_port = int(os.getenv("SMTP_PORT", "587"))
                 msg = MIMEMultipart('alternative')
                 msg['Subject'] = "✦ Cloxel AI - Official Security QR Code Credential"
                 msg['From'] = f"{sender_name} <{sender_email}>"
@@ -3474,76 +3541,20 @@ def send_brevo_qr_email(user_email: str, user_name: str, security_qr_token: str)
                     attach_file.add_header('Content-Disposition', 'attachment', filename='cloxel_security_qr.png')
                     msg.attach(attach_file)
 
+                # Strict 4s timeout prevents blocking/hanging
                 if smtp_port == 465:
-                    with smtplib.SMTP_SSL(target_host, smtp_port) as server:
+                    with smtplib.SMTP_SSL(target_host, smtp_port, timeout=4) as server:
                         server.login(smtp_user, smtp_password)
                         server.sendmail(sender_email, [user_email], msg.as_string())
                 else:
-                    with smtplib.SMTP(target_host, smtp_port) as server:
+                    with smtplib.SMTP(target_host, smtp_port, timeout=4) as server:
                         server.starttls()
                         server.login(smtp_user, smtp_password)
                         server.sendmail(sender_email, [user_email], msg.as_string())
                 print(f"✅ Security QR Email sent successfully via SMTP ({target_host}) to {user_email}")
                 return True
             except Exception as _smtp_err:
-                print(f"⚠️ SMTP error ({smtp_host or 'smtp.gmail.com'}): {_smtp_err}")
-
-        if resend_key:
-            try:
-                resend_url = "https://api.resend.com/emails"
-                resend_headers = {
-                    "Authorization": f"Bearer {resend_key}",
-                    "Content-Type": "application/json"
-                }
-                resend_from = os.getenv("RESEND_FROM_EMAIL", f"{sender_name} <onboarding@resend.dev>")
-                resend_payload = {
-                    "from": resend_from,
-                    "to": [user_email],
-                    "subject": "✦ Cloxel AI - Official Security QR Code Credential",
-                    "html": html_content
-                }
-                res_r = requests.post(resend_url, json=resend_payload, headers=resend_headers, timeout=10)
-                if res_r.status_code in [200, 201]:
-                    print(f"✅ Security QR Email sent successfully via Resend API to {user_email}")
-                    return True
-                else:
-                    print(f"⚠️ Resend API Response ({res_r.status_code}): {res_r.text}")
-            except Exception as _r_err:
-                print(f"⚠️ Resend API error: {_r_err}")
-
-        brevo_api_key = os.getenv("BREVO_API_KEY") or os.getenv("SMTP_KEY")
-        if brevo_api_key:
-            try:
-                url = "https://api.brevo.com/v3/smtp/email"
-                headers = {
-                    "accept": "application/json",
-                    "api-key": brevo_api_key,
-                    "content-type": "application/json"
-                }
-                
-                payload = {
-                    "sender": {"name": sender_name, "email": brevo_sender_email},
-                    "to": [{"email": user_email, "name": user_name}],
-                    "subject": "✦ Cloxel AI - Official Security QR Code Credential",
-                    "htmlContent": html_content
-                }
-
-                if qr_b64:
-                    payload["attachment"] = [
-                        {
-                            "content": qr_b64,
-                            "name": "cloxel_security_qr.png"
-                        }
-                    ]
-                
-                res = requests.post(url, json=payload, headers=headers, timeout=10)
-                if res.status_code in [200, 201, 202]:
-                    print(f"✅ Brevo QR Email sent successfully via API to {user_email}")
-                    return True
-                else:
-                    print(f"⚠️ Brevo API Response ({res.status_code}): {res.text}")
-            except Exception as _b_err:
-                print(f"⚠️ Brevo API error: {_b_err}")
+                print(f"⚠️ SMTP error ({target_host or 'smtp'}): {_smtp_err}")
 
         print(f"⚠️ No active Email Provider configured. Security QR Code for {user_email}: {security_qr_token}")
         return False
@@ -3585,6 +3596,14 @@ async def register_user(req: UserRegister):
             detail="⚠️ Registration Failed: Please enter a valid Email ID (e.g. name@domain.com)."
         )
 
+    # Pre-flight email deliverability & fake domain rejection (instant in-memory check)
+    is_valid_email, reason = validate_and_rate_limit_email(primary_email)
+    if not is_valid_email:
+        raise HTTPException(
+            status_code=400,
+            detail=f"⚠️ Registration Failed: {reason}"
+        )
+
     dup_result = check_duplicate_user(email=primary_email, phone=primary_phone)
     if dup_result:
         dup_type, _ex_user = dup_result
@@ -3620,25 +3639,22 @@ async def register_user(req: UserRegister):
         "free_demo_count": 2,
         "created_at": datetime.utcnow()
     }
-    
-    email_sent = False
-    try:
-        email_sent = send_brevo_qr_email(
-            user_email=primary_email,
-            user_name=req.name.strip(),
-            security_qr_token=security_qr_tok
-        )
-    except Exception as _e_qr:
-        print(f"❌ Brevo QR Email dispatch error: {_e_qr}")
 
-    brevo_key = os.getenv("BREVO_API_KEY") or os.getenv("SMTP_KEY")
-    if brevo_key and not email_sent:
-        raise HTTPException(
-            status_code=400,
-            detail=f"⚠️ Registration Blocked: Unable to send Security QR Code email to '{primary_email}'. Please verify your email address and try again."
-        )
-
+    # 1. Insert user into database immediately so account setup is lightning fast (100ms)
     users_collection.insert_one(new_user)
+
+    # 2. Dispatch Security QR Code email concurrently in background thread (no HTTP hang or lag)
+    import threading
+    email_thread = threading.Thread(
+        target=send_brevo_qr_email,
+        kwargs={
+            "user_email": primary_email,
+            "user_name": clean_name,
+            "security_qr_token": security_qr_tok
+        },
+        daemon=True
+    )
+    email_thread.start()
 
     return {
         "message": "User registered successfully",
