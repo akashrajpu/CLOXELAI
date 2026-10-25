@@ -15,9 +15,20 @@
     <!-- 2. Google Search Console Verification -->
     <meta name="google-site-verification" content="googleaa929f03abece7ff" />
 
-    <!-- Favicon & Icons -->
+    <!-- Brand Identity & Google Site Name Metadata -->
+    <meta name="application-name" content="Cloxel AI" />
+    <meta name="apple-mobile-web-app-title" content="Cloxel AI" />
+    <meta name="theme-color" content="#6366f1" />
+
+    <!-- Favicon & Brand Icons for Google Search, Google AI Overviews & Browsers -->
+    <link rel="icon" type="image/png" sizes="48x48" href="/favicon-48x48.png" />
+    <link rel="icon" type="image/png" sizes="96x96" href="/favicon-96x96.png" />
+    <link rel="icon" type="image/png" sizes="192x192" href="/favicon-192x192.png" />
+    <link rel="icon" type="image/png" sizes="512x512" href="/favicon-512x512.png" />
     <link rel="icon" type="image/png" href="/favicon.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
     <link rel="shortcut icon" href="/favicon.ico" />
+    <link rel="manifest" href="/manifest.json" />
 
     <!-- 3. Open Graph (OG) Meta Tags (Facebook, LinkedIn, Discord, WhatsApp) -->
     <meta property="og:type" content="website" />
@@ -25,14 +36,17 @@
     <meta property="og:url" content="https://cloxelai.onrender.com/" />
     <meta property="og:title" content="Cloxel AI - AI Video Generator & Faceless Automation Studio" />
     <meta property="og:description" content="Cloxel AI (Cloxel) empowers creators to generate high-converting 3D Parallax Photo Motion Shorts, YouTube videos, and multi-character dialogue scenes automatically." />
-    <meta property="og:image" content="https://cloxelai.onrender.com/favicon.png" />
+    <meta property="og:image" content="https://cloxelai.onrender.com/favicon-512x512.png" />
+    <meta property="og:image:width" content="512" />
+    <meta property="og:image:height" content="512" />
+    <meta property="og:image:type" content="image/png" />
 
     <!-- 4. Twitter Card Meta Tags -->
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:site" content="@CloxelAI" />
     <meta name="twitter:title" content="Cloxel AI - AI Video Generator & Faceless Content Studio" />
     <meta name="twitter:description" content="Create viral faceless videos, 3D Parallax Photo Motion Shorts, and multi-character dialogue scenes with Cloxel AI (Cloxel)." />
-    <meta name="twitter:image" content="https://cloxelai.onrender.com/favicon.png" />
+    <meta name="twitter:image" content="https://cloxelai.onrender.com/favicon-512x512.png" />
 
     <!-- Fonts & Third-Party Scripts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -42,7 +56,23 @@
     <script src="https://accounts.google.com/gsi/client" async defer></script>
     <script src="https://unpkg.com/@lottiefiles/lottie-player@latest/dist/lottie-player.js"></script>
 
-    <!-- 5. Structured Data: JSON-LD Schema Markup (Brand Recognition for Cloxel AI) -->
+    <!-- 5. Structured Data: Standalone WebSite Schema for Google Search Site Name Recognition -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebSite",
+      "name": "Cloxel AI",
+      "alternateName": ["Cloxel", "CloxelAI", "cloxelai"],
+      "url": "https://cloxelai.onrender.com/",
+      "potentialAction": {
+        "@type": "SearchAction",
+        "target": "https://cloxelai.onrender.com/?q={search_term_string}",
+        "query-input": "required name=search_term_string"
+      }
+    }
+    </script>
+
+    <!-- 6. Structured Data: Organization & SoftwareApplication Schema -->
     <script type="application/ld+json">
     {
       "@context": "https://schema.org",
@@ -53,23 +83,14 @@
           "name": "Cloxel AI",
           "alternateName": ["Cloxel", "CloxelAI"],
           "url": "https://cloxelai.onrender.com/",
-          "logo": "https://cloxelai.onrender.com/favicon.png",
-          "description": "Cloxel AI is the leading AI video generator platform for creating faceless videos, 3D Parallax photo motion content, and automated YouTube channels."
-        },
-        {
-          "@type": "WebSite",
-          "@id": "https://cloxelai.onrender.com/#website",
-          "url": "https://cloxelai.onrender.com/",
-          "name": "Cloxel AI",
-          "alternateName": ["Cloxel", "CloxelAI"],
-          "publisher": {
-            "@id": "https://cloxelai.onrender.com/#organization"
+          "logo": {
+            "@type": "ImageObject",
+            "url": "https://cloxelai.onrender.com/favicon-512x512.png",
+            "width": 512,
+            "height": 512
           },
-          "potentialAction": {
-            "@type": "SearchAction",
-            "target": "https://cloxelai.onrender.com/?q={search_term_string}",
-            "query-input": "required name=search_term_string"
-          }
+          "image": "https://cloxelai.onrender.com/favicon-512x512.png",
+          "description": "Cloxel AI is the leading AI video generator platform for creating faceless videos, 3D Parallax photo motion content, and automated YouTube channels."
         },
         {
           "@type": "SoftwareApplication",

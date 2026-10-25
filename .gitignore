@@ -14,6 +14,9 @@ find_portrait_box.py
 crop_actual_portrait.py
 *.png
 *.jpg
-!frontend/dist/favicon.png
+!frontend/dist/*.png
+!frontend/dist/*.jpg
+!frontend/public/*.png
+!frontend/public/*.jpg
 cloxel-load-balancer/
 scratch/

@@ -4740,8 +4740,71 @@ async def generate_script(req: ScriptRequest):
 
 @app.get("/robots.txt", response_class=Response)
 async def get_robots_txt():
-    robots_content = "User-agent: *\nAllow: /\n\nSitemap: https://cloxelai.onrender.com/sitemap.xml\n"
+    robots_content = (
+        "User-agent: *\n"
+        "Allow: /\n"
+        "Allow: /favicon*\n"
+        "Allow: /apple-touch-icon*\n"
+        "Allow: /manifest.json\n\n"
+        "User-agent: Googlebot-Image\n"
+        "Allow: /\n"
+        "Allow: /*.png$\n"
+        "Allow: /*.ico$\n\n"
+        "Sitemap: https://cloxelai.onrender.com/sitemap.xml\n"
+    )
     return Response(content=robots_content, media_type="text/plain")
+
+@app.get("/manifest.json")
+async def get_manifest():
+    manifest_path = "frontend/dist/manifest.json" if os.path.exists("frontend/dist/manifest.json") else "frontend/public/manifest.json"
+    if os.path.exists(manifest_path):
+        return FileResponse(manifest_path, media_type="application/manifest+json", headers={"Cache-Control": "public, max-age=86400"})
+    raise HTTPException(status_code=404, detail="Manifest not found")
+
+@app.get("/favicon.ico")
+async def get_favicon_ico():
+    ico_path = "frontend/dist/favicon.ico" if os.path.exists("frontend/dist/favicon.ico") else "frontend/public/favicon.ico"
+    if os.path.exists(ico_path):
+        return FileResponse(ico_path, media_type="image/x-icon", headers={"Cache-Control": "public, max-age=86400"})
+    raise HTTPException(status_code=404, detail="Favicon not found")
+
+@app.get("/favicon.png")
+@app.get("/favicon-512x512.png")
+async def get_favicon_512():
+    png_path = "frontend/dist/favicon-512x512.png" if os.path.exists("frontend/dist/favicon-512x512.png") else "frontend/public/favicon-512x512.png"
+    if not os.path.exists(png_path):
+        png_path = "frontend/dist/favicon.png" if os.path.exists("frontend/dist/favicon.png") else "frontend/public/favicon.png"
+    if os.path.exists(png_path):
+        return FileResponse(png_path, media_type="image/png", headers={"Cache-Control": "public, max-age=86400"})
+    raise HTTPException(status_code=404, detail="Icon not found")
+
+@app.get("/favicon-48x48.png")
+async def get_favicon_48():
+    png_path = "frontend/dist/favicon-48x48.png" if os.path.exists("frontend/dist/favicon-48x48.png") else "frontend/public/favicon-48x48.png"
+    if os.path.exists(png_path):
+        return FileResponse(png_path, media_type="image/png", headers={"Cache-Control": "public, max-age=86400"})
+    raise HTTPException(status_code=404, detail="Icon not found")
+
+@app.get("/favicon-96x96.png")
+async def get_favicon_96():
+    png_path = "frontend/dist/favicon-96x96.png" if os.path.exists("frontend/dist/favicon-96x96.png") else "frontend/public/favicon-96x96.png"
+    if os.path.exists(png_path):
+        return FileResponse(png_path, media_type="image/png", headers={"Cache-Control": "public, max-age=86400"})
+    raise HTTPException(status_code=404, detail="Icon not found")
+
+@app.get("/favicon-192x192.png")
+async def get_favicon_192():
+    png_path = "frontend/dist/favicon-192x192.png" if os.path.exists("frontend/dist/favicon-192x192.png") else "frontend/public/favicon-192x192.png"
+    if os.path.exists(png_path):
+        return FileResponse(png_path, media_type="image/png", headers={"Cache-Control": "public, max-age=86400"})
+    raise HTTPException(status_code=404, detail="Icon not found")
+
+@app.get("/apple-touch-icon.png")
+async def get_apple_touch_icon():
+    png_path = "frontend/dist/apple-touch-icon.png" if os.path.exists("frontend/dist/apple-touch-icon.png") else "frontend/public/apple-touch-icon.png"
+    if os.path.exists(png_path):
+        return FileResponse(png_path, media_type="image/png", headers={"Cache-Control": "public, max-age=86400"})
+    raise HTTPException(status_code=404, detail="Icon not found")
 
 @app.get("/.well-known/security.txt", response_class=Response)
 @app.get("/security.txt", response_class=Response)
