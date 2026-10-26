@@ -190,7 +190,7 @@ def download_youtube_song_audio(
 
     if source_type == "url" and song_url and song_url.strip():
         raw_u = song_url.strip()
-        vid_match = re.search(r'(?:v=|\/)([0-9A-Za-z_-]{11})', raw_u)
+        vid_match = re.search(r'(?:v=|\/|embed\/|shorts\/|youtu\.be\/)([0-9A-Za-z_-]{11})', raw_u)
         if vid_match:
             download_target = f"https://www.youtube.com/watch?v={vid_match.group(1)}"
         else:
@@ -206,7 +206,7 @@ def download_youtube_song_audio(
         fallback_search_query = f"{clean_singer} {clean_title}".strip()
     elif song_url and song_url.strip():
         raw_u = song_url.strip()
-        vid_match = re.search(r'(?:v=|\/)([0-9A-Za-z_-]{11})', raw_u)
+        vid_match = re.search(r'(?:v=|\/|embed\/|shorts\/|youtu\.be\/)([0-9A-Za-z_-]{11})', raw_u)
         if vid_match:
             download_target = f"https://www.youtube.com/watch?v={vid_match.group(1)}"
         else:
@@ -224,7 +224,6 @@ def download_youtube_song_audio(
     if yt_dlp:
         out_template = os.path.join(target_dir, "raw_song.%(ext)s")
         base_ydl_opts = {
-            'format': 'bestaudio/best',
             'outtmpl': out_template,
             'postprocessors': [{
                 'key': 'FFmpegExtractAudio',
@@ -235,20 +234,22 @@ def download_youtube_song_audio(
             'no_warnings': True,
             'noplaylist': True,
             'socket_timeout': 35,
-            'max_filesize': 70 * 1024 * 1024,
+            'max_filesize': 80 * 1024 * 1024,
         }
         if cookies_file:
             base_ydl_opts['cookiefile'] = cookies_file
 
-        # Attempt 1: Direct YouTube
+        # Attempt 1: Direct YouTube (Pure Android client with format 18 bypasses datacenter bot detection)
         client_configs = [
-            (['android'], 'com.google.android.youtube/19.29.37 (Linux; U; Android 11)'),
-            (['tv_embedded'], 'Mozilla/5.0 (SMART-TV; LINUX; Tizen 6.0) AppleWebkit/537.36 (KHTML, like Gecko)'),
-            (['ios'], 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15')
+            (['android'], 'com.google.android.youtube/19.29.37 (Linux; U; Android 11)', '18/17/bestaudio/best'),
+            (['android'], 'com.google.android.youtube/19.29.37 (Linux; U; Android 11)', 'bestaudio/best'),
+            (['ios'], 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15', '18/bestaudio/best'),
+            (['tv_embedded'], 'Mozilla/5.0 (SMART-TV; LINUX; Tizen 6.0) AppleWebkit/537.36 (KHTML, like Gecko)', '18/bestaudio/best')
         ]
 
-        for clients, ua in client_configs:
+        for clients, ua, fmt in client_configs:
             ydl_opts = dict(base_ydl_opts)
+            ydl_opts['format'] = fmt
             ydl_opts['extractor_args'] = {'youtube': {'player_client': clients}}
             ydl_opts['http_headers'] = {'User-Agent': ua}
 
@@ -267,14 +268,47 @@ def download_youtube_song_audio(
                     if actual_mp3 != target_path:
                         import shutil
                         shutil.copy2(actual_mp3, target_path)
-                    print(f"✅ [Song Engine] Downloaded Audio via YouTube ({clients[0]}): '{extracted_title}' ({os.path.getsize(target_path)} bytes)")
+                    print(f"✅ [Song Engine] Downloaded Audio via YouTube ({clients[0]} / {fmt}): '{extracted_title}' ({os.path.getsize(target_path)} bytes)")
                     return {
                         "audio_path": target_path,
                         "title": extracted_title,
                         "duration": extracted_duration
                     }
             except Exception as e:
-                print(f"⚠️ [Song Engine] yt-dlp YouTube client {clients[0]} exception: {e}")
+                print(f"⚠️ [Song Engine] yt-dlp YouTube client {clients[0]} ({fmt}) note: {e}")
+
+        # Attempt 1.5: If direct URL had issues, try YouTube search with extracted clean song name
+        if fallback_search_query and source_type == "url":
+            print(f"🔄 [Song Engine] Direct link restricted. Attempting YouTube search for original title: '{fallback_search_query}'...")
+            search_target = f"ytsearch1:{fallback_search_query} official".strip()
+            try:
+                search_opts = dict(base_ydl_opts)
+                search_opts['format'] = '18/17/bestaudio/best'
+                search_opts['extractor_args'] = {'youtube': {'player_client': ['android']}}
+                search_opts['http_headers'] = {'User-Agent': 'com.google.android.youtube/19.29.37 (Linux; U; Android 11)'}
+
+                with yt_dlp.YoutubeDL(search_opts) as ydl:
+                    info = ydl.extract_info(search_target, download=True)
+                    entry = info['entries'][0] if 'entries' in info and info['entries'] else info
+                    if entry:
+                        extracted_title = entry.get('title') or extracted_title
+                        extracted_duration = float(entry.get('duration') or 60.0)
+
+                possible_files = glob.glob(os.path.join(target_dir, "raw_song*.mp3")) + glob.glob(os.path.join(target_dir, "*.mp3"))
+                valid_files = [f for f in possible_files if os.path.getsize(f) > 5000]
+                if valid_files:
+                    actual_mp3 = valid_files[0]
+                    if actual_mp3 != target_path:
+                        import shutil
+                        shutil.copy2(actual_mp3, target_path)
+                    print(f"✅ [Song Engine] Downloaded Audio via YouTube Search Fallback: '{extracted_title}' ({os.path.getsize(target_path)} bytes)")
+                    return {
+                        "audio_path": target_path,
+                        "title": extracted_title,
+                        "duration": extracted_duration
+                    }
+            except Exception as e_s:
+                print(f"⚠️ [Song Engine] YouTube search fallback note: {e_s}")
 
         # Attempt 2: Intelligent SoundCloud Fallback (Bypasses Datacenter IP block completely)
         if fallback_search_query:
