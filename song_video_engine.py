@@ -55,15 +55,22 @@ import numpy as np
 # CINEMATIC ASSETS, 5+ FONTS PALETTE & MOOD DEFINITIONS
 # ---------------------------------------------------------------------------
 
+# Universal dual-language font pool: 100% verified to support English, Hinglish & Hindi Devanagari natively
 CINEMATIC_FONTS_POOL = [
-    "./fonts/Mukta-Bold.ttf",
-    "./fonts/Kalam-Bold.ttf",
-    "./fonts/YatraOne-Regular.ttf",
-    "./fonts/NotoSansDevanagari-Bold.ttf",
-    "./fonts/RozhaOne-Regular.ttf",
-    "./fonts/bebas.ttf",
-    "./fonts/anton.ttf",
-    "./fonts/Arial.ttf"
+    "./fonts/Mukta-Bold.ttf",                   # Modern Bold Sans-Serif
+    "./fonts/Kalam-Bold.ttf",                   # Organic Handwritten / Calligraphy
+    "./fonts/YatraOne-Regular.ttf",             # Indian Retro Cinema / Display
+    "./fonts/RozhaOne-Regular.ttf",             # High-Contrast Editorial Fashion Serif
+    "./fonts/Ranga-Bold.ttf",                   # Expressive Brush Script
+    "./fonts/TiroDevanagariHindi-Regular.ttf"   # Timeless Literary / Poetic Book Serif
+]
+
+# Additional English/Hinglish-only fonts used ONLY when lyrics are confirmed pure Latin script
+LATIN_ONLY_FONTS_POOL = [
+    "./fonts/anton.ttf",                        # Ultra-Impact Poster Condensed
+    "./fonts/bebas.ttf",                        # Clean Headline Condensed
+    "./fonts/roboto.ttf",                       # Sleek Geometric Modern
+    "./fonts/Arial.ttf"                         # Universal Sans
 ]
 
 TEXT_POSITIONS = [
@@ -82,6 +89,36 @@ TEXT_COLORS = [
     (251, 191, 36, 255),  # Sunset Gold
     (147, 197, 253, 255),  # Soft Sky Blue
 ]
+
+TEXT_BG_STYLES = [
+    "none",         # Clean floating typography, zero background box (as requested)
+    "pill",         # Frosted glass dark rounded pill with accent border
+    "none",         # Clean floating typography (frequent no-box variation)
+    "neon_line",    # Sleek glowing accent underline bar, no background box
+    "glass_card",   # Ultra-translucent subtle glass card
+    "none",         # Clean floating typography
+]
+
+
+def font_supports_text(font_path: str, text: str) -> bool:
+    """
+    Checks if the font contains valid glyphs for non-whitespace characters in text.
+    Detects .notdef tofu boxes by comparing rendered character mask against font's unmapped glyph.
+    """
+    if not os.path.exists(font_path) or not text:
+        return False
+    try:
+        font = ImageFont.truetype(font_path, 28)
+        notdef_mask = bytes(font.getmask('\uFFFF'))
+        for ch in text:
+            if ch.isspace() or ord(ch) < 32 or ch == '|':
+                continue
+            char_mask = bytes(font.getmask(ch))
+            if char_mask == notdef_mask and len(notdef_mask) > 0:
+                return False
+        return True
+    except Exception:
+        return False
 
 MOOD_KEYWORDS = {
     "romantic": "romantic couple love golden hour sunset warm bokeh aesthetic dream 4k",
@@ -327,16 +364,21 @@ def render_typewriter_lyrics_on_frame(
     if type_p < 1.0 and (int(local_t * 5) % 2 == 0):
         display_text += "|"
 
-    # Font sizing & loading
+    # Font sizing & loading with automatic glyph safety check
     font_path = line_info.get("font_path", "./fonts/Mukta-Bold.ttf")
     pos_type = line_info.get("position", "bottom_center")
     fill_color = line_info.get("color", (253, 224, 71, 255))
+    bg_style = line_info.get("bg_style", "none")
     
     font_size = max(26, int(tw * 0.046))
     if pos_type == "center":
         font_size = max(30, int(tw * 0.054))
     elif pos_type == "top_badge":
         font_size = max(24, int(tw * 0.040))
+
+    # Automatic glyph validation: ensure font supports the text, otherwise fallback to Mukta-Bold
+    if not font_supports_text(font_path, display_text):
+        font_path = "./fonts/Mukta-Bold.ttf"
 
     try:
         loaded_font = ImageFont.truetype(font_path, font_size)
@@ -402,20 +444,36 @@ def render_typewriter_lyrics_on_frame(
         x_start = (tw - pill_w) // 2
         y_start = int(th * 0.76)
 
-    # Frosted glass dark pill background
-    draw.rounded_rectangle(
-        [x_start, y_start, x_start + pill_w, y_start + pill_h],
-        radius=14,
-        fill=(12, 14, 24, 210)
-    )
-    # Subtle accent border on pill
-    accent_border = (fill_color[0], fill_color[1], fill_color[2], 140)
-    draw.rounded_rectangle(
-        [x_start, y_start, x_start + pill_w, y_start + pill_h],
-        radius=14,
-        outline=accent_border,
-        width=2
-    )
+    # Dynamic subtitle background based on bg_style ("none", "pill", "neon_line", "glass_card")
+    # Allows background box to randomly disappear ("gayb") as requested by user
+    if bg_style == "pill":
+        draw.rounded_rectangle(
+            [x_start, y_start, x_start + pill_w, y_start + pill_h],
+            radius=14,
+            fill=(12, 14, 24, 210)
+        )
+        accent_border = (fill_color[0], fill_color[1], fill_color[2], 140)
+        draw.rounded_rectangle(
+            [x_start, y_start, x_start + pill_w, y_start + pill_h],
+            radius=14,
+            outline=accent_border,
+            width=2
+        )
+    elif bg_style == "glass_card":
+        draw.rounded_rectangle(
+            [x_start, y_start, x_start + pill_w, y_start + pill_h],
+            radius=12,
+            fill=(15, 18, 30, 130)
+        )
+    elif bg_style == "neon_line":
+        # Sleek glowing underline bar without any dark background box
+        underline_y = y_start + pill_h - 2
+        draw.line(
+            [(x_start + pad_x, underline_y), (x_start + pill_w - pad_x, underline_y)],
+            fill=fill_color,
+            width=3
+        )
+    # If bg_style == "none", NO background box or line is drawn (pure floating text!)
 
     # Render lines with drop shadow + stroke
     for i, lt in enumerate(wrapped_lines):
@@ -423,19 +481,23 @@ def render_typewriter_lyrics_on_frame(
         line_x = x_start + pad_x + (max_line_w - lw) // 2
         line_y = y_start + pad_y + (i * line_height)
 
+        # Deep drop shadow
+        shadow_offset = 3 if bg_style in ["none", "neon_line"] else 2
         draw.text(
-            (line_x + 2, line_y + 2),
+            (line_x + shadow_offset, line_y + shadow_offset),
             lt,
             font=loaded_font,
-            fill=(0, 0, 0, 200)
+            fill=(0, 0, 0, 240)
         )
+        # Bold readable stroke + vibrant fill
+        stroke_w = max(2, int(font_size * (0.10 if bg_style in ["none", "neon_line"] else 0.08)))
         draw.text(
             (line_x, line_y),
             lt,
             font=loaded_font,
             fill=fill_color,
-            stroke_width=max(2, int(font_size * 0.08)),
-            stroke_fill=(15, 23, 42, 240)
+            stroke_width=stroke_w,
+            stroke_fill=(12, 14, 24, 240)
         )
 
     return im_frame
@@ -855,10 +917,6 @@ def build_full_song_video(
     print(f"==================================================")
 
     # 2. Extract Exact Synced Lyrics & Style Attributes
-    available_fonts = [f for f in CINEMATIC_FONTS_POOL if os.path.exists(f)]
-    if not available_fonts:
-        available_fonts = ["./fonts/Arial.ttf"]
-
     if song_lyrics and song_lyrics.strip():
         # User provided custom lyrics
         custom_raw = [sanitize_lyrics_text(l) for l in song_lyrics.splitlines() if len(l.strip()) > 1]
@@ -877,13 +935,39 @@ def build_full_song_video(
             target_duration=target_duration
         )
 
-    # Assign 5+ rotating fonts, dynamic positions, and accent colors to each lyric line
+    # Determine if lyrics contain Devanagari Hindi characters
+    has_devanagari = any(
+        any(0x0900 <= ord(c) <= 0x097F for c in lyr.get("text", ""))
+        for lyr in all_lyrics
+    )
+
+    # Build safe font pool: if pure English/Hinglish, include universal + bold display latin fonts
+    font_candidates = [f for f in CINEMATIC_FONTS_POOL if os.path.exists(f)]
+    if not has_devanagari:
+        font_candidates += [f for f in LATIN_ONLY_FONTS_POOL if os.path.exists(f)]
+    if not font_candidates:
+        font_candidates = ["./fonts/Mukta-Bold.ttf"]
+
+    # Assign rotating safe fonts, dynamic positions, accent colors, and randomized background styles
     for idx, lyr in enumerate(all_lyrics):
-        lyr["font_path"] = available_fonts[idx % len(available_fonts)]
+        line_txt = lyr.get("text", "")
+        chosen_font = font_candidates[idx % len(font_candidates)]
+        # Ensure the selected font actually supports the text characters
+        if not font_supports_text(chosen_font, line_txt):
+            for fallback_f in CINEMATIC_FONTS_POOL:
+                if font_supports_text(fallback_f, line_txt):
+                    chosen_font = fallback_f
+                    break
+            else:
+                chosen_font = "./fonts/Mukta-Bold.ttf"
+
+        lyr["font_path"] = chosen_font
         lyr["position"] = TEXT_POSITIONS[idx % len(TEXT_POSITIONS)]
         lyr["color"] = TEXT_COLORS[idx % len(TEXT_COLORS)]
+        lyr["bg_style"] = TEXT_BG_STYLES[idx % len(TEXT_BG_STYLES)]
 
-    print(f"📝 [Song Engine] Prepared {len(all_lyrics)} synced typewriter lyrics lines across {len(available_fonts)} rotating fonts.")
+    bg_none_count = sum(1 for lyr in all_lyrics if lyr.get("bg_style") == "none")
+    print(f"📝 [Song Engine] Prepared {len(all_lyrics)} synced typewriter lyrics lines across {len(font_candidates)} rotating fonts ({bg_none_count} clean floating lines without background box).")
 
     # 3. Reduced Background Visual Segments (Only 2 to 5 photos total!)
     num_segments = max(2, min(8, int(math.ceil(target_duration / 10.0))))
