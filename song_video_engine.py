@@ -14,6 +14,19 @@ import math
 import random
 import subprocess
 from typing import Optional, List, Dict, Any
+import gc
+
+def release_system_memory():
+    """
+    Forces Python Garbage Collection + Linux C-heap memory reclamation (malloc_trim).
+    Prevents Render 512MB RAM Out-Of-Memory (OOM) crashes.
+    """
+    gc.collect()
+    try:
+        import ctypes
+        ctypes.CDLL('libc.so.6').malloc_trim(0)
+    except Exception:
+        pass
 
 try:
     import yt_dlp
@@ -495,6 +508,14 @@ def create_photo_motion_scene_clip(
         orig_resized = orig.resize((new_w, new_h), Image.Resampling.LANCZOS)
         base_np = np.array(orig_resized)
 
+        # Free PIL memory immediately
+        try:
+            orig.close()
+            orig_resized.close()
+        except Exception:
+            pass
+        del orig, orig_resized
+
         def make_frame(t):
             progress = min(1.0, max(0.0, t / max(0.1, duration)))
             if direction == "zoom_in":
@@ -515,7 +536,9 @@ def create_photo_motion_scene_clip(
 
             crop = base_np[y1:y2, x1:x2]
             im_crop = Image.fromarray(crop).resize((tw, th), Image.Resampling.BILINEAR)
-            return np.array(im_crop)
+            frame_arr = np.array(im_crop)
+            im_crop.close()
+            return frame_arr
 
         from moviepy.editor import VideoClip
         return VideoClip(make_frame, duration=duration)
@@ -583,7 +606,7 @@ def build_full_song_video(
     visual_mode = getattr(req, 'song_visual_mode', 'motion') or getattr(req, 'mode', 'ultra')
     is_stock_video = (visual_mode in ['video', 'standard'])
 
-    scene_clips = []
+    rendered_scene_files = []
     font_path = f"./fonts/{req.font_name}" if hasattr(req, 'font_name') and req.font_name else "./fonts/Arial.ttf"
     font_color = getattr(req, 'font_color', 'yellow') or 'yellow'
 
@@ -591,6 +614,7 @@ def build_full_song_video(
     from web_image_fetcher import fetch_web_image
 
     for sc in scenes:
+        release_system_memory()
         idx = sc["index"]
         sc_dur = sc["duration"]
         lyric_text = sc["text"]
@@ -598,6 +622,7 @@ def build_full_song_video(
         print(f"\n🎬 [Scene {idx+1}/{len(scenes)}] Mode: {visual_mode.upper()} | Duration: {sc_dur}s | Text: '{lyric_text}'")
 
         v_clip = None
+        loaded_raw = None
         if is_stock_video:
             # 🎥 Stock Video Clips (Pexels / Pixabay)
             v_temp = os.path.join(job_dir, f"stock_vid_{idx}.mp4")
@@ -610,17 +635,15 @@ def build_full_song_video(
             )
             if v_paths and os.path.exists(v_paths[0]) and os.path.getsize(v_paths[0]) > 5000:
                 try:
-                    loaded = VideoFileClip(v_paths[0])
+                    loaded_raw = VideoFileClip(v_paths[0], audio=False)
                     # Crop / resize to target_size
-                    loaded = loaded.resize(height=target_size[1]) if loaded.h < target_size[1] else loaded.resize(width=target_size[0])
+                    loaded = loaded_raw.resize(height=target_size[1]) if loaded_raw.h < target_size[1] else loaded_raw.resize(width=target_size[0])
                     loaded = loaded.crop(x_center=loaded.w/2, y_center=loaded.h/2, width=target_size[0], height=target_size[1])
                     if loaded.duration < sc_dur:
-                        # Loop video if shorter than scene duration
                         n_loops = int(math.ceil(sc_dur / loaded.duration))
-                        loaded = concatenate_videoclips([loaded] * n_loops).subclip(0, sc_dur)
+                        v_clip = concatenate_videoclips([loaded] * n_loops).subclip(0, sc_dur)
                     else:
-                        loaded = loaded.subclip(0, sc_dur)
-                    v_clip = loaded
+                        v_clip = loaded.subclip(0, sc_dur)
                 except Exception as e_v:
                     print(f"⚠️ Stock video clip load failed: {e_v}")
 
@@ -629,6 +652,13 @@ def build_full_song_video(
             img_path = os.path.join(job_dir, f"motion_photo_{idx}.jpg")
             photo_query = f"{kw} 4k aesthetic wallpaper photo"
             fetch_web_image(photo_query, img_path)
+
+            try:
+                with Image.open(img_path) as im:
+                    im.thumbnail((1280, 1280), Image.Resampling.LANCZOS)
+                    im.save(img_path, quality=85)
+            except Exception:
+                pass
             
             direction = "zoom_in" if idx % 2 == 0 else "zoom_out"
             v_clip = create_photo_motion_scene_clip(img_path, sc_dur, target_size, direction=direction)
@@ -642,48 +672,117 @@ def build_full_song_video(
         )
         overlay_path = os.path.join(job_dir, f"lyrics_overlay_{idx}.png")
         overlay_pil.save(overlay_path)
+        try:
+            overlay_pil.close()
+        except Exception:
+            pass
 
         overlay_clip = ImageClip(overlay_path).set_duration(sc_dur)
         composite_scene = CompositeVideoClip([v_clip, overlay_clip], size=target_size).set_duration(sc_dur)
-        scene_clips.append(composite_scene)
 
-    # 5. Concatenate Video Scenes
-    print(f"\n🎞️ [Song Engine] Concatenating {len(scene_clips)} scene clips...")
-    final_video = concatenate_videoclips(scene_clips, method="compose")
+        # 5. Render Scene to Disk Immediately (Memory-Safe for Render 512MB RAM)
+        scene_mp4 = os.path.join(job_dir, f"rendered_scene_{idx}.mp4")
+        print(f"💾 [Song Engine] Rendering Scene {idx+1}/{len(scenes)} to disk (RAM-Safe)...")
+        composite_scene.write_videofile(
+            scene_mp4,
+            fps=20,
+            codec="libx264",
+            preset="ultrafast",
+            threads=1,
+            audio=False,
+            logger=None
+        )
 
-    # 6. Attach Master Song Audio
-    if os.path.exists(master_audio_path) and os.path.getsize(master_audio_path) > 5000:
+        # Close all clip handles immediately & free memory
         try:
-            full_audio = AudioFileClip(master_audio_path)
-            # Trim to video duration
-            if full_audio.duration > final_video.duration:
-                trimmed_audio = full_audio.subclip(0, final_video.duration)
-            else:
-                trimmed_audio = full_audio
-            final_video = final_video.set_audio(trimmed_audio)
-            print(f"🎶 [Song Engine] Attached Master Song Audio Track ({trimmed_audio.duration}s)")
-        except Exception as e_aud:
-            print(f"⚠️ Audio attachment warning: {e_aud}")
+            composite_scene.close()
+            v_clip.close()
+            overlay_clip.close()
+            if loaded_raw:
+                loaded_raw.close()
+        except Exception:
+            pass
 
-    # 7. Export Final Video
-    print(f"🚀 [Song Engine] Rendering Final Song Video -> {output_path}...")
-    final_video.write_videofile(
-        output_path,
-        fps=24,
-        codec="libx264",
-        audio_codec="aac",
-        preset="ultrafast",
-        threads=4,
-        logger=None
-    )
+        del composite_scene, v_clip, overlay_clip
+        if 'loaded' in locals() and loaded:
+            try: loaded.close()
+            except Exception: pass
+            del loaded
 
-    # Close clips to free memory
+        release_system_memory()
+
+        if os.path.exists(scene_mp4) and os.path.getsize(scene_mp4) > 1000:
+            rendered_scene_files.append(scene_mp4)
+
+    if not rendered_scene_files:
+        raise RuntimeError("No scenes were rendered successfully!")
+
+    # 6. Stream Concatenate Scenes via FFmpeg (Takes 0 MB RAM)
+    print(f"\n🎞️ [Song Engine] Stitching {len(rendered_scene_files)} scenes via FFmpeg Concat Demuxer...")
+    concat_list_file = os.path.join(job_dir, "song_scenes_concat.txt")
+    with open(concat_list_file, "w", encoding="utf-8") as f:
+        for sf in rendered_scene_files:
+            f.write(f"file '{os.path.abspath(sf)}'\n")
+
+    temp_video_no_audio = os.path.join(job_dir, "temp_video_stitched.mp4")
+    concat_cmd = [
+        "ffmpeg", "-y",
+        "-f", "concat",
+        "-safe", "0",
+        "-i", concat_list_file,
+        "-c", "copy",
+        "-movflags", "+faststart",
+        temp_video_no_audio
+    ]
     try:
-        final_video.close()
-        for sc_c in scene_clips:
-            sc_c.close()
+        subprocess.run(concat_cmd, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    except Exception as e_c:
+        print(f"⚠️ Notice: Stream copy concat failed ({e_c}), re-encoding with minimal RAM...")
+        re_cmd = [
+            "ffmpeg", "-y",
+            "-f", "concat",
+            "-safe", "0",
+            "-i", concat_list_file,
+            "-c:v", "libx264",
+            "-preset", "ultrafast",
+            "-threads", "1",
+            temp_video_no_audio
+        ]
+        subprocess.run(re_cmd, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+    release_system_memory()
+
+    # 7. Mux Master Song Audio via FFmpeg (Takes 0 MB RAM)
+    if os.path.exists(master_audio_path) and os.path.getsize(master_audio_path) > 1000:
+        print(f"🎶 [Song Engine] Attaching Master Audio Track to Final Video via FFmpeg...")
+        mux_cmd = [
+            "ffmpeg", "-y",
+            "-i", temp_video_no_audio,
+            "-i", master_audio_path,
+            "-c:v", "copy",
+            "-c:a", "aac",
+            "-b:a", "192k",
+            "-shortest",
+            "-movflags", "+faststart",
+            output_path
+        ]
+        subprocess.run(mux_cmd, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    else:
+        import shutil
+        shutil.copy2(temp_video_no_audio, output_path)
+
+    # 8. Clean up intermediate scene files to free disk space immediately
+    try:
+        if os.path.exists(concat_list_file):
+            os.remove(concat_list_file)
+        if os.path.exists(temp_video_no_audio):
+            os.remove(temp_video_no_audio)
+        for sf in rendered_scene_files:
+            if os.path.exists(sf):
+                os.remove(sf)
     except Exception:
         pass
 
+    release_system_memory()
     print(f"🎉 SUCCESS! Ultra Song Video Produced -> {output_path} ({os.path.getsize(output_path)} bytes)")
     return output_path

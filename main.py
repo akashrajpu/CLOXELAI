@@ -1737,8 +1737,11 @@ def full_process(req: VideoRequest, job_id: str):
         if is_song_video:
             print(f"🎵 [ROUTING] Entering Dedicated Ultra Song Video Engine for Job {job_id}...")
             output_file = f"acoumation_video_{job_id}.mp4"
-            from song_video_engine import build_full_song_video
-            build_full_song_video(req, job_id, job_dir, output_file)
+            with render_queue_lock:
+                release_system_memory()
+                from song_video_engine import build_full_song_video
+                build_full_song_video(req, job_id, job_dir, output_file)
+                release_system_memory()
 
             print(f"\n☁️ [PROGRESS 90%] STEP 6/6: Uploading Completed Song Video to Cloudinary CDN...")
             cloudinary_url = None
