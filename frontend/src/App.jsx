@@ -1743,10 +1743,57 @@ function App() {
                 </span>
               </div>
 
-              {/* Step 2: Visual Creation Choice (Video Clips vs 3D Photo Motion) */}
+              {/* Step 2: Video Duration & Dynamic Scenes */}
+              <div style={{ marginBottom: '1.2rem', background: 'rgba(15, 23, 42, 0.5)', padding: '14px', borderRadius: '14px', border: '1px solid rgba(255,255,255,0.08)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                  <label style={{ fontSize: '0.88rem', fontWeight: '800', color: '#e2e8f0', margin: 0 }}>
+                    2. Video Duration & Scene Count (Song ke hisab se)
+                  </label>
+                  <span style={{ fontSize: '0.74rem', color: '#38bdf8', fontWeight: 'bold' }}>
+                    {duration === 0 ? '🎵 Full Song Length' : `⏱️ ${duration}s (~${Math.max(4, Math.round(duration / 4))} Dynamic Scenes)`}
+                  </span>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(105px, 1fr))', gap: '8px' }}>
+                  {[
+                    { val: 20, label: '20s (Status)', scenes: '5 Scenes' },
+                    { val: 30, label: '30s (Reel/Short)', scenes: '8 Scenes' },
+                    { val: 45, label: '45s (Extended)', scenes: '11 Scenes' },
+                    { val: 60, label: '60s (1 Min)', scenes: '15 Scenes' },
+                    { val: 90, label: '90s (Extended)', scenes: '22 Scenes' },
+                    { val: 0, label: 'Full Song 🎶', scenes: 'Auto-Sync' },
+                  ].map(opt => (
+                    <button
+                      key={opt.val}
+                      type="button"
+                      onClick={() => setDuration(opt.val)}
+                      style={{
+                        padding: '10px 6px',
+                        borderRadius: '12px',
+                        border: duration === opt.val ? '2px solid #a855f7' : '1px solid rgba(255,255,255,0.1)',
+                        background: duration === opt.val ? 'linear-gradient(135deg, rgba(168, 85, 247, 0.3) 0%, rgba(236, 72, 153, 0.3) 100%)' : 'rgba(15, 23, 42, 0.6)',
+                        color: duration === opt.val ? '#fff' : '#cbd5e1',
+                        cursor: 'pointer',
+                        textAlign: 'center',
+                        fontSize: '0.82rem',
+                        fontWeight: duration === opt.val ? '800' : '600',
+                        boxShadow: duration === opt.val ? '0 0 12px rgba(168, 85, 247, 0.4)' : 'none',
+                        transition: 'all 0.15s ease'
+                      }}
+                    >
+                      <div>{opt.label}</div>
+                      <div style={{ fontSize: '0.68rem', color: duration === opt.val ? '#fbcfe8' : '#64748b', marginTop: '2px' }}>{opt.scenes}</div>
+                    </button>
+                  ))}
+                </div>
+                <span style={{ fontSize: '0.74rem', color: '#94a3b8', display: 'block', marginTop: '6px' }}>
+                  💡 Gana jitna lamba hoga, system automatically har ~4 second me fresh dynamic scene & unique title visual lagayega!
+                </span>
+              </div>
+
+              {/* Step 3: Visual Creation Choice (Video Clips vs 3D Photo Motion) */}
               <div style={{ marginBottom: '1.2rem', background: 'rgba(15, 23, 42, 0.5)', padding: '14px', borderRadius: '14px', border: '1px solid rgba(255,255,255,0.08)' }}>
                 <label style={{ display: 'block', fontSize: '0.88rem', fontWeight: '800', color: '#e2e8f0', marginBottom: '8px' }}>
-                  2. Visual Creation Mode (Video Clips vs Motion Photos)
+                  3. Visual Creation Mode (Video Clips vs Motion Photos)
                 </label>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                   <button
@@ -1803,10 +1850,10 @@ function App() {
                 </div>
               </div>
 
-              {/* Step 3: Typography & Fonts */}
+              {/* Step 4: Typography & Fonts */}
               <div style={{ marginBottom: '1.2rem', background: 'rgba(15, 23, 42, 0.5)', padding: '14px', borderRadius: '14px', border: '1px solid rgba(255,255,255,0.08)' }}>
                 <label style={{ display: 'block', fontSize: '0.88rem', fontWeight: '800', color: '#e2e8f0', marginBottom: '8px' }}>
-                  3. Lyrics & Titles Typography (Fonts & Colors)
+                  4. Lyrics & Titles Typography (Fonts & Colors)
                 </label>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                   <div>
@@ -1844,14 +1891,14 @@ function App() {
                 </div>
               </div>
 
-              {/* Step 4: Optional Song Lyrics Input */}
+              {/* Step 5: Optional Song Lyrics Input */}
               <div style={{ marginBottom: '1.4rem' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
                   <label style={{ fontSize: '0.85rem', fontWeight: '800', color: '#e2e8f0' }}>
-                    4. Song Lyrics / Hook Lines (Optional)
+                    5. Song Lyrics / Hook Lines (Optional)
                   </label>
                   <span style={{ fontSize: '0.74rem', color: '#a855f7' }}>
-                    Leave empty to auto-extract lyrics from YouTube
+                    Leave empty to auto-generate aesthetic dynamic title cards
                   </span>
                 </div>
                 <textarea

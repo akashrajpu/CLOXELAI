@@ -249,16 +249,34 @@ def download_youtube_song_audio(
                     with yt_dlp.YoutubeDL(cdn_ydl_opts) as ydl_cdn:
                         ydl_cdn.download([chosen_url])
 
-                    cdn_files = [f for f in glob.glob(os.path.join(target_dir, "cdn_song*.mp3")) if os.path.getsize(f) > 10000]
-                    if cdn_files:
-                        import shutil
-                        shutil.copy2(cdn_files[0], target_path)
-                        print(f"✅ [Song Engine] Successfully Downloaded 320kbps Studio Audio: '{chosen_title}' ({os.path.getsize(target_path)} bytes)")
+                    # Catch any audio format (m4a, mp3, webm, aac) and convert to master_song_audio.mp3
+                    cdn_candidates = [
+                        f for f in glob.glob(os.path.join(target_dir, "cdn_song*.*"))
+                        if os.path.getsize(f) > 5000 and not f.endswith('.txt') and not f.endswith('.json')
+                    ]
+                    if cdn_candidates:
+                        actual_audio = cdn_candidates[0]
+                        print(f"🎵 [Song Engine] Converting {actual_audio} to master MP3 via FFmpeg...")
+                        conv_cmd = [
+                            "ffmpeg", "-y", "-i", actual_audio,
+                            "-vn", "-acodec", "libmp3lame", "-q:a", "2",
+                            target_path
+                        ]
+                        subprocess.run(conv_cmd, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                        
+                        exact_dur = 60.0
+                        try:
+                            probe_cmd = ["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "default=noprint_wrappers=1:nokey=1", target_path]
+                            exact_dur = float(subprocess.check_output(probe_cmd).decode().strip())
+                        except Exception:
+                            pass
+
+                        print(f"✅ [Song Engine] Successfully Downloaded 320kbps Studio Audio: '{chosen_title}' ({os.path.getsize(target_path)} bytes, {exact_dur:.1f}s)")
                         return {
                             "audio_path": target_path,
                             "title": chosen_title,
                             "singer": clean_singer,
-                            "duration": 60.0
+                            "duration": exact_dur
                         }
     except Exception as e_cdn:
         print(f"⚠️ [Song Engine] Music CDN lookup note: {e_cdn}")
@@ -289,12 +307,23 @@ def download_youtube_song_audio(
                         extracted_title = sc_entry.get('title') or sc_query
                         extracted_duration = float(sc_entry.get('duration') or 60.0)
 
-                sc_files = glob.glob(os.path.join(target_dir, "sc_song*.mp3"))
-                valid_sc = [f for f in sc_files if os.path.getsize(f) > 5000]
-                if valid_sc and sc_entry:
-                    import shutil
-                    shutil.copy2(valid_sc[0], target_path)
-                    print(f"🎉 [Song Engine] Successfully Retrieved Song Track via SoundCloud: '{extracted_title}' ({os.path.getsize(target_path)} bytes)")
+                sc_candidates = [
+                    f for f in glob.glob(os.path.join(target_dir, "sc_song*.*"))
+                    if os.path.getsize(f) > 5000 and not f.endswith('.txt') and not f.endswith('.json')
+                ]
+                if sc_candidates and sc_entry:
+                    conv_cmd = [
+                        "ffmpeg", "-y", "-i", sc_candidates[0],
+                        "-vn", "-acodec", "libmp3lame", "-q:a", "2",
+                        target_path
+                    ]
+                    subprocess.run(conv_cmd, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                    try:
+                        probe_cmd = ["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "default=noprint_wrappers=1:nokey=1", target_path]
+                        extracted_duration = float(subprocess.check_output(probe_cmd).decode().strip())
+                    except Exception:
+                        pass
+                    print(f"🎉 [Song Engine] Successfully Retrieved Song Track via SoundCloud: '{extracted_title}' ({os.path.getsize(target_path)} bytes, {extracted_duration:.1f}s)")
                     return {
                         "audio_path": target_path,
                         "title": extracted_title,
@@ -329,56 +358,121 @@ def generate_song_lyric_scenes(
 ) -> List[Dict[str, Any]]:
     """
     Prepares lyrical scenes with duration, text, and visual search keyword.
+    Dynamically scales the scene count based on total target_duration (~3.5-4.5s per scene)
+    so the video pacing stays cinematic and fresh throughout the entire song.
     """
-    lines = []
-    # If user provided actual custom lyrics (ignore generic placeholder title strings)
+    clean_singer = (singer_name or "").strip()
+    clean_singer = re.sub(r'[^\w\s]', '', clean_singer).strip() or "Artist"
+    
+    raw_title = (song_title or "").strip()
+    clean_title = re.sub(r'[\(\[\{].*?[\)\]\}]', '', raw_title)
+    clean_title = clean_title.split('|')[0].split(' - ')[0].strip()
+    clean_title = re.sub(r'[^\w\s]', '', clean_title).strip()
+    if not clean_title or clean_title.lower() in {"song", "official song", "unknown", "official audio song", "singer song video", "hit song"}:
+        clean_title = clean_singer
+
+    display_name = clean_title
+    artist_display = f"Feat. {clean_singer}" if clean_singer.lower() not in clean_title.lower() else "Official Track"
+
+    # Diverse visual keyword presets (20 distinct atmospheric keywords for cinematic visuals)
+    aesthetic_keywords = [
+        f"{clean_singer} concert live stage neon lights",
+        f"{clean_title} cinematic music vibes",
+        "dreamy golden hour aesthetic sunset silhouette",
+        "neon cyberpunk night rain city reflections bokeh",
+        "vintage retro 35mm film grain aesthetic",
+        "lofi cozy bedroom night window stars",
+        "smoke lights slow motion concert bokeh purple",
+        "aesthetic road trip convertible coastal horizon",
+        "starry night galaxy universe cosmos cinematic",
+        "electric guitar amplifier stage spotlight smoke",
+        "soft vintage portrait dreamy pastel aesthetic",
+        "urban street midnight bokeh blurred headlights",
+        "deep ocean blue waves sunset golden horizon",
+        "foggy misty pine forest morning sun rays",
+        "autumn leaves rain on glass cozy coffee aesthetic",
+        "sparklers fireworks night festival glow vibrant",
+        "neon tunnel futuristic geometric light corridor",
+        "piano keys black and white close up atmospheric",
+        "candlelight vintage vinyl turntable record player",
+        "cherry blossom falling petals spring dreamy"
+    ]
+
+    # Diverse lyrical typography templates
+    title_templates = [
+        f"🎵 {display_name}",
+        f"✨ {artist_display}",
+        f"💫 {display_name} — Feel The Rhythm",
+        f"❤️ Trending Sound • {display_name}",
+        f"🌟 {clean_singer} Official",
+        f"🔥 Beats In Sync • {display_name}",
+        f"🎶 Turn Up The Bass",
+        f"🎧 Acoustic & Melodic Vibes",
+        f"✨ Cinematic Soul • {display_name}",
+        f"💫 Lost In The Music",
+        f"🚀 Next Gen Soundwave",
+        f"🌙 Midnight Melodies • {clean_singer}",
+        f"🌈 Infinite Rhythm",
+        f"🎸 Acoustic Solo — {display_name}",
+        f"💎 Masterpiece Collection",
+        f"🎼 Pure Harmony • {clean_singer}",
+        f"🔮 Euphoria Beats",
+        f"🌌 Echoes In The Night",
+        f"🕊️ Soulful Resonance",
+        f"⚡ High Energy Anthem"
+    ]
+
+    # Check if user provided custom lyrics
     generic_placeholders = {"singer song video", "song video", "youtube song video", "youtube music video", "song"}
+    custom_lines = []
     if user_lyrics and user_lyrics.strip() and user_lyrics.strip().lower() not in generic_placeholders:
-        raw_lines = [l.strip() for l in user_lyrics.splitlines() if len(l.strip()) > 1 and l.strip().lower() not in generic_placeholders]
-        if raw_lines:
-            lines = raw_lines
+        custom_lines = [l.strip() for l in user_lyrics.splitlines() if len(l.strip()) > 1 and l.strip().lower() not in generic_placeholders]
 
-    if not lines:
-        singer = (singer_name or "").strip()
-        title = (song_title or "").strip()
-        clean_title = re.sub(r'\(.*?\)|\[.*?\]', '', title).split('|')[0].split(' - ')[0].strip()
-        if not clean_title or clean_title.lower() in {"song", "official song", "unknown", "official audio song", "singer song video"}:
-            clean_title = singer or "Ultra Song Video"
-        
-        display_name = clean_title
-        artist_display = f"Feat. {singer}" if singer and singer.lower() not in clean_title.lower() else "Official Soundtrack"
+    total_dur = max(10, int(target_duration))
 
-        lines = [
-            f"🎵 {display_name}",
-            f"✨ {artist_display}",
-            f"💫 {display_name} — Feel The Rhythm",
-            f"❤️ {display_name}",
-            f"🌟 {artist_display}"
-        ]
+    if custom_lines:
+        num_scenes = len(custom_lines)
+        # Cap at maximum 45 scenes for server stability
+        if num_scenes > 45:
+            custom_lines = custom_lines[:45]
+            num_scenes = 45
+        base_dur = round(total_dur / num_scenes, 2)
+        scenes = []
+        for idx, line in enumerate(custom_lines):
+            sc_dur = base_dur if idx < num_scenes - 1 else round(total_dur - (base_dur * (num_scenes - 1)), 2)
+            clean_words = [w for w in re.findall(r'[a-zA-Z]+', line) if len(w) >= 4 and w.lower() not in {
+                "this", "that", "with", "from", "have", "been", "will", "would", "could", "every",
+                "when", "what", "where", "into", "your", "they", "them", "feel", "lost"
+            }]
+            if clean_words:
+                kw = " ".join(clean_words[:2]) + " cinematic aesthetic"
+            else:
+                kw = aesthetic_keywords[idx % len(aesthetic_keywords)]
+            scenes.append({
+                "index": idx,
+                "text": line,
+                "keyword": kw,
+                "duration": sc_dur
+            })
+        return scenes
 
-    # Target 3 to 6 scenes
-    if len(lines) > 8:
-        lines = lines[:8]
-    num_scenes = max(1, len(lines))
-    per_scene_dur = max(3.0, round(target_duration / num_scenes, 2))
+    # No custom lyrics: dynamically calculate scene count based on song duration
+    # Ideal pacing: ~3.5 to 4.5 seconds per scene
+    num_scenes = max(4, int(round(total_dur / 4.0)))
+    # Cap maximum scenes at 45 to protect server memory/processing limits
+    num_scenes = min(num_scenes, 45)
+    base_dur = round(total_dur / num_scenes, 2)
 
     scenes = []
-    for idx, line in enumerate(lines):
-        # Extract visual search keywords from line
-        clean_words = [w for w in re.findall(r'[a-zA-Z]+', line) if len(w) >= 4 and w.lower() not in {
-            "this", "that", "with", "from", "have", "been", "will", "would", "could", "every",
-            "when", "what", "where", "into", "your", "they", "them", "feel", "lost"
-        }]
-        if clean_words:
-            keyword = " ".join(clean_words[:2]) + " cinematic aesthetic"
-        else:
-            keyword = f"{singer_name or 'music'} aesthetic concert stage night"
-        
+    for idx in range(num_scenes):
+        sc_dur = base_dur if idx < num_scenes - 1 else round(total_dur - (base_dur * (num_scenes - 1)), 2)
+        text = title_templates[idx % len(title_templates)]
+        kw = aesthetic_keywords[idx % len(aesthetic_keywords)]
         scenes.append({
             "index": idx,
-            "text": line,
-            "keyword": keyword,
-            "duration": per_scene_dur
+            "text": text,
+            "keyword": kw,
+            "duration": sc_dur
         })
 
     return scenes
@@ -549,7 +643,6 @@ def build_full_song_video(
     """
     Full pipeline to generate Ultra Song & Music Video.
     """
-    target_duration = int(req.duration if hasattr(req, 'duration') and req.duration else 30)
     target_aspect = getattr(req, 'aspect_ratio', '9:16') or '9:16'
     
     if target_aspect == '16:9':
@@ -562,12 +655,7 @@ def build_full_song_video(
         target_size = (720, 1280)
         orientation = "portrait"
 
-    print(f"\n==================================================")
-    print(f"🎵 [ULTRA SONG VIDEO PIPELINE] Job ID: {job_id}")
-    print(f"📊 Target Duration: {target_duration}s | Aspect: {target_aspect} | Size: {target_size}")
-    print(f"==================================================")
-
-    # 1. Download Master Song Audio from YouTube or use Uploaded Audio
+    # 1. Download Master Song Audio from Cloud Music CDN or SoundCloud or Uploaded Audio
     song_source_type = getattr(req, 'song_source_type', 'url') or 'url'
     song_url = getattr(req, 'song_url', '') or ''
     singer_name = getattr(req, 'singer_name', '') or ''
@@ -585,14 +673,30 @@ def build_full_song_video(
     )
     master_audio_path = audio_res.get('audio_path')
 
+    # Determine exact target duration based on user preference and downloaded audio
+    actual_song_dur = float(audio_res.get('duration') or 60.0)
+    req_dur = int(getattr(req, 'duration', 0) or 0)
+    
+    if req_dur <= 0:
+        # Full song mode: match the audio duration (capped at 180s for memory safety)
+        target_duration = int(min(actual_song_dur, 180.0))
+    else:
+        # Match user duration, but if downloaded song is shorter, don't exceed song audio
+        target_duration = int(min(req_dur, actual_song_dur)) if actual_song_dur > 5 else req_dur
+
+    print(f"\n==================================================")
+    print(f"🎵 [ULTRA SONG VIDEO PIPELINE] Job ID: {job_id}")
+    print(f"📊 Target Duration: {target_duration}s (Song Audio: {actual_song_dur:.1f}s) | Aspect: {target_aspect} | Size: {target_size}")
+    print(f"==================================================")
+
     # 2. Extract or Generate Synced Lyric Scenes
     scenes = generate_song_lyric_scenes(
         user_lyrics=song_lyrics,
-        singer_name=singer_name,
+        singer_name=singer_name or audio_res.get('singer'),
         song_title=song_title or audio_res.get('title'),
         target_duration=target_duration
     )
-    print(f"📝 [Song Engine] Prepared {len(scenes)} lyrics scenes for video production.")
+    print(f"📝 [Song Engine] Prepared {len(scenes)} dynamic scenes ({target_duration}s total) for video production.")
 
     # 3. Visual Assets & Video Clips Generation
     visual_mode = getattr(req, 'song_visual_mode', 'motion') or getattr(req, 'mode', 'ultra')
@@ -747,6 +851,7 @@ def build_full_song_video(
     # 7. Mux Master Song Audio via FFmpeg (Takes 0 MB RAM)
     if os.path.exists(master_audio_path) and os.path.getsize(master_audio_path) > 1000:
         print(f"🎶 [Song Engine] Attaching Master Audio Track to Final Video via FFmpeg...")
+        fade_start = max(0.0, float(target_duration) - 1.5)
         mux_cmd = [
             "ffmpeg", "-y",
             "-i", temp_video_no_audio,
@@ -756,11 +861,29 @@ def build_full_song_video(
             "-c:v", "copy",
             "-c:a", "aac",
             "-b:a", "192k",
+            "-af", f"afade=t=out:st={fade_start:.2f}:d=1.5",
             "-shortest",
             "-movflags", "+faststart",
             output_path
         ]
-        subprocess.run(mux_cmd, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        try:
+            subprocess.run(mux_cmd, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        except Exception as e_mux:
+            print(f"⚠️ Notice: Audio fade filter failed ({e_mux}), falling back to direct stream mux...")
+            fallback_mux = [
+                "ffmpeg", "-y",
+                "-i", temp_video_no_audio,
+                "-i", master_audio_path,
+                "-map", "0:v:0",
+                "-map", "1:a:0",
+                "-c:v", "copy",
+                "-c:a", "aac",
+                "-b:a", "192k",
+                "-shortest",
+                "-movflags", "+faststart",
+                output_path
+            ]
+            subprocess.run(fallback_mux, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     else:
         import shutil
         shutil.copy2(temp_video_no_audio, output_path)
