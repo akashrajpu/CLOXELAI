@@ -66,14 +66,17 @@ def get_available_cookies_file(target_dir: str = "temp_song") -> Optional[str]:
 
     possible_cookie_paths = [
         "cookies.txt",
+        os.path.join(os.path.dirname(os.path.abspath(__file__)), "cookies.txt"),
+        os.path.join(os.getcwd(), "cookies.txt"),
         os.path.join("temp_song", "cookies.txt"),
         os.path.join("/etc", "secrets", "cookies.txt"),
         os.path.join(target_dir, "cookies.txt")
     ]
     for p in possible_cookie_paths:
         if os.path.exists(p) and os.path.getsize(p) > 20:
-            print(f"🍪 [Song Engine] Found YouTube Cookies file at '{p}'")
-            return p
+            abs_p = os.path.abspath(p)
+            print(f"🍪 [Song Engine] Found YouTube Cookies file at '{abs_p}' ({os.path.getsize(p)} bytes)")
+            return abs_p
 
     return None
 
