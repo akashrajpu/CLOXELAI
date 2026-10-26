@@ -295,6 +295,15 @@ function App() {
   const [aspectRatio, setAspectRatio] = useState('9:16');
   const [filterStyle, setFilterStyle] = useState('warm_epic');
 
+  // Song Video Studio States
+  const [songSourceType, setSongSourceType] = useState('url'); // 'url' | 'singer'
+  const [songUrl, setSongUrl] = useState('');
+  const [singerName, setSingerName] = useState('');
+  const [songTitle, setSongTitle] = useState('');
+  const [songVisualMode, setSongVisualMode] = useState('motion'); // 'motion' | 'video'
+  const [songLyrics, setSongLyrics] = useState('');
+  const isSongVideoMode = videoType === 'ultra' && (category === '🎵 Song Video' || (category || '').toLowerCase().includes('song video'));
+
   const [scenes, setScenes] = useState([
     { text: '', keyword: '' },
     { text: '', keyword: '' }
@@ -1117,6 +1126,18 @@ function App() {
 
   const handleGenerateVideo = async () => {
     if (isGeneratingVideo || jobStatus === 'processing' || jobStatus === 'initializing') return;
+
+    if (isSongVideoMode) {
+      if (songSourceType === 'url' && !songUrl.trim()) {
+        triggerAlert("🔗 Song URL Required", "Please paste a YouTube song link or switch to 'Search by Singer / Song Name'!", "🎵", "warning");
+        return;
+      }
+      if (songSourceType === 'singer' && !singerName.trim()) {
+        triggerAlert("🎙️ Singer Name Required", "Please enter the Singer / Artist name (e.g. Arijit Singh, Sidhu Moose Wala)!", "🎙️", "warning");
+        return;
+      }
+    }
+
     if (isLimitExhausted) {
       triggerAlert(
         "🔒 Free Demo Limit Reached!",
@@ -1141,7 +1162,9 @@ function App() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          topic: topic,
+          topic: isSongVideoMode
+            ? (songSourceType === 'url' ? (songUrl || 'YouTube Music Video') : `${singerName} ${songTitle || 'Song'}`.trim())
+            : topic,
           category: (category || '').includes('Custom Category') ? (customCategory || 'Random') : category,
           scenes: scenes,
           font_name: fontName,
@@ -1150,12 +1173,19 @@ function App() {
           voice_id: voiceId,
           language: voiceId && voiceId.startsWith('en') ? 'en' : 'hi',
           video_type: videoType,
-          full_script: fullScript,
+          full_script: isSongVideoMode ? (songLyrics || `${singerName || 'Singer'} Song Video`) : fullScript,
           bg_music: bgMusic,
           user_id: userId,
-          mode: videoType === 'ultra' ? generationMode : 'standard',
+          mode: videoType === 'ultra' ? (isSongVideoMode ? songVisualMode : generationMode) : 'standard',
           aspect_ratio: videoType === 'short' ? '9:16' : (videoType === 'long' ? '16:9' : (aspectRatio || '16:9')),
-          filter_style: videoType === 'ultra' ? filterStyle : 'none'
+          filter_style: videoType === 'ultra' ? filterStyle : 'none',
+          duration: duration,
+          song_url: songUrl,
+          song_source_type: songSourceType,
+          singer_name: singerName,
+          song_title: songTitle,
+          song_visual_mode: songVisualMode,
+          song_lyrics: songLyrics
         })
       });
       const data = await response.json();
@@ -1607,109 +1637,393 @@ function App() {
             </div>
           </div>
 
-          <div id="tour-topic-script">
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-              <div className="form-group">
-                <label>Main Topic</label>
-                <input 
-                  type="text" 
-                  value={topic} 
-                  onChange={e => setTopic(e.target.value)} 
-                  placeholder="e.g. History of AI, Space Exploration"
-                />
+          {isSongVideoMode ? (
+            /* Dedicated Ultra Song Video Studio Dashboard */
+            <div id="tour-song-video-studio" style={{
+              background: 'linear-gradient(135deg, rgba(30, 27, 75, 0.6) 0%, rgba(15, 23, 42, 0.8) 100%)',
+              border: '2px solid rgba(168, 85, 247, 0.35)',
+              borderRadius: '20px',
+              padding: '1.4rem',
+              marginBottom: '1.5rem',
+              boxShadow: '0 8px 32px rgba(168, 85, 247, 0.2)'
+            }}>
+              {/* Top Bar with Category Selector */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1.2rem', alignItems: 'flex-end' }}>
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                    <span style={{ fontSize: '1.4rem' }}>🎵</span>
+                    <h3 style={{ margin: 0, fontSize: '1.15rem', color: '#fff', fontWeight: '800' }}>
+                      Ultra Song & Music Video Studio
+                    </h3>
+                  </div>
+                  <p style={{ margin: 0, fontSize: '0.78rem', color: '#cbd5e1' }}>
+                    Turn songs into viral videos with synced lyrics & choice of Stock Video Clips or 3D Photo Motion
+                  </p>
+                </div>
+                <div className="form-group" style={{ margin: 0 }}>
+                  <label style={{ fontSize: '0.8rem', color: '#cbd5e1', display: 'block', marginBottom: '4px' }}>
+                    Category / Niche (Switch back anytime)
+                  </label>
+                  <CustomSelect 
+                    theme={theme}
+                    value={category} 
+                    onChange={(val) => setCategory(val)}
+                    options={CATEGORIES.map(cat => ({
+                      value: cat,
+                      label: <span style={{display: 'flex', alignItems: 'center', gap: '6px'}}><Hash size={16} /> {cat.substring(cat.indexOf(' ') + 1)}</span>
+                    }))}
+                  />
+                </div>
               </div>
 
-              <div className="form-group">
-                <label>Category / Niche (30+ Categories)</label>
-                <CustomSelect 
-                  theme={theme}
-                  value={category} 
-                  onChange={(val) => setCategory(val)}
-                  options={CATEGORIES.map(cat => ({
-                    value: cat,
-                    label: <span style={{display: 'flex', alignItems: 'center', gap: '6px'}}><Hash size={16} /> {cat.substring(cat.indexOf(' ') + 1)}</span>
-                  }))}
-                />
-              </div>
-            </div>
+              {/* Step 1: Song Audio Source */}
+              <div style={{ marginBottom: '1.2rem', background: 'rgba(15, 23, 42, 0.5)', padding: '14px', borderRadius: '14px', border: '1px solid rgba(255,255,255,0.08)' }}>
+                <label style={{ display: 'block', fontSize: '0.88rem', fontWeight: '800', color: '#e2e8f0', marginBottom: '8px' }}>
+                  1. Song Audio Source
+                </label>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '10px' }}>
+                  <button
+                    type="button"
+                    onClick={() => setSongSourceType('url')}
+                    style={{
+                      padding: '10px 14px',
+                      borderRadius: '12px',
+                      border: songSourceType === 'url' ? '2px solid #a855f7' : '1px solid rgba(255,255,255,0.12)',
+                      background: songSourceType === 'url' ? 'linear-gradient(135deg, #a855f7 0%, #6366f1 100%)' : 'rgba(15, 23, 42, 0.6)',
+                      color: '#fff',
+                      fontWeight: '800',
+                      fontSize: '0.84rem',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '8px',
+                      boxShadow: songSourceType === 'url' ? '0 4px 14px rgba(168, 85, 247, 0.4)' : 'none',
+                      transition: 'all 0.2s ease'
+                    }}
+                  >
+                    <span>🔗 Paste YouTube Song Link</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSongSourceType('singer')}
+                    style={{
+                      padding: '10px 14px',
+                      borderRadius: '12px',
+                      border: songSourceType === 'singer' ? '2px solid #ec4899' : '1px solid rgba(255,255,255,0.12)',
+                      background: songSourceType === 'singer' ? 'linear-gradient(135deg, #ec4899 0%, #a855f7 100%)' : 'rgba(15, 23, 42, 0.6)',
+                      color: '#fff',
+                      fontWeight: '800',
+                      fontSize: '0.84rem',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '8px',
+                      boxShadow: songSourceType === 'singer' ? '0 4px 14px rgba(236, 72, 153, 0.4)' : 'none',
+                      transition: 'all 0.2s ease'
+                    }}
+                  >
+                    <span>🎙️ Search by Singer / Song Name</span>
+                  </button>
+                </div>
 
-            {category === '✍️ Custom Category (Type Below)' && (
-              <div className="form-group">
-                <label>Custom Category / Niche Name</label>
-                <input 
-                  type="text" 
-                  value={customCategory} 
-                  onChange={e => setCustomCategory(e.target.value)} 
-                  placeholder="Type your custom niche (e.g. Cyberpunk Anime, Ancient Rome)"
-                />
-              </div>
-            )}
-
-            <div className="form-group">
-              <button 
-                className="button" 
-                onClick={handleAutoGenerate}
-                disabled={isGeneratingScript}
-                style={{ 
-                  width: '100%', 
-                  marginBottom: '1.5rem', 
-                  background: isLimitExhausted ? 'linear-gradient(135deg, #ef4444 0%, #f97316 100%)' : 'linear-gradient(135deg, #3b82f6 0%, #8b5cf6 50%, #ec4899 100%)', 
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '14px',
-                  padding: '13px 20px',
-                  fontWeight: '800',
-                  fontSize: '0.98rem',
-                  boxShadow: isLimitExhausted ? '0 6px 22px rgba(239, 68, 68, 0.5)' : '0 6px 22px rgba(59, 130, 246, 0.45)', 
-                  cursor: 'pointer'
-                }}
-              >
-                {isGeneratingScript 
-                  ? 'Generating Script via Cloxel AI Engine...' 
-                  : (isLimitExhausted ? '🔒 Free 2 Limit Exhausted (Click to Upgrade)' : '✨ Auto-Generate Script via AI')}
-              </button>
-            </div>
-          </div>
-
-          <div id="tour-scenes-editor">
-            {(videoType === 'long' || videoType === 'ultra') ? (
-              <div className="form-group">
-                <label>{videoType === 'ultra' ? '⚡ Ultra Mode Script (Multi-Character / Cinematic Script)' : 'Full Video Script (AI generated or custom)'}</label>
-                <textarea 
-                  rows={8}
-                  value={fullScript}
-                  onChange={e => setFullScript(e.target.value)}
-                  placeholder={videoType === 'ultra' ? 'Paste or write your Ultra Cinematic Multi-Character script here...' : 'Paste or write your full video script here. Our smart AI will automatically split it into matching scenes and generate appropriate background visuals.'}
-                />
-              </div>
-            ) : (
-              <div className="scenes-list">
-                {scenes.map((scene, index) => (
-                  <div key={index} className="scene-card" style={{ borderLeft: '4px solid var(--primary)', paddingLeft: '1rem', marginBottom: '1.5rem' }}>
-                    <h4 style={{ color: '#a855f7', marginBottom: '0.5rem' }}>Scene {index + 1} ({index * 10}s - {(index + 1) * 10}s)</h4>
-                    <div className="form-group">
-                      <label>Script Chunk</label>
-                      <textarea 
-                        rows={2}
-                        value={scene.text}
-                        onChange={e => handleSceneChange(index, 'text', e.target.value)}
-                        placeholder="Enter script text for this part..."
+                {songSourceType === 'url' ? (
+                  <div className="form-group" style={{ margin: 0 }}>
+                    <input
+                      type="text"
+                      value={songUrl}
+                      onChange={(e) => setSongUrl(e.target.value)}
+                      placeholder="Paste YouTube Video / Song URL (e.g. https://www.youtube.com/watch?v=...)"
+                      style={{ width: '100%', padding: '12px 14px', borderRadius: '12px', background: 'rgba(15, 23, 42, 0.8)', border: '1px solid rgba(168, 85, 247, 0.4)', color: '#fff', fontSize: '0.88rem' }}
+                    />
+                    <span style={{ fontSize: '0.74rem', color: '#94a3b8', display: 'block', marginTop: '4px' }}>
+                      💡 Cloxel AI will download the song audio directly from YouTube and match video visuals with the lyrics!
+                    </span>
+                  </div>
+                ) : (
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', margin: 0 }}>
+                    <div>
+                      <label style={{ fontSize: '0.78rem', color: '#cbd5e1', display: 'block', marginBottom: '4px' }}>Singer / Artist Name *</label>
+                      <input
+                        type="text"
+                        value={singerName}
+                        onChange={(e) => setSingerName(e.target.value)}
+                        placeholder="e.g. Arijit Singh, Sidhu Moose Wala, Atif Aslam"
+                        style={{ width: '100%', padding: '11px 13px', borderRadius: '12px', background: 'rgba(15, 23, 42, 0.8)', border: '1px solid rgba(236, 72, 153, 0.4)', color: '#fff', fontSize: '0.88rem' }}
                       />
                     </div>
-                    <div className="form-group">
-                      <label>Video Search Keyword</label>
-                      <input 
-                        type="text" 
-                        value={scene.keyword}
-                        onChange={e => handleSceneChange(index, 'keyword', e.target.value)}
-                        placeholder="e.g. galaxy stars"
+                    <div>
+                      <label style={{ fontSize: '0.78rem', color: '#cbd5e1', display: 'block', marginBottom: '4px' }}>Song Title / Mood (Optional)</label>
+                      <input
+                        type="text"
+                        value={songTitle}
+                        onChange={(e) => setSongTitle(e.target.value)}
+                        placeholder="e.g. Kesariya, Sad Romantic, Lo-fi Hit (or leave blank for top hit)"
+                        style={{ width: '100%', padding: '11px 13px', borderRadius: '12px', background: 'rgba(15, 23, 42, 0.8)', border: '1px solid rgba(236, 72, 153, 0.4)', color: '#fff', fontSize: '0.88rem' }}
                       />
                     </div>
                   </div>
-                ))}
+                )}
               </div>
-            )}
-          </div>
+
+              {/* Step 2: Visual Creation Choice (Video Clips vs 3D Photo Motion) */}
+              <div style={{ marginBottom: '1.2rem', background: 'rgba(15, 23, 42, 0.5)', padding: '14px', borderRadius: '14px', border: '1px solid rgba(255,255,255,0.08)' }}>
+                <label style={{ display: 'block', fontSize: '0.88rem', fontWeight: '800', color: '#e2e8f0', marginBottom: '8px' }}>
+                  2. Visual Creation Mode (Video Clips vs Motion Photos)
+                </label>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSongVisualMode('video');
+                      setGenerationMode('standard');
+                    }}
+                    style={{
+                      padding: '14px 16px',
+                      borderRadius: '14px',
+                      border: songVisualMode === 'video' ? '2px solid #38bdf8' : '1px solid rgba(255,255,255,0.12)',
+                      background: songVisualMode === 'video' ? 'linear-gradient(135deg, rgba(56, 189, 248, 0.25) 0%, rgba(14, 165, 233, 0.4) 100%)' : 'rgba(15, 23, 42, 0.6)',
+                      color: '#fff',
+                      cursor: 'pointer',
+                      textAlign: 'left',
+                      boxShadow: songVisualMode === 'video' ? '0 4px 16px rgba(56, 189, 248, 0.35)' : 'none',
+                      transition: 'all 0.2s ease'
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: '800', fontSize: '0.92rem', color: '#38bdf8', marginBottom: '4px' }}>
+                      <Film size={18} /> 🎥 Stock Video Clips
+                    </div>
+                    <div style={{ fontSize: '0.78rem', color: '#cbd5e1', lineHeight: '1.3' }}>
+                      Pexels 4K/HD aesthetic video clips synced with song lyrics & rhythm.
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSongVisualMode('motion');
+                      setGenerationMode('ultra');
+                    }}
+                    style={{
+                      padding: '14px 16px',
+                      borderRadius: '14px',
+                      border: songVisualMode === 'motion' ? '2px solid #f59e0b' : '1px solid rgba(255,255,255,0.12)',
+                      background: songVisualMode === 'motion' ? 'linear-gradient(135deg, rgba(245, 158, 11, 0.25) 0%, rgba(217, 119, 6, 0.4) 100%)' : 'rgba(15, 23, 42, 0.6)',
+                      color: '#fff',
+                      cursor: 'pointer',
+                      textAlign: 'left',
+                      boxShadow: songVisualMode === 'motion' ? '0 4px 16px rgba(245, 158, 11, 0.35)' : 'none',
+                      transition: 'all 0.2s ease'
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: '800', fontSize: '0.92rem', color: '#fbbf24', marginBottom: '4px' }}>
+                      <Sparkles size={18} /> ⚡ Ultra 3D Photo Motion
+                    </div>
+                    <div style={{ fontSize: '0.78rem', color: '#cbd5e1', lineHeight: '1.3' }}>
+                      High-res aesthetic photos with cinematic cuts, light flashes, zoom/pan & motion.
+                    </div>
+                  </button>
+                </div>
+              </div>
+
+              {/* Step 3: Typography & Fonts */}
+              <div style={{ marginBottom: '1.2rem', background: 'rgba(15, 23, 42, 0.5)', padding: '14px', borderRadius: '14px', border: '1px solid rgba(255,255,255,0.08)' }}>
+                <label style={{ display: 'block', fontSize: '0.88rem', fontWeight: '800', color: '#e2e8f0', marginBottom: '8px' }}>
+                  3. Lyrics & Titles Typography (Fonts & Colors)
+                </label>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                  <div>
+                    <label style={{ fontSize: '0.78rem', color: '#cbd5e1', display: 'block', marginBottom: '4px' }}>Font Family</label>
+                    <CustomSelect
+                      theme={theme}
+                      value={fontName}
+                      onChange={(val) => setFontName(val)}
+                      options={(fontList && fontList.length > 0 ? fontList : ['Arial.ttf']).map(font => {
+                        const isHindi = font.toLowerCase().startsWith('ams ') || font.toLowerCase().includes('devanagari');
+                        const clean = font.replace(/\.[^/.]+$/, '');
+                        return {
+                          value: font,
+                          label: isHindi ? `${clean} (Hindi / AMS)` : clean,
+                          fontFamily: clean
+                        };
+                      })}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ fontSize: '0.78rem', color: '#cbd5e1', display: 'block', marginBottom: '4px' }}>Lyrics Highlight Color</label>
+                    <CustomSelect
+                      theme={theme}
+                      value={fontColor}
+                      onChange={(val) => setFontColor(val)}
+                      options={[
+                        { value: 'yellow', label: '🌟 Vibrant Neon Yellow' },
+                        { value: 'white', label: '🤍 Minimal Clean White' },
+                        { value: 'cyan', label: '💎 Cyberpunk Cyan Blue' },
+                        { value: 'pink', label: '🌸 Hot Pink Glow' },
+                        { value: 'gold', label: '👑 Luxury Royal Gold' }
+                      ]}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Step 4: Optional Song Lyrics Input */}
+              <div style={{ marginBottom: '1.4rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
+                  <label style={{ fontSize: '0.85rem', fontWeight: '800', color: '#e2e8f0' }}>
+                    4. Song Lyrics / Hook Lines (Optional)
+                  </label>
+                  <span style={{ fontSize: '0.74rem', color: '#a855f7' }}>
+                    Leave empty to auto-extract lyrics from YouTube
+                  </span>
+                </div>
+                <textarea
+                  rows={4}
+                  value={songLyrics}
+                  onChange={(e) => setSongLyrics(e.target.value)}
+                  placeholder="Paste custom lyrics or hook lines here (1 line = 1 scene)... Or leave blank to auto-detect!"
+                  style={{ width: '100%', padding: '10px 14px', borderRadius: '12px', background: 'rgba(15, 23, 42, 0.8)', border: '1px solid rgba(255,255,255,0.12)', color: '#fff', fontSize: '0.85rem' }}
+                />
+              </div>
+
+              {/* Studio Generate Video Action Button */}
+              <div>
+                <button
+                  type="button"
+                  className="button"
+                  onClick={handleGenerateVideo}
+                  disabled={isGeneratingVideo}
+                  style={{
+                    width: '100%',
+                    background: 'linear-gradient(135deg, #ec4899 0%, #8b5cf6 50%, #3b82f6 100%)',
+                    color: '#ffffff',
+                    border: 'none',
+                    borderRadius: '16px',
+                    padding: '15px 24px',
+                    fontWeight: '900',
+                    fontSize: '1.05rem',
+                    boxShadow: '0 8px 25px rgba(236, 72, 153, 0.45)',
+                    cursor: isGeneratingVideo ? 'not-allowed' : 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '10px'
+                  }}
+                >
+                  <Music size={22} />
+                  {isGeneratingVideo ? 'Crafting Your Masterpiece Song Video...' : '🚀 Create Ultra Song Video'}
+                </button>
+              </div>
+            </div>
+          ) : (
+            /* Regular Dashboard (Shown for all other 30+ categories) */
+            <>
+              <div id="tour-topic-script">
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                  <div className="form-group">
+                    <label>Main Topic</label>
+                    <input 
+                      type="text" 
+                      value={topic} 
+                      onChange={e => setTopic(e.target.value)} 
+                      placeholder="e.g. History of AI, Space Exploration"
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label>Category / Niche (30+ Categories)</label>
+                    <CustomSelect 
+                      theme={theme}
+                      value={category} 
+                      onChange={(val) => setCategory(val)}
+                      options={CATEGORIES.map(cat => ({
+                        value: cat,
+                        label: <span style={{display: 'flex', alignItems: 'center', gap: '6px'}}><Hash size={16} /> {cat.substring(cat.indexOf(' ') + 1)}</span>
+                      }))}
+                    />
+                  </div>
+                </div>
+
+                {category === '✍️ Custom Category (Type Below)' && (
+                  <div className="form-group">
+                    <label>Custom Category / Niche Name</label>
+                    <input 
+                      type="text" 
+                      value={customCategory} 
+                      onChange={e => setCustomCategory(e.target.value)} 
+                      placeholder="Type your custom niche (e.g. Cyberpunk Anime, Ancient Rome)"
+                    />
+                  </div>
+                )}
+
+                <div className="form-group">
+                  <button 
+                    className="button" 
+                    onClick={handleAutoGenerate}
+                    disabled={isGeneratingScript}
+                    style={{ 
+                      width: '100%', 
+                      marginBottom: '1.5rem', 
+                      background: isLimitExhausted ? 'linear-gradient(135deg, #ef4444 0%, #f97316 100%)' : 'linear-gradient(135deg, #3b82f6 0%, #8b5cf6 50%, #ec4899 100%)', 
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '14px',
+                      padding: '13px 20px',
+                      fontWeight: '800',
+                      fontSize: '0.98rem',
+                      boxShadow: isLimitExhausted ? '0 6px 22px rgba(239, 68, 68, 0.5)' : '0 6px 22px rgba(59, 130, 246, 0.45)', 
+                      cursor: 'pointer'
+                    }}
+                  >
+                    {isGeneratingScript 
+                      ? 'Generating Script via Cloxel AI Engine...' 
+                      : (isLimitExhausted ? '🔒 Free 2 Limit Exhausted (Click to Upgrade)' : '✨ Auto-Generate Script via AI')}
+                  </button>
+                </div>
+              </div>
+
+              <div id="tour-scenes-editor">
+                {(videoType === 'long' || videoType === 'ultra') ? (
+                  <div className="form-group">
+                    <label>{videoType === 'ultra' ? '⚡ Ultra Mode Script (Multi-Character / Cinematic Script)' : 'Full Video Script (AI generated or custom)'}</label>
+                    <textarea 
+                      rows={8}
+                      value={fullScript}
+                      onChange={e => setFullScript(e.target.value)}
+                      placeholder={videoType === 'ultra' ? 'Paste or write your Ultra Cinematic Multi-Character script here...' : 'Paste or write your full video script here. Our smart AI will automatically split it into matching scenes and generate appropriate background visuals.'}
+                    />
+                  </div>
+                ) : (
+                  <div className="scenes-list">
+                    {scenes.map((scene, index) => (
+                      <div key={index} className="scene-card" style={{ borderLeft: '4px solid var(--primary)', paddingLeft: '1rem', marginBottom: '1.5rem' }}>
+                        <h4 style={{ color: '#a855f7', marginBottom: '0.5rem' }}>Scene {index + 1} ({index * 10}s - {(index + 1) * 10}s)</h4>
+                        <div className="form-group">
+                          <label>Script Chunk</label>
+                          <textarea 
+                            rows={2}
+                            value={scene.text}
+                            onChange={e => handleSceneChange(index, 'text', e.target.value)}
+                            placeholder="Enter script text for this part..."
+                          />
+                        </div>
+                        <div className="form-group">
+                          <label>Video Search Keyword</label>
+                          <input 
+                            type="text" 
+                            value={scene.keyword}
+                            onChange={e => handleSceneChange(index, 'keyword', e.target.value)}
+                            placeholder="e.g. galaxy stars"
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </>
+          )}
 
         </main>
 
@@ -1996,7 +2310,7 @@ function App() {
           >
             {(isGeneratingVideo || jobStatus === 'processing' || jobStatus === 'initializing')
               ? '⏳ Starting Video Generation (Locked 🔒)...' 
-              : (isLimitExhausted ? '🔒 Free 2 Video Limit Reached - Unlock Premium' : '🚀 Generate Video')}
+              : (isLimitExhausted ? '🔒 Free 2 Video Limit Reached - Unlock Premium' : (isSongVideoMode ? '🚀 Generate Ultra Song Video' : '🚀 Generate Video'))}
           </button>
 
           {jobStatus && (

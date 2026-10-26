@@ -1703,6 +1703,13 @@ class VideoRequest(BaseModel):
     aspect_ratio: Optional[str] = "16:9"
     mode: Optional[str] = "standard"
     filter_style: Optional[str] = "none"
+    duration: Optional[int] = 30
+    song_url: Optional[str] = None
+    song_source_type: Optional[str] = "url"
+    singer_name: Optional[str] = None
+    song_title: Optional[str] = None
+    song_visual_mode: Optional[str] = "motion"
+    song_lyrics: Optional[str] = None
 
 class ScriptRequest(BaseModel):
     topic: str
@@ -1725,6 +1732,64 @@ def full_process(req: VideoRequest, job_id: str):
         user_id = req.user_id if req.user_id else "anonymous"
         print(f"🎬 Processing video for User: {user_id} (Category: {req.category})")
         
+        is_song_video = bool(req.category and ("song video" in str(req.category).lower()))
+        if is_song_video:
+            print(f"🎵 [ROUTING] Entering Dedicated Ultra Song Video Engine for Job {job_id}...")
+            output_file = f"acoumation_video_{job_id}.mp4"
+            from song_video_engine import build_full_song_video
+            build_full_song_video(req, job_id, job_dir, output_file)
+
+            print(f"\n☁️ [PROGRESS 90%] STEP 6/6: Uploading Completed Song Video to Cloudinary CDN...")
+            cloudinary_url = None
+            try:
+                upload_result = cloudinary.uploader.upload(output_file, resource_type="video")
+                cloudinary_url = upload_result.get("secure_url")
+                print(f"✅ Cloudinary HD CDN URL: {cloudinary_url}")
+                if cloudinary_url and os.path.exists(output_file):
+                    try:
+                        os.remove(output_file)
+                    except Exception:
+                        pass
+            except Exception as e:
+                print(f"⚠️ Cloudinary upload warning: {e}")
+
+            display_title = req.song_title or req.singer_name or req.topic or "Ultra AI Song Video"
+            gen_title, gen_desc = build_youtube_metadata(
+                topic=display_title,
+                full_script=req.song_lyrics or f"{display_title} Song Video",
+                video_type=req.video_type
+            )
+
+            update_job_status(job_id, {
+                "status": "completed", 
+                "file": output_file, 
+                "dir": job_dir, 
+                "cloudinary_url": cloudinary_url,
+                "title": gen_title,
+                "description": gen_desc,
+                "created_at": datetime.utcnow()
+            })
+
+            clean_user_id = sanitize_alphanumeric_id(user_id) if user_id else None
+            if users_collection is not None and clean_user_id:
+                try:
+                    history_entry = {
+                        "job_id": job_id,
+                        "title": gen_title,
+                        "topic": display_title,
+                        "video_type": req.video_type,
+                        "cloudinary_url": cloudinary_url,
+                        "created_at": datetime.utcnow()
+                    }
+                    users_collection.update_one(
+                        {"internal_id": clean_user_id},
+                        {"$push": {"video_history": {"$each": [history_entry], "$slice": -50}}}
+                    )
+                except Exception as e_hist:
+                    print(f"⚠️ History save error: {e_hist}")
+
+            return
+
         scenes_data = []
 
         print(f"\n==================================================")
