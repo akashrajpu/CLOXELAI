@@ -1075,7 +1075,7 @@ function App() {
     setScenes(newScenes);
   };
 
-  const isLimitExhausted = !subStatus.has_active_subscription && (subStatus.free_demo_count !== undefined ? subStatus.free_demo_count <= 0 : false);
+  const isLimitExhausted = !subStatus.has_active_subscription && !subStatus.has_active_ultra_subscription && (subStatus.free_demo_count !== undefined ? subStatus.free_demo_count <= 0 : false);
 
   const handleAutoGenerate = async () => {
     if (isLimitExhausted) {
