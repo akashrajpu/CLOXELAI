@@ -83,54 +83,64 @@ def download_youtube_song_audio(
 
     if yt_dlp:
         out_template = os.path.join(target_dir, "raw_song.%(ext)s")
-        ydl_opts = {
-            'format': 'bestaudio/best',
-            'outtmpl': out_template,
-            'postprocessors': [{
-                'key': 'FFmpegExtractAudio',
-                'preferredcodec': 'mp3',
-                'preferredquality': '192',
-            }],
-            'quiet': True,
-            'no_warnings': True,
-            'noplaylist': True,
-            'socket_timeout': 35,
-            'max_filesize': 70 * 1024 * 1024,
-            'extractor_args': {
-                'youtube': {
-                    'player_client': ['android', 'ios', 'mweb'],
+        client_configs = [
+            (['android'], 'com.google.android.youtube/19.29.37 (Linux; U; Android 11)'),
+            (['tv_embedded'], 'Mozilla/5.0 (SMART-TV; LINUX; Tizen 6.0) AppleWebkit/537.36 (KHTML, like Gecko)'),
+            (['android_vr'], 'com.google.android.youtube/19.29.37 (Linux; U; Android 11)')
+        ]
+
+        for clients, ua in client_configs:
+            ydl_opts = {
+                'format': '18/bestaudio/best',
+                'outtmpl': out_template,
+                'postprocessors': [{
+                    'key': 'FFmpegExtractAudio',
+                    'preferredcodec': 'mp3',
+                    'preferredquality': '192',
+                }],
+                'quiet': True,
+                'no_warnings': True,
+                'noplaylist': True,
+                'socket_timeout': 35,
+                'max_filesize': 70 * 1024 * 1024,
+                'extractor_args': {
+                    'youtube': {
+                        'player_client': clients,
+                    }
+                },
+                'http_headers': {
+                    'User-Agent': ua
                 }
             }
-        }
 
-        try:
-            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                info = ydl.extract_info(download_target, download=True)
-                if 'entries' in info and info['entries']:
-                    entry = info['entries'][0]
-                else:
-                    entry = info
-                
-                if entry:
-                    extracted_title = entry.get('title') or extracted_title
-                    extracted_duration = float(entry.get('duration') or 60.0)
+            try:
+                with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                    info = ydl.extract_info(download_target, download=True)
+                    if 'entries' in info and info['entries']:
+                        entry = info['entries'][0]
+                    else:
+                        entry = info
+                    
+                    if entry:
+                        extracted_title = entry.get('title') or extracted_title
+                        extracted_duration = float(entry.get('duration') or 60.0)
 
-            # Locate downloaded mp3
-            possible_files = glob.glob(os.path.join(target_dir, "raw_song*.mp3")) + glob.glob(os.path.join(target_dir, "*.mp3"))
-            valid_files = [f for f in possible_files if os.path.getsize(f) > 5000]
-            if valid_files:
-                actual_mp3 = valid_files[0]
-                if actual_mp3 != target_path:
-                    import shutil
-                    shutil.copy2(actual_mp3, target_path)
-                print(f"✅ [Song Engine] Downloaded Audio Successfully: '{extracted_title}' ({os.path.getsize(target_path)} bytes)")
-                return {
-                    "audio_path": target_path,
-                    "title": extracted_title,
-                    "duration": extracted_duration
-                }
-        except Exception as e:
-            print(f"⚠️ [Song Engine] yt-dlp download exception: {e}")
+                # Locate downloaded mp3
+                possible_files = glob.glob(os.path.join(target_dir, "raw_song*.mp3")) + glob.glob(os.path.join(target_dir, "*.mp3"))
+                valid_files = [f for f in possible_files if os.path.getsize(f) > 5000]
+                if valid_files:
+                    actual_mp3 = valid_files[0]
+                    if actual_mp3 != target_path:
+                        import shutil
+                        shutil.copy2(actual_mp3, target_path)
+                    print(f"✅ [Song Engine] Downloaded Audio Successfully via {clients[0]}: '{extracted_title}' ({os.path.getsize(target_path)} bytes)")
+                    return {
+                        "audio_path": target_path,
+                        "title": extracted_title,
+                        "duration": extracted_duration
+                    }
+            except Exception as e:
+                print(f"⚠️ [Song Engine] yt-dlp client {clients[0]} exception: {e}")
 
     # Fallback to local background music if YouTube download failed
     print("⚠️ [Song Engine] Using local melodic music track fallback...")
