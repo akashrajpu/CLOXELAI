@@ -2443,13 +2443,15 @@ async def generate_custom_video(req: VideoRequest, background_tasks: BackgroundT
         # Short Starter: 1 Short daily
         # Long Master: 1 Long daily
         # Pro Combo: 1 Short + 1 Long daily
-        # Ultra: Unlimited during testing (temporarily enabled for testing per user instruction)
+        # Ultra: 1 Ultra daily (TEMPORARILY COMMENTED OUT FOR TESTING - DO NOT DELETE):
+        # elif v_type == "ultra" and (has_active_ultra or sub_plan == "ultra") and ultra_count >= 1:
+        #     raise HTTPException(status_code=429, detail="⚠️ Daily video limit reached! Your ULTRA CINEMATIC plan permits 1 Ultra video daily. Please try again tomorrow.")
         if v_type == "short" and sub_plan in ["short", "combo"] and short_count >= 1:
             raise HTTPException(status_code=429, detail=f"⚠️ Daily video limit reached! Your {PLAN_NAMES.get(sub_plan, 'membership')} permits 1 Short video daily. Please try again tomorrow or upgrade plan.")
         elif v_type == "long" and sub_plan in ["long", "combo"] and long_count >= 1:
             raise HTTPException(status_code=429, detail=f"⚠️ Daily video limit reached! Your {PLAN_NAMES.get(sub_plan, 'membership')} permits 1 Long video daily. Please try again tomorrow or upgrade plan.")
         elif v_type == "ultra" and (has_active_ultra or sub_plan == "ultra"):
-            # Temporary: Unlimited Ultra videos during testing
+            # Temporary: Unlimited Ultra videos during testing (Original 1 daily check is preserved above as comment)
             pass
 
         count_field = "ultra_count" if v_type == "ultra" else ("short_count" if v_type == "short" else "long_count")
