@@ -44,8 +44,397 @@ except ImportError:
     except ImportError:
         VideoFileClip = None
 
-from PIL import Image, ImageDraw, ImageFont, ImageFilter
+from PIL import Image, ImageDraw, ImageFont, ImageFilter, ImageEnhance, ImageOps
 import numpy as np
+
+# ---------------------------------------------------------------------------
+# CINEMATIC ASSETS, 5+ FONTS PALETTE & MOOD DEFINITIONS
+# ---------------------------------------------------------------------------
+
+CINEMATIC_FONTS_POOL = [
+    "./fonts/Mukta-Bold.ttf",
+    "./fonts/Kalam-Bold.ttf",
+    "./fonts/YatraOne-Regular.ttf",
+    "./fonts/NotoSansDevanagari-Bold.ttf",
+    "./fonts/RozhaOne-Regular.ttf",
+    "./fonts/bebas.ttf",
+    "./fonts/anton.ttf",
+    "./fonts/Arial.ttf"
+]
+
+TEXT_POSITIONS = [
+    "bottom_center",   # classic subtitle at y=76%, centered
+    "center",          # punchy emotional hook at y=48%, centered
+    "lower_left",      # modern reels margin at y=72%, left-aligned
+    "top_badge",       # aesthetic header at y=15%, centered
+    "bottom_floating"  # floating card at y=66%, centered
+]
+
+TEXT_COLORS = [
+    (253, 224, 71, 255),  # Vibrant Neon Yellow
+    (255, 255, 255, 255),  # Pure Crisp White
+    (56, 189, 248, 255),  # Cyberpunk Cyan
+    (244, 114, 182, 255),  # Hot Rose Pink
+    (251, 191, 36, 255),  # Sunset Gold
+    (147, 197, 253, 255),  # Soft Sky Blue
+]
+
+MOOD_KEYWORDS = {
+    "romantic": "romantic couple love golden hour sunset warm bokeh aesthetic dream 4k",
+    "sad": "sad lonely heartbreak rain darkness silhouette alone window moody noir 4k",
+    "party": "party neon night club strobe lights concert crowd smoke lasers bass 4k",
+    "lofi": "lofi cozy bedroom warm lamp night rain stars window chill vibes 4k",
+    "acoustic": "acoustic guitar indie travel road trip nature mountains horizon aesthetic 4k",
+    "devotional": "divine spiritual temple golden rays morning sacred peaceful aesthetic 4k",
+}
+
+MOOD_FILTERS = {
+    "romantic": ["golden_dream", "vintage_film", "teal_orange"],
+    "sad": ["moody_noir", "teal_orange", "vintage_film"],
+    "party": ["cyber_neon", "teal_orange", "emerald_cinema"],
+    "lofi": ["golden_dream", "vintage_film", "moody_noir"],
+    "acoustic": ["vintage_film", "golden_dream", "emerald_cinema"],
+    "devotional": ["golden_dream", "vintage_film"],
+}
+
+ALL_FILTERS = ["teal_orange", "golden_dream", "moody_noir", "cyber_neon", "vintage_film", "emerald_cinema"]
+
+
+def sanitize_lyrics_text(text: str) -> str:
+    """
+    Strips all emojis and unprintable unicode symbols that cause [] square boxes in TTF fonts.
+    Preserves English, Hindi (Devanagari), Punjabi (Gurmukhi), and standard punctuation.
+    """
+    if not text:
+        return ""
+    # Strip emojis in high surrogates and supplementary private ranges
+    text = re.sub(r'[\U00010000-\U0010ffff]', '', text)
+    text = re.sub(r'[\uD800-\uDFFF]', '', text)
+    # Strip other pictographic / symbol unicode ranges
+    text = re.sub(r'[\u2600-\u27BF\u2300-\u23FF\u2B50\u200D\uFE0F]', '', text)
+    # Allow alphanumeric, Hindi Devanagari (\u0900-\u097F), Punjabi (\u0A00-\u0A7F), and punctuation
+    text = re.sub(r'[^\w\s\.,\'"!\?\-—\u0900-\u097F\u0A00-\u0A7F]', '', text)
+    return " ".join(text.split()).strip()
+
+
+def apply_cinematic_photo_filter(im: Image.Image, filter_name: str) -> Image.Image:
+    """
+    Applies professional cinematic color grading and subtle edge vignette to a photo.
+    """
+    im = im.convert("RGB")
+    w, h = im.size
+
+    if filter_name == "teal_orange":
+        arr = np.array(im, dtype=np.float32)
+        arr[:, :, 0] = np.clip(arr[:, :, 0] * 1.15, 0, 255)
+        arr[:, :, 2] = np.clip(arr[:, :, 2] * 1.1 - arr[:, :, 0] * 0.1, 0, 255)
+        im = Image.fromarray(arr.astype(np.uint8))
+        im = ImageEnhance.Contrast(im).enhance(1.15)
+    elif filter_name == "moody_noir":
+        im = ImageOps.grayscale(im).convert("RGB")
+        im = ImageEnhance.Contrast(im).enhance(1.3)
+        arr = np.array(im, dtype=np.float32)
+        arr[:, :, 2] = np.clip(arr[:, :, 2] * 1.15, 0, 255)
+        im = Image.fromarray(arr.astype(np.uint8))
+    elif filter_name == "golden_dream":
+        arr = np.array(im, dtype=np.float32)
+        arr[:, :, 0] = np.clip(arr[:, :, 0] * 1.2, 0, 255)
+        arr[:, :, 1] = np.clip(arr[:, :, 1] * 1.08, 0, 255)
+        arr[:, :, 2] = np.clip(arr[:, :, 2] * 0.85, 0, 255)
+        im = Image.fromarray(arr.astype(np.uint8))
+        im = ImageEnhance.Color(im).enhance(1.2)
+    elif filter_name == "cyber_neon":
+        im = ImageEnhance.Color(im).enhance(1.4)
+        im = ImageEnhance.Contrast(im).enhance(1.2)
+        arr = np.array(im, dtype=np.float32)
+        arr[:, :, 0] = np.clip(arr[:, :, 0] * 1.15, 0, 255)
+        arr[:, :, 2] = np.clip(arr[:, :, 2] * 1.25, 0, 255)
+        im = Image.fromarray(arr.astype(np.uint8))
+    elif filter_name == "emerald_cinema":
+        arr = np.array(im, dtype=np.float32)
+        arr[:, :, 1] = np.clip(arr[:, :, 1] * 1.18, 0, 255)
+        arr[:, :, 0] = np.clip(arr[:, :, 0] * 0.95, 0, 255)
+        im = Image.fromarray(arr.astype(np.uint8))
+        im = ImageEnhance.Contrast(im).enhance(1.15)
+    else:  # vintage_film
+        im = ImageEnhance.Color(im).enhance(0.9)
+        arr = np.array(im, dtype=np.float32)
+        arr[:, :, 0] = np.clip(arr[:, :, 0] * 1.08, 0, 255)
+        arr[:, :, 1] = np.clip(arr[:, :, 1] * 1.04, 0, 255)
+        im = Image.fromarray(arr.astype(np.uint8))
+        im = ImageEnhance.Contrast(im).enhance(1.1)
+
+    # Cinematic Vignette (darkened edges for high subtitle contrast)
+    X = np.linspace(-1, 1, w)[None, :]
+    Y = np.linspace(-1, 1, h)[:, None]
+    radius = np.sqrt(X**2 + Y**2)
+    vignette = np.clip(1.0 - (radius - 0.45) * 0.8, 0.25, 1.0)
+    arr_out = np.array(im, dtype=np.float32)
+    for c in range(3):
+        arr_out[:, :, c] = np.clip(arr_out[:, :, c] * vignette, 0, 255)
+    
+    return Image.fromarray(arr_out.astype(np.uint8))
+
+
+def fetch_song_synced_lyrics(
+    song_title: str,
+    singer_name: str = "",
+    target_duration: int = 30
+) -> List[Dict[str, Any]]:
+    """
+    Fetches exact timestamped synced lyrics from LRCLIB.
+    Falls back to plain lyrics or structured aesthetic title cards without emojis.
+    """
+    clean_t = re.sub(r'[\(\[\{].*?[\)\]\}]', '', song_title).split('|')[0].strip()
+    clean_t = re.sub(r'[^\w\s]', '', clean_t).strip()
+    clean_s = re.sub(r'[^\w\s]', '', singer_name).strip()
+
+    import urllib.request, urllib.parse, ssl, json
+    ctx = ssl._create_unverified_context() if hasattr(ssl, '_create_unverified_context') else None
+
+    queries = [clean_t, f"{clean_t} {clean_s}".strip(), clean_s]
+    raw_lrc = None
+    plain_lrc = None
+
+    for q in queries:
+        if not q:
+            continue
+        try:
+            url = "https://lrclib.net/api/search?q=" + urllib.parse.quote(q)
+            req = urllib.request.Request(url, headers={"User-Agent": "CloxelVideoAI/1.0"})
+            with urllib.request.urlopen(req, context=ctx, timeout=4) as r:
+                items = json.loads(r.read().decode())
+                for it in items:
+                    if clean_s.lower() in (it.get("artistName") or "").lower() and it.get("syncedLyrics"):
+                        raw_lrc = it["syncedLyrics"]
+                        break
+                    if it.get("plainLyrics") and not plain_lrc:
+                        plain_lrc = it["plainLyrics"]
+                if not raw_lrc:
+                    for it in items:
+                        if it.get("syncedLyrics"):
+                            raw_lrc = it["syncedLyrics"]
+                            break
+            if raw_lrc:
+                break
+        except Exception:
+            pass
+
+    lines = []
+    if raw_lrc:
+        for line in raw_lrc.splitlines():
+            m = re.match(r'\[(\d+):(\d+\.?\d*)\]\s*(.*)', line)
+            if m:
+                sec = int(m.group(1)) * 60 + float(m.group(2))
+                txt = sanitize_lyrics_text(m.group(3))
+                if txt and not any(tag in txt.lower() for tag in ['lyrics by', 'produced by', 'composed by', 'music:']):
+                    lines.append((round(sec, 2), txt))
+
+    result = []
+    display_title = clean_t or "Official Soundtrack"
+    display_artist = f"Feat. {clean_s}" if clean_s else "Music Special"
+
+    if lines:
+        print(f"🎤 [Song Engine] Found {len(lines)} synced lyric lines for '{display_title}'!")
+        filtered = [l for l in lines if l[0] <= target_duration + 2.0]
+        if not filtered:
+            filtered = lines[:min(12, len(lines))]
+
+        if filtered and filtered[0][0] > 3.5:
+            intro_gap = filtered[0][0]
+            if intro_gap > 7.0:
+                result.append({"start": 0.0, "end": round(intro_gap / 2, 2), "text": display_title})
+                result.append({"start": round(intro_gap / 2, 2), "end": intro_gap, "text": display_artist})
+            else:
+                result.append({"start": 0.0, "end": intro_gap, "text": display_title})
+
+        for i, (t_sec, txt) in enumerate(filtered):
+            if i + 1 < len(filtered):
+                next_t = filtered[i+1][0]
+                dur = min(6.5, max(2.5, next_t - t_sec))
+                end_t = min(float(target_duration), t_sec + dur)
+                if next_t - end_t > 4.5 and end_t < target_duration - 4.0:
+                    result.append({"start": t_sec, "end": end_t, "text": txt})
+                    result.append({"start": end_t, "end": next_t, "text": f"{display_title} — Feel The Rhythm"})
+                    continue
+            else:
+                end_t = min(float(target_duration), t_sec + 4.0)
+            if t_sec < target_duration:
+                result.append({"start": t_sec, "end": max(t_sec + 2.0, end_t), "text": txt})
+
+    elif plain_lrc:
+        print(f"📝 [Song Engine] Using plain lyrics for '{display_title}'...")
+        raw_lines = [sanitize_lyrics_text(l) for l in plain_lrc.splitlines() if len(l.strip()) > 3]
+        if raw_lines:
+            n_lines = min(len(raw_lines), max(4, int(target_duration / 4.0)))
+            chosen_lines = raw_lines[:n_lines]
+            base_dur = round(target_duration / len(chosen_lines), 2)
+            for idx, txt in enumerate(chosen_lines):
+                st = idx * base_dur
+                et = min(float(target_duration), st + base_dur)
+                result.append({"start": st, "end": et, "text": txt})
+
+    if not result:
+        print(f"🎵 [Song Engine] Generating dynamic clean typography title cards for '{display_title}'...")
+        hook_cards = [
+            display_title,
+            display_artist,
+            f"{display_title} — Feel The Rhythm",
+            f"Trending Sound • {display_title}",
+            f"{clean_s or 'Artist'} Official",
+            f"Beats In Sync • {display_title}",
+            "Turn Up The Bass",
+            "Acoustic & Melodic Vibes",
+            f"Cinematic Soul • {display_title}",
+            "Lost In The Music",
+            f"Midnight Melodies • {clean_s or 'Special'}",
+            f"Masterpiece Edition • {display_title}"
+        ]
+        n_cards = max(4, int(round(target_duration / 4.0)))
+        base_dur = round(target_duration / n_cards, 2)
+        for idx in range(n_cards):
+            st = idx * base_dur
+            et = min(float(target_duration), (idx + 1) * base_dur if idx < n_cards - 1 else target_duration)
+            result.append({"start": st, "end": et, "text": hook_cards[idx % len(hook_cards)]})
+
+    return result
+
+
+def render_typewriter_lyrics_on_frame(
+    im_frame: Image.Image,
+    line_info: Dict[str, Any],
+    local_t: float,
+    tw: int,
+    th: int
+) -> Image.Image:
+    """
+    Renders styled typewriter lyrics subtitle directly onto the video frame.
+    Multi-font, dynamic locations, typewriter progressive animation, frosted glass pill.
+    """
+    full_text = line_info.get("text", "")
+    if not full_text:
+        return im_frame
+
+    line_dur = max(0.5, line_info.get("end", 4.0) - line_info.get("start", 0.0))
+    # Typewriter typing progression
+    type_p = min(1.0, max(0.0, local_t / max(0.4, line_dur * 0.65)))
+    chars_count = max(1, int(len(full_text) * type_p))
+    display_text = full_text[:chars_count]
+    if type_p < 1.0 and (int(local_t * 5) % 2 == 0):
+        display_text += "|"
+
+    # Font sizing & loading
+    font_path = line_info.get("font_path", "./fonts/Mukta-Bold.ttf")
+    pos_type = line_info.get("position", "bottom_center")
+    fill_color = line_info.get("color", (253, 224, 71, 255))
+    
+    font_size = max(26, int(tw * 0.046))
+    if pos_type == "center":
+        font_size = max(30, int(tw * 0.054))
+    elif pos_type == "top_badge":
+        font_size = max(24, int(tw * 0.040))
+
+    try:
+        loaded_font = ImageFont.truetype(font_path, font_size)
+    except Exception:
+        try:
+            loaded_font = ImageFont.truetype("./fonts/Mukta-Bold.ttf", font_size)
+        except Exception:
+            loaded_font = ImageFont.load_default()
+
+    # Wrap text cleanly if long
+    max_chars = 26 if tw < th else 46
+    words = display_text.split()
+    wrapped_lines = []
+    current_line = []
+    current_len = 0
+    for w in words:
+        if current_len + len(w) + 1 > max_chars:
+            wrapped_lines.append(" ".join(current_line))
+            current_line = [w]
+            current_len = len(w)
+        else:
+            current_line.append(w)
+            current_len += len(w) + 1
+    if current_line:
+        wrapped_lines.append(" ".join(current_line))
+    if not wrapped_lines:
+        wrapped_lines = [display_text]
+
+    draw = ImageDraw.Draw(im_frame)
+    line_height = int(font_size * 1.35)
+    total_h = len(wrapped_lines) * line_height
+
+    max_line_w = 0
+    line_widths = []
+    for lt in wrapped_lines:
+        try:
+            bbox = draw.textbbox((0, 0), lt, font=loaded_font)
+            lw = bbox[2] - bbox[0]
+        except Exception:
+            lw = len(lt) * int(font_size * 0.55)
+        line_widths.append(lw)
+        if lw > max_line_w:
+            max_line_w = lw
+
+    pad_x = 22
+    pad_y = 10
+    pill_w = max_line_w + (pad_x * 2)
+    pill_h = total_h + (pad_y * 2)
+
+    if pos_type == "center":
+        x_start = (tw - pill_w) // 2
+        y_start = (th - pill_h) // 2
+    elif pos_type == "lower_left":
+        x_start = max(24, int(tw * 0.06))
+        y_start = int(th * 0.72)
+    elif pos_type == "top_badge":
+        x_start = (tw - pill_w) // 2
+        y_start = int(th * 0.15)
+    elif pos_type == "bottom_floating":
+        x_start = (tw - pill_w) // 2
+        y_start = int(th * 0.65)
+    else:  # "bottom_center"
+        x_start = (tw - pill_w) // 2
+        y_start = int(th * 0.76)
+
+    # Frosted glass dark pill background
+    draw.rounded_rectangle(
+        [x_start, y_start, x_start + pill_w, y_start + pill_h],
+        radius=14,
+        fill=(12, 14, 24, 210)
+    )
+    # Subtle accent border on pill
+    accent_border = (fill_color[0], fill_color[1], fill_color[2], 140)
+    draw.rounded_rectangle(
+        [x_start, y_start, x_start + pill_w, y_start + pill_h],
+        radius=14,
+        outline=accent_border,
+        width=2
+    )
+
+    # Render lines with drop shadow + stroke
+    for i, lt in enumerate(wrapped_lines):
+        lw = line_widths[i]
+        line_x = x_start + pad_x + (max_line_w - lw) // 2
+        line_y = y_start + pad_y + (i * line_height)
+
+        draw.text(
+            (line_x + 2, line_y + 2),
+            lt,
+            font=loaded_font,
+            fill=(0, 0, 0, 200)
+        )
+        draw.text(
+            (line_x, line_y),
+            lt,
+            font=loaded_font,
+            fill=fill_color,
+            stroke_width=max(2, int(font_size * 0.08)),
+            stroke_fill=(15, 23, 42, 240)
+        )
+
+    return im_frame
 
 
 def get_available_cookies_file(target_dir: str = "temp_song") -> Optional[str]:
@@ -356,282 +745,8 @@ def generate_song_lyric_scenes(
     song_title: Optional[str] = None,
     target_duration: int = 30
 ) -> List[Dict[str, Any]]:
-    """
-    Prepares lyrical scenes with duration, text, and visual search keyword.
-    Dynamically scales the scene count based on total target_duration (~3.5-4.5s per scene)
-    so the video pacing stays cinematic and fresh throughout the entire song.
-    """
-    clean_singer = (singer_name or "").strip()
-    clean_singer = re.sub(r'[^\w\s]', '', clean_singer).strip() or "Artist"
-    
-    raw_title = (song_title or "").strip()
-    clean_title = re.sub(r'[\(\[\{].*?[\)\]\}]', '', raw_title)
-    clean_title = clean_title.split('|')[0].split(' - ')[0].strip()
-    clean_title = re.sub(r'[^\w\s]', '', clean_title).strip()
-    if not clean_title or clean_title.lower() in {"song", "official song", "unknown", "official audio song", "singer song video", "hit song"}:
-        clean_title = clean_singer
-
-    display_name = clean_title
-    artist_display = f"Feat. {clean_singer}" if clean_singer.lower() not in clean_title.lower() else "Official Track"
-
-    # Diverse visual keyword presets (20 distinct atmospheric keywords for cinematic visuals)
-    aesthetic_keywords = [
-        f"{clean_singer} concert live stage neon lights",
-        f"{clean_title} cinematic music vibes",
-        "dreamy golden hour aesthetic sunset silhouette",
-        "neon cyberpunk night rain city reflections bokeh",
-        "vintage retro 35mm film grain aesthetic",
-        "lofi cozy bedroom night window stars",
-        "smoke lights slow motion concert bokeh purple",
-        "aesthetic road trip convertible coastal horizon",
-        "starry night galaxy universe cosmos cinematic",
-        "electric guitar amplifier stage spotlight smoke",
-        "soft vintage portrait dreamy pastel aesthetic",
-        "urban street midnight bokeh blurred headlights",
-        "deep ocean blue waves sunset golden horizon",
-        "foggy misty pine forest morning sun rays",
-        "autumn leaves rain on glass cozy coffee aesthetic",
-        "sparklers fireworks night festival glow vibrant",
-        "neon tunnel futuristic geometric light corridor",
-        "piano keys black and white close up atmospheric",
-        "candlelight vintage vinyl turntable record player",
-        "cherry blossom falling petals spring dreamy"
-    ]
-
-    # Diverse lyrical typography templates
-    title_templates = [
-        f"🎵 {display_name}",
-        f"✨ {artist_display}",
-        f"💫 {display_name} — Feel The Rhythm",
-        f"❤️ Trending Sound • {display_name}",
-        f"🌟 {clean_singer} Official",
-        f"🔥 Beats In Sync • {display_name}",
-        f"🎶 Turn Up The Bass",
-        f"🎧 Acoustic & Melodic Vibes",
-        f"✨ Cinematic Soul • {display_name}",
-        f"💫 Lost In The Music",
-        f"🚀 Next Gen Soundwave",
-        f"🌙 Midnight Melodies • {clean_singer}",
-        f"🌈 Infinite Rhythm",
-        f"🎸 Acoustic Solo — {display_name}",
-        f"💎 Masterpiece Collection",
-        f"🎼 Pure Harmony • {clean_singer}",
-        f"🔮 Euphoria Beats",
-        f"🌌 Echoes In The Night",
-        f"🕊️ Soulful Resonance",
-        f"⚡ High Energy Anthem"
-    ]
-
-    # Check if user provided custom lyrics
-    generic_placeholders = {"singer song video", "song video", "youtube song video", "youtube music video", "song"}
-    custom_lines = []
-    if user_lyrics and user_lyrics.strip() and user_lyrics.strip().lower() not in generic_placeholders:
-        custom_lines = [l.strip() for l in user_lyrics.splitlines() if len(l.strip()) > 1 and l.strip().lower() not in generic_placeholders]
-
-    total_dur = max(10, int(target_duration))
-
-    if custom_lines:
-        num_scenes = len(custom_lines)
-        # Cap at maximum 45 scenes for server stability
-        if num_scenes > 45:
-            custom_lines = custom_lines[:45]
-            num_scenes = 45
-        base_dur = round(total_dur / num_scenes, 2)
-        scenes = []
-        for idx, line in enumerate(custom_lines):
-            sc_dur = base_dur if idx < num_scenes - 1 else round(total_dur - (base_dur * (num_scenes - 1)), 2)
-            clean_words = [w for w in re.findall(r'[a-zA-Z]+', line) if len(w) >= 4 and w.lower() not in {
-                "this", "that", "with", "from", "have", "been", "will", "would", "could", "every",
-                "when", "what", "where", "into", "your", "they", "them", "feel", "lost"
-            }]
-            if clean_words:
-                kw = " ".join(clean_words[:2]) + " cinematic aesthetic"
-            else:
-                kw = aesthetic_keywords[idx % len(aesthetic_keywords)]
-            scenes.append({
-                "index": idx,
-                "text": line,
-                "keyword": kw,
-                "duration": sc_dur
-            })
-        return scenes
-
-    # No custom lyrics: dynamically calculate scene count based on song duration
-    # Ideal pacing: ~3.5 to 4.5 seconds per scene
-    num_scenes = max(4, int(round(total_dur / 4.0)))
-    # Cap maximum scenes at 45 to protect server memory/processing limits
-    num_scenes = min(num_scenes, 45)
-    base_dur = round(total_dur / num_scenes, 2)
-
-    scenes = []
-    for idx in range(num_scenes):
-        sc_dur = base_dur if idx < num_scenes - 1 else round(total_dur - (base_dur * (num_scenes - 1)), 2)
-        text = title_templates[idx % len(title_templates)]
-        kw = aesthetic_keywords[idx % len(aesthetic_keywords)]
-        scenes.append({
-            "index": idx,
-            "text": text,
-            "keyword": kw,
-            "duration": sc_dur
-        })
-
-    return scenes
-
-
-def render_lyrics_overlay(
-    text: str,
-    target_size: tuple,
-    font_path: str = "./fonts/Arial.ttf",
-    font_color: str = "yellow"
-) -> Image.Image:
-    """
-    Renders high-definition glowing lyrics subtitle image with black stroke and drop shadow.
-    """
-    tw, th = target_size
-    img = Image.new("RGBA", (tw, th), (0, 0, 0, 0))
-    draw = ImageDraw.Draw(img)
-
-    # Determine font size dynamically based on target width
-    font_size = max(28, int(tw * 0.048))
-    loaded_font = None
-    if font_path and os.path.exists(font_path):
-        try:
-            loaded_font = ImageFont.truetype(font_path, font_size)
-        except Exception:
-            pass
-    if not loaded_font:
-        try:
-            loaded_font = ImageFont.truetype("arial.ttf", font_size)
-        except Exception:
-            loaded_font = ImageFont.load_default()
-
-    # Color map
-    color_map = {
-        "yellow": (253, 224, 71, 255),
-        "white": (255, 255, 255, 255),
-        "cyan": (56, 189, 248, 255),
-        "pink": (244, 114, 182, 255),
-        "gold": (251, 191, 36, 255),
-    }
-    fill_color = color_map.get(font_color.lower(), (253, 224, 71, 255))
-    stroke_color = (15, 23, 42, 240)
-
-    # Wrap text cleanly
-    max_chars = 32 if tw < th else 54
-    words = text.split()
-    wrapped_lines = []
-    current_line = []
-    current_len = 0
-    for w in words:
-        if current_len + len(w) + 1 > max_chars:
-            wrapped_lines.append(" ".join(current_line))
-            current_line = [w]
-            current_len = len(w)
-        else:
-            current_line.append(w)
-            current_len += len(w) + 1
-    if current_line:
-        wrapped_lines.append(" ".join(current_line))
-
-    # Calculate height and center
-    line_height = int(font_size * 1.35)
-    total_h = len(wrapped_lines) * line_height
-    y_start = int(th * 0.72)  # Place in bottom-third for music video subtitle style
-
-    for i, line_text in enumerate(wrapped_lines):
-        try:
-            bbox = draw.textbbox((0, 0), line_text, font=loaded_font)
-            line_w = bbox[2] - bbox[0]
-        except Exception:
-            line_w = len(line_text) * (font_size * 0.5)
-
-        x = (tw - line_w) // 2
-        y = y_start + (i * line_height)
-
-        # Draw dark translucent backdrop pill behind lyrics
-        pad_x = 18
-        pad_y = 6
-        draw.rounded_rectangle(
-            [x - pad_x, y - pad_y, x + line_w + pad_x, y + line_height + pad_y],
-            radius=12,
-            fill=(10, 10, 18, 160)
-        )
-
-        # Draw thick stroke for crystal-clear readability
-        draw.text(
-            (x, y), line_text,
-            font=loaded_font,
-            fill=fill_color,
-            stroke_width=max(2, int(font_size * 0.08)),
-            stroke_fill=stroke_color
-        )
-
-    return img
-
-
-def create_photo_motion_scene_clip(
-    img_path: str,
-    duration: float,
-    target_size: tuple,
-    direction: str = "zoom_in"
-) -> Any:
-    """
-    Creates a cinematic Ken Burns zoom/motion VideoClip from a photo.
-    """
-    tw, th = target_size
-    try:
-        orig = Image.open(img_path).convert("RGB")
-        # Pre-scale so image fits canvas nicely
-        aspect_orig = orig.width / orig.height
-        aspect_target = tw / th
-        if aspect_orig > aspect_target:
-            new_h = int(th * 1.25)
-            new_w = int(new_h * aspect_orig)
-        else:
-            new_w = int(tw * 1.25)
-            new_h = int(new_w / aspect_orig)
-        
-        orig_resized = orig.resize((new_w, new_h), Image.Resampling.LANCZOS)
-        base_np = np.array(orig_resized)
-
-        # Free PIL memory immediately
-        try:
-            orig.close()
-            orig_resized.close()
-        except Exception:
-            pass
-        del orig, orig_resized
-
-        def make_frame(t):
-            progress = min(1.0, max(0.0, t / max(0.1, duration)))
-            if direction == "zoom_in":
-                scale = 1.0 + (0.15 * progress)
-            else:
-                scale = 1.15 - (0.15 * progress)
-
-            cur_w = int(tw * scale)
-            cur_h = int(th * scale)
-            
-            # Crop center
-            cx = base_np.shape[1] // 2
-            cy = base_np.shape[0] // 2
-            x1 = max(0, cx - cur_w // 2)
-            y1 = max(0, cy - cur_h // 2)
-            x2 = min(base_np.shape[1], x1 + cur_w)
-            y2 = min(base_np.shape[0], y1 + cur_h)
-
-            crop = base_np[y1:y2, x1:x2]
-            im_crop = Image.fromarray(crop).resize((tw, th), Image.Resampling.BILINEAR)
-            frame_arr = np.array(im_crop)
-            im_crop.close()
-            return frame_arr
-
-        from moviepy.editor import VideoClip
-        return VideoClip(make_frame, duration=duration)
-    except Exception as e:
-        print(f"⚠️ Photo motion frame fallback: {e}")
-        from moviepy.editor import ColorClip
-        return ColorClip(size=target_size, color=(20, 15, 35), duration=duration)
+    """Backward compatibility wrapper returning parsed scenes."""
+    return fetch_song_synced_lyrics(song_title or "Song", singer_name or "", target_duration)
 
 
 def build_full_song_video(
@@ -641,7 +756,15 @@ def build_full_song_video(
     output_path: str
 ) -> str:
     """
-    Full pipeline to generate Ultra Song & Music Video.
+    Full pipeline to generate Ultra Song & Music Video with:
+    1. 320kbps Studio Audio download
+    2. Exact Synced Lyrics with Typewriter Printer Animation
+    3. Multi-Font Dynamic Engine (5+ Fonts: Mukta, Kalam, Yatra One, Devanagari, Rozha, Bebas)
+    4. Random / Varied Screen Positions & Vibrant Accent Colors
+    5. Reduced Background Photos (only 2 to 5 photos total per video)
+    6. Mood-matched Cinematic Color Grading Filters (Teal & Orange, Moody Noir, Golden Dream, etc.)
+    7. Memory-Safe Segment Rendering & FFmpeg Concat Demuxer
+    8. Master Song Audio Mux with Smooth 1.5s Fadeout
     """
     target_aspect = getattr(req, 'aspect_ratio', '9:16') or '9:16'
     
@@ -661,6 +784,7 @@ def build_full_song_video(
     singer_name = getattr(req, 'singer_name', '') or ''
     song_title = getattr(req, 'song_title', '') or ''
     song_lyrics = getattr(req, 'song_lyrics', '') or getattr(req, 'full_script', '')
+    song_mood = getattr(req, 'song_mood', 'romantic') or 'romantic'
     uploaded_audio_path = getattr(req, 'uploaded_audio_path', None) or getattr(req, 'song_audio_file', None)
 
     audio_res = download_youtube_song_audio(
@@ -686,100 +810,186 @@ def build_full_song_video(
 
     print(f"\n==================================================")
     print(f"🎵 [ULTRA SONG VIDEO PIPELINE] Job ID: {job_id}")
-    print(f"📊 Target Duration: {target_duration}s (Song Audio: {actual_song_dur:.1f}s) | Aspect: {target_aspect} | Size: {target_size}")
+    print(f"📊 Target Duration: {target_duration}s (Song Audio: {actual_song_dur:.1f}s) | Mood: {song_mood.upper()} | Size: {target_size}")
     print(f"==================================================")
 
-    # 2. Extract or Generate Synced Lyric Scenes
-    scenes = generate_song_lyric_scenes(
-        user_lyrics=song_lyrics,
-        singer_name=singer_name or audio_res.get('singer'),
-        song_title=song_title or audio_res.get('title'),
-        target_duration=target_duration
-    )
-    print(f"📝 [Song Engine] Prepared {len(scenes)} dynamic scenes ({target_duration}s total) for video production.")
+    # 2. Extract Exact Synced Lyrics & Style Attributes
+    available_fonts = [f for f in CINEMATIC_FONTS_POOL if os.path.exists(f)]
+    if not available_fonts:
+        available_fonts = ["./fonts/Arial.ttf"]
 
-    # 3. Visual Assets & Video Clips Generation
+    if song_lyrics and song_lyrics.strip():
+        # User provided custom lyrics
+        custom_raw = [sanitize_lyrics_text(l) for l in song_lyrics.splitlines() if len(l.strip()) > 1]
+        n_cust = max(1, len(custom_raw))
+        base_dur = round(target_duration / n_cust, 2)
+        all_lyrics = []
+        for idx, txt in enumerate(custom_raw):
+            st = idx * base_dur
+            et = min(float(target_duration), (idx + 1) * base_dur if idx < n_cust - 1 else target_duration)
+            all_lyrics.append({"start": st, "end": et, "text": txt})
+    else:
+        # Fetch exact synced lyrics from LRCLIB
+        all_lyrics = fetch_song_synced_lyrics(
+            song_title=song_title or audio_res.get('title'),
+            singer_name=singer_name or audio_res.get('singer'),
+            target_duration=target_duration
+        )
+
+    # Assign 5+ rotating fonts, dynamic positions, and accent colors to each lyric line
+    for idx, lyr in enumerate(all_lyrics):
+        lyr["font_path"] = available_fonts[idx % len(available_fonts)]
+        lyr["position"] = TEXT_POSITIONS[idx % len(TEXT_POSITIONS)]
+        lyr["color"] = TEXT_COLORS[idx % len(TEXT_COLORS)]
+
+    print(f"📝 [Song Engine] Prepared {len(all_lyrics)} synced typewriter lyrics lines across {len(available_fonts)} rotating fonts.")
+
+    # 3. Reduced Background Visual Segments (Only 2 to 5 photos total!)
+    num_segments = max(2, min(8, int(math.ceil(target_duration / 10.0))))
+    seg_dur = round(target_duration / num_segments, 2)
+    print(f"🎬 [Song Engine] Segmenting video into {num_segments} cinematic background visual scenes ({seg_dur}s per scene)...")
+
     visual_mode = getattr(req, 'song_visual_mode', 'motion') or getattr(req, 'mode', 'ultra')
     is_stock_video = (visual_mode in ['video', 'standard'])
 
-    rendered_scene_files = []
-    font_path = f"./fonts/{req.font_name}" if hasattr(req, 'font_name') and req.font_name else "./fonts/Arial.ttf"
-    font_color = getattr(req, 'font_color', 'yellow') or 'yellow'
+    # Mood-based filters and search queries
+    candidate_filters = MOOD_FILTERS.get(song_mood, ALL_FILTERS)
+    mood_kw = MOOD_KEYWORDS.get(song_mood, "romantic golden hour aesthetic 4k")
 
     from video_fetcher import fetch_videos
     from web_image_fetcher import fetch_web_image
 
-    for sc in scenes:
-        release_system_memory()
-        idx = sc["index"]
-        sc_dur = sc["duration"]
-        lyric_text = sc["text"]
-        kw = sc["keyword"]
-        print(f"\n🎬 [Scene {idx+1}/{len(scenes)}] Mode: {visual_mode.upper()} | Duration: {sc_dur}s | Text: '{lyric_text}'")
+    rendered_scene_files = []
 
-        v_clip = None
+    for seg_idx in range(num_segments):
+        release_system_memory()
+        seg_start = seg_idx * seg_dur
+        seg_end = min(float(target_duration), (seg_idx + 1) * seg_dur if seg_idx < num_segments - 1 else target_duration)
+        this_seg_dur = round(seg_end - seg_start, 2)
+
+        # Lines active in this segment
+        lines_in_seg = [l for l in all_lyrics if l["start"] < seg_end and l["end"] > seg_start]
+        chosen_filter = candidate_filters[seg_idx % len(candidate_filters)]
+        print(f"\n🎥 [Segment {seg_idx+1}/{num_segments}] Time: {seg_start:.1f}s - {seg_end:.1f}s ({this_seg_dur}s) | Filter: {chosen_filter} | Lyrics lines: {len(lines_in_seg)}")
+
+        seg_clip = None
         loaded_raw = None
+
         if is_stock_video:
-            # 🎥 Stock Video Clips (Pexels / Pixabay)
-            v_temp = os.path.join(job_dir, f"stock_vid_{idx}.mp4")
+            # 🎥 Stock Video Clip
+            v_temp = os.path.join(job_dir, f"stock_vid_{seg_idx}.mp4")
+            v_query = f"{singer_name or song_title or 'music'} {mood_kw}"
             v_paths = fetch_videos(
-                kw, v_temp,
+                v_query, v_temp,
                 orientation=orientation,
                 category="Music",
                 video_type="short" if target_aspect == "9:16" else "long",
-                topic=singer_name or song_title or "music"
+                topic=song_mood
             )
             if v_paths and os.path.exists(v_paths[0]) and os.path.getsize(v_paths[0]) > 5000:
                 try:
                     loaded_raw = VideoFileClip(v_paths[0], audio=False)
-                    # Crop / resize to target_size
                     loaded = loaded_raw.resize(height=target_size[1]) if loaded_raw.h < target_size[1] else loaded_raw.resize(width=target_size[0])
                     loaded = loaded.crop(x_center=loaded.w/2, y_center=loaded.h/2, width=target_size[0], height=target_size[1])
-                    if loaded.duration < sc_dur:
-                        n_loops = int(math.ceil(sc_dur / loaded.duration))
-                        v_clip = concatenate_videoclips([loaded] * n_loops).subclip(0, sc_dur)
+                    if loaded.duration < this_seg_dur:
+                        n_loops = int(math.ceil(this_seg_dur / loaded.duration))
+                        v_base = concatenate_videoclips([loaded] * n_loops).subclip(0, this_seg_dur)
                     else:
-                        v_clip = loaded.subclip(0, sc_dur)
-                except Exception as e_v:
-                    print(f"⚠️ Stock video clip load failed: {e_v}")
+                        v_base = loaded.subclip(0, this_seg_dur)
 
-        if not v_clip:
-            # ⚡ Ultra 3D Photo Motion
-            img_path = os.path.join(job_dir, f"motion_photo_{idx}.jpg")
-            photo_query = f"{kw} 4k aesthetic wallpaper photo"
+                    def make_video_frame(t):
+                        orig_frame = v_base.get_frame(t)
+                        im_f = Image.fromarray(orig_frame)
+                        abs_t = seg_start + t
+                        active_line = None
+                        for l in lines_in_seg:
+                            if l["start"] <= abs_t < l["end"]:
+                                active_line = l
+                                break
+                        if active_line:
+                            local_t = abs_t - active_line["start"]
+                            im_f = render_typewriter_lyrics_on_frame(im_f, active_line, local_t, target_size[0], target_size[1])
+                        return np.array(im_f)
+
+                    seg_clip = VideoClip(make_video_frame, duration=this_seg_dur)
+                except Exception as e_v:
+                    print(f"⚠️ Stock video clip load note: {e_v}")
+
+        if not seg_clip:
+            # ⚡ Ultra 3D Photo Motion with Filter & Typewriter Lyrics
+            img_path = os.path.join(job_dir, f"bg_photo_{seg_idx}.jpg")
+            photo_query = f"{singer_name or ''} {song_title or ''} {mood_kw}".strip()
             fetch_web_image(photo_query, img_path)
 
             try:
-                with Image.open(img_path) as im:
-                    im.thumbnail((1280, 1280), Image.Resampling.LANCZOS)
-                    im.save(img_path, quality=85)
-            except Exception:
-                pass
-            
-            direction = "zoom_in" if idx % 2 == 0 else "zoom_out"
-            v_clip = create_photo_motion_scene_clip(img_path, sc_dur, target_size, direction=direction)
+                with Image.open(img_path) as raw_im:
+                    filtered_im = apply_cinematic_photo_filter(raw_im, chosen_filter)
+                    filtered_im.thumbnail((1280, 1280), Image.Resampling.LANCZOS)
+                    filtered_im.save(img_path, quality=88)
+            except Exception as e_im:
+                print(f"⚠️ Filter apply note: {e_im}")
 
-        # 4. Generate & Composite Lyrics Subtitle Overlay
-        overlay_pil = render_lyrics_overlay(
-            text=lyric_text,
-            target_size=target_size,
-            font_path=font_path,
-            font_color=font_color
-        )
-        overlay_path = os.path.join(job_dir, f"lyrics_overlay_{idx}.png")
-        overlay_pil.save(overlay_path)
-        try:
-            overlay_pil.close()
-        except Exception:
-            pass
+            direction = "zoom_in" if seg_idx % 2 == 0 else "zoom_out"
+            tw, th = target_size
+            try:
+                orig = Image.open(img_path).convert("RGB")
+                aspect_orig = orig.width / orig.height
+                aspect_target = tw / th
+                if aspect_orig > aspect_target:
+                    new_h = int(th * 1.25)
+                    new_w = int(new_h * aspect_orig)
+                else:
+                    new_w = int(tw * 1.25)
+                    new_h = int(new_w / aspect_orig)
+                orig_resized = orig.resize((new_w, new_h), Image.Resampling.LANCZOS)
+                base_np = np.array(orig_resized)
+                try: orig.close(); orig_resized.close()
+                except Exception: pass
+                del orig, orig_resized
+            except Exception as e_base:
+                print(f"⚠️ Base image load note: {e_base}")
+                base_np = np.zeros((int(th * 1.25), int(tw * 1.25), 3), dtype=np.uint8)
+                base_np[:] = (20, 15, 30)
 
-        overlay_clip = ImageClip(overlay_path).set_duration(sc_dur)
-        composite_scene = CompositeVideoClip([v_clip, overlay_clip], size=target_size).set_duration(sc_dur)
+            def make_motion_frame(t):
+                progress = min(1.0, max(0.0, t / max(0.1, this_seg_dur)))
+                if direction == "zoom_in":
+                    scale = 1.0 + (0.14 * progress)
+                else:
+                    scale = 1.14 - (0.14 * progress)
 
-        # 5. Render Scene to Disk Immediately (Memory-Safe for Render 512MB RAM)
-        scene_mp4 = os.path.join(job_dir, f"rendered_scene_{idx}.mp4")
-        print(f"💾 [Song Engine] Rendering Scene {idx+1}/{len(scenes)} to disk (RAM-Safe)...")
-        composite_scene.write_videofile(
+                cur_w = int(tw * scale)
+                cur_h = int(th * scale)
+                cx = base_np.shape[1] // 2
+                cy = base_np.shape[0] // 2
+                x1 = max(0, cx - cur_w // 2)
+                y1 = max(0, cy - cur_h // 2)
+                x2 = min(base_np.shape[1], x1 + cur_w)
+                y2 = min(base_np.shape[0], y1 + cur_h)
+
+                crop = base_np[y1:y2, x1:x2]
+                im_crop = Image.fromarray(crop).resize((tw, th), Image.Resampling.BILINEAR)
+
+                abs_t = seg_start + t
+                active_line = None
+                for l in lines_in_seg:
+                    if l["start"] <= abs_t < l["end"]:
+                        active_line = l
+                        break
+                if active_line:
+                    local_t = abs_t - active_line["start"]
+                    im_crop = render_typewriter_lyrics_on_frame(im_crop, active_line, local_t, tw, th)
+
+                frame_arr = np.array(im_crop)
+                im_crop.close()
+                return frame_arr
+
+            seg_clip = VideoClip(make_motion_frame, duration=this_seg_dur)
+
+        # 4. Render Segment to Disk Immediately (Memory-Safe for Render 512MB RAM)
+        scene_mp4 = os.path.join(job_dir, f"rendered_seg_{seg_idx}.mp4")
+        print(f"💾 [Song Engine] Rendering Segment {seg_idx+1}/{num_segments} to disk...")
+        seg_clip.write_videofile(
             scene_mp4,
             fps=20,
             codec="libx264",
@@ -789,32 +999,22 @@ def build_full_song_video(
             logger=None
         )
 
-        # Close all clip handles immediately & free memory
         try:
-            composite_scene.close()
-            v_clip.close()
-            overlay_clip.close()
-            if loaded_raw:
-                loaded_raw.close()
+            seg_clip.close()
+            if loaded_raw: loaded_raw.close()
         except Exception:
             pass
-
-        del composite_scene, v_clip, overlay_clip
-        if 'loaded' in locals() and loaded:
-            try: loaded.close()
-            except Exception: pass
-            del loaded
-
+        del seg_clip
         release_system_memory()
 
         if os.path.exists(scene_mp4) and os.path.getsize(scene_mp4) > 1000:
             rendered_scene_files.append(scene_mp4)
 
     if not rendered_scene_files:
-        raise RuntimeError("No scenes were rendered successfully!")
+        raise RuntimeError("No visual segments were rendered successfully!")
 
-    # 6. Stream Concatenate Scenes via FFmpeg (Takes 0 MB RAM)
-    print(f"\n🎞️ [Song Engine] Stitching {len(rendered_scene_files)} scenes via FFmpeg Concat Demuxer...")
+    # 5. Stream Concatenate Segments via FFmpeg (Takes 0 MB RAM)
+    print(f"\n🎞️ [Song Engine] Stitching {len(rendered_scene_files)} segments via FFmpeg Concat Demuxer...")
     concat_list_file = os.path.join(job_dir, "song_scenes_concat.txt")
     with open(concat_list_file, "w", encoding="utf-8") as f:
         for sf in rendered_scene_files:
@@ -848,7 +1048,7 @@ def build_full_song_video(
 
     release_system_memory()
 
-    # 7. Mux Master Song Audio via FFmpeg (Takes 0 MB RAM)
+    # 6. Mux Master Song Audio with 1.5s Audio Fadeout via FFmpeg
     if os.path.exists(master_audio_path) and os.path.getsize(master_audio_path) > 1000:
         print(f"🎶 [Song Engine] Attaching Master Audio Track to Final Video via FFmpeg...")
         fade_start = max(0.0, float(target_duration) - 1.5)
@@ -888,7 +1088,7 @@ def build_full_song_video(
         import shutil
         shutil.copy2(temp_video_no_audio, output_path)
 
-    # 8. Clean up intermediate scene files to free disk space immediately
+    # 7. Clean up intermediate segment files to free disk space immediately
     try:
         if os.path.exists(concat_list_file):
             os.remove(concat_list_file)

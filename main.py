@@ -1711,6 +1711,7 @@ class VideoRequest(BaseModel):
     song_visual_mode: Optional[str] = "motion"
     song_lyrics: Optional[str] = None
     uploaded_audio_path: Optional[str] = None
+    song_mood: Optional[str] = "romantic"
 
 class ScriptRequest(BaseModel):
     topic: str

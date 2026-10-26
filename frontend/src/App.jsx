@@ -305,6 +305,7 @@ function App() {
   const [isAudioUploading, setIsAudioUploading] = useState(false);
   const [songVisualMode, setSongVisualMode] = useState('motion'); // 'motion' | 'video'
   const [songLyrics, setSongLyrics] = useState('');
+  const [songMood, setSongMood] = useState('romantic'); // 'romantic' | 'sad' | 'party' | 'lofi' | 'acoustic' | 'devotional'
   const isSongVideoMode = videoType === 'ultra' && (category === '🎵 Song Video' || (category || '').toLowerCase().includes('song video'));
 
   const [scenes, setScenes] = useState([
@@ -1220,6 +1221,7 @@ function App() {
           song_title: songTitle,
           song_visual_mode: songVisualMode,
           song_lyrics: songLyrics,
+          song_mood: songMood,
           uploaded_audio_path: uploadedAudioPath
         })
       });
@@ -1743,11 +1745,58 @@ function App() {
                 </span>
               </div>
 
-              {/* Step 2: Video Duration & Dynamic Scenes */}
+              {/* Step 2: Song Mood & Vibe Theme Category */}
               <div style={{ marginBottom: '1.2rem', background: 'rgba(15, 23, 42, 0.5)', padding: '14px', borderRadius: '14px', border: '1px solid rgba(255,255,255,0.08)' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
                   <label style={{ fontSize: '0.88rem', fontWeight: '800', color: '#e2e8f0', margin: 0 }}>
-                    2. Video Duration & Scene Count (Song ke hisab se)
+                    2. Song Mood & Category (HD Visuals & Filters Match)
+                  </label>
+                  <span style={{ fontSize: '0.74rem', color: '#ec4899', fontWeight: 'bold' }}>
+                    🎨 Cinematic Color Grading Filters
+                  </span>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '8px' }}>
+                  {[
+                    { id: 'romantic', label: '❤️ Romantic / Love', desc: 'Sunset & Golden Hour' },
+                    { id: 'sad', label: '💔 Sad / Dard / Broken', desc: 'Rain & Dark Moody Noir' },
+                    { id: 'party', label: '⚡ Party / High Energy', desc: 'Neon Club & Bass Lasers' },
+                    { id: 'lofi', label: '🌙 Lo-Fi / Chill Vibes', desc: 'Cozy Room & Night Stars' },
+                    { id: 'acoustic', label: '🎸 Acoustic / Indie', desc: 'Nature & Misty Road' },
+                    { id: 'devotional', label: '💫 Devotional / Bhakti', desc: 'Golden Temple & Divine' },
+                  ].map(m => (
+                    <button
+                      key={m.id}
+                      type="button"
+                      onClick={() => setSongMood(m.id)}
+                      style={{
+                        padding: '10px 8px',
+                        borderRadius: '12px',
+                        border: songMood === m.id ? '2px solid #ec4899' : '1px solid rgba(255,255,255,0.1)',
+                        background: songMood === m.id ? 'linear-gradient(135deg, rgba(236, 72, 153, 0.3) 0%, rgba(168, 85, 247, 0.3) 100%)' : 'rgba(15, 23, 42, 0.6)',
+                        color: songMood === m.id ? '#fff' : '#cbd5e1',
+                        cursor: 'pointer',
+                        textAlign: 'center',
+                        fontSize: '0.82rem',
+                        fontWeight: songMood === m.id ? '800' : '600',
+                        boxShadow: songMood === m.id ? '0 0 12px rgba(236, 72, 153, 0.4)' : 'none',
+                        transition: 'all 0.15s ease'
+                      }}
+                    >
+                      <div>{m.label}</div>
+                      <div style={{ fontSize: '0.68rem', color: songMood === m.id ? '#fbcfe8' : '#64748b', marginTop: '2px' }}>{m.desc}</div>
+                    </button>
+                  ))}
+                </div>
+                <span style={{ fontSize: '0.74rem', color: '#94a3b8', display: 'block', marginTop: '6px' }}>
+                  💡 Is category ke anusaar background photos ka mood aur cinematic color filters (Teal & Orange, Moody Noir, Golden Glow, etc.) auto-apply honge!
+                </span>
+              </div>
+
+              {/* Step 3: Video Duration & Dynamic Scenes */}
+              <div style={{ marginBottom: '1.2rem', background: 'rgba(15, 23, 42, 0.5)', padding: '14px', borderRadius: '14px', border: '1px solid rgba(255,255,255,0.08)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                  <label style={{ fontSize: '0.88rem', fontWeight: '800', color: '#e2e8f0', margin: 0 }}>
+                    3. Video Duration & Scene Count (Song ke hisab se)
                   </label>
                   <span style={{ fontSize: '0.74rem', color: '#38bdf8', fontWeight: 'bold' }}>
                     {duration === 0 ? '🎵 Full Song Length' : `⏱️ ${duration}s (~${Math.max(4, Math.round(duration / 4))} Dynamic Scenes)`}
@@ -1790,10 +1839,10 @@ function App() {
                 </span>
               </div>
 
-              {/* Step 3: Visual Creation Choice (Video Clips vs 3D Photo Motion) */}
+              {/* Step 4: Visual Creation Choice (Video Clips vs 3D Photo Motion) */}
               <div style={{ marginBottom: '1.2rem', background: 'rgba(15, 23, 42, 0.5)', padding: '14px', borderRadius: '14px', border: '1px solid rgba(255,255,255,0.08)' }}>
                 <label style={{ display: 'block', fontSize: '0.88rem', fontWeight: '800', color: '#e2e8f0', marginBottom: '8px' }}>
-                  3. Visual Creation Mode (Video Clips vs Motion Photos)
+                  4. Visual Creation Mode (Video Clips vs Motion Photos)
                 </label>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                   <button
@@ -1850,14 +1899,19 @@ function App() {
                 </div>
               </div>
 
-              {/* Step 4: Typography & Fonts */}
+              {/* Step 5: Typography & Multi-Font Style */}
               <div style={{ marginBottom: '1.2rem', background: 'rgba(15, 23, 42, 0.5)', padding: '14px', borderRadius: '14px', border: '1px solid rgba(255,255,255,0.08)' }}>
-                <label style={{ display: 'block', fontSize: '0.88rem', fontWeight: '800', color: '#e2e8f0', marginBottom: '8px' }}>
-                  4. Lyrics & Titles Typography (Fonts & Colors)
-                </label>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                  <label style={{ fontSize: '0.88rem', fontWeight: '800', color: '#e2e8f0', margin: 0 }}>
+                    5. Typography & Multi-Font Engine (5+ Fonts & Typewriter Printer)
+                  </label>
+                  <span style={{ fontSize: '0.74rem', color: '#38bdf8', fontWeight: 'bold' }}>
+                    🖨️ Typewriter Printer Animation Active
+                  </span>
+                </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                   <div>
-                    <label style={{ fontSize: '0.78rem', color: '#cbd5e1', display: 'block', marginBottom: '4px' }}>Font Family</label>
+                    <label style={{ fontSize: '0.78rem', color: '#cbd5e1', display: 'block', marginBottom: '4px' }}>Primary Font Vibe</label>
                     <CustomSelect
                       theme={theme}
                       value={fontName}
@@ -1874,7 +1928,7 @@ function App() {
                     />
                   </div>
                   <div>
-                    <label style={{ fontSize: '0.78rem', color: '#cbd5e1', display: 'block', marginBottom: '4px' }}>Lyrics Highlight Color</label>
+                    <label style={{ fontSize: '0.78rem', color: '#cbd5e1', display: 'block', marginBottom: '4px' }}>Primary Lyrics Accent Glow</label>
                     <CustomSelect
                       theme={theme}
                       value={fontColor}
@@ -1889,16 +1943,19 @@ function App() {
                     />
                   </div>
                 </div>
+                <span style={{ fontSize: '0.74rem', color: '#94a3b8', display: 'block', marginTop: '6px' }}>
+                  ✨ Ek hi video me automatically 5+ premium fonts (Mukta, Kalam, Yatra One, Devanagari, Rozha, Bebas) typewriter printer effect aur dynamic locations par chalenge!
+                </span>
               </div>
 
-              {/* Step 5: Optional Song Lyrics Input */}
+              {/* Step 6: Optional Song Lyrics Input */}
               <div style={{ marginBottom: '1.4rem' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
                   <label style={{ fontSize: '0.85rem', fontWeight: '800', color: '#e2e8f0' }}>
-                    5. Song Lyrics / Hook Lines (Optional)
+                    6. Song Lyrics / Hook Lines (Optional)
                   </label>
                   <span style={{ fontSize: '0.74rem', color: '#a855f7' }}>
-                    Leave empty to auto-generate aesthetic dynamic title cards
+                    Khali chhodne par exact synced lyrics auto-detect ho kar type honge!
                   </span>
                 </div>
                 <textarea
