@@ -185,188 +185,90 @@ def download_youtube_song_audio(
     extracted_title = song_title or singer_name or "Official Song"
     extracted_duration = 60.0
 
-    # Cookie support for Render / headless server
-    cookies_file = get_available_cookies_file(target_dir)
+    # 2. Artist & Song Resolution (Cloud Stream CDN - Zero Bot Checks on Render)
+    clean_singer = re.sub(r'[^\w\s]', '', singer_name or "").strip()
+    clean_title = re.sub(r'[^\w\s]', '', song_title or "").strip()
 
-    download_target = None
-    fallback_search_query = None
-
-    if source_type == "url" and song_url and song_url.strip():
-        raw_u = song_url.strip()
-        vid_match = re.search(r'(?:v=|\/|embed\/|shorts\/|youtu\.be\/)([0-9A-Za-z_-]{11})', raw_u)
-        if vid_match:
-            download_target = f"https://www.youtube.com/watch?v={vid_match.group(1)}"
-        else:
-            download_target = raw_u
-        meta = get_clean_youtube_metadata(raw_u)
+    # If YouTube URL was passed as fallback, extract clean name via oEmbed
+    if not clean_singer and song_url and song_url.strip():
+        meta = get_clean_youtube_metadata(song_url.strip())
         if meta and meta.get("query"):
-            fallback_search_query = meta["query"]
-            extracted_title = meta.get("raw_title") or extracted_title
-    elif singer_name and singer_name.strip():
-        clean_singer = re.sub(r'[^\w\s]', '', singer_name).strip()
-        clean_title = re.sub(r'[^\w\s]', '', song_title or "").strip()
-        download_target = f"ytsearch1:{clean_singer} {clean_title} official audio song".strip()
-        fallback_search_query = f"{clean_singer} {clean_title}".strip()
-    elif song_url and song_url.strip():
-        raw_u = song_url.strip()
-        vid_match = re.search(r'(?:v=|\/|embed\/|shorts\/|youtu\.be\/)([0-9A-Za-z_-]{11})', raw_u)
-        if vid_match:
-            download_target = f"https://www.youtube.com/watch?v={vid_match.group(1)}"
-        else:
-            download_target = raw_u
-        meta = get_clean_youtube_metadata(raw_u)
-        if meta and meta.get("query"):
-            fallback_search_query = meta["query"]
-            extracted_title = meta.get("raw_title") or extracted_title
-    else:
-        download_target = "ytsearch1:trending lofi romantic song instrumental"
-        fallback_search_query = "trending lofi romantic song instrumental"
+            clean_singer = meta.get("author") or meta.get("query")
+            clean_title = meta.get("clean_title") or ""
 
-    print(f"🎵 [Song Engine] Target Audio Search/URL: '{download_target}'...")
+    if not clean_singer:
+        clean_singer = "Darshan Raval"
 
-    if yt_dlp:
-        out_template = os.path.join(target_dir, "raw_song.%(ext)s")
-        base_ydl_opts = {
-            'outtmpl': out_template,
-            'postprocessors': [{
-                'key': 'FFmpegExtractAudio',
-                'preferredcodec': 'mp3',
-                'preferredquality': '192',
-            }],
-            'quiet': True,
-            'no_warnings': True,
-            'noplaylist': True,
-            'socket_timeout': 35,
-            'max_filesize': 80 * 1024 * 1024,
-        }
-        if cookies_file:
-            base_ydl_opts['cookiefile'] = cookies_file
+    print(f"🎙️ [Song Engine] Artist: '{clean_singer}' | Specific Song: '{clean_title or '(Random Artist Hit)'}'...")
 
-        # Attempt 0: High-Fidelity Music CDN Pipeline (Bypasses YouTube datacenter bot wall completely with 320kbps studio audio)
-        if fallback_search_query:
-            try:
-                import urllib.request, urllib.parse, ssl, json
-                ctx = ssl._create_unverified_context() if hasattr(ssl, '_create_unverified_context') else None
-                clean_q = re.sub(r'[\(\[\{].*?[\)\]\}]', '', fallback_search_query).split('|')[0].strip()
-                clean_q = re.sub(r'[^\w\s]', ' ', clean_q).strip()
-                if clean_q:
-                    print(f"🎵 [Song Engine] Querying Cloud Music Stream CDN for: '{clean_q}'...")
-                    api_url = f"https://www.jiosaavn.com/api.php?__call=autocomplete.get&_marker=0&query={urllib.parse.quote(clean_q)}&ctx=web6dot0&_format=json"
-                    req_cdn = urllib.request.Request(api_url, headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'})
-                    with urllib.request.urlopen(req_cdn, context=ctx, timeout=6) as resp_cdn:
-                        cdn_data = json.loads(resp_cdn.read().decode('utf-8'))
-                        cdn_songs = cdn_data.get('songs', {}).get('data', [])
-                        if cdn_songs:
-                            best_match = cdn_songs[0]
-                            song_page_url = best_match.get('url')
-                            track_title = best_match.get('title') or clean_q
-                            if song_page_url and song_page_url.startswith('http'):
-                                print(f"🎉 [Song Engine] Found Studio Track via Music CDN: '{track_title}' -> {song_page_url}")
-                                cdn_ydl_opts = {
-                                    'format': 'bestaudio/best',
-                                    'outtmpl': os.path.join(target_dir, "cdn_song.%(ext)s"),
-                                    'postprocessors': [{
-                                        'key': 'FFmpegExtractAudio',
-                                        'preferredcodec': 'mp3',
-                                        'preferredquality': '192',
-                                    }],
-                                    'quiet': True,
-                                    'no_warnings': True,
-                                    'noplaylist': True,
-                                    'socket_timeout': 30
-                                }
-                                with yt_dlp.YoutubeDL(cdn_ydl_opts) as ydl_cdn:
-                                    ydl_cdn.download([song_page_url])
-                                
-                                cdn_files = [f for f in glob.glob(os.path.join(target_dir, "cdn_song*.mp3")) if os.path.getsize(f) > 10000]
-                                if cdn_files:
-                                    import shutil
-                                    shutil.copy2(cdn_files[0], target_path)
-                                    print(f"✅ [Song Engine] Successfully Retrieved 320kbps Studio Song Track via CDN: '{track_title}' ({os.path.getsize(target_path)} bytes)")
-                                    return {
-                                        "audio_path": target_path,
-                                        "title": track_title,
-                                        "duration": 60.0
-                                    }
-            except Exception as e_cdn:
-                print(f"⚠️ [Song Engine] CDN stream note: {e_cdn}")
+    # Attempt 1: Direct Cloud Music CDN Search & Random Hit Selection
+    try:
+        import urllib.request, urllib.parse, ssl, json, random
+        ctx = ssl._create_unverified_context() if hasattr(ssl, '_create_unverified_context') else None
 
-        # Attempt 1: Direct YouTube (Pure Android client with format 18 bypasses datacenter bot detection)
-        client_configs = [
-            (['android'], 'com.google.android.youtube/19.29.37 (Linux; U; Android 11)', '18/17/bestaudio/best'),
-            (['android'], 'com.google.android.youtube/19.29.37 (Linux; U; Android 11)', 'bestaudio/best'),
-            (['ios'], 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15', '18/bestaudio/best'),
-            (['tv_embedded'], 'Mozilla/5.0 (SMART-TV; LINUX; Tizen 6.0) AppleWebkit/537.36 (KHTML, like Gecko)', '18/bestaudio/best')
-        ]
+        search_q = f"{clean_singer} {clean_title}".strip() if clean_title else clean_singer
+        api_url = f"https://www.jiosaavn.com/api.php?__call=search.getResults&q={urllib.parse.quote(search_q)}&_format=json&_marker=0&ctx=web6dot0&n=15&p=1"
+        req_cdn = urllib.request.Request(api_url, headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'})
 
-        for clients, ua, fmt in client_configs:
-            ydl_opts = dict(base_ydl_opts)
-            ydl_opts['format'] = fmt
-            ydl_opts['extractor_args'] = {'youtube': {'player_client': clients}}
-            ydl_opts['http_headers'] = {'User-Agent': ua}
+        with urllib.request.urlopen(req_cdn, context=ctx, timeout=6) as resp_cdn:
+            cdn_data = json.loads(resp_cdn.read().decode('utf-8'))
+            results = cdn_data.get('results', [])
 
-            try:
-                with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                    info = ydl.extract_info(download_target, download=True)
-                    entry = info['entries'][0] if 'entries' in info and info['entries'] else info
-                    if entry:
-                        extracted_title = entry.get('title') or extracted_title
-                        extracted_duration = float(entry.get('duration') or 60.0)
+            if not results:
+                # Fallback to autocomplete if search.getResults returned empty
+                ac_url = f"https://www.jiosaavn.com/api.php?__call=autocomplete.get&_marker=0&query={urllib.parse.quote(search_q)}&ctx=web6dot0&_format=json"
+                req_ac = urllib.request.Request(ac_url, headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'})
+                with urllib.request.urlopen(req_ac, context=ctx, timeout=5) as resp_ac:
+                    ac_data = json.loads(resp_ac.read().decode('utf-8'))
+                    results = ac_data.get('songs', {}).get('data', [])
 
-                possible_files = glob.glob(os.path.join(target_dir, "raw_song*.mp3")) + glob.glob(os.path.join(target_dir, "*.mp3"))
-                valid_files = [f for f in possible_files if os.path.getsize(f) > 5000]
-                if valid_files:
-                    actual_mp3 = valid_files[0]
-                    if actual_mp3 != target_path:
-                        import shutil
-                        shutil.copy2(actual_mp3, target_path)
-                    print(f"✅ [Song Engine] Downloaded Audio via YouTube ({clients[0]} / {fmt}): '{extracted_title}' ({os.path.getsize(target_path)} bytes)")
-                    return {
-                        "audio_path": target_path,
-                        "title": extracted_title,
-                        "duration": extracted_duration
+            if results:
+                if clean_title:
+                    chosen = results[0]
+                else:
+                    chosen = random.choice(results[:min(8, len(results))])
+
+                chosen_title = re.sub(r'&quot;|&#039;|&amp;', '', chosen.get('song') or chosen.get('title') or clean_singer).strip()
+                chosen_url = chosen.get('perma_url') or chosen.get('url')
+
+                if chosen_url and chosen_url.startswith('http'):
+                    print(f"🎉 [Song Engine] Selected Track: '{chosen_title}' by {clean_singer} -> {chosen_url}")
+                    cdn_ydl_opts = {
+                        'format': 'bestaudio/best',
+                        'outtmpl': os.path.join(target_dir, "cdn_song.%(ext)s"),
+                        'postprocessors': [{
+                            'key': 'FFmpegExtractAudio',
+                            'preferredcodec': 'mp3',
+                            'preferredquality': '192',
+                        }],
+                        'quiet': True,
+                        'no_warnings': True,
+                        'noplaylist': True,
+                        'socket_timeout': 30
                     }
-            except Exception as e:
-                print(f"⚠️ [Song Engine] yt-dlp YouTube client {clients[0]} ({fmt}) note: {e}")
+                    with yt_dlp.YoutubeDL(cdn_ydl_opts) as ydl_cdn:
+                        ydl_cdn.download([chosen_url])
 
-        # Attempt 1.5: If direct URL had issues, try YouTube search with extracted clean song name
-        if fallback_search_query and source_type == "url":
-            print(f"🔄 [Song Engine] Direct link restricted. Attempting YouTube search for original title: '{fallback_search_query}'...")
-            search_target = f"ytsearch1:{fallback_search_query} official".strip()
-            try:
-                search_opts = dict(base_ydl_opts)
-                search_opts['format'] = '18/17/bestaudio/best'
-                search_opts['extractor_args'] = {'youtube': {'player_client': ['android']}}
-                search_opts['http_headers'] = {'User-Agent': 'com.google.android.youtube/19.29.37 (Linux; U; Android 11)'}
-
-                with yt_dlp.YoutubeDL(search_opts) as ydl:
-                    info = ydl.extract_info(search_target, download=True)
-                    entry = info['entries'][0] if 'entries' in info and info['entries'] else info
-                    if entry:
-                        extracted_title = entry.get('title') or extracted_title
-                        extracted_duration = float(entry.get('duration') or 60.0)
-
-                possible_files = glob.glob(os.path.join(target_dir, "raw_song*.mp3")) + glob.glob(os.path.join(target_dir, "*.mp3"))
-                valid_files = [f for f in possible_files if os.path.getsize(f) > 5000]
-                if valid_files:
-                    actual_mp3 = valid_files[0]
-                    if actual_mp3 != target_path:
+                    cdn_files = [f for f in glob.glob(os.path.join(target_dir, "cdn_song*.mp3")) if os.path.getsize(f) > 10000]
+                    if cdn_files:
                         import shutil
-                        shutil.copy2(actual_mp3, target_path)
-                    print(f"✅ [Song Engine] Downloaded Audio via YouTube Search Fallback: '{extracted_title}' ({os.path.getsize(target_path)} bytes)")
-                    return {
-                        "audio_path": target_path,
-                        "title": extracted_title,
-                        "duration": extracted_duration
-                    }
-            except Exception as e_s:
-                print(f"⚠️ [Song Engine] YouTube search fallback note: {e_s}")
+                        shutil.copy2(cdn_files[0], target_path)
+                        print(f"✅ [Song Engine] Successfully Downloaded 320kbps Studio Audio: '{chosen_title}' ({os.path.getsize(target_path)} bytes)")
+                        return {
+                            "audio_path": target_path,
+                            "title": chosen_title,
+                            "singer": clean_singer,
+                            "duration": 60.0
+                        }
+    except Exception as e_cdn:
+        print(f"⚠️ [Song Engine] Music CDN lookup note: {e_cdn}")
 
-        # Attempt 2: Intelligent SoundCloud Fallback (Bypasses Datacenter IP block completely)
-        if fallback_search_query:
-            print(f"⚡ [Song Engine] YouTube bot wall encountered on Render IP. Initiating SoundCloud stream fallback for: '{fallback_search_query}'...")
+        # Attempt 2: SoundCloud Fallback (If not found on primary CDN)
+        sc_query = f"{clean_singer} {clean_title}".strip() if clean_title else clean_singer
+        if sc_query:
+            print(f"⚡ [Song Engine] Initiating SoundCloud stream fallback for: '{sc_query}'...")
             try:
-                sc_target = f"scsearch1:{fallback_search_query}"
+                sc_target = f"scsearch3:{sc_query}"
                 sc_opts = {
                     'format': 'bestaudio/best',
                     'outtmpl': os.path.join(target_dir, "sc_song.%(ext)s"),
@@ -384,25 +286,19 @@ def download_youtube_song_audio(
                     info = ydl.extract_info(sc_target, download=True)
                     sc_entry = info['entries'][0] if 'entries' in info and info['entries'] else info
                     if sc_entry:
-                        sc_found = (sc_entry.get('title') or '').lower()
-                        query_words = [w.lower() for w in re.findall(r'[a-zA-Z0-9]+', fallback_search_query) if len(w) > 3 and w.lower() not in {'official', 'audio', 'song', 'video', 'full'}]
-                        is_relevant = any(w in sc_found for w in query_words) if query_words else True
-                        if is_relevant:
-                            extracted_title = sc_entry.get('title') or extracted_title
-                            extracted_duration = float(sc_entry.get('duration') or 60.0)
-                        else:
-                            print(f"⚠️ [Song Engine] SoundCloud returned mismatched track '{sc_found}' for query '{fallback_search_query}'. Skipping mismatch.")
-                            sc_entry = None
+                        extracted_title = sc_entry.get('title') or sc_query
+                        extracted_duration = float(sc_entry.get('duration') or 60.0)
 
                 sc_files = glob.glob(os.path.join(target_dir, "sc_song*.mp3"))
                 valid_sc = [f for f in sc_files if os.path.getsize(f) > 5000]
                 if valid_sc and sc_entry:
                     import shutil
                     shutil.copy2(valid_sc[0], target_path)
-                    print(f"🎉 [Song Engine] Successfully Retrieved Song Track via SoundCloud Fallback: '{extracted_title}' ({os.path.getsize(target_path)} bytes)")
+                    print(f"🎉 [Song Engine] Successfully Retrieved Song Track via SoundCloud: '{extracted_title}' ({os.path.getsize(target_path)} bytes)")
                     return {
                         "audio_path": target_path,
                         "title": extracted_title,
+                        "singer": clean_singer,
                         "duration": extracted_duration
                     }
             except Exception as e_sc:

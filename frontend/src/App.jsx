@@ -1166,12 +1166,8 @@ function App() {
     if (isGeneratingVideo || jobStatus === 'processing' || jobStatus === 'initializing') return;
 
     if (isSongVideoMode) {
-      if (songSourceType === 'url' && !songUrl.trim()) {
-        triggerAlert("🔗 Song URL Required", "Please paste a YouTube song link or switch to 'Search by Singer'!", "🎵", "warning");
-        return;
-      }
-      if (songSourceType === 'singer' && !singerName.trim()) {
-        triggerAlert("🎙️ Singer Name Required", "Please enter the Singer / Artist name (e.g. Arijit Singh, Sidhu Moose Wala)!", "🎙️", "warning");
+      if (!singerName.trim()) {
+        triggerAlert("🎙️ Singer / Artist Name Required", "Please enter the Singer or Artist name (e.g. Darshan Raval, Arijit Singh)!", "🎙️", "warning");
         return;
       }
     }
@@ -1201,7 +1197,7 @@ function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           topic: isSongVideoMode
-            ? (songSourceType === 'url' ? (songUrl || 'YouTube Music Video') : `${singerName} ${songTitle || 'Song'}`.trim())
+            ? `${singerName} ${songTitle || 'Hit Song'}`.trim()
             : topic,
           category: (category || '').includes('Custom Category') ? (customCategory || 'Random') : category,
           scenes: scenes,
@@ -1715,95 +1711,36 @@ function App() {
                 </div>
               </div>
 
-              {/* Step 1: Song Audio Source */}
+              {/* Step 1: Song Audio Track Selection */}
               <div style={{ marginBottom: '1.2rem', background: 'rgba(15, 23, 42, 0.5)', padding: '14px', borderRadius: '14px', border: '1px solid rgba(255,255,255,0.08)' }}>
                 <label style={{ display: 'block', fontSize: '0.88rem', fontWeight: '800', color: '#e2e8f0', marginBottom: '8px' }}>
-                  1. Song Audio Source
+                  1. Singer & Song Selection
                 </label>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '10px' }}>
-                  <button
-                    type="button"
-                    onClick={() => setSongSourceType('url')}
-                    style={{
-                      padding: '11px 16px',
-                      borderRadius: '12px',
-                      border: songSourceType === 'url' ? '2px solid #a855f7' : '1px solid rgba(255,255,255,0.12)',
-                      background: songSourceType === 'url' ? 'linear-gradient(135deg, #a855f7 0%, #6366f1 100%)' : 'rgba(15, 23, 42, 0.6)',
-                      color: '#fff',
-                      fontWeight: '800',
-                      fontSize: '0.86rem',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: '8px',
-                      boxShadow: songSourceType === 'url' ? '0 4px 14px rgba(168, 85, 247, 0.4)' : 'none',
-                      transition: 'all 0.2s ease'
-                    }}
-                  >
-                    <span>🔗 YouTube Link</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setSongSourceType('singer')}
-                    style={{
-                      padding: '11px 16px',
-                      borderRadius: '12px',
-                      border: songSourceType === 'singer' ? '2px solid #ec4899' : '1px solid rgba(255,255,255,0.12)',
-                      background: songSourceType === 'singer' ? 'linear-gradient(135deg, #ec4899 0%, #a855f7 100%)' : 'rgba(15, 23, 42, 0.6)',
-                      color: '#fff',
-                      fontWeight: '800',
-                      fontSize: '0.86rem',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: '8px',
-                      boxShadow: songSourceType === 'singer' ? '0 4px 14px rgba(236, 72, 153, 0.4)' : 'none',
-                      transition: 'all 0.2s ease'
-                    }}
-                  >
-                    <span>🎙️ Search Singer & Song</span>
-                  </button>
-                </div>
-
-                {songSourceType === 'url' ? (
-                  <div className="form-group" style={{ margin: 0 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', margin: 0 }}>
+                  <div>
+                    <label style={{ fontSize: '0.78rem', color: '#cbd5e1', display: 'block', marginBottom: '4px' }}>Singer / Artist Name *</label>
                     <input
                       type="text"
-                      value={songUrl}
-                      onChange={(e) => setSongUrl(e.target.value)}
-                      placeholder="Paste YouTube Video / Song URL (e.g. https://www.youtube.com/watch?v=...)"
-                      style={{ width: '100%', padding: '12px 14px', borderRadius: '12px', background: 'rgba(15, 23, 42, 0.8)', border: '1px solid rgba(168, 85, 247, 0.4)', color: '#fff', fontSize: '0.88rem' }}
+                      value={singerName}
+                      onChange={(e) => setSingerName(e.target.value)}
+                      placeholder="e.g. Darshan Raval, Arijit Singh, Sidhu Moose Wala"
+                      style={{ width: '100%', padding: '11px 13px', borderRadius: '12px', background: 'rgba(15, 23, 42, 0.8)', border: '1px solid rgba(236, 72, 153, 0.4)', color: '#fff', fontSize: '0.88rem' }}
                     />
-                    <span style={{ fontSize: '0.74rem', color: '#94a3b8', display: 'block', marginTop: '4px' }}>
-                      🎵 Cloxel AI downloads the original song audio directly from this YouTube URL and produces a sync video!
-                    </span>
                   </div>
-                ) : (
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', margin: 0 }}>
-                    <div>
-                      <label style={{ fontSize: '0.78rem', color: '#cbd5e1', display: 'block', marginBottom: '4px' }}>Singer / Artist Name *</label>
-                      <input
-                        type="text"
-                        value={singerName}
-                        onChange={(e) => setSingerName(e.target.value)}
-                        placeholder="e.g. Arijit Singh, Sidhu Moose Wala, Atif Aslam"
-                        style={{ width: '100%', padding: '11px 13px', borderRadius: '12px', background: 'rgba(15, 23, 42, 0.8)', border: '1px solid rgba(236, 72, 153, 0.4)', color: '#fff', fontSize: '0.88rem' }}
-                      />
-                    </div>
-                    <div>
-                      <label style={{ fontSize: '0.78rem', color: '#cbd5e1', display: 'block', marginBottom: '4px' }}>Song Title / Mood (Optional)</label>
-                      <input
-                        type="text"
-                        value={songTitle}
-                        onChange={(e) => setSongTitle(e.target.value)}
-                        placeholder="e.g. Kesariya, Sad Romantic, Lo-fi Hit (or leave blank for top hit)"
-                        style={{ width: '100%', padding: '11px 13px', borderRadius: '12px', background: 'rgba(15, 23, 42, 0.8)', border: '1px solid rgba(236, 72, 153, 0.4)', color: '#fff', fontSize: '0.88rem' }}
-                      />
-                    </div>
+                  <div>
+                    <label style={{ fontSize: '0.78rem', color: '#cbd5e1', display: 'block', marginBottom: '4px' }}>Song Name / Track Title (Optional)</label>
+                    <input
+                      type="text"
+                      value={songTitle}
+                      onChange={(e) => setSongTitle(e.target.value)}
+                      placeholder="e.g. Sirf Tum, Kesariya (Leave blank for artist's random hit)"
+                      style={{ width: '100%', padding: '11px 13px', borderRadius: '12px', background: 'rgba(15, 23, 42, 0.8)', border: '1px solid rgba(168, 85, 247, 0.4)', color: '#fff', fontSize: '0.88rem' }}
+                    />
                   </div>
-                )}
+                </div>
+                <span style={{ fontSize: '0.74rem', color: '#94a3b8', display: 'block', marginTop: '6px' }}>
+                  💡 Agar song name likhenge to wahi specific gana uthayega. Agar khali chhodenge to is artist ka popular random song automatically download ho jayega!
+                </span>
               </div>
 
               {/* Step 2: Visual Creation Choice (Video Clips vs 3D Photo Motion) */}
