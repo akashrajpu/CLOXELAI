@@ -296,7 +296,7 @@ function App() {
   const [filterStyle, setFilterStyle] = useState('warm_epic');
 
   // Song Video Studio States
-  const [songSourceType, setSongSourceType] = useState('url'); // 'url' | 'singer' | 'upload'
+  const [songSourceType, setSongSourceType] = useState('upload'); // 'upload' (default & recommended) | 'url' | 'singer'
   const [songUrl, setSongUrl] = useState('');
   const [singerName, setSingerName] = useState('');
   const [songTitle, setSongTitle] = useState('');
@@ -1727,15 +1727,37 @@ function App() {
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '10px', marginBottom: '10px' }}>
                   <button
                     type="button"
+                    onClick={() => setSongSourceType('upload')}
+                    style={{
+                      padding: '11px 16px',
+                      borderRadius: '12px',
+                      border: songSourceType === 'upload' ? '2px solid #10b981' : '1px solid rgba(255,255,255,0.12)',
+                      background: songSourceType === 'upload' ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)' : 'rgba(15, 23, 42, 0.6)',
+                      color: '#fff',
+                      fontWeight: '800',
+                      fontSize: '0.86rem',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '8px',
+                      boxShadow: songSourceType === 'upload' ? '0 4px 14px rgba(16, 185, 129, 0.4)' : 'none',
+                      transition: 'all 0.2s ease'
+                    }}
+                  >
+                    <span>📁 Upload MP3 (100% Guaranteed)</span>
+                  </button>
+                  <button
+                    type="button"
                     onClick={() => setSongSourceType('url')}
                     style={{
-                      padding: '10px 14px',
+                      padding: '11px 16px',
                       borderRadius: '12px',
                       border: songSourceType === 'url' ? '2px solid #a855f7' : '1px solid rgba(255,255,255,0.12)',
                       background: songSourceType === 'url' ? 'linear-gradient(135deg, #a855f7 0%, #6366f1 100%)' : 'rgba(15, 23, 42, 0.6)',
                       color: '#fff',
                       fontWeight: '800',
-                      fontSize: '0.84rem',
+                      fontSize: '0.86rem',
                       cursor: 'pointer',
                       display: 'flex',
                       alignItems: 'center',
@@ -1745,19 +1767,19 @@ function App() {
                       transition: 'all 0.2s ease'
                     }}
                   >
-                    <span>🔗 YouTube Song Link</span>
+                    <span>🔗 YouTube Link</span>
                   </button>
                   <button
                     type="button"
                     onClick={() => setSongSourceType('singer')}
                     style={{
-                      padding: '10px 14px',
+                      padding: '11px 16px',
                       borderRadius: '12px',
                       border: songSourceType === 'singer' ? '2px solid #ec4899' : '1px solid rgba(255,255,255,0.12)',
                       background: songSourceType === 'singer' ? 'linear-gradient(135deg, #ec4899 0%, #a855f7 100%)' : 'rgba(15, 23, 42, 0.6)',
                       color: '#fff',
                       fontWeight: '800',
-                      fontSize: '0.84rem',
+                      fontSize: '0.86rem',
                       cursor: 'pointer',
                       display: 'flex',
                       alignItems: 'center',
@@ -1768,28 +1790,6 @@ function App() {
                     }}
                   >
                     <span>🎙️ Search Singer & Song</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setSongSourceType('upload')}
-                    style={{
-                      padding: '10px 14px',
-                      borderRadius: '12px',
-                      border: songSourceType === 'upload' ? '2px solid #10b981' : '1px solid rgba(255,255,255,0.12)',
-                      background: songSourceType === 'upload' ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)' : 'rgba(15, 23, 42, 0.6)',
-                      color: '#fff',
-                      fontWeight: '800',
-                      fontSize: '0.84rem',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: '8px',
-                      boxShadow: songSourceType === 'upload' ? '0 4px 14px rgba(16, 185, 129, 0.4)' : 'none',
-                      transition: 'all 0.2s ease'
-                    }}
-                  >
-                    <span>📁 Upload Audio (MP3)</span>
                   </button>
                 </div>
 
@@ -2452,14 +2452,20 @@ function App() {
 
           {cloudinaryUrl ? (
             <div className="video-result">
-              <video src={cloudinaryUrl} controls autoPlay loop muted></video>
+              <div style={{ background: 'rgba(16, 185, 129, 0.15)', border: '1px solid rgba(16, 185, 129, 0.4)', padding: '8px 12px', borderRadius: '10px', fontSize: '0.8rem', color: '#6ee7b7', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span>🔊 Audio Master Synced: Click play to listen with full sound!</span>
+              </div>
+              <video src={cloudinaryUrl} controls autoPlay loop></video>
               <a href={cloudinaryUrl} target="_blank" rel="noreferrer" className="download-link">
                 Open in Cloudinary
               </a>
             </div>
           ) : downloadUrl ? (
             <div className="video-result">
-              <video src={downloadUrl} controls autoPlay loop muted></video>
+              <div style={{ background: 'rgba(16, 185, 129, 0.15)', border: '1px solid rgba(16, 185, 129, 0.4)', padding: '8px 12px', borderRadius: '10px', fontSize: '0.8rem', color: '#6ee7b7', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span>🔊 Audio Master Synced: Click play to listen with full sound!</span>
+              </div>
+              <video src={downloadUrl} controls autoPlay loop></video>
               <a href={downloadUrl} target="_blank" rel="noreferrer" className="download-link">
                 Download Direct Video
               </a>

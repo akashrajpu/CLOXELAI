@@ -298,12 +298,19 @@ def download_youtube_song_audio(
                     info = ydl.extract_info(sc_target, download=True)
                     sc_entry = info['entries'][0] if 'entries' in info and info['entries'] else info
                     if sc_entry:
-                        extracted_title = sc_entry.get('title') or extracted_title
-                        extracted_duration = float(sc_entry.get('duration') or 60.0)
+                        sc_found = (sc_entry.get('title') or '').lower()
+                        query_words = [w.lower() for w in re.findall(r'[a-zA-Z0-9]+', fallback_search_query) if len(w) > 3 and w.lower() not in {'official', 'audio', 'song', 'video', 'full'}]
+                        is_relevant = any(w in sc_found for w in query_words) if query_words else True
+                        if is_relevant:
+                            extracted_title = sc_entry.get('title') or extracted_title
+                            extracted_duration = float(sc_entry.get('duration') or 60.0)
+                        else:
+                            print(f"⚠️ [Song Engine] SoundCloud returned mismatched track '{sc_found}' for query '{fallback_search_query}'. Skipping mismatch.")
+                            sc_entry = None
 
                 sc_files = glob.glob(os.path.join(target_dir, "sc_song*.mp3"))
                 valid_sc = [f for f in sc_files if os.path.getsize(f) > 5000]
-                if valid_sc:
+                if valid_sc and sc_entry:
                     import shutil
                     shutil.copy2(valid_sc[0], target_path)
                     print(f"🎉 [Song Engine] Successfully Retrieved Song Track via SoundCloud Fallback: '{extracted_title}' ({os.path.getsize(target_path)} bytes)")
@@ -350,18 +357,21 @@ def generate_song_lyric_scenes(
             lines = raw_lines
 
     if not lines:
-        # Generate musical visual hook lines matching the vibe
         singer = (singer_name or "").strip()
         title = (song_title or "").strip()
-        # Clean YouTube video title suffixes like "(Lyrical)", "| Full Song", etc.
         clean_title = re.sub(r'\(.*?\)|\[.*?\]', '', title).split('|')[0].split(' - ')[0].strip()
-        display_name = f"{clean_title} — {singer}".strip(' —') if singer and clean_title != singer else (clean_title or singer or "Sirf Tum")
+        if not clean_title or clean_title.lower() in {"song", "official song", "unknown", "official audio song", "singer song video"}:
+            clean_title = singer or "Ultra Song Video"
+        
+        display_name = clean_title
+        artist_display = f"Feat. {singer}" if singer and singer.lower() not in clean_title.lower() else "Official Soundtrack"
+
         lines = [
-            f"✨ {display_name}",
-            "🌙 Teri yaadon ka ek haseen aalam",
-            "💫 Har lafz mein bas tera hi ehsaas",
-            "❤️ Dil ki har dhadkan pe tera hi naam",
-            "🌟 Jab saath ho tera, toh har pal mehez ek khwaab"
+            f"🎵 {display_name}",
+            f"✨ {artist_display}",
+            f"💫 {display_name} — Feel The Rhythm",
+            f"❤️ {display_name}",
+            f"🌟 {artist_display}"
         ]
 
     # Target 3 to 6 scenes
@@ -759,6 +769,8 @@ def build_full_song_video(
             "ffmpeg", "-y",
             "-i", temp_video_no_audio,
             "-i", master_audio_path,
+            "-map", "0:v:0",
+            "-map", "1:a:0",
             "-c:v", "copy",
             "-c:a", "aac",
             "-b:a", "192k",
