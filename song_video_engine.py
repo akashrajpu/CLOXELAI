@@ -35,13 +35,17 @@ except ImportError:
 
 try:
     from moviepy.editor import (
-        VideoFileClip, AudioFileClip, ImageClip, ColorClip, 
+        VideoClip, VideoFileClip, AudioFileClip, ImageClip, ColorClip, 
         CompositeVideoClip, concatenate_videoclips
     )
 except ImportError:
     try:
-        from moviepy import VideoFileClip, AudioFileClip, ImageClip, ColorClip, CompositeVideoClip, concatenate_videoclips
+        from moviepy import (
+            VideoClip, VideoFileClip, AudioFileClip, ImageClip, ColorClip, 
+            CompositeVideoClip, concatenate_videoclips
+        )
     except ImportError:
+        VideoClip = None
         VideoFileClip = None
 
 from PIL import Image, ImageDraw, ImageFont, ImageFilter, ImageEnhance, ImageOps
