@@ -1173,7 +1173,7 @@ function App() {
           voice_id: voiceId,
           language: voiceId && voiceId.startsWith('en') ? 'en' : 'hi',
           video_type: videoType,
-          full_script: isSongVideoMode ? (songLyrics || `${singerName || 'Singer'} Song Video`) : fullScript,
+          full_script: isSongVideoMode ? (songLyrics || '') : fullScript,
           bg_music: bgMusic,
           user_id: userId,
           mode: videoType === 'ultra' ? (isSongVideoMode ? songVisualMode : generationMode) : 'standard',

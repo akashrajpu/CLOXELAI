@@ -55,13 +55,24 @@ def download_youtube_song_audio(
 
     download_target = None
     if source_type == "url" and song_url and song_url.strip():
-        download_target = song_url.strip()
+        raw_u = song_url.strip()
+        # Clean YouTube tracking parameters (e.g. ?si=...)
+        vid_match = re.search(r'(?:v=|\/)([0-9A-Za-z_-]{11})', raw_u)
+        if vid_match:
+            download_target = f"https://www.youtube.com/watch?v={vid_match.group(1)}"
+        else:
+            download_target = raw_u
     elif singer_name and singer_name.strip():
         clean_singer = re.sub(r'[^\w\s]', '', singer_name).strip()
         clean_title = re.sub(r'[^\w\s]', '', song_title or "").strip()
         download_target = f"ytsearch1:{clean_singer} {clean_title} official audio song".strip()
     elif song_url and song_url.strip():
-        download_target = song_url.strip()
+        raw_u = song_url.strip()
+        vid_match = re.search(r'(?:v=|\/)([0-9A-Za-z_-]{11})', raw_u)
+        if vid_match:
+            download_target = f"https://www.youtube.com/watch?v={vid_match.group(1)}"
+        else:
+            download_target = raw_u
     else:
         download_target = "ytsearch1:trending lofi romantic song instrumental"
 
@@ -85,6 +96,11 @@ def download_youtube_song_audio(
             'noplaylist': True,
             'socket_timeout': 35,
             'max_filesize': 70 * 1024 * 1024,
+            'extractor_args': {
+                'youtube': {
+                    'player_client': ['android', 'ios', 'mweb'],
+                }
+            }
         }
 
         try:
@@ -142,8 +158,10 @@ def generate_song_lyric_scenes(
     Prepares lyrical scenes with duration, text, and visual search keyword.
     """
     lines = []
-    if user_lyrics and user_lyrics.strip():
-        raw_lines = [l.strip() for l in user_lyrics.splitlines() if len(l.strip()) > 2]
+    # If user provided actual custom lyrics (ignore generic placeholder title strings)
+    generic_placeholders = {"singer song video", "song video", "youtube song video", "youtube music video", "song"}
+    if user_lyrics and user_lyrics.strip() and user_lyrics.strip().lower() not in generic_placeholders:
+        raw_lines = [l.strip() for l in user_lyrics.splitlines() if len(l.strip()) > 1 and l.strip().lower() not in generic_placeholders]
         if raw_lines:
             lines = raw_lines
 
@@ -151,13 +169,15 @@ def generate_song_lyric_scenes(
         # Generate musical visual hook lines matching the vibe
         singer = (singer_name or "").strip()
         title = (song_title or "").strip()
-        display_name = f"{singer} {title}".strip() or "Romantic Melodies"
+        # Clean YouTube video title suffixes like "(Lyrical)", "| Full Song", etc.
+        clean_title = re.sub(r'\(.*?\)|\[.*?\]', '', title).split('|')[0].split(' - ')[0].strip()
+        display_name = f"{clean_title} — {singer}".strip(' —') if singer and clean_title != singer else (clean_title or singer or "Sirf Tum")
         lines = [
-            f"✨ {display_name} — Feel the rhythm and the soul",
-            "🌙 Every beat tells a story in the quiet of the night",
-            "💫 Lost in the melody, timeless moments unfold",
-            "❤️ When the music speaks what words cannot say",
-            "🌟 Let the harmony carry your dreams away"
+            f"✨ {display_name}",
+            "🌙 Teri yaadon ka ek haseen aalam",
+            "💫 Har lafz mein bas tera hi ehsaas",
+            "❤️ Dil ki har dhadkan pe tera hi naam",
+            "🌟 Jab saath ho tera, toh har pal mehez ek khwaab"
         ]
 
     # Target 3 to 6 scenes
