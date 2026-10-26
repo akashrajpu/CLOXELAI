@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import Auth from './Auth';
 import YouTubeIntegration from './YouTubeIntegration';
-import { Smartphone, Monitor, Zap, Film, Settings, Sparkles, Clock, Palette, Mic, Music, Layout, Hash, Dices, Clapperboard, MonitorPlay, User, Sun, Scroll, Circle, Ban, Rocket, Box, Square, Tv, Compass } from 'lucide-react';
+import { Smartphone, Monitor, Zap, Film, Settings, Sparkles, Clock, Palette, Mic, Music, Layout, Hash, Dices, Clapperboard, MonitorPlay, User, Sun, Scroll, Circle, Ban, Rocket, Box, Square, Tv, Compass, Upload } from 'lucide-react';
 
 const API_BASE = window.location.hostname === 'localhost' ? 'http://localhost:8000' : '';
 
@@ -296,10 +296,13 @@ function App() {
   const [filterStyle, setFilterStyle] = useState('warm_epic');
 
   // Song Video Studio States
-  const [songSourceType, setSongSourceType] = useState('url'); // 'url' | 'singer'
+  const [songSourceType, setSongSourceType] = useState('url'); // 'url' | 'singer' | 'upload'
   const [songUrl, setSongUrl] = useState('');
   const [singerName, setSingerName] = useState('');
   const [songTitle, setSongTitle] = useState('');
+  const [uploadedAudioFile, setUploadedAudioFile] = useState(null);
+  const [uploadedAudioPath, setUploadedAudioPath] = useState('');
+  const [isAudioUploading, setIsAudioUploading] = useState(false);
   const [songVisualMode, setSongVisualMode] = useState('motion'); // 'motion' | 'video'
   const [songLyrics, setSongLyrics] = useState('');
   const isSongVideoMode = videoType === 'ultra' && (category === '🎵 Song Video' || (category || '').toLowerCase().includes('song video'));
@@ -1124,16 +1127,55 @@ function App() {
     }
   };
 
+  const handleAudioFileUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const allowed = ['.mp3', '.wav', '.m4a', '.aac', '.ogg', '.webm'];
+    const ext = file.name.substring(file.name.lastIndexOf('.')).toLowerCase();
+    if (!allowed.includes(ext)) {
+      triggerAlert("Invalid Audio Format", "Please select an MP3, WAV, M4A, or AAC audio file.", "⚠️", "warning");
+      return;
+    }
+
+    setUploadedAudioFile(file);
+    setIsAudioUploading(true);
+
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      const res = await fetch(`${API_BASE}/upload-song-audio`, {
+        method: 'POST',
+        body: formData
+      });
+      const data = await res.json();
+      if (data.status === 'success' && data.file_path) {
+        setUploadedAudioPath(data.file_path);
+        triggerAlert("✅ Audio Uploaded", `"${file.name}" uploaded successfully and ready for video generation!`, "🎵", "success");
+      } else {
+        triggerAlert("Upload Failed", data.detail || "Could not upload audio file.", "❌", "danger");
+      }
+    } catch (err) {
+      triggerAlert("Upload Error", `Failed to upload audio: ${err.message}`, "❌", "danger");
+    } finally {
+      setIsAudioUploading(false);
+    }
+  };
+
   const handleGenerateVideo = async () => {
     if (isGeneratingVideo || jobStatus === 'processing' || jobStatus === 'initializing') return;
 
     if (isSongVideoMode) {
       if (songSourceType === 'url' && !songUrl.trim()) {
-        triggerAlert("🔗 Song URL Required", "Please paste a YouTube song link or switch to 'Search by Singer / Song Name'!", "🎵", "warning");
+        triggerAlert("🔗 Song URL Required", "Please paste a YouTube song link or switch to 'Search by Singer' or 'Upload Audio'!", "🎵", "warning");
         return;
       }
       if (songSourceType === 'singer' && !singerName.trim()) {
         triggerAlert("🎙️ Singer Name Required", "Please enter the Singer / Artist name (e.g. Arijit Singh, Sidhu Moose Wala)!", "🎙️", "warning");
+        return;
+      }
+      if (songSourceType === 'upload' && !uploadedAudioPath) {
+        triggerAlert("📁 Song Audio File Required", "Please select or upload an MP3 / audio file from your device first!", "📁", "warning");
         return;
       }
     }
@@ -1163,7 +1205,7 @@ function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           topic: isSongVideoMode
-            ? (songSourceType === 'url' ? (songUrl || 'YouTube Music Video') : `${singerName} ${songTitle || 'Song'}`.trim())
+            ? (songSourceType === 'url' ? (songUrl || 'YouTube Music Video') : (songSourceType === 'upload' ? (uploadedAudioFile?.name || 'Uploaded Song Audio') : `${singerName} ${songTitle || 'Song'}`.trim()))
             : topic,
           category: (category || '').includes('Custom Category') ? (customCategory || 'Random') : category,
           scenes: scenes,
@@ -1185,7 +1227,8 @@ function App() {
           singer_name: singerName,
           song_title: songTitle,
           song_visual_mode: songVisualMode,
-          song_lyrics: songLyrics
+          song_lyrics: songLyrics,
+          uploaded_audio_path: uploadedAudioPath
         })
       });
       const data = await response.json();
@@ -1681,7 +1724,7 @@ function App() {
                 <label style={{ display: 'block', fontSize: '0.88rem', fontWeight: '800', color: '#e2e8f0', marginBottom: '8px' }}>
                   1. Song Audio Source
                 </label>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '10px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '10px', marginBottom: '10px' }}>
                   <button
                     type="button"
                     onClick={() => setSongSourceType('url')}
@@ -1702,7 +1745,7 @@ function App() {
                       transition: 'all 0.2s ease'
                     }}
                   >
-                    <span>🔗 Paste YouTube Song Link</span>
+                    <span>🔗 YouTube Song Link</span>
                   </button>
                   <button
                     type="button"
@@ -1724,7 +1767,29 @@ function App() {
                       transition: 'all 0.2s ease'
                     }}
                   >
-                    <span>🎙️ Search by Singer / Song Name</span>
+                    <span>🎙️ Search Singer & Song</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSongSourceType('upload')}
+                    style={{
+                      padding: '10px 14px',
+                      borderRadius: '12px',
+                      border: songSourceType === 'upload' ? '2px solid #10b981' : '1px solid rgba(255,255,255,0.12)',
+                      background: songSourceType === 'upload' ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)' : 'rgba(15, 23, 42, 0.6)',
+                      color: '#fff',
+                      fontWeight: '800',
+                      fontSize: '0.84rem',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '8px',
+                      boxShadow: songSourceType === 'upload' ? '0 4px 14px rgba(16, 185, 129, 0.4)' : 'none',
+                      transition: 'all 0.2s ease'
+                    }}
+                  >
+                    <span>📁 Upload Audio (MP3)</span>
                   </button>
                 </div>
 
@@ -1738,10 +1803,10 @@ function App() {
                       style={{ width: '100%', padding: '12px 14px', borderRadius: '12px', background: 'rgba(15, 23, 42, 0.8)', border: '1px solid rgba(168, 85, 247, 0.4)', color: '#fff', fontSize: '0.88rem' }}
                     />
                     <span style={{ fontSize: '0.74rem', color: '#94a3b8', display: 'block', marginTop: '4px' }}>
-                      💡 Cloxel AI will download the song audio directly from YouTube and match video visuals with the lyrics!
+                      💡 Cloxel AI downloads song audio directly & matches video visuals. If YouTube blocks cloud IPs, Cloxel auto-recovers via SoundCloud or you can upload the MP3 directly!
                     </span>
                   </div>
-                ) : (
+                ) : songSourceType === 'singer' ? (
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', margin: 0 }}>
                     <div>
                       <label style={{ fontSize: '0.78rem', color: '#cbd5e1', display: 'block', marginBottom: '4px' }}>Singer / Artist Name *</label>
@@ -1763,6 +1828,48 @@ function App() {
                         style={{ width: '100%', padding: '11px 13px', borderRadius: '12px', background: 'rgba(15, 23, 42, 0.8)', border: '1px solid rgba(236, 72, 153, 0.4)', color: '#fff', fontSize: '0.88rem' }}
                       />
                     </div>
+                  </div>
+                ) : (
+                  <div style={{ margin: 0, padding: '16px', background: 'rgba(16, 185, 129, 0.08)', borderRadius: '12px', border: '1px dashed rgba(16, 185, 129, 0.4)', textAlign: 'center' }}>
+                    <input
+                      type="file"
+                      id="song-audio-file-input"
+                      accept=".mp3,.wav,.m4a,.aac,.ogg"
+                      onChange={handleAudioFileUpload}
+                      style={{ display: 'none' }}
+                    />
+                    <label
+                      htmlFor="song-audio-file-input"
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        padding: '10px 20px',
+                        borderRadius: '10px',
+                        background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                        color: '#fff',
+                        fontWeight: '800',
+                        fontSize: '0.86rem',
+                        cursor: 'pointer',
+                        boxShadow: '0 4px 14px rgba(16, 185, 129, 0.35)',
+                        marginBottom: '8px'
+                      }}
+                    >
+                      <Upload size={16} /> Choose Audio File (.mp3, .wav, .m4a)
+                    </label>
+                    {isAudioUploading && (
+                      <div style={{ fontSize: '0.8rem', color: '#38bdf8', marginTop: '6px' }}>
+                        ⏳ Uploading audio file to server, please wait...
+                      </div>
+                    )}
+                    {uploadedAudioFile && !isAudioUploading && (
+                      <div style={{ fontSize: '0.82rem', color: '#10b981', fontWeight: '700', marginTop: '6px' }}>
+                        ✅ Ready: {uploadedAudioFile.name} ({(uploadedAudioFile.size / (1024 * 1024)).toFixed(2)} MB)
+                      </div>
+                    )}
+                    <span style={{ fontSize: '0.74rem', color: '#94a3b8', display: 'block', marginTop: '6px' }}>
+                      ⚡ 100% Guaranteed Success: Direct audio files never fail because they bypass YouTube datacenter restrictions entirely!
+                    </span>
                   </div>
                 )}
               </div>

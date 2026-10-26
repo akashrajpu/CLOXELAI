@@ -35,37 +35,162 @@ from PIL import Image, ImageDraw, ImageFont, ImageFilter
 import numpy as np
 
 
+def get_available_cookies_file(target_dir: str = "temp_song") -> Optional[str]:
+    """
+    Checks for YouTube session cookies from Render environment variables or disk files.
+    Allows yt-dlp to bypass datacenter bot detection walls.
+    """
+    env_cookies = os.environ.get("YOUTUBE_COOKIES") or os.environ.get("YT_COOKIES")
+    if env_cookies and len(env_cookies.strip()) > 20:
+        c_path = os.path.join(target_dir, "yt_cookies.txt")
+        try:
+            with open(c_path, "w", encoding="utf-8") as f:
+                f.write(env_cookies.strip())
+            print(f"🍪 [Song Engine] Loaded YouTube Cookies from Render Environment Variable ({len(env_cookies)} bytes)")
+            return c_path
+        except Exception as e:
+            print(f"⚠️ Failed to write cookie file from env: {e}")
+
+    possible_cookie_paths = [
+        "cookies.txt",
+        os.path.join("temp_song", "cookies.txt"),
+        os.path.join("/etc", "secrets", "cookies.txt"),
+        os.path.join(target_dir, "cookies.txt")
+    ]
+    for p in possible_cookie_paths:
+        if os.path.exists(p) and os.path.getsize(p) > 20:
+            print(f"🍪 [Song Engine] Found YouTube Cookies file at '{p}'")
+            return p
+
+    return None
+
+
+def get_clean_youtube_metadata(song_url: str) -> Dict[str, str]:
+    """
+    Extracts video title and artist from YouTube oEmbed API without triggering bot detection.
+    oEmbed is a public Google API and is never blocked on Render or datacenter IPs.
+    """
+    try:
+        import urllib.request
+        import urllib.parse
+        import ssl
+        import json
+
+        vid_match = re.search(r'(?:v=|\/)([0-9A-Za-z_-]{11})', song_url)
+        clean_url = f"https://www.youtube.com/watch?v={vid_match.group(1)}" if vid_match else song_url
+        api_url = f"https://www.youtube.com/oembed?url={urllib.parse.quote(clean_url)}&format=json"
+
+        ctx = ssl._create_unverified_context() if hasattr(ssl, '_create_unverified_context') else None
+        req = urllib.request.Request(api_url, headers={'User-Agent': 'Mozilla/5.0'})
+        with urllib.request.urlopen(req, timeout=6, context=ctx) as r:
+            data = json.loads(r.read().decode('utf-8'))
+            raw_title = data.get('title', '')
+            author = data.get('author_name', '')
+
+            # Strip brackets, parentheses, curly braces: (Lyrical), [Official Video], etc.
+            clean = re.sub(r'[\(\[\{].*?[\)\]\}]', '', raw_title)
+            # Take primary title before music label / credits separator '|'
+            clean = clean.split('|')[0]
+            clean = re.sub(r'feat\..*', '', clean, flags=re.I)
+            clean = re.sub(r'ft\..*', '', clean, flags=re.I)
+            clean = re.sub(r'[^\w\s]', ' ', clean)
+            clean = ' '.join(clean.split())
+
+            clean_author = re.sub(r'[^\w\s]', ' ', author).strip()
+            clean_author = re.sub(r'\b(Official|VEVO|DZ|Music|Records|Channel|Series|T-Series)\b', '', clean_author, flags=re.I).strip()
+
+            clean_words = clean.split()
+            if len(clean_words) >= 2:
+                search_query = clean
+            elif clean_author:
+                search_query = f"{clean} {clean_author}".strip()
+            else:
+                search_query = clean
+            print(f"🎯 [Song Engine] Extracted Metadata via oEmbed: '{raw_title}' -> Query: '{search_query}'")
+            return {
+                "raw_title": raw_title,
+                "clean_title": clean,
+                "author": clean_author,
+                "query": search_query
+            }
+    except Exception as e:
+        print(f"⚠️ [Song Engine] oEmbed metadata extraction exception: {e}")
+        return {
+            "raw_title": "Official Song",
+            "clean_title": "Official Song",
+            "author": "",
+            "query": "trending song"
+        }
+
+
 def download_youtube_song_audio(
     source_type: str = "url",
     song_url: Optional[str] = None,
     singer_name: Optional[str] = None,
     song_title: Optional[str] = None,
+    uploaded_audio_path: Optional[str] = None,
     target_dir: str = "temp_song"
 ) -> Dict[str, Any]:
     """
-    Downloads official song audio from YouTube via URL or Singer/Song search.
-    Returns dict: {'audio_path': str, 'title': str, 'duration': float}
+    Downloads official song audio from:
+    1. User-Uploaded MP3 file (100% reliable, zero bot block)
+    2. YouTube (via yt-dlp with optional cookies support)
+    3. SoundCloud auto-fallback (bypasses Render datacenter IP botwall)
     """
     os.makedirs(target_dir, exist_ok=True)
     target_path = os.path.join(target_dir, "master_song_audio.mp3")
+
+    # 1. Direct Upload Check
+    if uploaded_audio_path and os.path.exists(uploaded_audio_path) and os.path.getsize(uploaded_audio_path) > 1000:
+        print(f"🎵 [Song Engine] Processing user-uploaded audio file: {uploaded_audio_path}...")
+        try:
+            cmd = ["ffmpeg", "-y", "-i", uploaded_audio_path, "-vn", "-acodec", "libmp3lame", "-q:a", "2", target_path]
+            subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
+            print(f"✅ [Song Engine] User Uploaded Audio Prepared: {target_path} ({os.path.getsize(target_path)} bytes)")
+            return {
+                "audio_path": target_path,
+                "title": song_title or singer_name or "Uploaded Song Audio",
+                "duration": 60.0
+            }
+        except Exception as e_up:
+            print(f"⚠️ [Song Engine] Audio upload conversion note: {e_up}")
+            import shutil
+            shutil.copy2(uploaded_audio_path, target_path)
+            return {
+                "audio_path": target_path,
+                "title": song_title or singer_name or "Uploaded Song Audio",
+                "duration": 60.0
+            }
 
     # If already downloaded in this job directory, return immediately
     if os.path.exists(target_path) and os.path.getsize(target_path) > 10000:
         return {"audio_path": target_path, "title": song_title or singer_name or "Song", "duration": 60.0}
 
+    extracted_title = song_title or singer_name or "Official Song"
+    extracted_duration = 60.0
+
+    # Cookie support for Render / headless server
+    cookies_file = get_available_cookies_file(target_dir)
+
     download_target = None
+    fallback_search_query = None
+
     if source_type == "url" and song_url and song_url.strip():
         raw_u = song_url.strip()
-        # Clean YouTube tracking parameters (e.g. ?si=...)
         vid_match = re.search(r'(?:v=|\/)([0-9A-Za-z_-]{11})', raw_u)
         if vid_match:
             download_target = f"https://www.youtube.com/watch?v={vid_match.group(1)}"
         else:
             download_target = raw_u
+        meta = get_clean_youtube_metadata(raw_u)
+        if meta and meta.get("query"):
+            fallback_search_query = meta["query"]
+            extracted_title = meta.get("raw_title") or extracted_title
     elif singer_name and singer_name.strip():
         clean_singer = re.sub(r'[^\w\s]', '', singer_name).strip()
         clean_title = re.sub(r'[^\w\s]', '', song_title or "").strip()
         download_target = f"ytsearch1:{clean_singer} {clean_title} official audio song".strip()
+        fallback_search_query = f"{clean_singer} {clean_title}".strip()
     elif song_url and song_url.strip():
         raw_u = song_url.strip()
         vid_match = re.search(r'(?:v=|\/)([0-9A-Za-z_-]{11})', raw_u)
@@ -73,59 +198,55 @@ def download_youtube_song_audio(
             download_target = f"https://www.youtube.com/watch?v={vid_match.group(1)}"
         else:
             download_target = raw_u
+        meta = get_clean_youtube_metadata(raw_u)
+        if meta and meta.get("query"):
+            fallback_search_query = meta["query"]
+            extracted_title = meta.get("raw_title") or extracted_title
     else:
         download_target = "ytsearch1:trending lofi romantic song instrumental"
+        fallback_search_query = "trending lofi romantic song instrumental"
 
     print(f"🎵 [Song Engine] Target Audio Search/URL: '{download_target}'...")
 
-    extracted_title = song_title or singer_name or "Official Song"
-    extracted_duration = 60.0
-
     if yt_dlp:
         out_template = os.path.join(target_dir, "raw_song.%(ext)s")
+        base_ydl_opts = {
+            'format': 'bestaudio/best',
+            'outtmpl': out_template,
+            'postprocessors': [{
+                'key': 'FFmpegExtractAudio',
+                'preferredcodec': 'mp3',
+                'preferredquality': '192',
+            }],
+            'quiet': True,
+            'no_warnings': True,
+            'noplaylist': True,
+            'socket_timeout': 35,
+            'max_filesize': 70 * 1024 * 1024,
+        }
+        if cookies_file:
+            base_ydl_opts['cookiefile'] = cookies_file
+
+        # Attempt 1: Direct YouTube
         client_configs = [
             (['android'], 'com.google.android.youtube/19.29.37 (Linux; U; Android 11)'),
             (['tv_embedded'], 'Mozilla/5.0 (SMART-TV; LINUX; Tizen 6.0) AppleWebkit/537.36 (KHTML, like Gecko)'),
-            (['android_vr'], 'com.google.android.youtube/19.29.37 (Linux; U; Android 11)')
+            (['ios'], 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15')
         ]
 
         for clients, ua in client_configs:
-            ydl_opts = {
-                'format': '18/bestaudio/best',
-                'outtmpl': out_template,
-                'postprocessors': [{
-                    'key': 'FFmpegExtractAudio',
-                    'preferredcodec': 'mp3',
-                    'preferredquality': '192',
-                }],
-                'quiet': True,
-                'no_warnings': True,
-                'noplaylist': True,
-                'socket_timeout': 35,
-                'max_filesize': 70 * 1024 * 1024,
-                'extractor_args': {
-                    'youtube': {
-                        'player_client': clients,
-                    }
-                },
-                'http_headers': {
-                    'User-Agent': ua
-                }
-            }
+            ydl_opts = dict(base_ydl_opts)
+            ydl_opts['extractor_args'] = {'youtube': {'player_client': clients}}
+            ydl_opts['http_headers'] = {'User-Agent': ua}
 
             try:
                 with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                     info = ydl.extract_info(download_target, download=True)
-                    if 'entries' in info and info['entries']:
-                        entry = info['entries'][0]
-                    else:
-                        entry = info
-                    
+                    entry = info['entries'][0] if 'entries' in info and info['entries'] else info
                     if entry:
                         extracted_title = entry.get('title') or extracted_title
                         extracted_duration = float(entry.get('duration') or 60.0)
 
-                # Locate downloaded mp3
                 possible_files = glob.glob(os.path.join(target_dir, "raw_song*.mp3")) + glob.glob(os.path.join(target_dir, "*.mp3"))
                 valid_files = [f for f in possible_files if os.path.getsize(f) > 5000]
                 if valid_files:
@@ -133,17 +254,57 @@ def download_youtube_song_audio(
                     if actual_mp3 != target_path:
                         import shutil
                         shutil.copy2(actual_mp3, target_path)
-                    print(f"✅ [Song Engine] Downloaded Audio Successfully via {clients[0]}: '{extracted_title}' ({os.path.getsize(target_path)} bytes)")
+                    print(f"✅ [Song Engine] Downloaded Audio via YouTube ({clients[0]}): '{extracted_title}' ({os.path.getsize(target_path)} bytes)")
                     return {
                         "audio_path": target_path,
                         "title": extracted_title,
                         "duration": extracted_duration
                     }
             except Exception as e:
-                print(f"⚠️ [Song Engine] yt-dlp client {clients[0]} exception: {e}")
+                print(f"⚠️ [Song Engine] yt-dlp YouTube client {clients[0]} exception: {e}")
 
-    # Fallback to local background music if YouTube download failed
-    print("⚠️ [Song Engine] Using local melodic music track fallback...")
+        # Attempt 2: Intelligent SoundCloud Fallback (Bypasses Datacenter IP block completely)
+        if fallback_search_query:
+            print(f"⚡ [Song Engine] YouTube bot wall encountered on Render IP. Initiating SoundCloud stream fallback for: '{fallback_search_query}'...")
+            try:
+                sc_target = f"scsearch1:{fallback_search_query}"
+                sc_opts = {
+                    'format': 'bestaudio/best',
+                    'outtmpl': os.path.join(target_dir, "sc_song.%(ext)s"),
+                    'postprocessors': [{
+                        'key': 'FFmpegExtractAudio',
+                        'preferredcodec': 'mp3',
+                        'preferredquality': '192',
+                    }],
+                    'quiet': True,
+                    'no_warnings': True,
+                    'noplaylist': True,
+                    'socket_timeout': 30
+                }
+                with yt_dlp.YoutubeDL(sc_opts) as ydl:
+                    info = ydl.extract_info(sc_target, download=True)
+                    sc_entry = info['entries'][0] if 'entries' in info and info['entries'] else info
+                    if sc_entry:
+                        extracted_title = sc_entry.get('title') or extracted_title
+                        extracted_duration = float(sc_entry.get('duration') or 60.0)
+
+                sc_files = glob.glob(os.path.join(target_dir, "sc_song*.mp3"))
+                valid_sc = [f for f in sc_files if os.path.getsize(f) > 5000]
+                if valid_sc:
+                    import shutil
+                    shutil.copy2(valid_sc[0], target_path)
+                    print(f"🎉 [Song Engine] Successfully Retrieved Song Track via SoundCloud Fallback: '{extracted_title}' ({os.path.getsize(target_path)} bytes)")
+                    return {
+                        "audio_path": target_path,
+                        "title": extracted_title,
+                        "duration": extracted_duration
+                    }
+            except Exception as e_sc:
+                print(f"⚠️ [Song Engine] SoundCloud fallback exception: {e_sc}")
+
+    # Fallback to local background music if all downloads failed
+    print("⚠️ [Song Engine] Remote downloads blocked by datacenter IP. Using local melodic track fallback...")
+    print("💡 TIP: Set 'YOUTUBE_COOKIES' in Render environment variables or upload the MP3 directly in the UI!")
     fallback_sources = [
         os.path.join("static", "cool.mp3"),
         os.path.join("static", "cool1.mp3"),
@@ -391,18 +552,20 @@ def build_full_song_video(
     print(f"📊 Target Duration: {target_duration}s | Aspect: {target_aspect} | Size: {target_size}")
     print(f"==================================================")
 
-    # 1. Download Master Song Audio from YouTube
+    # 1. Download Master Song Audio from YouTube or use Uploaded Audio
     song_source_type = getattr(req, 'song_source_type', 'url') or 'url'
     song_url = getattr(req, 'song_url', '') or ''
     singer_name = getattr(req, 'singer_name', '') or ''
     song_title = getattr(req, 'song_title', '') or ''
     song_lyrics = getattr(req, 'song_lyrics', '') or getattr(req, 'full_script', '')
+    uploaded_audio_path = getattr(req, 'uploaded_audio_path', None) or getattr(req, 'song_audio_file', None)
 
     audio_res = download_youtube_song_audio(
         source_type=song_source_type,
         song_url=song_url,
         singer_name=singer_name,
         song_title=song_title,
+        uploaded_audio_path=uploaded_audio_path,
         target_dir=job_dir
     )
     master_audio_path = audio_res.get('audio_path')

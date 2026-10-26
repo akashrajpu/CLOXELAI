@@ -33,7 +33,7 @@ def release_system_memory():
     except Exception:
         pass
 
-from fastapi import FastAPI, BackgroundTasks, HTTPException, Request, Response
+from fastapi import FastAPI, BackgroundTasks, HTTPException, Request, Response, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
@@ -1710,6 +1710,7 @@ class VideoRequest(BaseModel):
     song_title: Optional[str] = None
     song_visual_mode: Optional[str] = "motion"
     song_lyrics: Optional[str] = None
+    uploaded_audio_path: Optional[str] = None
 
 class ScriptRequest(BaseModel):
     topic: str
@@ -2466,6 +2467,41 @@ async def generate_custom_video(req: VideoRequest, background_tasks: BackgroundT
     update_job_status(job_id, {"status": "processing", "user_id": clean_user_id})
     background_tasks.add_task(full_process, req, job_id)
     return {"job_id": job_id, "status": "Processing Started"}
+
+@app.post("/upload-song-audio")
+async def upload_song_audio(file: UploadFile = File(...)):
+    """
+    Direct song audio upload handler. Allows users to upload their own MP3/WAV/M4A 
+    audio files directly to the server, bypassing any YouTube datacenter bot wall completely.
+    """
+    try:
+        allowed_exts = [".mp3", ".wav", ".m4a", ".aac", ".ogg", ".webm"]
+        orig_name = file.filename or "song.mp3"
+        ext = os.path.splitext(orig_name)[1].lower()
+        if ext not in allowed_exts:
+            raise HTTPException(status_code=400, detail="Only audio files (.mp3, .wav, .m4a, .aac, .ogg) are supported.")
+        
+        upload_dir = "temp_uploads"
+        os.makedirs(upload_dir, exist_ok=True)
+        unique_name = f"song_{uuid.uuid4().hex[:12]}{ext}"
+        saved_path = os.path.join(upload_dir, unique_name)
+
+        with open(saved_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+
+        file_size = os.path.getsize(saved_path)
+        print(f"🎵 [Song Upload] Successfully saved audio upload: '{orig_name}' -> '{saved_path}' ({file_size} bytes)")
+        return {
+            "status": "success",
+            "file_path": saved_path,
+            "filename": orig_name,
+            "size": file_size
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"⚠️ [Song Upload] Error uploading audio: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to upload audio: {str(e)}")
 
 class ProfilePicRequest(BaseModel):
     internal_id: str
