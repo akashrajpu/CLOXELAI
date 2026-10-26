@@ -7,6 +7,7 @@ const API_BASE = window.location.hostname === 'localhost' ? 'http://localhost:80
 
 const CATEGORIES = [
   '🎲 Random / All Categories',
+  '🎵 Song Video',
   '🤖 AI & Technology',
   '🌌 Space & Astronomy',
   '🦁 Nature & Wildlife',
