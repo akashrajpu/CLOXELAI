@@ -13,7 +13,7 @@ import glob
 import math
 import random
 import subprocess
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict, Any, Tuple
 import gc
 
 def release_system_memory():
@@ -125,7 +125,7 @@ def font_supports_text(font_path: str, text: str) -> bool:
 # HIGH-DEFINITION EXPRESSION EMOJI SYSTEM (Zero Tofu [ ] Boxes, Cross-Platform)
 # ---------------------------------------------------------------------------
 
-EMOJI_CACHE: Dict[Tuple[str, int], Image.Image] = {}
+EMOJI_CACHE: Dict[Tuple[str, int], Any] = {}
 
 def get_cached_emoji(emoji_name: Optional[str], target_size: int) -> Optional[Image.Image]:
     """
