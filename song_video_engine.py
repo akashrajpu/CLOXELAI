@@ -120,6 +120,168 @@ def font_supports_text(font_path: str, text: str) -> bool:
     except Exception:
         return False
 
+
+# ---------------------------------------------------------------------------
+# HIGH-DEFINITION EXPRESSION EMOJI SYSTEM (Zero Tofu [ ] Boxes, Cross-Platform)
+# ---------------------------------------------------------------------------
+
+EMOJI_CACHE: Dict[Tuple[str, int], Image.Image] = {}
+
+def get_cached_emoji(emoji_name: Optional[str], target_size: int) -> Optional[Image.Image]:
+    """
+    Retrieves and caches high-definition vector emoji PNG icons resized with Lanczos filter.
+    Zero disk latency during video frame generation.
+    """
+    if not emoji_name:
+        return None
+    cache_key = (emoji_name, target_size)
+    if cache_key in EMOJI_CACHE:
+        return EMOJI_CACHE[cache_key]
+
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    possible_paths = [
+        os.path.join(base_dir, "assets", "emojis", f"{emoji_name}.png"),
+        os.path.join("assets", "emojis", f"{emoji_name}.png"),
+        os.path.join(base_dir, "emojis", f"{emoji_name}.png")
+    ]
+    for p in possible_paths:
+        if os.path.exists(p):
+            try:
+                im = Image.open(p).convert("RGBA")
+                im_resized = im.resize((target_size, target_size), Image.Resampling.LANCZOS)
+                EMOJI_CACHE[cache_key] = im_resized
+                return im_resized
+            except Exception:
+                pass
+    return None
+
+
+EXPRESSION_EMOJI_KEYWORDS = [
+    # 1. Emotional / Heartbreak / Pain / Sad (Prioritized for emotional accuracy)
+    ("broken_heart", [
+        "dard", "judai", "juda", "toota", "dhokha", "bewafa", "broken", "heartbreak",
+        "tanha", "tanhai", "aansu", "aansoo", "rona", "sad", "pain", "chhod", "bichhad",
+        "khatam", "bikhra", "viraan"
+    ]),
+    ("pleading_face", [
+        "yaad", "intezar", "intezaar", "miss you", "emotional", "udaas", "bheegi", "taras",
+        "maaf", "kasam", "duhayi"
+    ]),
+    ("crying_face", [
+        "cry", "crying", "aankhon me aansu", "roye", "gham", "rulaya", "mat ro", "mat rona"
+    ]),
+    ("wilted_flower", [
+        "barbaad", "khamosh", "andhera", "mushkil"
+    ]),
+
+    # 2. Devotional / Bhakti / Spiritual
+    ("folded_hands", [
+        "prabhu", "bhagwan", "ram", "shyam", "krishna", "shiva", "mahadev", "shanker",
+        "ganpati", "mata", "devi", "naman", "pranaam", "jai", "hare", "kripa", "bhakti"
+    ]),
+    ("diya", [
+        "aarti", "pooja", "deepak", "diya", "jyot", "mandir", "bhajan", "kirtan"
+    ]),
+    ("flower", [
+        "prasad", "charan", "ganga", "shradha"
+    ]),
+
+    # 3. Energy / Fire / Party / Swag
+    ("fire", [
+        "fire", "aag", "jalwa", "angaron", "hot", "boss", "swag", "power", "blast",
+        "attitude", "lit", "banger", "tabahi"
+    ]),
+    ("lightning", [
+        "bijli", "shock", "thunder", "electric", "energy", "high", "speed", "jhatka"
+    ]),
+    ("party", [
+        "party", "nach", "dance", "jashn", "hungama", "dhamaka", "celebrate", "dj",
+        "club", "masti", "shor"
+    ]),
+    ("sunglasses", [
+        "cool", "hero", "look", "style", "nawab", "shaan"
+    ]),
+
+    # 4. Sukoon / Night / Dream / Lo-Fi / Aesthetic
+    ("moon", [
+        "chand", "chaand", "chanda", "raat", "night", "midnight", "taare", "falak"
+    ]),
+    ("sparkles", [
+        "sukoon", "shanti", "roshni", "sitare", "dream", "hawa", "magic", "lofi",
+        "aesthetic", "khwaab", "khwab"
+    ]),
+    ("star", [
+        "sitara", "star", "aasmaan", "amber", "kismat"
+    ]),
+    ("cloud", [
+        "badal", "fiza", "baarishein", "barsaat", "mausam"
+    ]),
+    ("sun", [
+        "subah", "dhoop", "ujala", "suraj", "morning"
+    ]),
+
+    # 5. Love / Romance / Dil / Ishq / Mohabbat
+    ("heart_red", [
+        "love", "pyaar", "pyar", "ishq", "mohabbat", "dil", "jaan", "sanam", "humsafar",
+        "dhadkan", "chaahat", "deewana", "deewani", "mehboob", "aashiqui", "terebina",
+        "tere bina", "tum", "sirf tum", "romantic", "saath", "bahon", "dhadke"
+    ]),
+    ("rose", [
+        "gulab", "rose", "khubsurat", "haseen", "pari", "ada", "nazaakat"
+    ]),
+    ("heart_sparkle", [
+        "sweetheart", "shona", "baby", "crush", "romance"
+    ]),
+    ("ring", [
+        "vaada", "shaadi", "humsafar", "promise"
+    ]),
+    ("eyes", [
+        "nazar", "aankhein", "ankhein", "dekhna", "deed", "gaze", "chehra"
+    ]),
+
+    # 6. Music / Audio / Rhythm
+    ("guitar", [
+        "guitar", "strings", "chords", "acoustic"
+    ]),
+    ("headphones", [
+        "listen", "tune", "volume", "headphones", "earphones", "drop the beat"
+    ]),
+    ("music_notes", [
+        "music", "sound", "sur", "taal", "rhythm", "beat", "melody", "gaana", "sangeet",
+        "anthem", "track", "vibe", "vibes"
+    ]),
+    ("music_note", [
+        "song", "dholak", "tabla"
+    ])
+]
+
+MOOD_DEFAULT_EMOJIS = {
+    "romantic": ["heart_red", "heart_sparkle", "rose", "heart_pink"],
+    "sad": ["broken_heart", "pleading_face", "crying_face", "wilted_flower"],
+    "party": ["fire", "party", "lightning", "sunglasses"],
+    "lofi": ["sparkles", "moon", "cloud", "star"],
+    "acoustic": ["guitar", "music_notes", "sparkles", "headphones"],
+    "devotional": ["folded_hands", "diya", "flower"]
+}
+
+def detect_expression_emoji(text: str, mood: str = "romantic", line_idx: int = 0) -> str:
+    """
+    Detects the best matching expression emoji based on keywords in the text (English/Hinglish/Hindi).
+    Falls back gracefully to mood-specific rotating emojis.
+    """
+    if not text:
+        pool = MOOD_DEFAULT_EMOJIS.get(mood.lower(), ["heart_red", "sparkles"])
+        return pool[line_idx % len(pool)]
+
+    lower_t = text.lower()
+    for emoji_name, kws in EXPRESSION_EMOJI_KEYWORDS:
+        for kw in kws:
+            if re.search(r'\b' + re.escape(kw) + r'\b', lower_t) or kw in lower_t:
+                return emoji_name
+
+    pool = MOOD_DEFAULT_EMOJIS.get(mood.lower(), ["heart_red", "sparkles"])
+    return pool[line_idx % len(pool)]
+
 MOOD_KEYWORDS = {
     "romantic": "romantic couple love golden hour sunset warm bokeh aesthetic dream 4k",
     "sad": "sad lonely heartbreak rain darkness silhouette alone window moody noir 4k",
@@ -369,6 +531,7 @@ def render_typewriter_lyrics_on_frame(
     pos_type = line_info.get("position", "bottom_center")
     fill_color = line_info.get("color", (253, 224, 71, 255))
     bg_style = line_info.get("bg_style", "none")
+    emoji_name = line_info.get("emoji_name")
     
     font_size = max(26, int(tw * 0.046))
     if pos_type == "center":
@@ -387,6 +550,11 @@ def render_typewriter_lyrics_on_frame(
             loaded_font = ImageFont.truetype("./fonts/Mukta-Bold.ttf", font_size)
         except Exception:
             loaded_font = ImageFont.load_default()
+
+    # Load high-definition expression emoji icon
+    emoji_size = max(22, int(font_size * 0.92))
+    emoji_img = get_cached_emoji(emoji_name, emoji_size) if emoji_name else None
+    emoji_spacing = max(10, int(font_size * 0.28))
 
     # Wrap text cleanly if long
     max_chars = 26 if tw < th else 46
@@ -422,6 +590,12 @@ def render_typewriter_lyrics_on_frame(
         line_widths.append(lw)
         if lw > max_line_w:
             max_line_w = lw
+
+    # Account for expression emoji attached to the last line
+    if emoji_img and line_widths:
+        last_cluster_w = line_widths[-1] + emoji_spacing + emoji_size
+        if last_cluster_w > max_line_w:
+            max_line_w = last_cluster_w
 
     pad_x = 22
     pad_y = 10
@@ -475,10 +649,18 @@ def render_typewriter_lyrics_on_frame(
         )
     # If bg_style == "none", NO background box or line is drawn (pure floating text!)
 
-    # Render lines with drop shadow + stroke
+    # Render lines with drop shadow + stroke + attached expression emoji
     for i, lt in enumerate(wrapped_lines):
         lw = line_widths[i]
-        line_x = x_start + pad_x + (max_line_w - lw) // 2
+        is_last_line = (i == len(wrapped_lines) - 1)
+
+        if is_last_line and emoji_img:
+            # Center the cluster of text + emoji together
+            cluster_w = lw + emoji_spacing + emoji_size
+            line_x = x_start + pad_x + (max_line_w - cluster_w) // 2
+        else:
+            line_x = x_start + pad_x + (max_line_w - lw) // 2
+
         line_y = y_start + pad_y + (i * line_height)
 
         # Deep drop shadow
@@ -499,6 +681,17 @@ def render_typewriter_lyrics_on_frame(
             stroke_width=stroke_w,
             stroke_fill=(12, 14, 24, 240)
         )
+
+        # Draw expression emoji beside the text on the final line
+        if is_last_line and emoji_img:
+            em_x = line_x + lw + emoji_spacing
+            em_y = line_y + (line_height - emoji_size) // 2 - 2
+            try:
+                im_frame.paste(emoji_img, (em_x, em_y), emoji_img)
+            except Exception:
+                pass
+
+    return im_frame
 
     return im_frame
 
@@ -948,7 +1141,7 @@ def build_full_song_video(
     if not font_candidates:
         font_candidates = ["./fonts/Mukta-Bold.ttf"]
 
-    # Assign rotating safe fonts, dynamic positions, accent colors, and randomized background styles
+    # Assign rotating safe fonts, dynamic positions, accent colors, randomized background styles, and expression emojis
     for idx, lyr in enumerate(all_lyrics):
         line_txt = lyr.get("text", "")
         chosen_font = font_candidates[idx % len(font_candidates)]
@@ -965,9 +1158,10 @@ def build_full_song_video(
         lyr["position"] = TEXT_POSITIONS[idx % len(TEXT_POSITIONS)]
         lyr["color"] = TEXT_COLORS[idx % len(TEXT_COLORS)]
         lyr["bg_style"] = TEXT_BG_STYLES[idx % len(TEXT_BG_STYLES)]
+        lyr["emoji_name"] = detect_expression_emoji(line_txt, song_mood, idx)
 
     bg_none_count = sum(1 for lyr in all_lyrics if lyr.get("bg_style") == "none")
-    print(f"📝 [Song Engine] Prepared {len(all_lyrics)} synced typewriter lyrics lines across {len(font_candidates)} rotating fonts ({bg_none_count} clean floating lines without background box).")
+    print(f"📝 [Song Engine] Prepared {len(all_lyrics)} synced typewriter lyrics lines with expression emojis across {len(font_candidates)} rotating fonts ({bg_none_count} clean floating lines without background box).")
 
     # 3. Reduced Background Visual Segments (Only 2 to 5 photos total!)
     num_segments = max(2, min(8, int(math.ceil(target_duration / 10.0))))

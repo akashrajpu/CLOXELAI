@@ -18,5 +18,6 @@ crop_actual_portrait.py
 !frontend/dist/*.jpg
 !frontend/public/*.png
 !frontend/public/*.jpg
+!assets/emojis/*.png
 cloxel-load-balancer/
 scratch/
