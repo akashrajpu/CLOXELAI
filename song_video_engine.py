@@ -13,6 +13,7 @@ import glob
 import math
 import random
 import subprocess
+import hashlib
 from typing import Optional, List, Dict, Any, Tuple
 import gc
 
@@ -282,6 +283,73 @@ def detect_expression_emoji(text: str, mood: str = "romantic", line_idx: int = 0
     pool = MOOD_DEFAULT_EMOJIS.get(mood.lower(), ["heart_red", "sparkles"])
     return pool[line_idx % len(pool)]
 
+MOOD_VISUAL_POOLS = {
+    "romantic": [
+        "romantic couple walking holding hands beach golden hour sunset aesthetic 4k",
+        "cozy couple sitting under warm fairy lights cafe bokeh candlelight romantic 4k",
+        "vintage lovers in flower garden aesthetic soft morning sunshine romantic 4k",
+        "aesthetic couple silhouette stargazing night sky crescent moon dream 4k",
+        "couple sharing umbrella in gentle rain street reflections warm glow romantic 4k",
+        "couple embracing scenic mountain sunrise dramatic clouds soft cinematic 4k",
+        "aesthetic coffee date cafe window warm autumn leaves cozy love 4k",
+        "lovers walking along dreamy forest pathway sun rays dappled light 4k",
+        "romantic rooftop terrace twilight fairy lights city skyline sunset 4k",
+        "aesthetic vintage car drive lovers coastal highway summer breeze 4k"
+    ],
+    "sad": [
+        "melancholy silhouette standing alone dramatic ocean cliffs twilight moody 4k",
+        "lonely person looking out rain drenched window drops city lights bokeh 4k",
+        "empty bench autumn park fallen leaves foggy misty path heartbreak 4k",
+        "solitary figure walking down dark deserted street vintage streetlamp noir 4k",
+        "dark moody bedroom moonlight through blinds lone shadow reflection 4k",
+        "sad acoustic guitar leaning against abandoned vintage wall quiet dust motes 4k",
+        "dramatic dark storm clouds over calm ocean lone lighthouse heartbreak 4k",
+        "person sitting alone rooftop dusk gazing at distant city lights melancholy 4k",
+        "foggy pine forest solitary hiker misty cold atmosphere cinematic solitude 4k",
+        "tear drops falling in still lake water ripples dark reflection sorrow 4k"
+    ],
+    "party": [
+        "neon night club dynamic strobe lights stage smoke crowd hands in air 4k",
+        "dj turntable mixer deck glowing neon lasers electronic dance music fest 4k",
+        "electric concert crowd confetti falling stage spotlights festival energy 4k",
+        "cyberpunk synthwave vibrant purple cyan neon city lights party 4k",
+        "sparklers celebration friends laughing beach bonfire party night 4k",
+        "glitter disco ball reflections dancing neon colorful lights party 4k",
+        "urban rooftop party dusk city skyline cocktails festive neon 4k",
+        "kaleidoscope abstract neon light trails motion blur festival energy 4k"
+    ],
+    "lofi": [
+        "lofi anime aesthetic cozy bedroom desk warm lamp window night rain 4k",
+        "steaming cup of coffee vinyl record player warm wooden table aesthetic 4k",
+        "midnight city view bedroom balcony plants soft neon purple glow lofi 4k",
+        "vintage cassette tape headphones autumn foliage warm sweater cozy 4k",
+        "bookshelf warm fairy lights cat sleeping on windowsill night stars lofi 4k",
+        "train window reflection dusk city skyline earphones music chill vibes 4k",
+        "cozy fireplace reading nook warm blanket soft ambient candlelight 4k",
+        "retro neon midnight diner counter rain reflections pastel chill 4k"
+    ],
+    "acoustic": [
+        "acoustic guitar resting against vintage wooden chair warm sunset glow 4k",
+        "camper van parked on mountain edge campfire dusk horizon road trip 4k",
+        "hands gently playing acoustic wooden guitar close up warm sunbeam 4k",
+        "winding coastal highway ocean cliffs golden hour adventure indie travel 4k",
+        "wildflower meadow pine trees distant snowy peaks sunny breeze 4k",
+        "bonfire on beach at twilight acoustic music gathering sea breeze 4k",
+        "cabin in pine woods morning mist sun rays tranquil nature aesthetic 4k",
+        "open road sunset endless horizon vintage travel wandering spirit 4k"
+    ],
+    "devotional": [
+        "divine temple golden spires morning mist sacred brass oil lamp glow 4k",
+        "sacred lotus floating on tranquil holy river sunrise golden reflection 4k",
+        "incense smoke rising brass diya lamp temple bells spiritual peace 4k",
+        "majestic himalayan mountains morning sun rays divine meditation spiritual 4k",
+        "holy river ghats morning prayers brass lamps floating flowers serenity 4k",
+        "ancient temple carving sunlight illuminating deities spiritual aura 4k",
+        "golden temple water reflection sacred dusk peaceful evening aarti 4k",
+        "peacock feathers holy flute sacred flowers divine spiritual backdrop 4k"
+    ]
+}
+
 MOOD_KEYWORDS = {
     "romantic": "romantic couple love golden hour sunset warm bokeh aesthetic dream 4k",
     "sad": "sad lonely heartbreak rain darkness silhouette alone window moody noir 4k",
@@ -290,6 +358,17 @@ MOOD_KEYWORDS = {
     "acoustic": "acoustic guitar indie travel road trip nature mountains horizon aesthetic 4k",
     "devotional": "divine spiritual temple golden rays morning sacred peaceful aesthetic 4k",
 }
+
+CAMERA_MOTION_STYLES = [
+    "zoom_in",
+    "pan_left_to_right",
+    "tilt_up",
+    "zoom_out",
+    "pan_right_to_left",
+    "diagonal_drift_zoom",
+    "tilt_down",
+    "pulse_breathe"
+]
 
 MOOD_FILTERS = {
     "romantic": ["golden_dream", "vintage_film", "teal_orange"],
@@ -951,22 +1030,27 @@ def download_youtube_song_audio(
         ctx = ssl._create_unverified_context() if hasattr(ssl, '_create_unverified_context') else None
 
         search_queries = []
-        if clean_title:
+        if clean_title and clean_singer:
             search_queries.append(f"{clean_singer} {clean_title}".strip())
+            search_queries.append(f"{clean_title} {clean_singer}".strip())
+            search_queries.append(clean_title)
+        elif clean_title:
             search_queries.append(clean_title)
         else:
             search_queries.append(clean_singer)
 
         results = []
         for sq in search_queries:
-            api_url = f"https://www.jiosaavn.com/api.php?__call=search.getResults&q={urllib.parse.quote(sq)}&_format=json&_marker=0&ctx=web6dot0&n=15&p=1"
+            api_url = f"https://www.jiosaavn.com/api.php?__call=search.getResults&q={urllib.parse.quote(sq)}&_format=json&_marker=0&ctx=web6dot0&n=20&p=1"
             req_cdn = urllib.request.Request(api_url, headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'})
             try:
                 with urllib.request.urlopen(req_cdn, context=ctx, timeout=6) as resp_cdn:
                     cdn_data = json.loads(resp_cdn.read().decode('utf-8'))
-                    results = cdn_data.get('results', [])
-                    if results:
-                        break
+                    found = cdn_data.get('results', [])
+                    if found:
+                        results.extend(found)
+                        if len(results) >= 15:
+                            break
             except Exception:
                 pass
 
@@ -977,19 +1061,78 @@ def download_youtube_song_audio(
                 try:
                     with urllib.request.urlopen(req_ac, context=ctx, timeout=5) as resp_ac:
                         ac_data = json.loads(resp_ac.read().decode('utf-8'))
-                        results = ac_data.get('songs', {}).get('data', [])
-                        if results:
+                        found = ac_data.get('songs', {}).get('data', [])
+                        if found:
+                            results.extend(found)
                             break
                 except Exception:
                     pass
 
         if results:
-            if clean_title:
+            # Deduplicate by song id
+            seen_ids = set()
+            unique_results = []
+            for r in results:
+                rid = r.get('id') or r.get('song') or str(r)
+                if rid not in seen_ids:
+                    seen_ids.add(rid)
+                    unique_results.append(r)
+            results = unique_results
+
+            if clean_title or clean_singer:
+                # Rank results to pick the EXACT match for singer and title
+                def score_song_candidate(item: dict) -> float:
+                    cand_title = (item.get('song') or item.get('title') or '').lower()
+                    cand_singers = (item.get('singers') or item.get('primary_artists') or item.get('artist') or '').lower()
+                    score = 0.0
+
+                    # 1. Singer Matching
+                    if clean_singer:
+                        singer_tokens = [w for w in re.findall(r'\w+', clean_singer.lower()) if len(w) > 2]
+                        if singer_tokens:
+                            matches = sum(1 for tok in singer_tokens if tok in cand_singers)
+                            if matches == len(singer_tokens):
+                                score += 120.0  # Perfect singer match!
+                            elif matches > 0:
+                                score += 60.0 * (matches / len(singer_tokens))
+                            else:
+                                score -= 30.0
+
+                    # 2. Title Matching
+                    if clean_title:
+                        title_tokens = [w for w in re.findall(r'\w+', clean_title.lower()) if len(w) > 1]
+                        if title_tokens:
+                            matches = sum(1 for tok in title_tokens if tok in cand_title)
+                            if matches == len(title_tokens):
+                                score += 100.0  # Perfect title match!
+                            elif matches > 0:
+                                score += 50.0 * (matches / len(title_tokens))
+                        clean_cand_title = re.sub(r'\(.*?\)|\[.*?\]', '', cand_title).strip()
+                        if clean_cand_title == clean_title.lower().strip():
+                            score += 40.0
+
+                    # 3. Penalize Unwanted Covers / Remixes / Slowed
+                    combined = f"{cand_title} {cand_singers}"
+                    penalties = ["cover", "karaoke", "instrumental", "acoustic version", "remix", "lofi flip", "reverb", "slowed", "female version", "male version"]
+                    for pen in penalties:
+                        if pen in combined and pen not in (clean_title or '').lower():
+                            score -= 50.0
+
+                    # 4. Streamable media check
+                    if item.get('encrypted_media_url'):
+                        score += 20.0
+
+                    return score
+
+                results.sort(key=score_song_candidate, reverse=True)
                 chosen = results[0]
+                best_score = score_song_candidate(chosen)
+                cand_singers = chosen.get('singers') or chosen.get('primary_artists') or clean_singer
+                chosen_title = re.sub(r'&quot;|&#039;|&amp;', '', chosen.get('song') or chosen.get('title') or clean_title or clean_singer).strip()
+                print(f"🎯 [Song Match Engine] Selected best matching song track: '{chosen_title}' by '{cand_singers}' (Match Score: {best_score:.1f})")
             else:
                 chosen = random.choice(results[:min(8, len(results))])
-
-            chosen_title = re.sub(r'&quot;|&#039;|&amp;', '', chosen.get('song') or chosen.get('title') or clean_singer).strip()
+                chosen_title = re.sub(r'&quot;|&#039;|&amp;', '', chosen.get('song') or chosen.get('title') or clean_singer).strip()
             song_id = chosen.get('id')
             enc_url = chosen.get('encrypted_media_url')
             direct_cdn_url = decrypt_jiosaavn_url(enc_url) if enc_url else None
@@ -1265,6 +1408,14 @@ def build_full_song_video(
     # Mood-based filters and search queries
     candidate_filters = MOOD_FILTERS.get(song_mood, ALL_FILTERS)
     mood_kw = MOOD_KEYWORDS.get(song_mood, "romantic golden hour aesthetic 4k")
+    pool = MOOD_VISUAL_POOLS.get(song_mood, MOOD_VISUAL_POOLS.get("romantic", []))
+
+    # Compute a unique salt for this video so different songs/jobs get different photo rotations
+    effective_title = song_title or audio_res.get('title') or ''
+    effective_singer = singer_name or audio_res.get('singer') or ''
+    clean_singer_str = re.sub(r'[^\w\s]', '', effective_singer).strip()
+    clean_title_str = re.sub(r'[^\w\s]', '', effective_title).strip()
+    job_salt = int(hashlib.md5(f"{job_id}_{clean_title_str}_{clean_singer_str}".encode()).hexdigest(), 16) % 100
 
     from video_fetcher import fetch_videos
     from web_image_fetcher import fetch_web_image
@@ -1277,10 +1428,15 @@ def build_full_song_video(
         seg_end = min(float(target_duration), (seg_idx + 1) * seg_dur if seg_idx < num_segments - 1 else target_duration)
         this_seg_dur = round(seg_end - seg_start, 2)
 
+        # Select distinct visual scene and dynamic camera motion
+        chosen_scene = pool[(seg_idx + job_salt) % len(pool)] if pool else mood_kw
+        chosen_filter = candidate_filters[(seg_idx + job_salt) % len(candidate_filters)]
+        chosen_motion = CAMERA_MOTION_STYLES[(seg_idx + job_salt) % len(CAMERA_MOTION_STYLES)]
+
         # Lines active in this segment
         lines_in_seg = [l for l in all_lyrics if l["start"] < seg_end and l["end"] > seg_start]
-        chosen_filter = candidate_filters[seg_idx % len(candidate_filters)]
-        print(f"\n🎥 [Segment {seg_idx+1}/{num_segments}] Time: {seg_start:.1f}s - {seg_end:.1f}s ({this_seg_dur}s) | Filter: {chosen_filter} | Lyrics lines: {len(lines_in_seg)}")
+        print(f"\n🎥 [Segment {seg_idx+1}/{num_segments}] Time: {seg_start:.1f}s - {seg_end:.1f}s ({this_seg_dur}s) | Motion: {chosen_motion} | Filter: {chosen_filter} | Lyrics lines: {len(lines_in_seg)}")
+        print(f"🖼️ [Segment {seg_idx+1}] Category '{song_mood}' Visual Concept: '{chosen_scene}'")
 
         seg_clip = None
         loaded_raw = None
@@ -1288,7 +1444,7 @@ def build_full_song_video(
         if is_stock_video:
             # 🎥 Stock Video Clip
             v_temp = os.path.join(job_dir, f"stock_vid_{seg_idx}.mp4")
-            v_query = f"{singer_name or song_title or 'music'} {mood_kw}"
+            v_query = f"{chosen_scene}"
             v_paths = fetch_videos(
                 v_query, v_temp,
                 orientation=orientation,
@@ -1328,7 +1484,7 @@ def build_full_song_video(
         if not seg_clip:
             # ⚡ Ultra 3D Photo Motion with Filter & Typewriter Lyrics
             img_path = os.path.join(job_dir, f"bg_photo_{seg_idx}.jpg")
-            photo_query = f"{singer_name or ''} {song_title or ''} {mood_kw}".strip()
+            photo_query = f"{chosen_scene}".strip()
             fetch_web_image(photo_query, img_path)
 
             try:
@@ -1339,17 +1495,17 @@ def build_full_song_video(
             except Exception as e_im:
                 print(f"⚠️ Filter apply note: {e_im}")
 
-            direction = "zoom_in" if seg_idx % 2 == 0 else "zoom_out"
             tw, th = target_size
+            MARGIN = 1.30
             try:
                 orig = Image.open(img_path).convert("RGB")
                 aspect_orig = orig.width / orig.height
                 aspect_target = tw / th
                 if aspect_orig > aspect_target:
-                    new_h = int(th * 1.25)
+                    new_h = int(th * MARGIN)
                     new_w = int(new_h * aspect_orig)
                 else:
-                    new_w = int(tw * 1.25)
+                    new_w = int(tw * MARGIN)
                     new_h = int(new_w / aspect_orig)
                 orig_resized = orig.resize((new_w, new_h), Image.Resampling.LANCZOS)
                 base_np = np.array(orig_resized)
@@ -1358,24 +1514,74 @@ def build_full_song_video(
                 del orig, orig_resized
             except Exception as e_base:
                 print(f"⚠️ Base image load note: {e_base}")
-                base_np = np.zeros((int(th * 1.25), int(tw * 1.25), 3), dtype=np.uint8)
+                base_np = np.zeros((int(th * MARGIN), int(tw * MARGIN), 3), dtype=np.uint8)
                 base_np[:] = (20, 15, 30)
+
+            bw = base_np.shape[1]
+            bh = base_np.shape[0]
 
             def make_motion_frame(t):
                 progress = min(1.0, max(0.0, t / max(0.1, this_seg_dur)))
-                if direction == "zoom_in":
-                    scale = 1.0 + (0.14 * progress)
-                else:
-                    scale = 1.14 - (0.14 * progress)
+                # Smooth cosine ease-in-out
+                ease = 0.5 * (1.0 - math.cos(math.pi * progress))
 
-                cur_w = int(tw * scale)
-                cur_h = int(th * scale)
-                cx = base_np.shape[1] // 2
-                cy = base_np.shape[0] // 2
-                x1 = max(0, cx - cur_w // 2)
-                y1 = max(0, cy - cur_h // 2)
-                x2 = min(base_np.shape[1], x1 + cur_w)
-                y2 = min(base_np.shape[0], y1 + cur_h)
+                if chosen_motion == "zoom_in":
+                    scale = 1.00 + (0.15 * ease)
+                    cur_w = int(tw * scale); cur_h = int(th * scale)
+                    x1 = (bw - cur_w) // 2
+                    y1 = (bh - cur_h) // 2
+                elif chosen_motion == "zoom_out":
+                    scale = 1.15 - (0.15 * ease)
+                    cur_w = int(tw * scale); cur_h = int(th * scale)
+                    x1 = (bw - cur_w) // 2
+                    y1 = (bh - cur_h) // 2
+                elif chosen_motion == "pan_left_to_right":
+                    scale = 1.08
+                    cur_w = int(tw * scale); cur_h = int(th * scale)
+                    avail_x = bw - cur_w
+                    x1 = int(avail_x * (0.15 + 0.70 * ease))
+                    y1 = (bh - cur_h) // 2
+                elif chosen_motion == "pan_right_to_left":
+                    scale = 1.08
+                    cur_w = int(tw * scale); cur_h = int(th * scale)
+                    avail_x = bw - cur_w
+                    x1 = int(avail_x * (0.85 - 0.70 * ease))
+                    y1 = (bh - cur_h) // 2
+                elif chosen_motion == "tilt_up":
+                    scale = 1.08
+                    cur_w = int(tw * scale); cur_h = int(th * scale)
+                    avail_y = bh - cur_h
+                    x1 = (bw - cur_w) // 2
+                    y1 = int(avail_y * (0.85 - 0.70 * ease))
+                elif chosen_motion == "tilt_down":
+                    scale = 1.08
+                    cur_w = int(tw * scale); cur_h = int(th * scale)
+                    avail_y = bh - cur_h
+                    x1 = (bw - cur_w) // 2
+                    y1 = int(avail_y * (0.15 + 0.70 * ease))
+                elif chosen_motion == "diagonal_drift_zoom":
+                    scale = 1.00 + (0.12 * ease)
+                    cur_w = int(tw * scale); cur_h = int(th * scale)
+                    avail_x = bw - cur_w
+                    avail_y = bh - cur_h
+                    x1 = int(avail_x * (0.20 + 0.60 * ease))
+                    y1 = int(avail_y * (0.80 - 0.60 * ease))
+                elif chosen_motion == "pulse_breathe":
+                    breathe = math.sin(progress * math.pi)
+                    scale = 1.00 + (0.10 * breathe)
+                    cur_w = int(tw * scale); cur_h = int(th * scale)
+                    x1 = (bw - cur_w) // 2
+                    y1 = (bh - cur_h) // 2
+                else:
+                    scale = 1.00 + (0.12 * ease)
+                    cur_w = int(tw * scale); cur_h = int(th * scale)
+                    x1 = (bw - cur_w) // 2
+                    y1 = (bh - cur_h) // 2
+
+                x1 = max(0, min(bw - cur_w, x1))
+                y1 = max(0, min(bh - cur_h, y1))
+                x2 = min(bw, x1 + cur_w)
+                y2 = min(bh, y1 + cur_h)
 
                 crop = base_np[y1:y2, x1:x2]
                 im_crop = Image.fromarray(crop).resize((tw, th), Image.Resampling.BILINEAR)
