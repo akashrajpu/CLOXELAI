@@ -14,6 +14,7 @@ import math
 import random
 import subprocess
 import hashlib
+import unicodedata
 from typing import Optional, List, Dict, Any, Tuple
 import gc
 
@@ -381,21 +382,80 @@ MOOD_FILTERS = {
 
 ALL_FILTERS = ["teal_orange", "golden_dream", "moody_noir", "cyber_neon", "vintage_film", "emerald_cinema"]
 
+# Comprehensive Gurmukhi (Punjabi) to Devanagari Hindi transliteration map
+GURMUKHI_TO_DEVANAGARI = {
+    'ੳ': 'उ', 'ਅ': 'अ', 'ਆ': 'आ', 'ੲ': 'इ', 'ਇ': 'इ', 'ਈ': 'ई', 'ਉ': 'उ', 'ਊ': 'ऊ',
+    'ਏ': 'ए', 'ਐ': 'ऐ', 'ਓ': 'ओ', 'ਔ': 'औ',
+    'ਸ': 'स', 'ਹ': 'ह',
+    'ਕ': 'क', 'ਖ': 'ख', 'ਗ': 'ग', 'ਘ': 'घ', 'ਙ': 'ङ',
+    'ਚ': 'च', 'ਛ': 'छ', 'ਜ': 'ज', 'ਝ': 'झ', 'ਞ': 'ञ',
+    'ਟ': 'ट', 'ਠ': 'ठ', 'ਡ': 'ड', 'ਢ': 'ढ', 'ਣ': 'ण',
+    'ਤ': 'त', 'ਥ': 'थ', 'ਦ': 'द', 'ਧ': 'ध', 'ਨ': 'न',
+    'ਪ': 'प', 'ਫ': 'फ', 'ਬ': 'ब', 'ਭ': 'भ', 'ਮ': 'म',
+    'ਯ': 'य', 'ਰ': 'र', 'ਲ': 'ल', 'ਵ': 'व', 'ੜ': 'ड़',
+    'ਸ਼': 'श', 'ਖ਼': 'ख़', 'ਗ਼': 'ग़', 'ਜ਼': 'ज़', 'ਫ਼': 'फ़',
+    'ਾ': 'ा', 'ਿ': 'ि', 'ੀ': 'ी', 'ੁ': 'ु', 'ੂ': 'ू',
+    'ੇ': 'े', 'ੈ': 'ै', 'ੋ': 'ो', 'ੌ': 'ौ',
+    'ਂ': 'ं', 'ੰ': 'ं', 'ੱ': '्', '਼': '़',
+    '੧': '1', '੨': '2', '੩': '3', '੪': '4', '੫': '5',
+    '੬': '6', '੭': '7', '੮': '8', '੯': '9', '੦': '0'
+}
+
+# Comprehensive Urdu to Devanagari Hindi transliteration map
+URDU_TO_DEVANAGARI = {
+    'ا': 'अ', 'آ': 'आ', 'ب': 'ब', 'پ': 'प', 'ت': 'त', 'ٹ': 'ट', 'ث': 'स',
+    'ج': 'ज', 'چ': 'च', 'ح': 'ह', 'خ': 'ख़', 'د': 'द', 'ڈ': 'ड', 'ذ': 'ज़',
+    'ر': 'र', 'ڑ': 'ड़', 'ز': 'ज़', 'ژ': 'झ़', 'س': 'स', 'ش': 'श', 'ص': 'स',
+    'ض': 'ज़', 'ط': 'त', 'ظ': 'ज़', 'ع': 'अ', 'غ': 'ग़', 'ف': 'फ़', 'ق': 'क़',
+    'ک': 'क', 'ك': 'क', 'گ': 'ग', 'ل': 'ल', 'م': 'म', 'ن': 'न', 'ں': 'ं', 'و': 'ओ',
+    'ہ': 'ह', 'ه': 'ह', 'ۂ': 'ह', 'ۃ': 'त', 'ی': 'ई', 'ي': 'ई', 'ے': 'ए', 'ئ': 'ई'
+}
+
 
 def sanitize_lyrics_text(text: str) -> str:
     """
-    Strips all emojis and unprintable unicode symbols that cause [] square boxes in TTF fonts.
-    Preserves English, Hindi (Devanagari), Punjabi (Gurmukhi), and standard punctuation.
+    Bulletproof Lyrics Sanitizer:
+    1. Transliterates Gurmukhi (Punjabi) & Urdu to native Devanagari Hindi so fonts render 100% cleanly.
+    2. Strips raw emojis and unmapped Unicode symbols that trigger tofu [X] boxes.
+    3. Normalizes smart typographic punctuation to standard ASCII.
     """
     if not text:
         return ""
-    # Strip emojis in high surrogates and supplementary private ranges
+    text = unicodedata.normalize('NFC', text)
+
+    # 1. Transliterate Gurmukhi / Punjabi to Devanagari Hindi (handling gemination addak 'ੱ')
+    if any(0x0A00 <= ord(c) <= 0x0A7F for c in text):
+        out = []
+        i = 0
+        chars = list(text)
+        while i < len(chars):
+            c = chars[i]
+            if c == 'ੱ' and i + 1 < len(chars):
+                nxt = GURMUKHI_TO_DEVANAGARI.get(chars[i+1], chars[i+1])
+                out.append(nxt)
+                out.append('्')
+            elif c in GURMUKHI_TO_DEVANAGARI:
+                out.append(GURMUKHI_TO_DEVANAGARI[c])
+            else:
+                out.append(c)
+            i += 1
+        text = ''.join(out)
+
+    # 2. Transliterate Urdu / Arabic to Devanagari Hindi
+    if any(0x0600 <= ord(c) <= 0x06FF for c in text):
+        text = ''.join(URDU_TO_DEVANAGARI.get(c, c) for c in text)
+
+    # 3. Clean typographic quotes, dashes, and smart punctuation
+    text = text.replace('‘', "'").replace('’', "'").replace('“', '"').replace('”', '"')
+    text = text.replace('—', '-').replace('–', '-').replace('…', '...')
+
+    # 4. Strip emojis in high surrogates and supplementary private ranges
     text = re.sub(r'[\U00010000-\U0010ffff]', '', text)
     text = re.sub(r'[\uD800-\uDFFF]', '', text)
-    # Strip other pictographic / symbol unicode ranges
     text = re.sub(r'[\u2600-\u27BF\u2300-\u23FF\u2B50\u200D\uFE0F]', '', text)
-    # Allow alphanumeric, Hindi Devanagari (\u0900-\u097F), Punjabi (\u0A00-\u0A7F), and punctuation
-    text = re.sub(r'[^\w\s\.,\'"!\?\-—\u0900-\u097F\u0A00-\u0A7F]', '', text)
+
+    # 5. Allow alphanumeric, Hindi Devanagari (\u0900-\u097F), and standard punctuation only
+    text = re.sub(r'[^\w\s\.,\'"!\?\-—\u0900-\u097F]', '', text)
     return " ".join(text.split()).strip()
 
 
@@ -574,31 +634,33 @@ def fetch_song_synced_lyrics(
 
         if filtered:
             print(f"🎤 [Song Engine] Found {len(filtered)} synced lyric lines for '{display_title}'!")
-            intro_gap = filtered[0][0]
-            # Handle intro smoothly without leaving long 20-second dead gaps
+            VOCAL_LEAD_OFFSET = 0.50  # 500ms pre-roll lead so lyrics start typing right before vocal chord strikes
+            intro_gap = max(0.0, filtered[0][0] - VOCAL_LEAD_OFFSET)
+            # Handle intro smoothly without leaving long dead gaps
             if intro_gap > 3.0:
-                result.append({"start": 0.0, "end": min(3.5, intro_gap), "text": display_title})
-                if intro_gap > 7.0:
-                    result.append({"start": 3.5, "end": min(7.0, intro_gap), "text": display_artist})
+                result.append({"start": 0.0, "end": min(3.0, intro_gap), "text": display_title})
+                if intro_gap > 6.0:
+                    result.append({"start": 3.0, "end": min(6.0, intro_gap), "text": display_artist})
                 # If intro has a very long instrumental gap before singing and we have official lyrics:
-                if intro_gap > 12.0 and official_lyrics:
-                    gap_rem = intro_gap - 7.0
-                    n_gap_lines = min(len(official_lyrics), max(1, int(gap_rem / 4.0)))
+                if intro_gap > 10.0 and official_lyrics:
+                    gap_rem = intro_gap - 6.0
+                    n_gap_lines = min(len(official_lyrics), max(1, int(gap_rem / 3.8)))
                     gap_step = round(gap_rem / n_gap_lines, 2)
                     for g_idx in range(n_gap_lines):
-                        g_st = round(7.0 + (g_idx * gap_step), 2)
+                        g_st = round(6.0 + (g_idx * gap_step), 2)
                         g_et = round(min(intro_gap, g_st + gap_step), 2)
-                        result.append({"start": g_st, "end": g_et, "text": official_lyrics[g_idx]})
+                        result.append({"start": g_st, "end": g_et, "text": sanitize_lyrics_text(official_lyrics[g_idx])})
 
             for i, (t_sec, txt) in enumerate(filtered):
+                st = max(0.0, round(t_sec - VOCAL_LEAD_OFFSET, 2))
                 if i + 1 < len(filtered):
-                    next_t = filtered[i+1][0]
-                    dur = min(6.0, max(2.5, next_t - t_sec))
-                    end_t = min(float(target_duration), t_sec + dur)
+                    next_st = max(0.0, round(filtered[i+1][0] - VOCAL_LEAD_OFFSET, 2))
+                    dur = min(5.5, max(2.0, next_st - st))
+                    end_t = min(float(target_duration), round(min(next_st, st + dur), 2))
                 else:
-                    end_t = min(float(target_duration), t_sec + 4.5)
-                if t_sec < target_duration:
-                    result.append({"start": t_sec, "end": max(t_sec + 2.0, end_t), "text": txt})
+                    end_t = min(float(target_duration), round(st + 4.2, 2))
+                if st < target_duration:
+                    result.append({"start": st, "end": max(st + 1.8, end_t), "text": txt})
 
     # Step 3: If LRCLIB had no synced lyrics or had very few lines, use Official JioSaavn / Plain Lyrics!
     if (not result or len(result) < 3):
@@ -609,14 +671,14 @@ def fetch_song_synced_lyrics(
         if active_lyrics_lines:
             print(f"📝 [Song Engine] Using {len(active_lyrics_lines)} authentic song lyrics lines for '{display_title}'!")
             result = []
-            intro_end = 3.5
+            intro_end = 3.0
             result.append({"start": 0.0, "end": intro_end, "text": display_title})
             if target_duration >= 40:
-                result.append({"start": 3.5, "end": 6.5, "text": display_artist})
-                intro_end = 6.5
+                result.append({"start": 3.0, "end": 5.5, "text": display_artist})
+                intro_end = 5.5
 
             rem_dur = target_duration - intro_end
-            line_pacing = 3.8
+            line_pacing = 3.5
             n_show = min(len(active_lyrics_lines), max(3, int(rem_dur / line_pacing)))
             chosen_lines = active_lyrics_lines[:n_show]
             step = round(rem_dur / len(chosen_lines), 2)
@@ -666,11 +728,13 @@ def render_typewriter_lyrics_on_frame(
         return im_frame
 
     line_dur = max(0.5, line_info.get("end", 4.0) - line_info.get("start", 0.0))
-    # Typewriter typing progression
-    type_p = min(1.0, max(0.0, local_t / max(0.4, line_dur * 0.65)))
+    # Snappy typewriter progression:
+    # Reveals full text briskly within 0.8s - 1.0s so words appear immediately in sync with vocals!
+    typing_speed_dur = min(1.0, max(0.5, line_dur * 0.28))
+    type_p = min(1.0, max(0.0, local_t / typing_speed_dur))
     chars_count = max(1, int(len(full_text) * type_p))
     display_text = full_text[:chars_count]
-    if type_p < 1.0 and (int(local_t * 5) % 2 == 0):
+    if type_p < 1.0 and (int(local_t * 6) % 2 == 0):
         display_text += "|"
 
     # Font sizing & loading with automatic glyph safety check
@@ -697,6 +761,13 @@ def render_typewriter_lyrics_on_frame(
             loaded_font = ImageFont.truetype("./fonts/Mukta-Bold.ttf", font_size)
         except Exception:
             loaded_font = ImageFont.load_default()
+
+    # Bulletproof Tofu Box Prevention: Strip any character that would produce .notdef in loaded_font
+    notdef_mask = bytes(loaded_font.getmask('\uFFFF'))
+    if len(notdef_mask) > 0:
+        display_text = "".join(c for c in display_text if c.isspace() or ord(c) < 32 or c == '|' or bytes(loaded_font.getmask(c)) != notdef_mask)
+    if not display_text.strip():
+        display_text = full_text
 
     # Load high-definition expression emoji icon
     emoji_size = max(22, int(font_size * 0.92))
@@ -837,8 +908,6 @@ def render_typewriter_lyrics_on_frame(
                 im_frame.paste(emoji_img, (em_x, em_y), emoji_img)
             except Exception:
                 pass
-
-    return im_frame
 
     return im_frame
 
@@ -1378,15 +1447,20 @@ def build_full_song_video(
     # Assign rotating safe fonts, dynamic positions, accent colors, randomized background styles, and expression emojis
     for idx, lyr in enumerate(all_lyrics):
         line_txt = lyr.get("text", "")
-        chosen_font = font_candidates[idx % len(font_candidates)]
-        # Ensure the selected font actually supports the text characters
-        if not font_supports_text(chosen_font, line_txt):
-            for fallback_f in CINEMATIC_FONTS_POOL:
-                if font_supports_text(fallback_f, line_txt):
-                    chosen_font = fallback_f
-                    break
-            else:
-                chosen_font = "./fonts/Mukta-Bold.ttf"
+        line_has_hindi = any(0x0900 <= ord(c) <= 0x097F for c in line_txt)
+        if line_has_hindi:
+            # Strictly select from fonts verified to render Hindi Devanagari natively
+            hindi_pool = [f for f in CINEMATIC_FONTS_POOL if os.path.exists(f) and font_supports_text(f, line_txt)]
+            chosen_font = hindi_pool[idx % len(hindi_pool)] if hindi_pool else "./fonts/Mukta-Bold.ttf"
+        else:
+            chosen_font = font_candidates[idx % len(font_candidates)]
+            if not font_supports_text(chosen_font, line_txt):
+                for fallback_f in CINEMATIC_FONTS_POOL:
+                    if font_supports_text(fallback_f, line_txt):
+                        chosen_font = fallback_f
+                        break
+                else:
+                    chosen_font = "./fonts/Mukta-Bold.ttf"
 
         lyr["font_path"] = chosen_font
         lyr["position"] = TEXT_POSITIONS[idx % len(TEXT_POSITIONS)]
