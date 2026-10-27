@@ -306,7 +306,7 @@ function App() {
   const [songVisualMode, setSongVisualMode] = useState('motion'); // 'motion' | 'video'
   const [songLyrics, setSongLyrics] = useState('');
   const [songMood, setSongMood] = useState('romantic'); // 'romantic' | 'sad' | 'party' | 'lofi' | 'acoustic' | 'devotional'
-  const isSongVideoMode = videoType === 'ultra' && (category === '🎵 Song Video' || (category || '').toLowerCase().includes('song video'));
+  const isSongVideoMode = (category === '🎵 Song Video' || (category || '').toLowerCase().includes('song video') || (category || '').toLowerCase().includes('song'));
 
   const [scenes, setScenes] = useState([
     { text: '', keyword: '' },
@@ -1208,7 +1208,7 @@ function App() {
           voice_id: voiceId,
           language: voiceId && voiceId.startsWith('en') ? 'en' : 'hi',
           video_type: videoType,
-          full_script: isSongVideoMode ? (songLyrics || '') : fullScript,
+          full_script: isSongVideoMode ? '' : fullScript,
           bg_music: bgMusic,
           user_id: userId,
           mode: videoType === 'ultra' ? (isSongVideoMode ? songVisualMode : generationMode) : 'standard',
@@ -1220,7 +1220,7 @@ function App() {
           singer_name: singerName,
           song_title: songTitle,
           song_visual_mode: songVisualMode,
-          song_lyrics: songLyrics,
+          song_lyrics: isSongVideoMode ? (songLyrics || '') : '',
           song_mood: songMood,
           uploaded_audio_path: uploadedAudioPath
         })
