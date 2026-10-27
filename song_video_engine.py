@@ -791,10 +791,12 @@ def fetch_song_synced_lyrics(
     if lines:
         first_vocal_sec = lines[0][0]
         # In short video mode (<= 35s), if singing starts late (e.g. at 18.5s like Tera Zikr),
-        # fast-forward audio and lyrics so viewer hears the song with a clean 3.5s intro!
-        if target_duration <= 35 and first_vocal_sec > 7.5:
-            audio_start_offset = max(0.0, round(first_vocal_sec - 3.5, 2))
-            print(f"⚡ [Song Engine] Smart Reel Sync: Vocals begin at {first_vocal_sec:.1f}s. Shifting audio offset by {audio_start_offset:.2f}s for high-energy start!")
+        # fast-forward audio and lyrics so viewer hears the song with 1.5s of tune before vocals hit!
+        if target_duration <= 35 and first_vocal_sec > 6.0:
+            audio_start_offset = max(0.0, round(first_vocal_sec - 1.5, 2))
+            print(f"⚡ [Song Engine] Smart Reel Sync: Vocals begin at {first_vocal_sec:.1f}s. Shifting audio offset by {audio_start_offset:.2f}s for punchy vocal start!")
+        else:
+            audio_start_offset = 0.0
 
         # Shift timestamps according to audio_start_offset
         shifted_lines = []
@@ -808,32 +810,28 @@ def fetch_song_synced_lyrics(
             shifted_lines = [(round(l[0] - audio_start_offset, 2), l[1]) for l in lines[:min(14, len(lines))]]
 
         if shifted_lines:
-            VOCAL_LEAD_OFFSET = 0.40  # 400ms pre-roll lead so typing starts right as vocal hits
-            intro_gap = max(0.0, shifted_lines[0][0] - VOCAL_LEAD_OFFSET)
-
-            # Intro card(s)
-            if intro_gap > 2.5:
-                result.append({"start": 0.0, "end": min(3.5, intro_gap), "text": f"🎵 {display_title}"})
-                if intro_gap > 5.5:
-                    result.append({"start": 3.5, "end": min(6.5, intro_gap), "text": f"🎙️ {display_artist}"})
-                if intro_gap > 9.5:
-                    result.append({"start": 6.5, "end": min(10.0, intro_gap), "text": "✨ Melodic Symphony"})
-
+            # VOCAL-ONLY TIMING: NO TEXT during intro tune or musical gaps!
+            # Only display text while the singer is actively vocalizing.
+            VOCAL_LEAD_OFFSET = 0.25
             for i, (t_sec, txt) in enumerate(shifted_lines):
                 st = max(0.0, round(t_sec - VOCAL_LEAD_OFFSET, 2))
+                if st >= target_duration:
+                    break
+                n_words = len(txt.split())
+                singing_dur = max(2.4, min(4.4, n_words * 0.44 + 0.8))
                 if i + 1 < len(shifted_lines):
                     next_st = max(0.0, round(shifted_lines[i+1][0] - VOCAL_LEAD_OFFSET, 2))
-                    dur = min(5.5, max(2.2, next_st - st))
-                    end_t = min(float(target_duration), round(min(next_st, st + dur), 2))
+                    gap = next_st - st
+                    # Leave gap during tune: text vanishes as soon as vocal line finishes!
+                    et = round(min(float(target_duration), st + min(singing_dur, max(1.8, gap - 0.8))), 2)
                 else:
-                    end_t = min(float(target_duration), round(st + 4.2, 2))
-                if st < target_duration:
-                    result.append({"start": st, "end": max(st + 1.8, end_t), "text": txt})
+                    et = round(min(float(target_duration), st + singing_dur), 2)
+                result.append({"start": st, "end": et, "text": txt})
 
-            print(f"🎤 [Song Engine] Prepared {len(result)} synchronized lyric lines for '{display_title}'!")
+            print(f"🎤 [Song Engine] Prepared {len(result)} synchronized vocal-only lyric lines for '{display_title}'!")
 
     # Step 5: Fallback to Curated DB, JioSaavn Official, or Plain Lyrics
-    vocal_count = len([r for r in result if not r.get("text", "").startswith("🎵") and not r.get("text", "").startswith("🎙️")])
+    vocal_count = len(result)
     if not result or vocal_count < 2:
         active_lyrics_lines = curated_lyrics or official_lyrics
         if not active_lyrics_lines and plain_lrc:
@@ -843,43 +841,22 @@ def fetch_song_synced_lyrics(
             print(f"📝 [Song Engine] Using {len(active_lyrics_lines)} authentic song lyrics lines for '{display_title}'!")
             result = []
             audio_start_offset = 0.0
-            intro_end = 3.8 if target_duration < 35 else 5.5
-            result.append({"start": 0.0, "end": 3.8, "text": f"🎵 {display_title}"})
-            if target_duration >= 35:
-                result.append({"start": 3.8, "end": 5.5, "text": f"🎙️ {display_artist}"})
-
-            rem_dur = target_duration - intro_end
-            line_pacing = 3.8
-            n_show = min(len(active_lyrics_lines), max(2, int(round(rem_dur / line_pacing))))
-            chosen_lines = active_lyrics_lines[:n_show]
-            step = round(rem_dur / len(chosen_lines), 2)
-            for idx, txt in enumerate(chosen_lines):
-                st = round(intro_end + (idx * step), 2)
-                et = round(min(float(target_duration), st + step), 2)
-                result.append({"start": st, "end": et, "text": txt})
+            # Intro musical tune: Leave first 3.5s - 4.0s completely clear of text (NO text during intro tune!)
+            intro_silence = 3.5 if target_duration <= 25 else 4.2
+            rem_dur = target_duration - intro_silence
+            n_show = min(len(active_lyrics_lines), max(2, int(round(rem_dur / 5.2))))
+            slot = round(rem_dur / n_show, 2)
+            for idx in range(n_show):
+                st = round(intro_silence + (idx * slot), 2)
+                vocal_dur = min(3.6, max(2.2, slot - 1.2))
+                et = round(min(float(target_duration), st + vocal_dur), 2)
+                result.append({"start": st, "end": et, "text": active_lyrics_lines[idx]})
 
     # Step 6: Pure Instrumental Fallback (Only if no lyrics found anywhere on Earth)
     if not result:
-        print(f"🎵 [Song Engine] Generating dynamic clean typography title cards for '{display_title}'...")
+        print(f"🎵 [Song Engine] Pure instrumental / tune playback for '{display_title}'. Screen will stay clean without fake text.")
         audio_start_offset = 0.0
-        hook_cards = [
-            f"🎵 {display_title}",
-            f"🎙️ {display_artist}",
-            f"✨ {display_title} — Feel The Rhythm",
-            f"Official Edition • {display_title}",
-            f"{clean_s or 'Artist'} Official",
-            f"Beats In Sync • {display_title}",
-            "Acoustic & Melodic Symphony",
-            f"Cinematic Soul • {display_title}",
-            "Lost In The Music",
-            f"Masterpiece Edition • {display_title}"
-        ]
-        n_cards = max(4, int(round(target_duration / 4.0)))
-        base_dur = round(target_duration / n_cards, 2)
-        for idx in range(n_cards):
-            st = round(idx * base_dur, 2)
-            et = round(min(float(target_duration), (idx + 1) * base_dur if idx < n_cards - 1 else target_duration), 2)
-            result.append({"start": st, "end": et, "text": hook_cards[idx % len(hook_cards)]})
+        result = []
 
     return result, audio_start_offset
 
@@ -1399,19 +1376,24 @@ def download_youtube_song_audio(
 
             if direct_cdn_url and direct_cdn_url.startswith('http'):
                 hd_cdn_url = direct_cdn_url.replace('_96.mp4', '_320.mp4').replace('_160.mp4', '_320.mp4')
-                print(f"🎉 [Song Engine] Found Studio Master CDN Stream: '{chosen_title}' by {clean_singer} -> {hd_cdn_url}")
+                cand_singers = chosen.get('singers') or chosen.get('primary_artists') or clean_singer
+                print(f"🎉 [Song Engine] Found Studio Master CDN Stream: '{chosen_title}' by {cand_singers} -> {hd_cdn_url}")
                 temp_raw_audio = os.path.join(target_dir, "raw_cdn_audio.mp4")
 
-                try:
-                    dl_req = urllib.request.Request(hd_cdn_url, headers={'User-Agent': 'Mozilla/5.0'})
-                    with urllib.request.urlopen(dl_req, context=ctx, timeout=20) as r_dl, open(temp_raw_audio, 'wb') as f_out:
-                        f_out.write(r_dl.read())
-                except Exception:
-                    dl_req = urllib.request.Request(direct_cdn_url, headers={'User-Agent': 'Mozilla/5.0'})
-                    with urllib.request.urlopen(dl_req, context=ctx, timeout=20) as r_dl, open(temp_raw_audio, 'wb') as f_out:
-                        f_out.write(r_dl.read())
+                import shutil
+                downloaded_ok = False
+                for stream_url in [hd_cdn_url, direct_cdn_url.replace('_96.mp4', '_160.mp4'), direct_cdn_url]:
+                    try:
+                        dl_req = urllib.request.Request(stream_url, headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'})
+                        with urllib.request.urlopen(dl_req, context=ctx, timeout=25) as r_dl, open(temp_raw_audio, 'wb') as f_out:
+                            shutil.copyfileobj(r_dl, f_out)
+                        if os.path.exists(temp_raw_audio) and os.path.getsize(temp_raw_audio) > 5000:
+                            downloaded_ok = True
+                            break
+                    except Exception:
+                        pass
 
-                if os.path.exists(temp_raw_audio) and os.path.getsize(temp_raw_audio) > 5000:
+                if downloaded_ok and os.path.exists(temp_raw_audio) and os.path.getsize(temp_raw_audio) > 5000:
                     conv_cmd = [
                         "ffmpeg", "-y", "-i", temp_raw_audio,
                         "-vn", "-acodec", "libmp3lame", "-q:a", "2",
@@ -1432,7 +1414,7 @@ def download_youtube_song_audio(
                     return {
                         "audio_path": target_path,
                         "title": chosen_title,
-                        "singer": clean_singer,
+                        "singer": cand_singers or clean_singer,
                         "duration": exact_dur,
                         "song_id": song_id,
                         "lyrics_lines": jio_lyrics_lines
@@ -1504,9 +1486,9 @@ def download_youtube_song_audio(
         if os.path.exists(fb):
             import shutil
             shutil.copy2(fb, target_path)
-            return {"audio_path": target_path, "title": clean_title or clean_singer or extracted_title, "singer": clean_singer or "Artist", "duration": 60.0}
+            return {"audio_path": target_path, "title": clean_title or clean_singer or extracted_title, "singer": clean_singer or "Artist", "duration": 60.0, "is_instrumental_fallback": True}
 
-    return {"audio_path": target_path, "title": clean_title or clean_singer or extracted_title, "singer": clean_singer or "Artist", "duration": 60.0}
+    return {"audio_path": target_path, "title": clean_title or clean_singer or extracted_title, "singer": clean_singer or "Artist", "duration": 60.0, "is_instrumental_fallback": True}
 
 
 def generate_song_lyric_scenes(
@@ -1595,18 +1577,22 @@ def build_full_song_video(
         and not any(tag in user_explicit_lyrics.lower() for tag in ['chapter', 'scene 1', 'voiceover', 'title:'])
     )
 
-    if has_custom_lyrics:
+    if audio_res.get('is_instrumental_fallback'):
+        print(f"ℹ️ [Song Engine] Instrumental background audio track active. Keeping screen clean without fake lyrics.")
+        all_lyrics = []
+        audio_start_offset = 0.0
+    elif has_custom_lyrics:
         print(f"📝 [Song Engine] Using {len(user_explicit_lyrics.splitlines())} user-provided custom lyrics lines...")
         custom_raw = [sanitize_lyrics_text(l) for l in user_explicit_lyrics.splitlines() if len(l.strip()) > 1]
         all_lyrics = []
-        intro_end = 3.5 if target_duration >= 15 else 1.5
-        all_lyrics.append({"start": 0.0, "end": intro_end, "text": f"🎵 {exact_song_title}"})
-        rem_dur = target_duration - intro_end
+        intro_silence = 3.0 if target_duration <= 25 else 4.0
+        rem_dur = target_duration - intro_silence
         n_cust = max(1, len(custom_raw))
-        step = round(rem_dur / n_cust, 2)
+        slot = round(rem_dur / n_cust, 2)
         for idx, txt in enumerate(custom_raw):
-            st = round(intro_end + (idx * step), 2)
-            et = round(min(float(target_duration), st + step), 2)
+            st = round(intro_silence + (idx * slot), 2)
+            vocal_dur = min(3.8, max(2.2, slot - 1.2))
+            et = round(min(float(target_duration), st + vocal_dur), 2)
             all_lyrics.append({"start": st, "end": et, "text": txt})
         audio_start_offset = 0.0
     else:
