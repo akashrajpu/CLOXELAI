@@ -1,11 +1,4 @@
-"""
-=============================================================================
-CLOXEL AI - ULTRA SONG & MUSIC VIDEO ENGINE
-=============================================================================
-Automated YouTube Song Audio Downloader, Synced Lyrics Extractor & 
-Dual-Engine (Stock Video Clips / 3D Photo Motion) Music Video Generator.
-=============================================================================
-"""
+
 
 import os
 import re
