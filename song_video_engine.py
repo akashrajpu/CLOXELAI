@@ -1827,7 +1827,9 @@ def build_full_song_video(
         print(f"🖼️ [Segment {seg_idx+1}] Category '{song_mood}' Visual Concept: '{chosen_scene}'")
 
         seg_clip = None
-        loaded_raw = None
+        v_base = None
+        prep_clip_path = None
+        v_paths = None
 
         if is_stock_video:
             # 🎥 Stock Video Clip
@@ -1842,30 +1844,43 @@ def build_full_song_video(
             )
             if v_paths and os.path.exists(v_paths[0]) and os.path.getsize(v_paths[0]) > 5000:
                 try:
-                    loaded_raw = VideoFileClip(v_paths[0], audio=False)
-                    loaded = loaded_raw.resize(height=target_size[1]) if loaded_raw.h < target_size[1] else loaded_raw.resize(width=target_size[0])
-                    loaded = loaded.crop(x_center=loaded.w/2, y_center=loaded.h/2, width=target_size[0], height=target_size[1])
-                    if loaded.duration < this_seg_dur:
-                        n_loops = int(math.ceil(this_seg_dur / loaded.duration))
-                        v_base = concatenate_videoclips([loaded] * n_loops).subclip(0, this_seg_dur)
-                    else:
-                        v_base = loaded.subclip(0, this_seg_dur)
+                    tw, th = target_size
+                    prep_clip_path = os.path.join(job_dir, f"prep_stock_{seg_idx}.mp4")
+                    # Memory-Safe: Use FFmpeg C-binary (< 20MB RAM) to scale, center crop and loop
+                    ff_prep = [
+                        "ffmpeg", "-y",
+                        "-stream_loop", "3",
+                        "-i", v_paths[0],
+                        "-t", str(this_seg_dur),
+                        "-vf", f"scale={tw}:{th}:force_original_aspect_ratio=increase,crop={tw}:{th}",
+                        "-c:v", "libx264",
+                        "-preset", "ultrafast",
+                        "-threads", "1",
+                        "-an",
+                        prep_clip_path
+                    ]
+                    subprocess.run(ff_prep, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
-                    def make_video_frame(t):
-                        orig_frame = v_base.get_frame(t)
-                        im_f = Image.fromarray(orig_frame)
-                        abs_t = seg_start + t
-                        active_line = None
-                        for l in lines_in_seg:
-                            if l["start"] <= abs_t < l["end"]:
-                                active_line = l
-                                break
-                        if active_line:
-                            local_t = abs_t - active_line["start"]
-                            im_f = render_typewriter_lyrics_on_frame(im_f, active_line, local_t, target_size[0], target_size[1])
-                        return np.array(im_f)
+                    if os.path.exists(prep_clip_path) and os.path.getsize(prep_clip_path) > 1000:
+                        v_base = VideoFileClip(prep_clip_path, audio=False)
 
-                    seg_clip = VideoClip(make_video_frame, duration=this_seg_dur)
+                        def make_video_frame(t):
+                            orig_frame = v_base.get_frame(t)
+                            im_f = Image.fromarray(orig_frame)
+                            abs_t = seg_start + t
+                            active_line = None
+                            for l in lines_in_seg:
+                                if l["start"] <= abs_t < l["end"]:
+                                    active_line = l
+                                    break
+                            if active_line:
+                                local_t = abs_t - active_line["start"]
+                                im_f = render_typewriter_lyrics_on_frame(im_f, active_line, local_t, tw, th)
+                            frame_arr = np.array(im_f)
+                            im_f.close()
+                            return frame_arr
+
+                        seg_clip = VideoClip(make_video_frame, duration=this_seg_dur)
                 except Exception as e_v:
                     print(f"⚠️ Stock video clip load note: {e_v}")
 
@@ -2004,11 +2019,24 @@ def build_full_song_video(
         )
 
         try:
-            seg_clip.close()
-            if loaded_raw: loaded_raw.close()
+            if seg_clip:
+                seg_clip.close()
+            if v_base:
+                v_base.close()
         except Exception:
             pass
+
+        # Free disk and RAM immediately to prevent Render 512MB RAM OOM crashes
+        if is_stock_video:
+            if v_paths and os.path.exists(v_paths[0]):
+                try: os.remove(v_paths[0])
+                except Exception: pass
+            if prep_clip_path and os.path.exists(prep_clip_path):
+                try: os.remove(prep_clip_path)
+                except Exception: pass
+
         del seg_clip
+        del v_base
         release_system_memory()
 
         if os.path.exists(scene_mp4) and os.path.getsize(scene_mp4) > 1000:
