@@ -740,16 +740,20 @@ def fetch_song_synced_lyrics(
     clean_t = re.sub(r'[\(\[\{].*?[\)\]\}]', '', song_title).split('|')[0].strip()
     clean_t = re.sub(r'[^\w\s]', '', clean_t).strip()
     clean_s = re.sub(r'[^\w\s]', '', singer_name).strip()
+    norm_s = normalize_singer_name(clean_s)
+    active_s = norm_s or clean_s
 
     display_title = clean_t or "Official Soundtrack"
-    display_artist = clean_s or "Special"
+    display_artist = active_s or "Special"
 
     import urllib.request, urllib.parse, ssl, json
     ctx = ssl._create_unverified_context() if hasattr(ssl, '_create_unverified_context') else None
     browser_headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"}
 
     # Step 1: Check curated top hits lyrics
-    curated_lyrics = get_curated_lyrics(clean_t, clean_s)
+    curated_lyrics = get_curated_lyrics(clean_t, active_s)
+    if not curated_lyrics and clean_s and clean_s != active_s:
+        curated_lyrics = get_curated_lyrics(clean_t, clean_s)
     if curated_lyrics:
         print(f"🌟 [Song Engine] Retrieved authentic master studio lyrics from Curated DB for '{display_title}'!")
 
@@ -777,15 +781,17 @@ def fetch_song_synced_lyrics(
 
     if clean_t:
         # 3a. Direct get if title and singer known
-        if clean_s:
+        for s_cand in filter(None, [active_s, clean_s]):
+            if raw_lrc:
+                break
             try:
-                get_url = f"https://lrclib.net/api/get?track_name={urllib.parse.quote(clean_t)}&artist_name={urllib.parse.quote(clean_s)}"
+                get_url = f"https://lrclib.net/api/get?track_name={urllib.parse.quote(clean_t)}&artist_name={urllib.parse.quote(s_cand)}"
                 req_get = urllib.request.Request(get_url, headers=browser_headers)
                 with urllib.request.urlopen(req_get, context=ctx, timeout=7) as r_get:
                     get_data = json.loads(r_get.read().decode())
                     if get_data.get("syncedLyrics"):
                         raw_lrc = get_data["syncedLyrics"]
-                    elif get_data.get("plainLyrics"):
+                    elif get_data.get("plainLyrics") and not plain_lrc:
                         plain_lrc = get_data["plainLyrics"]
             except Exception:
                 pass
@@ -793,13 +799,15 @@ def fetch_song_synced_lyrics(
         # 3b. Search LRCLIB if direct get didn't yield syncedLyrics
         if not raw_lrc:
             search_queries = []
-            if clean_s and clean_t:
-                search_queries.append(f"{clean_s} {clean_t}".strip())
-                search_queries.append(f"{clean_t} {clean_s}".strip())
+            if active_s and clean_t:
+                search_queries.append(f"{active_s} {clean_t}".strip())
+                search_queries.append(f"{clean_t} {active_s}".strip())
+                if clean_s and clean_s != active_s:
+                    search_queries.append(f"{clean_s} {clean_t}".strip())
             elif clean_t:
                 search_queries.append(clean_t)
             else:
-                search_queries.append(clean_s)
+                search_queries.append(active_s)
 
             for sq in search_queries:
                 try:
@@ -821,7 +829,7 @@ def fetch_song_synced_lyrics(
                                     for t in track_tokens
                                 )
 
-                            artist_tokens = [w for w in re.findall(r'\w+', clean_s.lower()) if len(w) > 2]
+                            artist_tokens = [w for w in re.findall(r'\w+', (active_s or clean_s).lower()) if len(w) > 2]
                             artist_match = True
                             if artist_tokens:
                                 artist_match = any(
@@ -1231,26 +1239,258 @@ def get_clean_youtube_metadata(song_url: str) -> Dict[str, str]:
         }
 
 
+POPULAR_SINGER_CANONICAL: Dict[str, str] = {
+    "darshan raval": "Darshan Raval",
+    "darsan ravel": "Darshan Raval",
+    "darsan raval": "Darshan Raval",
+    "darshan ravel": "Darshan Raval",
+    "arijit singh": "Arijit Singh",
+    "arijit shing": "Arijit Singh",
+    "arijit shingh": "Arijit Singh",
+    "arijeet singh": "Arijit Singh",
+    "jubin nautiyal": "Jubin Nautiyal",
+    "jubin noutiyal": "Jubin Nautiyal",
+    "jubin nautial": "Jubin Nautiyal",
+    "neha kakkar": "Neha Kakkar",
+    "neha kakar": "Neha Kakkar",
+    "sonu nigam": "Sonu Nigam",
+    "kumar sanu": "Kumar Sanu",
+    "kumar shanu": "Kumar Sanu",
+    "udit narayan": "Udit Narayan",
+    "alka yagnik": "Alka Yagnik",
+    "alaka yagnik": "Alka Yagnik",
+    "shreya ghoshal": "Shreya Ghoshal",
+    "shreya ghosal": "Shreya Ghoshal",
+    "atif aslam": "Atif Aslam",
+    "atif ashlam": "Atif Aslam",
+    "mohit chauhan": "Mohit Chauhan",
+    "badshah": "Badshah",
+    "yo yo honey singh": "Yo Yo Honey Singh",
+    "honey singh": "Yo Yo Honey Singh",
+    "sidhu moose wala": "Sidhu Moose Wala",
+    "sidhu moosewala": "Sidhu Moose Wala",
+    "sidhu musewala": "Sidhu Moose Wala",
+    "anuradha paudwal": "Anuradha Paudwal",
+    "anuradha podwal": "Anuradha Paudwal",
+    "hariharan": "Hariharan",
+    "armaan malik": "Armaan Malik",
+    "b praak": "B Praak",
+    "bpraak": "B Praak",
+    "diljit dosanjh": "Diljit Dosanjh",
+    "diljit": "Diljit Dosanjh",
+    "guru randhawa": "Guru Randhawa",
+    "king": "King",
+    "vishal mishra": "Vishal Mishra",
+    "shankar mahadevan": "Shankar Mahadevan",
+    "kk": "KK",
+    "shaan": "Shaan",
+    "sunidhi chauhan": "Sunidhi Chauhan",
+}
+
+
+def normalize_singer_name(singer: str) -> str:
+    """
+    Normalizes common phonetic misspellings of singer names to their official industry spelling.
+    E.g. 'darsan ravel' -> 'Darshan Raval', 'arijit shing' -> 'Arijit Singh'.
+    """
+    if not singer:
+        return ""
+    clean = re.sub(r'[^\w\s]', '', singer).strip().lower()
+    if clean in POPULAR_SINGER_CANONICAL:
+        return POPULAR_SINGER_CANONICAL[clean]
+    for k, v in POPULAR_SINGER_CANONICAL.items():
+        if difflib.SequenceMatcher(None, clean, k).ratio() >= 0.82:
+            return v
+    return singer.strip()
+
+
+# ==============================================================================
+# Pure Python DES Decryptor (Zero External C-Dependency Fallback for JioSaavn CDN)
+# ==============================================================================
+_DES_IP = [
+    58, 50, 42, 34, 26, 18, 10, 2, 60, 52, 44, 36, 28, 20, 12, 4,
+    62, 54, 46, 38, 30, 22, 14, 6, 64, 56, 48, 40, 32, 24, 16, 8,
+    57, 49, 41, 33, 25, 17, 9, 1, 59, 51, 43, 35, 27, 19, 11, 3,
+    61, 53, 45, 37, 29, 21, 13, 5, 63, 55, 47, 39, 31, 23, 15, 7
+]
+_DES_FP = [
+    40, 8, 48, 16, 56, 24, 64, 32, 39, 7, 47, 15, 55, 23, 63, 31,
+    38, 6, 46, 14, 54, 22, 62, 30, 37, 5, 45, 13, 53, 21, 61, 29,
+    36, 4, 44, 12, 52, 20, 60, 28, 35, 3, 43, 11, 51, 19, 59, 27,
+    34, 2, 42, 10, 50, 18, 58, 26, 33, 1, 41, 9, 49, 17, 57, 25
+]
+_DES_PC1 = [
+    57, 49, 41, 33, 25, 17, 9, 1, 58, 50, 42, 34, 26, 18,
+    10, 2, 59, 51, 43, 35, 27, 19, 11, 3, 60, 52, 44, 36,
+    63, 55, 47, 39, 31, 23, 15, 7, 62, 54, 46, 38, 30, 22,
+    14, 6, 61, 53, 45, 37, 29, 21, 13, 5, 28, 20, 12, 4
+]
+_DES_PC2 = [
+    14, 17, 11, 24, 1, 5, 3, 28, 15, 6, 21, 10,
+    23, 19, 12, 4, 26, 8, 16, 7, 27, 20, 13, 2,
+    41, 52, 31, 37, 47, 55, 30, 40, 51, 45, 33, 48,
+    44, 49, 39, 56, 34, 53, 46, 42, 50, 36, 29, 32
+]
+_DES_SHIFTS = [1, 1, 2, 2, 2, 2, 2, 2, 1, 2, 2, 2, 2, 2, 2, 1]
+_DES_E = [
+    32, 1, 2, 3, 4, 5, 4, 5, 6, 7, 8, 9,
+    8, 9, 10, 11, 12, 13, 12, 13, 14, 15, 16, 17,
+    16, 17, 18, 19, 20, 21, 20, 21, 22, 23, 24, 25,
+    24, 25, 26, 27, 28, 29, 28, 29, 30, 31, 32, 1
+]
+_DES_S = [
+    [
+        [14, 4, 13, 1, 2, 15, 11, 8, 3, 10, 6, 12, 5, 9, 0, 7],
+        [0, 15, 7, 4, 14, 2, 13, 1, 10, 6, 12, 11, 9, 5, 3, 8],
+        [4, 1, 14, 8, 13, 6, 2, 11, 15, 12, 9, 7, 3, 10, 5, 0],
+        [15, 12, 8, 2, 4, 9, 1, 7, 5, 11, 3, 14, 10, 0, 6, 13]
+    ],
+    [
+        [15, 1, 8, 14, 6, 11, 3, 4, 9, 7, 2, 13, 12, 0, 5, 10],
+        [3, 13, 4, 7, 15, 2, 8, 14, 12, 0, 1, 10, 6, 9, 11, 5],
+        [0, 14, 7, 11, 10, 4, 13, 1, 5, 8, 12, 6, 9, 3, 2, 15],
+        [13, 8, 10, 1, 3, 15, 4, 2, 11, 6, 7, 12, 0, 5, 14, 9]
+    ],
+    [
+        [10, 0, 9, 14, 6, 3, 15, 5, 1, 13, 12, 7, 11, 4, 2, 8],
+        [13, 7, 0, 9, 3, 4, 6, 10, 2, 8, 5, 14, 12, 11, 15, 1],
+        [13, 6, 4, 9, 8, 15, 3, 0, 11, 1, 2, 12, 5, 10, 14, 7],
+        [1, 10, 13, 0, 6, 9, 8, 7, 4, 15, 14, 3, 11, 5, 2, 12]
+    ],
+    [
+        [7, 13, 14, 3, 0, 6, 9, 10, 1, 2, 8, 5, 11, 12, 4, 15],
+        [13, 8, 11, 5, 6, 15, 0, 3, 4, 7, 2, 12, 1, 10, 14, 9],
+        [10, 6, 9, 0, 12, 11, 7, 13, 15, 1, 3, 14, 5, 2, 8, 4],
+        [3, 15, 0, 6, 10, 1, 13, 8, 9, 4, 5, 11, 12, 7, 2, 14]
+    ],
+    [
+        [2, 12, 4, 1, 7, 10, 11, 6, 8, 5, 3, 15, 13, 0, 14, 9],
+        [14, 11, 2, 12, 4, 7, 13, 1, 5, 0, 15, 10, 3, 9, 8, 6],
+        [4, 2, 1, 11, 10, 13, 7, 8, 15, 9, 12, 5, 6, 3, 0, 14],
+        [11, 8, 12, 7, 1, 14, 2, 13, 6, 15, 0, 9, 10, 4, 5, 3]
+    ],
+    [
+        [12, 1, 10, 15, 9, 2, 6, 8, 0, 13, 3, 4, 14, 7, 5, 11],
+        [10, 15, 4, 2, 7, 12, 9, 5, 6, 1, 13, 14, 0, 11, 3, 8],
+        [9, 14, 15, 5, 2, 8, 12, 3, 7, 0, 4, 10, 1, 13, 11, 6],
+        [4, 3, 2, 12, 9, 5, 15, 10, 11, 14, 1, 7, 6, 0, 8, 13]
+    ],
+    [
+        [4, 11, 2, 14, 15, 0, 8, 13, 3, 12, 9, 7, 5, 10, 6, 1],
+        [13, 0, 11, 7, 4, 9, 1, 10, 14, 3, 5, 12, 2, 15, 8, 6],
+        [1, 4, 11, 13, 12, 3, 7, 14, 10, 15, 6, 8, 0, 5, 9, 2],
+        [6, 11, 13, 8, 1, 4, 10, 7, 9, 5, 0, 15, 14, 2, 3, 12]
+    ],
+    [
+        [13, 2, 8, 4, 6, 15, 11, 1, 10, 9, 3, 14, 5, 0, 12, 7],
+        [1, 15, 13, 8, 10, 3, 7, 4, 12, 5, 6, 11, 0, 14, 9, 2],
+        [7, 11, 4, 1, 9, 12, 14, 2, 0, 6, 10, 13, 15, 3, 5, 8],
+        [2, 1, 14, 7, 4, 10, 8, 13, 15, 12, 9, 0, 3, 5, 6, 11]
+    ]
+]
+_DES_P = [
+    16, 7, 20, 21, 29, 12, 28, 17, 1, 15, 23, 26, 5, 18, 31, 10,
+    2, 8, 24, 14, 32, 27, 3, 9, 19, 13, 30, 6, 22, 11, 4, 25
+]
+
+def _des_permute(bits, table):
+    return [bits[i - 1] for i in table]
+
+def _des_bytes_to_bits(b):
+    bits = []
+    for byte in b:
+        for i in range(7, -1, -1):
+            bits.append((byte >> i) & 1)
+    return bits
+
+def _des_bits_to_bytes(bits):
+    b = bytearray()
+    for i in range(0, len(bits), 8):
+        byte = 0
+        for bit in bits[i:i+8]:
+            byte = (byte << 1) | bit
+        b.append(byte)
+    return bytes(b)
+
+def _des_subkeys(key_bytes):
+    bits = _des_bytes_to_bits(key_bytes)
+    permuted = _des_permute(bits, _DES_PC1)
+    c, d = permuted[:28], permuted[28:]
+    subkeys = []
+    for shift in _DES_SHIFTS:
+        c = c[shift:] + c[:shift]
+        d = d[shift:] + d[:shift]
+        subkeys.append(_des_permute(c + d, _DES_PC2))
+    return subkeys
+
+def _des_feistel(r, subkey):
+    expanded = _des_permute(r, _DES_E)
+    xored = [b ^ k for b, k in zip(expanded, subkey)]
+    output = []
+    for i in range(8):
+        chunk = xored[i*6:(i+1)*6]
+        row = (chunk[0] << 1) | chunk[5]
+        col = (chunk[1] << 3) | (chunk[2] << 2) | (chunk[3] << 1) | chunk[4]
+        val = _DES_S[i][row][col]
+        for shift in range(3, -1, -1):
+            output.append((val >> shift) & 1)
+    return _des_permute(output, _DES_P)
+
+def _pure_des_decrypt_block(block_bits, subkeys):
+    permuted = _des_permute(block_bits, _DES_IP)
+    l, r = permuted[:32], permuted[32:]
+    for subkey in reversed(subkeys):
+        next_l = r
+        f_res = _des_feistel(r, subkey)
+        r = [a ^ b for a, b in zip(l, f_res)]
+        l = next_l
+    return _des_permute(r + l, _DES_FP)
+
+def pure_des_decrypt(key: bytes, ciphertext: bytes) -> bytes:
+    subkeys = _des_subkeys(key)
+    out = []
+    for i in range(0, len(ciphertext), 8):
+        block = ciphertext[i:i+8]
+        if len(block) < 8:
+            break
+        block_bits = _des_bytes_to_bits(block)
+        dec_bits = _pure_des_decrypt_block(block_bits, subkeys)
+        out.extend(_des_bits_to_bytes(dec_bits))
+    return bytes(out)
+
+
 def decrypt_jiosaavn_url(enc_url: str) -> Optional[str]:
     """
     Decrypts JioSaavn encrypted_media_url to get direct 320kbps Akamai CDN stream URL.
     100% immune to datacenter IP blocks and bot detection.
+    Supports both C-accelerated cryptography and zero-dependency Pure Python DES fallback.
     """
     if not enc_url:
         return None
     try:
         import base64
-        try:
-            from cryptography.hazmat.decrepit.ciphers.algorithms import TripleDES
-        except ImportError:
-            from cryptography.hazmat.primitives.ciphers.algorithms import TripleDES
-        from cryptography.hazmat.primitives.ciphers import Cipher, modes
-        from cryptography.hazmat.backends import default_backend
+        raw_bytes = base64.b64decode(enc_url)
 
-        key = b'38346591' * 3
-        cipher = Cipher(TripleDES(key), modes.ECB(), backend=default_backend())
-        decryptor = cipher.decryptor()
-        decrypted = decryptor.update(base64.b64decode(enc_url)) + decryptor.finalize()
+        # 1. Fast C-accelerated cryptography if installed
+        try:
+            try:
+                from cryptography.hazmat.decrepit.ciphers.algorithms import TripleDES
+            except ImportError:
+                from cryptography.hazmat.primitives.ciphers.algorithms import TripleDES
+            from cryptography.hazmat.primitives.ciphers import Cipher, modes
+            from cryptography.hazmat.backends import default_backend
+
+            key = b'38346591' * 3
+            cipher = Cipher(TripleDES(key), modes.ECB(), backend=default_backend())
+            decryptor = cipher.decryptor()
+            decrypted = decryptor.update(raw_bytes) + decryptor.finalize()
+            pad_len = decrypted[-1]
+            return decrypted[:-pad_len].decode('utf-8')
+        except Exception:
+            pass
+
+        # 2. Pure Python DES Fallback (100% dependency-free & guaranteed on Render)
+        decrypted = pure_des_decrypt(b'38346591', raw_bytes)
         pad_len = decrypted[-1]
         return decrypted[:-pad_len].decode('utf-8')
     except Exception as e:
@@ -1379,7 +1619,9 @@ def download_youtube_song_audio(
         clean_singer = "Darshan Raval"
         clean_title = "Tera Zikr"
 
-    print(f"🎙️ [Song Engine] Artist: '{clean_singer}' | Specific Song: '{clean_title or '(Random Artist Hit)'}'...")
+    norm_singer = normalize_singer_name(clean_singer)
+    active_singer = norm_singer or clean_singer
+    print(f"🎙️ [Song Engine] Artist: '{active_singer}' (Input: '{clean_singer}') | Specific Song: '{clean_title or '(Random Artist Hit)'}'...")
 
     # Attempt 1: Direct Cloud Music CDN (Akamai Stream - Zero Bot Checks on Render)
     try:
@@ -1387,18 +1629,20 @@ def download_youtube_song_audio(
         ctx = ssl._create_unverified_context() if hasattr(ssl, '_create_unverified_context') else None
 
         search_queries = []
-        if clean_title and clean_singer:
+        if clean_title and active_singer:
             # Primary: unified queries with both singer and song
-            search_queries.append(f"{clean_singer} {clean_title}".strip())
-            search_queries.append(f"{clean_title} {clean_singer}".strip())
+            search_queries.append(f"{active_singer} {clean_title}".strip())
+            search_queries.append(f"{clean_title} {active_singer}".strip())
+            if clean_singer and clean_singer != active_singer:
+                search_queries.append(f"{clean_singer} {clean_title}".strip())
             # Secondary fallback: song title alone (candidate scorer strictly rejects mismatched singers!)
             search_queries.append(clean_title)
             # Tertiary fallback: singer name alone
-            search_queries.append(clean_singer)
+            search_queries.append(active_singer)
         elif clean_title:
             search_queries.append(clean_title)
         else:
-            search_queries.append(clean_singer)
+            search_queries.append(active_singer)
 
         results = []
         for sq in search_queries:
@@ -1457,8 +1701,12 @@ def download_youtube_song_audio(
                     score = 0.0
 
                     # 1. Singer Matching (CRITICAL: Candidate MUST match requested singer!)
-                    if clean_singer:
-                        singer_tokens = [w for w in re.findall(r'\w+', clean_singer.lower()) if len(w) > 2]
+                    if active_singer:
+                        singer_tokens = [w for w in re.findall(r'\w+', active_singer.lower()) if len(w) > 2]
+                        if clean_singer and clean_singer.lower() != active_singer.lower():
+                            singer_tokens.extend([w for w in re.findall(r'\w+', clean_singer.lower()) if len(w) > 2])
+                        singer_tokens = list(dict.fromkeys(singer_tokens))
+
                         if singer_tokens:
                             matched_singer_tokens = 0
                             for s_tok in singer_tokens:
@@ -1470,7 +1718,7 @@ def download_youtube_song_audio(
                             if matched_singer_tokens == 0:
                                 # Candidate is by an unrelated artist -> DISQUALIFY candidate!
                                 score -= 500.0
-                            elif matched_singer_tokens == len(singer_tokens):
+                            elif matched_singer_tokens >= 2 or matched_singer_tokens == len(singer_tokens):
                                 score += 160.0  # Perfect singer match!
                             else:
                                 score += 80.0 * (matched_singer_tokens / len(singer_tokens))
@@ -1513,8 +1761,8 @@ def download_youtube_song_audio(
 
                 results.sort(key=score_song_candidate, reverse=True)
                 best_score = score_song_candidate(results[0])
-                if best_score < 0:
-                    print(f"⚠️ [Song Match Engine] No JioSaavn candidate matched both singer '{clean_singer}' and title '{clean_title}' (Best score: {best_score:.1f}). Proceeding to fallback...")
+                if best_score < 100.0:
+                    print(f"⚠️ [Song Match Engine] No JioSaavn candidate reached confidence threshold (100.0) for singer '{active_singer}' and title '{clean_title}' (Best score: {best_score:.1f}). Proceeding to fallback...")
                     chosen = None
                 else:
                     chosen = results[0]
@@ -1523,8 +1771,8 @@ def download_youtube_song_audio(
                     if raw_singers and raw_primary and raw_singers != raw_primary:
                         cand_singers = f"{raw_primary}, {raw_singers}"
                     else:
-                        cand_singers = raw_primary or raw_singers or clean_singer
-                    chosen_title = re.sub(r'&quot;|&#039;|&amp;', '', chosen.get('song') or chosen.get('title') or clean_title or clean_singer).strip()
+                        cand_singers = raw_primary or raw_singers or active_singer
+                    chosen_title = re.sub(r'&quot;|&#039;|&amp;', '', chosen.get('song') or chosen.get('title') or clean_title or active_singer).strip()
                     print(f"🎯 [Song Match Engine] Selected best matching song track: '{chosen_title}' by '{cand_singers}' (Match Score: {best_score:.1f})")
             else:
                 chosen = random.choice(results[:min(8, len(results))])
@@ -1606,92 +1854,262 @@ def download_youtube_song_audio(
     except Exception as e_cdn:
         print(f"⚠️ [Song Engine] Music CDN lookup note: {e_cdn}")
 
-    # Attempt 2: YouTube Search / Direct URL via yt-dlp with Android Player Client (Zero Bot Blocks on Render Datacenter)
-    yt_query = f"{clean_singer} {clean_title}".strip() if clean_title else clean_singer
-    if song_url and song_url.strip():
-        yt_target = song_url.strip()
-    elif yt_query:
-        yt_target = f"ytsearch1:{yt_query} audio"
-    else:
-        yt_target = None
+    # Attempt 2: YouTube Search / Direct URL via yt-dlp with Intelligent Track Ranking
+    if yt_dlp:
+        cookie_file = get_available_cookies_file(target_dir)
+        best_yt_id = None
+        chosen_yt_title = ""
+        chosen_yt_dur = 60.0
 
-    if yt_target and yt_dlp:
-        print(f"⚡ [Song Engine] Initiating YouTube direct stream for: '{yt_target}'...")
-        try:
-            cookie_file = get_available_cookies_file(target_dir)
-            yt_temp_pattern = os.path.join(target_dir, "yt_song.%(ext)s")
-            ydl_opts = {
-                'format': 'bestaudio/best',
-                'outtmpl': yt_temp_pattern,
-                'postprocessors': [{
-                    'key': 'FFmpegExtractAudio',
-                    'preferredcodec': 'mp3',
-                    'preferredquality': '192',
-                }],
+        if song_url and song_url.strip() and ('youtube.com' in song_url or 'youtu.be' in song_url):
+            best_yt_id = song_url.strip()
+            chosen_yt_title = clean_title or active_singer or "Official Song"
+        else:
+            # Query top 5 YouTube candidates prioritizing pure lyrical / audio version
+            yt_queries = [
+                f"{active_singer} {clean_title} lyrical audio".strip(),
+                f"{active_singer} {clean_title} song".strip()
+            ]
+            if clean_singer and clean_singer != active_singer:
+                yt_queries.append(f"{clean_singer} {clean_title} lyrical audio".strip())
+
+            flat_opts = {
                 'quiet': True,
                 'no_warnings': True,
-                'noplaylist': True,
-                'socket_timeout': 30,
-                'extractor_args': {
-                    'youtube': {
-                        'player_client': ['android', 'web']
-                    }
-                }
+                'extract_flat': True,
+                'socket_timeout': 15,
+                'extractor_args': {'youtube': {'player_client': ['android', 'web']}}
             }
             if cookie_file and os.path.exists(cookie_file):
-                ydl_opts['cookiefile'] = cookie_file
+                flat_opts['cookiefile'] = cookie_file
 
-            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                info = ydl.extract_info(yt_target, download=True)
-                yt_entry = info['entries'][0] if 'entries' in info and info['entries'] else info
-                if yt_entry:
-                    extracted_title = yt_entry.get('title') or yt_query
-                    extracted_duration = float(yt_entry.get('duration') or 60.0)
-
-            yt_candidates = [
-                f for f in glob.glob(os.path.join(target_dir, "yt_song*.*"))
-                if os.path.getsize(f) > 5000 and not f.endswith('.txt') and not f.endswith('.json')
-            ]
-            if yt_candidates and yt_entry:
-                conv_cmd = [
-                    "ffmpeg", "-y", "-i", yt_candidates[0],
-                    "-vn", "-acodec", "libmp3lame", "-q:a", "2",
-                    target_path
-                ]
-                subprocess.run(conv_cmd, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-                try: os.remove(yt_candidates[0])
-                except Exception: pass
+            for yq in yt_queries:
+                if best_yt_id:
+                    break
+                print(f"⚡ [Song Engine] Searching top YouTube candidates for: '{yq}'...")
                 try:
-                    probe_cmd = ["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "default=noprint_wrappers=1:nokey=1", target_path]
-                    extracted_duration = float(subprocess.check_output(probe_cmd).decode().strip())
-                except Exception:
-                    pass
-                print(f"🎉 [Song Engine] Successfully Retrieved Song Track via YouTube: '{extracted_title}' ({os.path.getsize(target_path)} bytes, {extracted_duration:.1f}s)")
-                return {
-                    "audio_path": target_path,
-                    "title": extracted_title,
-                    "singer": clean_singer,
-                    "duration": extracted_duration
-                }
-        except Exception as e_yt:
-            print(f"⚠️ [Song Engine] YouTube stream fallback note: {e_yt}")
+                    with yt_dlp.YoutubeDL(flat_opts) as ydl:
+                        search_res = ydl.extract_info(f"ytsearch5:{yq}", download=False)
+                        yt_entries = search_res.get('entries', []) if search_res else []
 
-    # Attempt 3: SoundCloud Stream Fallback (If not found on primary CDN or YouTube)
+                    def score_yt_candidate(e: dict) -> float:
+                        cand_t = (e.get('title') or '').lower()
+                        cand_uploader = (e.get('uploader') or '').lower()
+                        combined = f"{cand_t} {cand_uploader}"
+                        c_dur = float(e.get('duration') or 0.0)
+                        score = 0.0
+
+                        # Singer verification (CRITICAL)
+                        if active_singer:
+                            s_words = [w for w in re.findall(r'\w+', active_singer.lower()) if len(w) > 2]
+                            cand_words = re.findall(r'\w+', combined)
+                            s_match = 0
+                            for sw in s_words:
+                                if sw in combined or any(difflib.SequenceMatcher(None, sw, cw).ratio() >= 0.75 for cw in cand_words):
+                                    s_match += 1
+                            if s_match == 0:
+                                return -1000.0  # Disqualify unrelated singers!
+                            score += 150.0 * (s_match / len(s_words))
+
+                        # Title verification
+                        if clean_title:
+                            t_words = [w for w in re.findall(r'\w+', clean_title.lower()) if len(w) > 1]
+                            cand_t_words = re.findall(r'\w+', cand_t)
+                            t_match = 0
+                            for tw in t_words:
+                                if tw in cand_t or any(difflib.SequenceMatcher(None, tw, ctw).ratio() >= 0.8 for ctw in cand_t_words):
+                                    t_match += 1
+                            if t_match == 0:
+                                return -1000.0  # Disqualify wrong song
+                            score += 150.0 * (t_match / len(t_words))
+
+                        # Bonus for pure audio and lyrical tracks
+                        if "lyrical" in cand_t:
+                            score += 70.0
+                        if "official audio" in cand_t or "audio" in cand_t:
+                            score += 50.0
+                        if "full song" in cand_t or "song" in cand_t:
+                            score += 30.0
+
+                        # Duration check: standard song is 140s - 280s
+                        if 140 <= c_dur <= 280:
+                            score += 40.0
+                        elif c_dur > 360:
+                            # 6-7 minute videos are drama short films with talking scenes!
+                            score -= 90.0
+                        elif c_dur < 60:
+                            score -= 300.0
+
+                        # Penalize dialogue / music video drama
+                        if "teaser" in cand_t or "trailer" in cand_t:
+                            score -= 300.0
+                        if "short film" in cand_t or "dialogue" in cand_t:
+                            score -= 200.0
+                        if "music video" in cand_t and "lyrical" not in cand_t:
+                            score -= 40.0
+
+                        # Penalize covers/remixes
+                        for pen in ["cover", "remix", "reverb", "slowed", "karaoke"]:
+                            if pen in cand_t and pen not in (clean_title or '').lower():
+                                score -= 70.0
+
+                        return score
+
+                    if yt_entries:
+                        scored_entries = [(score_yt_candidate(e), e) for e in yt_entries]
+                        scored_entries.sort(key=lambda x: x[0], reverse=True)
+                        best_s, best_e = scored_entries[0]
+                        if best_s >= 100.0:
+                            best_yt_id = best_e.get('id')
+                            chosen_yt_title = best_e.get('title')
+                            chosen_yt_dur = float(best_e.get('duration') or 60.0)
+                            print(f"🎯 [Song Engine] Selected Best YouTube Track: '{chosen_yt_title}' (Score: {best_s:.1f}, Dur: {chosen_yt_dur:.1f}s, ID: {best_yt_id})")
+                        else:
+                            print(f"⚠️ [Song Engine] Top YouTube candidate scored below threshold ({best_s:.1f}). Skipping query '{yq}'.")
+                except Exception as e_yt_search:
+                    print(f"⚠️ [Song Engine] YouTube candidate search note: {e_yt_search}")
+
+        yt_target_url = (
+            best_yt_id if best_yt_id and best_yt_id.startswith('http')
+            else (f"https://www.youtube.com/watch?v={best_yt_id}" if best_yt_id else None)
+        )
+
+        if yt_target_url:
+            print(f"⚡ [Song Engine] Downloading YouTube audio stream: {yt_target_url}...")
+            try:
+                yt_temp_pattern = os.path.join(target_dir, "yt_song.%(ext)s")
+                ydl_opts = {
+                    'format': 'bestaudio/best',
+                    'outtmpl': yt_temp_pattern,
+                    'postprocessors': [{
+                        'key': 'FFmpegExtractAudio',
+                        'preferredcodec': 'mp3',
+                        'preferredquality': '192',
+                    }],
+                    'quiet': True,
+                    'no_warnings': True,
+                    'noplaylist': True,
+                    'socket_timeout': 30,
+                    'extractor_args': {
+                        'youtube': {
+                            'player_client': ['android', 'web']
+                        }
+                    }
+                }
+                if cookie_file and os.path.exists(cookie_file):
+                    ydl_opts['cookiefile'] = cookie_file
+
+                with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                    ydl.download([yt_target_url])
+
+                yt_candidates = [
+                    f for f in glob.glob(os.path.join(target_dir, "yt_song*.*"))
+                    if os.path.getsize(f) > 5000 and not f.endswith('.txt') and not f.endswith('.json')
+                ]
+                if yt_candidates:
+                    conv_cmd = [
+                        "ffmpeg", "-y", "-i", yt_candidates[0],
+                        "-vn", "-acodec", "libmp3lame", "-q:a", "2",
+                        target_path
+                    ]
+                    subprocess.run(conv_cmd, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                    try: os.remove(yt_candidates[0])
+                    except Exception: pass
+                    try:
+                        probe_cmd = ["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "default=noprint_wrappers=1:nokey=1", target_path]
+                        chosen_yt_dur = float(subprocess.check_output(probe_cmd).decode().strip())
+                    except Exception:
+                        pass
+                    print(f"🎉 [Song Engine] Successfully Retrieved Song Track via YouTube: '{chosen_yt_title}' ({os.path.getsize(target_path)} bytes, {chosen_yt_dur:.1f}s)")
+                    return {
+                        "audio_path": target_path,
+                        "title": chosen_yt_title or clean_title,
+                        "singer": active_singer,
+                        "duration": chosen_yt_dur
+                    }
+            except Exception as e_yt:
+                print(f"⚠️ [Song Engine] YouTube stream fallback note: {e_yt}")
+
+    # Attempt 3: SoundCloud Stream Fallback (Strict Singer Match Required)
     sc_queries = []
-    if clean_singer and clean_title:
-        sc_queries.append(f"{clean_singer} {clean_title}")
-        sc_queries.append(clean_title)
+    if active_singer and clean_title:
+        sc_queries.append(f"{active_singer} {clean_title}")
+        if clean_singer and clean_singer != active_singer:
+            sc_queries.append(f"{clean_singer} {clean_title}")
+    elif active_singer:
+        sc_queries.append(active_singer)
     elif clean_title:
         sc_queries.append(clean_title)
-    else:
-        sc_queries.append(clean_singer)
 
     for sc_query in sc_queries:
         if not yt_dlp:
             break
-        print(f"⚡ [Song Engine] Initiating SoundCloud stream fallback for: '{sc_query}'...")
+        print(f"⚡ [Song Engine] Searching SoundCloud candidates for: '{sc_query}'...")
         try:
-            sc_target = f"scsearch3:{sc_query}"
+            sc_target = f"scsearch5:{sc_query}"
+            flat_sc_opts = {
+                'quiet': True,
+                'no_warnings': True,
+                'extract_flat': True,
+                'socket_timeout': 15
+            }
+            with yt_dlp.YoutubeDL(flat_sc_opts) as ydl:
+                info = ydl.extract_info(sc_target, download=False)
+                sc_entries = info.get('entries', []) if info else []
+
+            if not sc_entries:
+                continue
+
+            def score_sc_candidate(item: dict) -> float:
+                cand_t = (item.get('title') or '').lower()
+                cand_uploader = (item.get('uploader') or '').lower()
+                combined = f"{cand_t} {cand_uploader}"
+                score = 0.0
+
+                # 1. Singer check (CRITICAL: Candidate MUST match requested singer!)
+                if active_singer:
+                    s_words = [w for w in re.findall(r'\w+', active_singer.lower()) if len(w) > 2]
+                    cand_words = re.findall(r'\w+', combined)
+                    matched_s = 0
+                    for sw in s_words:
+                        if sw in combined or any(difflib.SequenceMatcher(None, sw, cw).ratio() >= 0.75 for cw in cand_words):
+                            matched_s += 1
+                    if matched_s == 0:
+                        return -1000.0  # STRICTLY DISQUALIFY wrong singer!
+                    score += 150.0 * (matched_s / len(s_words))
+
+                # 2. Title check
+                if clean_title:
+                    t_words = [w for w in re.findall(r'\w+', clean_title.lower()) if len(w) > 1]
+                    cand_t_words = re.findall(r'\w+', cand_t)
+                    matched_t = 0
+                    for tw in t_words:
+                        if tw in cand_t or any(difflib.SequenceMatcher(None, tw, ctw).ratio() >= 0.8 for ctw in cand_t_words):
+                            matched_t += 1
+                    if matched_t == 0:
+                        return -1000.0  # Disqualify wrong song!
+                    score += 150.0 * (matched_t / len(t_words))
+
+                # Penalize covers/remixes/slowed
+                for pen in ["remix", "reverb", "slowed", "karaoke"]:
+                    if pen in cand_t and pen not in (clean_title or '').lower():
+                        score -= 60.0
+
+                return score
+
+            scored_sc = [(score_sc_candidate(e), e) for e in sc_entries]
+            scored_sc.sort(key=lambda x: x[0], reverse=True)
+            best_sc_score, best_sc_entry = scored_sc[0]
+
+            if best_sc_score < 100.0:
+                print(f"⚠️ [Song Engine] No SoundCloud candidate matched singer '{active_singer}' and title '{clean_title}' (Best score: {best_sc_score:.1f}). Skipping.")
+                continue
+
+            target_sc_url = best_sc_entry.get('url') or best_sc_entry.get('webpage_url')
+            if not target_sc_url:
+                continue
+
+            print(f"🎯 [Song Engine] Downloading verified SoundCloud match: '{best_sc_entry.get('title')}' (Score: {best_sc_score:.1f})...")
             sc_opts = {
                 'format': 'bestaudio/best',
                 'outtmpl': os.path.join(target_dir, "sc_song.%(ext)s"),
@@ -1706,23 +2124,23 @@ def download_youtube_song_audio(
                 'socket_timeout': 30
             }
             with yt_dlp.YoutubeDL(sc_opts) as ydl:
-                info = ydl.extract_info(sc_target, download=True)
-                sc_entry = info['entries'][0] if 'entries' in info and info['entries'] else info
-                if sc_entry:
-                    extracted_title = sc_entry.get('title') or sc_query
-                    extracted_duration = float(sc_entry.get('duration') or 60.0)
+                ydl.download([target_sc_url])
 
             sc_candidates = [
                 f for f in glob.glob(os.path.join(target_dir, "sc_song*.*"))
                 if os.path.getsize(f) > 5000 and not f.endswith('.txt') and not f.endswith('.json')
             ]
-            if sc_candidates and sc_entry:
+            if sc_candidates:
                 conv_cmd = [
                     "ffmpeg", "-y", "-i", sc_candidates[0],
                     "-vn", "-acodec", "libmp3lame", "-q:a", "2",
                     target_path
                 ]
                 subprocess.run(conv_cmd, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                try: os.remove(sc_candidates[0])
+                except Exception: pass
+                extracted_title = best_sc_entry.get('title') or clean_title
+                extracted_duration = float(best_sc_entry.get('duration') or 60.0)
                 try:
                     probe_cmd = ["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "default=noprint_wrappers=1:nokey=1", target_path]
                     extracted_duration = float(subprocess.check_output(probe_cmd).decode().strip())
@@ -1732,11 +2150,11 @@ def download_youtube_song_audio(
                 return {
                     "audio_path": target_path,
                     "title": extracted_title,
-                    "singer": clean_singer,
+                    "singer": active_singer,
                     "duration": extracted_duration
                 }
         except Exception as e_sc:
-            print(f"⚠️ [Song Engine] SoundCloud fallback exception: {e_sc}")
+            print(f"⚠️ [Song Engine] SoundCloud candidate processing exception: {e_sc}")
 
     # Fallback to local background music if all downloads failed
     print("⚠️ [Song Engine] Remote downloads blocked by datacenter IP. Using local melodic track fallback...")
