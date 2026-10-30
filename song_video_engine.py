@@ -10,6 +10,7 @@ import hashlib
 import unicodedata
 from typing import Optional, List, Dict, Any, Tuple
 import gc
+import difflib
 
 def release_system_memory():
     """
@@ -520,6 +521,32 @@ TOP_HITS_LYRICS_DB: Dict[str, List[str]] = {
         "रातों में उठ-उठ के तुम तारे गिनोगे",
         "यादों के सहारे तुम दिन काटोगे"
     ],
+    "darshan raval sirf tum": [
+        "अब मैं कैसे बात ये मान लूँ",
+        "फिर से होगा ना मेरे साथ तू",
+        "ये जो बहते ही रहें रात-दिन",
+        "आँसुओं को कैसे मैं रोक लूँ?",
+        "ओ यारा, एक दिल मेरा, एक दिल तेरा",
+        "टूट गए वे दोनों, बचेया की मेरा?",
+        "पूरे जहाँ को मैं कैसे बताऊँ",
+        "मेरे पास थे सिर्फ तुम"
+    ],
+    "kumar sanu sirf tum": [
+        "पहली पहली बार मोहब्बत की है",
+        "कुछ ना समझ में आए मैं क्या करूँ",
+        "इश्क़ ने कैसी हालत की है",
+        "कुछ ना समझ में आए मैं क्या करूँ",
+        "सिर्फ तुम, सिर्फ तुम, सिर्फ तुम",
+        "एक सनम चाहिए आशिक़ी के लिए"
+    ],
+    "anuradha paudwal sirf tum": [
+        "पहली पहली बार मोहब्बत की है",
+        "कुछ ना समझ में आए मैं क्या करूँ",
+        "इश्क़ ने कैसी हालत की है",
+        "कुछ ना समझ में आए मैं क्या करूँ",
+        "सिर्फ तुम, सिर्फ तुम, सिर्फ तुम",
+        "एक सनम चाहिए आशिक़ी के लिए"
+    ],
     "sirf tum": [
         "पहली पहली बार मोहब्बत की है",
         "कुछ ना समझ में आए मैं क्या करूँ",
@@ -648,13 +675,50 @@ TOP_HITS_LYRICS_DB: Dict[str, List[str]] = {
 
 
 def get_curated_lyrics(song_title: str, singer_name: str = "") -> Optional[List[str]]:
-    comb = f"{song_title} {singer_name}".lower()
-    comb = re.sub(r'[^\w\s]', '', comb)
+    import difflib
+    clean_t = re.sub(r'[^\w\s]', '', song_title or '').lower().strip()
+    clean_s = re.sub(r'[^\w\s]', '', singer_name or '').lower().strip()
+    if not clean_t and not clean_s:
+        return None
+
+    s_words = [w for w in clean_s.split() if len(w) > 2]
+    t_words = [w for w in clean_t.split() if len(w) > 1]
+
+    best_match = None
+    best_score = -1.0
+
     for k, lines in TOP_HITS_LYRICS_DB.items():
-        k_tokens = [w for w in k.split() if len(w) > 2]
-        if k_tokens and all(tok in comb for tok in k_tokens):
-            return lines
-    return None
+        k_words = [w for w in k.lower().split() if len(w) > 1]
+        score = 0.0
+
+        t_matches = 0
+        for tw in t_words:
+            if tw in k_words or any(difflib.SequenceMatcher(None, tw, kw).ratio() >= 0.8 for kw in k_words):
+                t_matches += 1
+
+        if t_words:
+            if t_matches == 0:
+                continue
+            score += 100.0 * (t_matches / len(t_words))
+
+        if s_words:
+            s_matches = 0
+            for sw in s_words:
+                if sw in k_words or any(difflib.SequenceMatcher(None, sw, kw).ratio() >= 0.75 for kw in k_words):
+                    s_matches += 1
+            if s_matches > 0:
+                score += 150.0 * (s_matches / len(s_words))
+            else:
+                known_singers = ['kumar', 'sanu', 'anuradha', 'darshan', 'raval', 'arijit', 'jubin', 'neha', 'kakkar', 'atif', 'aslam']
+                has_conflicting_singer = any(kw in known_singers and kw not in s_words for kw in k_words)
+                if has_conflicting_singer:
+                    continue
+
+        if score > best_score:
+            best_score = score
+            best_match = lines
+
+    return best_match
 
 
 def fetch_song_synced_lyrics(
@@ -728,7 +792,15 @@ def fetch_song_synced_lyrics(
 
         # 3b. Search LRCLIB if direct get didn't yield syncedLyrics
         if not raw_lrc:
-            search_queries = [f"{clean_t} {clean_s}".strip(), clean_t] if clean_s else [clean_t]
+            search_queries = []
+            if clean_s and clean_t:
+                search_queries.append(f"{clean_s} {clean_t}".strip())
+                search_queries.append(f"{clean_t} {clean_s}".strip())
+            elif clean_t:
+                search_queries.append(clean_t)
+            else:
+                search_queries.append(clean_s)
+
             for sq in search_queries:
                 try:
                     url = "https://lrclib.net/api/search?q=" + urllib.parse.quote(sq)
@@ -738,10 +810,24 @@ def fetch_song_synced_lyrics(
                         for it in items:
                             cand_track = (it.get("trackName") or "").lower()
                             cand_artist = (it.get("artistName") or "").lower()
+                            cand_track_words = re.findall(r'\w+', cand_track)
+                            cand_artist_words = re.findall(r'\w+', cand_artist)
+
                             track_tokens = [w for w in re.findall(r'\w+', clean_t.lower()) if len(w) > 1]
-                            track_match = any(t in cand_track for t in track_tokens) if track_tokens else False
+                            track_match = True
+                            if track_tokens:
+                                track_match = any(
+                                    t in cand_track or any(difflib.SequenceMatcher(None, t, ctw).ratio() >= 0.8 for ctw in cand_track_words)
+                                    for t in track_tokens
+                                )
+
                             artist_tokens = [w for w in re.findall(r'\w+', clean_s.lower()) if len(w) > 2]
-                            artist_match = (any(a in cand_artist for a in artist_tokens) if artist_tokens else True)
+                            artist_match = True
+                            if artist_tokens:
+                                artist_match = any(
+                                    a in cand_artist or any(difflib.SequenceMatcher(None, a, caw).ratio() >= 0.75 for caw in cand_artist_words)
+                                    for a in artist_tokens
+                                )
 
                             if track_match and artist_match and it.get("syncedLyrics"):
                                 raw_lrc = it["syncedLyrics"]
@@ -1243,9 +1329,9 @@ def download_youtube_song_audio(
 
         search_queries = []
         if clean_title and clean_singer:
+            # Strictly combine singer and song title together as unified queries!
             search_queries.append(f"{clean_singer} {clean_title}".strip())
             search_queries.append(f"{clean_title} {clean_singer}".strip())
-            search_queries.append(clean_title)
         elif clean_title:
             search_queries.append(clean_title)
         else:
@@ -1254,9 +1340,9 @@ def download_youtube_song_audio(
         results = []
         for sq in search_queries:
             api_url = f"https://www.jiosaavn.com/api.php?__call=search.getResults&q={urllib.parse.quote(sq)}&_format=json&_marker=0&ctx=web6dot0&n=20&p=1"
-            req_cdn = urllib.request.Request(api_url, headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'})
+            req_cdn = urllib.request.Request(api_url, headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'})
             try:
-                with urllib.request.urlopen(req_cdn, context=ctx, timeout=6) as resp_cdn:
+                with urllib.request.urlopen(req_cdn, context=ctx, timeout=8) as resp_cdn:
                     cdn_data = json.loads(resp_cdn.read().decode('utf-8'))
                     found = cdn_data.get('results', [])
                     if found:
@@ -1269,17 +1355,30 @@ def download_youtube_song_audio(
         if not results:
             for sq in search_queries:
                 ac_url = f"https://www.jiosaavn.com/api.php?__call=autocomplete.get&_marker=0&query={urllib.parse.quote(sq)}&ctx=web6dot0&_format=json"
-                req_ac = urllib.request.Request(ac_url, headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'})
+                req_ac = urllib.request.Request(ac_url, headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'})
                 try:
-                    with urllib.request.urlopen(req_ac, context=ctx, timeout=5) as resp_ac:
+                    with urllib.request.urlopen(req_ac, context=ctx, timeout=8) as resp_ac:
                         ac_data = json.loads(resp_ac.read().decode('utf-8'))
-                        found = ac_data.get('songs', {}).get('data', [])
-                        if found:
-                            results.extend(found)
+                        found_songs = ac_data.get('songs', {}).get('data', [])
+                        for fs in found_songs[:5]:
+                            pid = fs.get('id')
+                            if pid:
+                                try:
+                                    det_url = f"https://www.jiosaavn.com/api.php?__call=song.getDetails&pids={pid}&_format=json&_marker=0&ctx=web6dot0"
+                                    req_det = urllib.request.Request(det_url, headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'})
+                                    with urllib.request.urlopen(req_det, context=ctx, timeout=6) as resp_det:
+                                        det_data = json.loads(resp_det.read().decode('utf-8'))
+                                        song_list = det_data.get('songs', [])
+                                        if song_list:
+                                            results.extend(song_list)
+                                except Exception:
+                                    pass
+                        if results:
                             break
                 except Exception:
                     pass
 
+        chosen = None
         if results:
             # Deduplicate by song id
             seen_ids = set()
@@ -1295,58 +1394,106 @@ def download_youtube_song_audio(
                 # Rank results to pick the EXACT match for singer and title
                 def score_song_candidate(item: dict) -> float:
                     cand_title = (item.get('song') or item.get('title') or '').lower()
-                    cand_singers = (item.get('singers') or item.get('primary_artists') or item.get('artist') or '').lower()
+                    cand_title_clean = re.sub(r'[\(\[\{].*?[\)\]\}]', '', cand_title).strip()
+                    all_cand_artists = " ".join([
+                        str(item.get('singers') or ''),
+                        str(item.get('primary_artists') or ''),
+                        str(item.get('featured_artists') or ''),
+                        str(item.get('music') or ''),
+                        str(item.get('artist') or '')
+                    ]).lower()
+                    cand_artist_words = [w for w in re.findall(r'\w+', all_cand_artists) if len(w) > 1]
                     score = 0.0
 
-                    # 1. Title Matching (Higher weight when specific song is requested)
-                    if clean_title:
-                        title_tokens = [w for w in re.findall(r'\w+', clean_title.lower()) if len(w) > 1]
-                        if title_tokens:
-                            matches = sum(1 for tok in title_tokens if tok in cand_title)
-                            if matches == len(title_tokens):
-                                score += 140.0  # Perfect title match!
-                            elif matches > 0:
-                                score += 70.0 * (matches / len(title_tokens))
-                        clean_cand_title = re.sub(r'\(.*?\)|\[.*?\]', '', cand_title).strip()
-                        if clean_cand_title == clean_title.lower().strip():
-                            score += 50.0
-
-                    # 2. Singer Matching
+                    # 1. Singer Matching (CRITICAL: Candidate MUST match requested singer!)
                     if clean_singer:
                         singer_tokens = [w for w in re.findall(r'\w+', clean_singer.lower()) if len(w) > 2]
                         if singer_tokens:
-                            matches = sum(1 for tok in singer_tokens if tok in cand_singers)
-                            if matches == len(singer_tokens):
-                                score += 120.0  # Perfect singer match!
-                            elif matches > 0:
-                                score += 60.0 * (matches / len(singer_tokens))
+                            matched_singer_tokens = 0
+                            for s_tok in singer_tokens:
+                                if s_tok in all_cand_artists:
+                                    matched_singer_tokens += 1
+                                elif any(difflib.SequenceMatcher(None, s_tok, aw).ratio() >= 0.75 for aw in cand_artist_words):
+                                    matched_singer_tokens += 1
+
+                            if matched_singer_tokens == 0:
+                                # Candidate is by an unrelated artist -> DISQUALIFY candidate!
+                                score -= 500.0
+                            elif matched_singer_tokens == len(singer_tokens):
+                                score += 160.0  # Perfect singer match!
                             else:
-                                score -= 20.0
+                                score += 80.0 * (matched_singer_tokens / len(singer_tokens))
+
+                    # 2. Title Matching
+                    if clean_title:
+                        title_tokens = [w for w in re.findall(r'\w+', clean_title.lower()) if len(w) > 1]
+                        if title_tokens:
+                            cand_title_words = [w for w in re.findall(r'\w+', cand_title_clean) if len(w) > 1]
+                            matched_title_tokens = 0
+                            for t_tok in title_tokens:
+                                if t_tok in cand_title_clean:
+                                    matched_title_tokens += 1
+                                elif any(difflib.SequenceMatcher(None, t_tok, tw).ratio() >= 0.8 for tw in cand_title_words):
+                                    matched_title_tokens += 1
+
+                            if matched_title_tokens == 0:
+                                score -= 500.0  # Disqualify if title doesn't match at all
+                            elif matched_title_tokens == len(title_tokens):
+                                score += 150.0  # Perfect title match!
+                            else:
+                                score += 75.0 * (matched_title_tokens / len(title_tokens))
+
+                            clean_user_title = clean_title.lower().strip()
+                            if cand_title_clean == clean_user_title:
+                                score += 50.0
 
                     # 3. Penalize Unwanted Covers / Remixes / Slowed
-                    combined = f"{cand_title} {cand_singers}"
+                    combined = f"{cand_title} {all_cand_artists}"
                     penalties = ["cover", "karaoke", "instrumental", "acoustic version", "remix", "lofi flip", "reverb", "slowed", "female version", "male version"]
                     for pen in penalties:
                         if pen in combined and pen not in (clean_title or '').lower():
-                            score -= 50.0
+                            score -= 60.0
 
                     # 4. Streamable media check
                     if item.get('encrypted_media_url'):
-                        score += 20.0
+                        score += 30.0
 
                     return score
 
                 results.sort(key=score_song_candidate, reverse=True)
-                chosen = results[0]
-                best_score = score_song_candidate(chosen)
-                cand_singers = chosen.get('singers') or chosen.get('primary_artists') or clean_singer
-                chosen_title = re.sub(r'&quot;|&#039;|&amp;', '', chosen.get('song') or chosen.get('title') or clean_title or clean_singer).strip()
-                print(f"🎯 [Song Match Engine] Selected best matching song track: '{chosen_title}' by '{cand_singers}' (Match Score: {best_score:.1f})")
+                best_score = score_song_candidate(results[0])
+                if best_score < 0:
+                    print(f"⚠️ [Song Match Engine] No JioSaavn candidate matched both singer '{clean_singer}' and title '{clean_title}' (Best score: {best_score:.1f}). Proceeding to fallback...")
+                    chosen = None
+                else:
+                    chosen = results[0]
+                    raw_singers = chosen.get('singers') or ""
+                    raw_primary = chosen.get('primary_artists') or ""
+                    if raw_singers and raw_primary and raw_singers != raw_primary:
+                        cand_singers = f"{raw_primary}, {raw_singers}"
+                    else:
+                        cand_singers = raw_primary or raw_singers or clean_singer
+                    chosen_title = re.sub(r'&quot;|&#039;|&amp;', '', chosen.get('song') or chosen.get('title') or clean_title or clean_singer).strip()
+                    print(f"🎯 [Song Match Engine] Selected best matching song track: '{chosen_title}' by '{cand_singers}' (Match Score: {best_score:.1f})")
             else:
                 chosen = random.choice(results[:min(8, len(results))])
                 chosen_title = re.sub(r'&quot;|&#039;|&amp;', '', chosen.get('song') or chosen.get('title') or clean_singer).strip()
+                cand_singers = chosen.get('singers') or chosen.get('primary_artists') or clean_singer
+
+        if results and chosen:
             song_id = chosen.get('id')
             enc_url = chosen.get('encrypted_media_url')
+            if not enc_url and song_id:
+                try:
+                    det_url = f"https://www.jiosaavn.com/api.php?__call=song.getDetails&pids={song_id}&_format=json&_marker=0&ctx=web6dot0"
+                    req_det = urllib.request.Request(det_url, headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'})
+                    with urllib.request.urlopen(req_det, context=ctx, timeout=6) as r_det:
+                        det_data = json.loads(r_det.read().decode('utf-8'))
+                        s_list = det_data.get('songs', [])
+                        if s_list:
+                            enc_url = s_list[0].get('encrypted_media_url')
+                except Exception:
+                    pass
             direct_cdn_url = decrypt_jiosaavn_url(enc_url) if enc_url else None
 
             # Fetch official lyrics from JioSaavn API directly
