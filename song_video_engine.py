@@ -1258,6 +1258,65 @@ def decrypt_jiosaavn_url(enc_url: str) -> Optional[str]:
         return None
 
 
+def fetch_jiosaavn_json(api_url: str, timeout: int = 12) -> Optional[dict]:
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+        'Accept': 'application/json, text/plain, */*',
+        'Accept-Language': 'en-US,en;q=0.9',
+        'Referer': 'https://www.jiosaavn.com/'
+    }
+    try:
+        import requests
+        r = requests.get(api_url, headers=headers, timeout=timeout)
+        if r.status_code == 200:
+            return r.json()
+    except Exception:
+        pass
+
+    try:
+        import urllib.request, ssl, json
+        ctx = ssl._create_unverified_context() if hasattr(ssl, '_create_unverified_context') else None
+        req = urllib.request.Request(api_url, headers=headers)
+        with urllib.request.urlopen(req, context=ctx, timeout=timeout) as resp:
+            return json.loads(resp.read().decode('utf-8'))
+    except Exception:
+        pass
+
+    return None
+
+
+def download_cdn_stream(stream_url: str, dest_path: str, timeout: int = 35) -> bool:
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+        'Referer': 'https://www.jiosaavn.com/'
+    }
+    try:
+        import requests
+        with requests.get(stream_url, headers=headers, stream=True, timeout=timeout) as r:
+            if r.status_code == 200:
+                with open(dest_path, 'wb') as f:
+                    for chunk in r.iter_content(chunk_size=64 * 1024):
+                        if chunk:
+                            f.write(chunk)
+                if os.path.exists(dest_path) and os.path.getsize(dest_path) > 5000:
+                    return True
+    except Exception:
+        pass
+
+    try:
+        import urllib.request, ssl, shutil
+        ctx = ssl._create_unverified_context() if hasattr(ssl, '_create_unverified_context') else None
+        req = urllib.request.Request(stream_url, headers=headers)
+        with urllib.request.urlopen(req, context=ctx, timeout=timeout) as r, open(dest_path, 'wb') as f:
+            shutil.copyfileobj(r, f)
+        if os.path.exists(dest_path) and os.path.getsize(dest_path) > 5000:
+            return True
+    except Exception:
+        pass
+
+    return False
+
+
 def download_youtube_song_audio(
     source_type: str = "url",
     song_url: Optional[str] = None,
@@ -1329,9 +1388,13 @@ def download_youtube_song_audio(
 
         search_queries = []
         if clean_title and clean_singer:
-            # Strictly combine singer and song title together as unified queries!
+            # Primary: unified queries with both singer and song
             search_queries.append(f"{clean_singer} {clean_title}".strip())
             search_queries.append(f"{clean_title} {clean_singer}".strip())
+            # Secondary fallback: song title alone (candidate scorer strictly rejects mismatched singers!)
+            search_queries.append(clean_title)
+            # Tertiary fallback: singer name alone
+            search_queries.append(clean_singer)
         elif clean_title:
             search_queries.append(clean_title)
         else:
@@ -1340,43 +1403,31 @@ def download_youtube_song_audio(
         results = []
         for sq in search_queries:
             api_url = f"https://www.jiosaavn.com/api.php?__call=search.getResults&q={urllib.parse.quote(sq)}&_format=json&_marker=0&ctx=web6dot0&n=20&p=1"
-            req_cdn = urllib.request.Request(api_url, headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'})
-            try:
-                with urllib.request.urlopen(req_cdn, context=ctx, timeout=8) as resp_cdn:
-                    cdn_data = json.loads(resp_cdn.read().decode('utf-8'))
-                    found = cdn_data.get('results', [])
-                    if found:
-                        results.extend(found)
-                        if len(results) >= 15:
-                            break
-            except Exception:
-                pass
+            cdn_data = fetch_jiosaavn_json(api_url, timeout=12)
+            if cdn_data and isinstance(cdn_data, dict):
+                found = cdn_data.get('results', [])
+                if found:
+                    results.extend(found)
+                    if len(results) >= 15:
+                        break
 
         if not results:
             for sq in search_queries:
                 ac_url = f"https://www.jiosaavn.com/api.php?__call=autocomplete.get&_marker=0&query={urllib.parse.quote(sq)}&ctx=web6dot0&_format=json"
-                req_ac = urllib.request.Request(ac_url, headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'})
-                try:
-                    with urllib.request.urlopen(req_ac, context=ctx, timeout=8) as resp_ac:
-                        ac_data = json.loads(resp_ac.read().decode('utf-8'))
-                        found_songs = ac_data.get('songs', {}).get('data', [])
-                        for fs in found_songs[:5]:
-                            pid = fs.get('id')
-                            if pid:
-                                try:
-                                    det_url = f"https://www.jiosaavn.com/api.php?__call=song.getDetails&pids={pid}&_format=json&_marker=0&ctx=web6dot0"
-                                    req_det = urllib.request.Request(det_url, headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'})
-                                    with urllib.request.urlopen(req_det, context=ctx, timeout=6) as resp_det:
-                                        det_data = json.loads(resp_det.read().decode('utf-8'))
-                                        song_list = det_data.get('songs', [])
-                                        if song_list:
-                                            results.extend(song_list)
-                                except Exception:
-                                    pass
-                        if results:
-                            break
-                except Exception:
-                    pass
+                ac_data = fetch_jiosaavn_json(ac_url, timeout=10)
+                if ac_data and isinstance(ac_data, dict):
+                    found_songs = ac_data.get('songs', {}).get('data', [])
+                    for fs in found_songs[:5]:
+                        pid = fs.get('id')
+                        if pid:
+                            det_url = f"https://www.jiosaavn.com/api.php?__call=song.getDetails&pids={pid}&_format=json&_marker=0&ctx=web6dot0"
+                            det_data = fetch_jiosaavn_json(det_url, timeout=8)
+                            if det_data and isinstance(det_data, dict):
+                                song_list = det_data.get('songs', [])
+                                if song_list:
+                                    results.extend(song_list)
+                    if results:
+                        break
 
         chosen = None
         if results:
@@ -1520,18 +1571,11 @@ def download_youtube_song_audio(
                 print(f"🎉 [Song Engine] Found Studio Master CDN Stream: '{chosen_title}' by {cand_singers} -> {hd_cdn_url}")
                 temp_raw_audio = os.path.join(target_dir, "raw_cdn_audio.mp4")
 
-                import shutil
                 downloaded_ok = False
                 for stream_url in [hd_cdn_url, direct_cdn_url.replace('_96.mp4', '_160.mp4'), direct_cdn_url]:
-                    try:
-                        dl_req = urllib.request.Request(stream_url, headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'})
-                        with urllib.request.urlopen(dl_req, context=ctx, timeout=25) as r_dl, open(temp_raw_audio, 'wb') as f_out:
-                            shutil.copyfileobj(r_dl, f_out)
-                        if os.path.exists(temp_raw_audio) and os.path.getsize(temp_raw_audio) > 5000:
-                            downloaded_ok = True
-                            break
-                    except Exception:
-                        pass
+                    if download_cdn_stream(stream_url, temp_raw_audio, timeout=30):
+                        downloaded_ok = True
+                        break
 
                 if downloaded_ok and os.path.exists(temp_raw_audio) and os.path.getsize(temp_raw_audio) > 5000:
                     conv_cmd = [
@@ -1562,9 +1606,89 @@ def download_youtube_song_audio(
     except Exception as e_cdn:
         print(f"⚠️ [Song Engine] Music CDN lookup note: {e_cdn}")
 
-    # Attempt 2: SoundCloud Stream Fallback (If not found on primary CDN)
-    sc_query = f"{clean_singer} {clean_title}".strip() if clean_title else clean_singer
-    if sc_query:
+    # Attempt 2: YouTube Search / Direct URL via yt-dlp with Android Player Client (Zero Bot Blocks on Render Datacenter)
+    yt_query = f"{clean_singer} {clean_title}".strip() if clean_title else clean_singer
+    if song_url and song_url.strip():
+        yt_target = song_url.strip()
+    elif yt_query:
+        yt_target = f"ytsearch1:{yt_query} audio"
+    else:
+        yt_target = None
+
+    if yt_target and yt_dlp:
+        print(f"⚡ [Song Engine] Initiating YouTube direct stream for: '{yt_target}'...")
+        try:
+            cookie_file = get_available_cookies_file(target_dir)
+            yt_temp_pattern = os.path.join(target_dir, "yt_song.%(ext)s")
+            ydl_opts = {
+                'format': 'bestaudio/best',
+                'outtmpl': yt_temp_pattern,
+                'postprocessors': [{
+                    'key': 'FFmpegExtractAudio',
+                    'preferredcodec': 'mp3',
+                    'preferredquality': '192',
+                }],
+                'quiet': True,
+                'no_warnings': True,
+                'noplaylist': True,
+                'socket_timeout': 30,
+                'extractor_args': {
+                    'youtube': {
+                        'player_client': ['android', 'web']
+                    }
+                }
+            }
+            if cookie_file and os.path.exists(cookie_file):
+                ydl_opts['cookiefile'] = cookie_file
+
+            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                info = ydl.extract_info(yt_target, download=True)
+                yt_entry = info['entries'][0] if 'entries' in info and info['entries'] else info
+                if yt_entry:
+                    extracted_title = yt_entry.get('title') or yt_query
+                    extracted_duration = float(yt_entry.get('duration') or 60.0)
+
+            yt_candidates = [
+                f for f in glob.glob(os.path.join(target_dir, "yt_song*.*"))
+                if os.path.getsize(f) > 5000 and not f.endswith('.txt') and not f.endswith('.json')
+            ]
+            if yt_candidates and yt_entry:
+                conv_cmd = [
+                    "ffmpeg", "-y", "-i", yt_candidates[0],
+                    "-vn", "-acodec", "libmp3lame", "-q:a", "2",
+                    target_path
+                ]
+                subprocess.run(conv_cmd, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                try: os.remove(yt_candidates[0])
+                except Exception: pass
+                try:
+                    probe_cmd = ["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "default=noprint_wrappers=1:nokey=1", target_path]
+                    extracted_duration = float(subprocess.check_output(probe_cmd).decode().strip())
+                except Exception:
+                    pass
+                print(f"🎉 [Song Engine] Successfully Retrieved Song Track via YouTube: '{extracted_title}' ({os.path.getsize(target_path)} bytes, {extracted_duration:.1f}s)")
+                return {
+                    "audio_path": target_path,
+                    "title": extracted_title,
+                    "singer": clean_singer,
+                    "duration": extracted_duration
+                }
+        except Exception as e_yt:
+            print(f"⚠️ [Song Engine] YouTube stream fallback note: {e_yt}")
+
+    # Attempt 3: SoundCloud Stream Fallback (If not found on primary CDN or YouTube)
+    sc_queries = []
+    if clean_singer and clean_title:
+        sc_queries.append(f"{clean_singer} {clean_title}")
+        sc_queries.append(clean_title)
+    elif clean_title:
+        sc_queries.append(clean_title)
+    else:
+        sc_queries.append(clean_singer)
+
+    for sc_query in sc_queries:
+        if not yt_dlp:
+            break
         print(f"⚡ [Song Engine] Initiating SoundCloud stream fallback for: '{sc_query}'...")
         try:
             sc_target = f"scsearch3:{sc_query}"
