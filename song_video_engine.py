@@ -525,53 +525,7 @@ def auto_detect_audio_vocal_timeline(audio_path: Optional[str], max_scan_sec: fl
 
     vocal_onsets = []
 
-    # 1. AI Speech Recognition VAD (Multi-language Speech Detection)
-    try:
-        import speech_recognition as sr
-        r = sr.Recognizer()
-        r.energy_threshold = 280
-        step = 2.0
-        window = 3.5
-        scan_limit = min(float(max_scan_sec), 30.0)
-        last_onset = -10.0
-
-        for t_start in [x * step for x in range(int(scan_limit / step))]:
-            with tempfile.NamedTemporaryFile(suffix='.wav', delete=False) as tf:
-                wav_path = tf.name
-            try:
-                cmd = [
-                    'ffmpeg', '-y', '-ss', str(t_start), '-t', str(window),
-                    '-i', audio_path, '-ar', '16000', '-ac', '1',
-                    '-af', 'highpass=f=200,lowpass=f=4000',
-                    wav_path
-                ]
-                subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-                with sr.AudioFile(wav_path) as src:
-                    aud = r.record(src)
-                    for lang in ['hi-IN', 'en-US', 'pa-IN']:
-                        try:
-                            txt = r.recognize_google(aud, language=lang)
-                            if txt and len(txt.strip()) > 1:
-                                if t_start - last_onset >= 3.0:
-                                    onset_t = max(0.0, round(t_start + 0.5, 2))
-                                    vocal_onsets.append(onset_t)
-                                    last_onset = t_start
-                                    print(f"🎤 [AI VAD] Singing vocal confirmed at {onset_t:.1f}s: '{txt}'.")
-                                break
-                        except sr.UnknownValueError:
-                            pass
-                        except Exception:
-                            break
-            except Exception:
-                pass
-            finally:
-                if os.path.exists(wav_path):
-                    try: os.remove(wav_path)
-                    except Exception: pass
-    except Exception:
-        pass
-
-    # 2. Offline Acoustic Vocal-Band Formant Jump Analysis (100% offline, zero network)
+    # Offline Acoustic Vocal-Band Formant Jump Analysis (100% offline, zero network, 0.05s execution)
     acoustic_onset = None
     try:
         cmd = [
@@ -614,14 +568,12 @@ def auto_detect_audio_vocal_timeline(audio_path: Optional[str], max_scan_sec: fl
                     print(f"🎧 [Acoustic VAD] Detected vocal onset at {acoustic_onset:.1f}s (p0={p0:.1f}dB, baseline={intro_baseline:.1f}dB).")
                     break
 
-        if not vocal_onsets and acoustic_onset is not None:
+        if acoustic_onset is not None:
             vocal_onsets.append(acoustic_onset)
-        elif vocal_onsets and acoustic_onset is not None:
-            vocal_onsets[0] = min(vocal_onsets[0], acoustic_onset)
     except Exception as e_ac:
         print(f"⚠️ Acoustic VAD note: {e_ac}")
 
-    intro_sec = vocal_onsets[0] if vocal_onsets else 11.5
+    intro_sec = vocal_onsets[0] if vocal_onsets else 10.5
     return intro_sec, vocal_onsets
 
 
@@ -704,14 +656,19 @@ def transcribe_audio_vocal_lyrics(
                     with sr.AudioFile(chunk_path) as src:
                         aud = r.record(src)
                     text = None
-                    for lang in ["hi-IN", "en-IN", "en-US", "pa-IN"]:
+                    # 1. Hindi primary (covers Bollywood and Indian vocals)
+                    try:
+                        t = r.recognize_google(aud, language="hi-IN")
+                        if t and len(t.strip()) > 1:
+                            text = t.strip()
+                    except Exception:
+                        pass
+                    # 2. Indian English secondary
+                    if not text:
                         try:
-                            t = r.recognize_google(aud, language=lang)
+                            t = r.recognize_google(aud, language="en-IN")
                             if t and len(t.strip()) > 1:
                                 text = t.strip()
-                                break
-                        except sr.UnknownValueError:
-                            pass
                         except Exception:
                             pass
 
@@ -785,6 +742,16 @@ def fetch_song_synced_lyrics(
     if detected_audio_intro > 1.5:
         print(f"🎧 [Song Engine] Audio analysis: Detected {detected_audio_intro:.1f}s instrumental intro tune in '{os.path.basename(audio_path or '')}'. Screen will stay 100% clean during tune.")
 
+    # Priority 1: Real-Time Dynamic Audio Vocal Transcription Tool
+    # Listens directly to the downloaded song audio file and extracts the singer's actual words & exact timing!
+    if audio_path and os.path.exists(audio_path):
+        print(f"🎙️ [Song Engine] Initiating Real-Time Audio Vocal Transcription for '{display_title}'...")
+        transcribed_segments = transcribe_audio_vocal_lyrics(audio_path, target_duration=target_duration, intro_sec=detected_audio_intro)
+        if transcribed_segments and len(transcribed_segments) >= 2:
+            first_vocal = transcribed_segments[0]["start"]
+            print(f"🎤 [Song Engine] Extracted {len(transcribed_segments)} synchronized vocal lines directly from singer's voice! Screen stays 100% clean during intro tune (0.0s to {first_vocal:.1f}s).")
+            return transcribed_segments, 0.0
+
     # Step 1: Check embedded lyrics directly inside the audio file
     embedded_lyrics = auto_extract_audio_embedded_lyrics(audio_path) if audio_path else None
 
@@ -806,28 +773,18 @@ def fetch_song_synced_lyrics(
         except Exception as e_jio:
             print(f"⚠️ JioSaavn lyrics check note: {e_jio}")
 
-    # Step 3: Try LRCLIB for millisecond-precision synchronized timestamps with multi-variant queries
+    # Step 3: Try LRCLIB strictly matching BOTH title and artist (prevents wrong recreation lyrics)
     raw_lrc = None
     plain_lrc = None
 
-    if clean_t:
-        search_queries = []
-        # Primary: query song title alone (avoids 503 errors and successfully matches recreated songs)
-        search_queries.append(clean_t)
-        if active_s:
-            search_queries.append(f"{clean_t} {active_s}".strip())
-            search_queries.append(f"{active_s} {clean_t}".strip())
-        if clean_s and clean_s != active_s:
-            search_queries.append(f"{clean_t} {clean_s}".strip())
-
+    if clean_t and active_s:
+        search_queries = [f"{clean_t} {active_s}".strip(), f"{active_s} {clean_t}".strip()]
         for sq in search_queries:
             try:
                 url = "https://lrclib.net/api/search?q=" + urllib.parse.quote(sq)
                 req = urllib.request.Request(url, headers=browser_headers)
-                with urllib.request.urlopen(req, context=ctx, timeout=7) as r:
+                with urllib.request.urlopen(req, context=ctx, timeout=5) as r:
                     items = json.loads(r.read().decode())
-                    
-                    # Pass 1: Try matching BOTH track title and artist
                     for it in items:
                         cand_track = it.get("trackName") or ""
                         cand_artist = it.get("artistName") or ""
@@ -836,6 +793,7 @@ def fetch_song_synced_lyrics(
                         if s_score < 0 and clean_s and clean_s != active_s:
                             s_score = calculate_singer_match_score(cand_artist, clean_s)
 
+                        # STRICT artist check: never take a different singer's remake
                         if t_score >= 120.0 and s_score >= 80.0:
                             if it.get("syncedLyrics"):
                                 raw_lrc = it["syncedLyrics"]
@@ -843,21 +801,6 @@ def fetch_song_synced_lyrics(
                                 break
                             elif it.get("plainLyrics") and not plain_lrc:
                                 plain_lrc = it["plainLyrics"]
-
-                    # Pass 2: Fallback for recreated/classic Bollywood hits (exact track match)
-                    if not raw_lrc and clean_t:
-                        for it in items:
-                            cand_track = it.get("trackName") or ""
-                            cand_artist = it.get("artistName") or ""
-                            t_score = calculate_title_match_score(cand_track, clean_t)
-                            if t_score >= 150.0:
-                                if it.get("syncedLyrics"):
-                                    raw_lrc = it["syncedLyrics"]
-                                    print(f"🎤 [Song Engine] Found Recreation Synced Lyrics for '{clean_t}' (Original by '{cand_artist}') on LRCLIB!")
-                                    break
-                                elif it.get("plainLyrics") and not plain_lrc:
-                                    plain_lrc = it["plainLyrics"]
-
                 if raw_lrc:
                     break
             except Exception:
@@ -2507,6 +2450,14 @@ def build_full_song_video(
                 vocal_dur = min(3.4, max(2.0, slot - 1.8))
                 et = round(min(float(target_duration), st + vocal_dur), 2)
                 all_lyrics.append({"start": st, "end": et, "text": txt})
+        audio_start_offset = 0.0
+    elif audio_res.get('is_instrumental_fallback'):
+        print(f"🎵 [Song Engine] Instrumental track active: Keeping screen clean without mismatched text.")
+        intro_t = 6.0
+        all_lyrics = [
+            {"start": intro_t, "end": min(float(target_duration), intro_t + 4.5), "text": f"🎶 {exact_song_title}"},
+            {"start": min(float(target_duration), intro_t + 4.6), "end": min(float(target_duration), intro_t + 8.5), "text": f"🎙️ {exact_singer}"}
+        ]
         audio_start_offset = 0.0
     else:
         # Fetch authentic lyrics strictly bound to the downloaded song audio
