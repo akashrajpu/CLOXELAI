@@ -1212,6 +1212,26 @@ POPULAR_SINGER_CANONICAL: Dict[str, str] = {
     "kk": "KK",
     "shaan": "Shaan",
     "sunidhi chauhan": "Sunidhi Chauhan",
+    "himesh": "Himesh Reshammiya",
+    "himesh reshammiya": "Himesh Reshammiya",
+    "himesh reshamiya": "Himesh Reshammiya",
+    "hr": "Himesh Reshammiya",
+    "mohammed rafi": "Mohammed Rafi",
+    "mohd rafi": "Mohammed Rafi",
+    "rafi": "Mohammed Rafi",
+    "kishore kumar": "Kishore Kumar",
+    "kishor kumar": "Kishore Kumar",
+    "lata mangeshkar": "Lata Mangeshkar",
+    "lata": "Lata Mangeshkar",
+    "mukesh": "Mukesh",
+    "asha bhosle": "Asha Bhosle",
+    "rd burman": "R. D. Burman",
+    "r d burman": "R. D. Burman",
+    "pritam": "Pritam",
+    "ar rahman": "A. R. Rahman",
+    "a r rahman": "A. R. Rahman",
+    "anirudh": "Anirudh Ravichander",
+    "anirudh ravichander": "Anirudh Ravichander",
 }
 
 
@@ -1229,6 +1249,105 @@ def normalize_singer_name(singer: str) -> str:
         if difflib.SequenceMatcher(None, clean, k).ratio() >= 0.82:
             return v
     return singer.strip()
+
+
+def normalize_music_query(text: str) -> str:
+    """
+    Cleans, expands, and normalizes song titles and artist names:
+    - Splits CamelCase/PascalCase: 'DardEDil' -> 'Dard E Dil', 'TumHiHo' -> 'Tum Hi Ho'
+    - Replaces separators/hyphens with spaces: 'Dard-e-dil' -> 'Dard e dil'
+    - Collapses multiple whitespace
+    """
+    if not text or not isinstance(text, str):
+        return ""
+    s = text.strip()
+    # 1. Split CamelCase (e.g. DardEDil -> Dard E Dil, SirfTum -> Sirf Tum)
+    s = re.sub(r'([a-z0-9])([A-Z])', r'\1 \2', s)
+    s = re.sub(r'([A-Z]+)([A-Z][a-z])', r'\1 \2', s)
+    # 2. Replace hyphens, underscores, dots, slashes, brackets, quotes with spaces
+    s = re.sub(r'[-_/\.()\[\]{}:,+&\'\"`~]+', ' ', s)
+    # 3. Collapse whitespace
+    s = re.sub(r'\s+', ' ', s).strip()
+    return s
+
+
+def get_compact_alphanumeric(text: str) -> str:
+    """Returns lowercase alphanumeric string with all whitespace and symbols removed."""
+    return re.sub(r'[^a-zA-Z0-9]', '', str(text or '').lower())
+
+
+def calculate_title_match_score(cand_title: str, query_title: str) -> float:
+    """
+    Calculates robust matching score between candidate song title and requested song title:
+    - Supports exact match, CamelCase split, compact substring matching, and word token overlap.
+    """
+    if not query_title:
+        return 50.0
+    cand_norm = normalize_music_query(cand_title).lower()
+    query_norm = normalize_music_query(query_title).lower()
+
+    cand_compact = get_compact_alphanumeric(cand_title)
+    query_compact = get_compact_alphanumeric(query_title)
+
+    # Clean candidate of album / movie wrappers: (From "...") or [Lyrical]
+    cand_clean = re.sub(r'[\(\[\{].*?[\)\]\}]', '', cand_title).strip()
+    cand_clean_compact = get_compact_alphanumeric(cand_clean)
+
+    # 1. Compact exact or substring match (100% immune to spacing/hyphen differences)
+    if query_compact and cand_clean_compact and query_compact == cand_clean_compact:
+        return 220.0
+    if query_compact and cand_compact:
+        if query_compact == cand_compact:
+            return 200.0
+        if query_compact in cand_compact or cand_clean_compact in query_compact:
+            return 180.0
+
+    # 2. Token overlap match
+    query_tokens = [w for w in re.findall(r'[a-zA-Z0-9]+', query_norm) if len(w) > 1]
+    cand_tokens = [w for w in re.findall(r'[a-zA-Z0-9]+', cand_norm) if len(w) > 1]
+
+    if not query_tokens:
+        return 0.0
+
+    matched = 0
+    for qt in query_tokens:
+        if qt in cand_tokens or any(difflib.SequenceMatcher(None, qt, ct).ratio() >= 0.78 for ct in cand_tokens):
+            matched += 1
+
+    if matched == len(query_tokens):
+        return 160.0
+    elif matched > 0:
+        return 100.0 * (matched / len(query_tokens))
+
+    return -500.0
+
+
+def calculate_singer_match_score(all_cand_artists: str, query_singer: str) -> float:
+    """
+    Calculates robust singer matching score between candidate artist credits and requested singer.
+    """
+    if not query_singer:
+        return 0.0
+    norm_query = normalize_music_query(query_singer).lower()
+    norm_cand = normalize_music_query(all_cand_artists).lower()
+
+    q_tokens = [w for w in re.findall(r'[a-zA-Z0-9]+', norm_query) if len(w) > 2]
+    cand_words = [w for w in re.findall(r'[a-zA-Z0-9]+', norm_cand) if len(w) > 1]
+
+    if not q_tokens:
+        return 50.0
+
+    matched = 0
+    for qt in q_tokens:
+        if qt in norm_cand or any(difflib.SequenceMatcher(None, qt, cw).ratio() >= 0.75 for cw in cand_words):
+            matched += 1
+
+    if matched == 0:
+        return -500.0
+    elif matched == len(q_tokens):
+        return 160.0
+    else:
+        return 80.0 * (matched / len(q_tokens))
 
 
 # ==============================================================================
@@ -1536,9 +1655,9 @@ def download_youtube_song_audio(
     extracted_title = song_title or singer_name or "Official Song"
     extracted_duration = 60.0
 
-    # Clean artist & song names
-    clean_singer = re.sub(r'[^\w\s]', '', singer_name or "").strip()
-    clean_title = re.sub(r'[^\w\s]', '', song_title or "").strip()
+    # Clean artist & song names with CamelCase splitting and punctuation normalization
+    clean_singer = normalize_music_query(singer_name or "")
+    clean_title = normalize_music_query(song_title or "")
 
     # If YouTube URL was passed as fallback, extract clean name via oEmbed
     if not clean_singer and song_url and song_url.strip():
@@ -1621,7 +1740,6 @@ def download_youtube_song_audio(
                 # Rank results to pick the EXACT match for singer and title
                 def score_song_candidate(item: dict) -> float:
                     cand_title = (item.get('song') or item.get('title') or '').lower()
-                    cand_title_clean = re.sub(r'[\(\[\{].*?[\)\]\}]', '', cand_title).strip()
                     all_cand_artists = " ".join([
                         str(item.get('singers') or ''),
                         str(item.get('primary_artists') or ''),
@@ -1629,54 +1747,25 @@ def download_youtube_song_audio(
                         str(item.get('music') or ''),
                         str(item.get('artist') or '')
                     ]).lower()
-                    cand_artist_words = [w for w in re.findall(r'\w+', all_cand_artists) if len(w) > 1]
                     score = 0.0
 
-                    # 1. Singer Matching (CRITICAL: Candidate MUST match requested singer!)
+                    # 1. Singer Matching (Candidate MUST match requested singer!)
                     if active_singer:
-                        singer_tokens = [w for w in re.findall(r'\w+', active_singer.lower()) if len(w) > 2]
-                        if clean_singer and clean_singer.lower() != active_singer.lower():
-                            singer_tokens.extend([w for w in re.findall(r'\w+', clean_singer.lower()) if len(w) > 2])
-                        singer_tokens = list(dict.fromkeys(singer_tokens))
-
-                        if singer_tokens:
-                            matched_singer_tokens = 0
-                            for s_tok in singer_tokens:
-                                if s_tok in all_cand_artists:
-                                    matched_singer_tokens += 1
-                                elif any(difflib.SequenceMatcher(None, s_tok, aw).ratio() >= 0.75 for aw in cand_artist_words):
-                                    matched_singer_tokens += 1
-
-                            if matched_singer_tokens == 0:
-                                # Candidate is by an unrelated artist -> DISQUALIFY candidate!
-                                score -= 500.0
-                            elif matched_singer_tokens >= 2 or matched_singer_tokens == len(singer_tokens):
-                                score += 160.0  # Perfect singer match!
-                            else:
-                                score += 80.0 * (matched_singer_tokens / len(singer_tokens))
+                        s_score = calculate_singer_match_score(all_cand_artists, active_singer)
+                        if s_score < 0 and clean_singer and clean_singer.lower() != active_singer.lower():
+                            alt_s_score = calculate_singer_match_score(all_cand_artists, clean_singer)
+                            if alt_s_score > s_score:
+                                s_score = alt_s_score
+                        if s_score < 0:
+                            return -500.0  # Disqualify unrelated artist
+                        score += s_score
 
                     # 2. Title Matching
                     if clean_title:
-                        title_tokens = [w for w in re.findall(r'\w+', clean_title.lower()) if len(w) > 1]
-                        if title_tokens:
-                            cand_title_words = [w for w in re.findall(r'\w+', cand_title_clean) if len(w) > 1]
-                            matched_title_tokens = 0
-                            for t_tok in title_tokens:
-                                if t_tok in cand_title_clean:
-                                    matched_title_tokens += 1
-                                elif any(difflib.SequenceMatcher(None, t_tok, tw).ratio() >= 0.8 for tw in cand_title_words):
-                                    matched_title_tokens += 1
-
-                            if matched_title_tokens == 0:
-                                score -= 500.0  # Disqualify if title doesn't match at all
-                            elif matched_title_tokens == len(title_tokens):
-                                score += 150.0  # Perfect title match!
-                            else:
-                                score += 75.0 * (matched_title_tokens / len(title_tokens))
-
-                            clean_user_title = clean_title.lower().strip()
-                            if cand_title_clean == clean_user_title:
-                                score += 50.0
+                        t_score = calculate_title_match_score(cand_title, clean_title)
+                        if t_score < 0:
+                            return -500.0  # Disqualify mismatched song
+                        score += t_score
 
                     # 3. Penalize Unwanted Covers / Remixes / Slowed
                     combined = f"{cand_title} {all_cand_artists}"
@@ -1855,29 +1944,23 @@ def download_youtube_song_audio(
                         if any(w in cand_t for w in ["teaser", "trailer", "preview", "snippet", "ringtone", "status", "promo", "shorts", "reels"]):
                             return -1000.0
 
-                        # Singer verification (CRITICAL)
+                        # Singer verification
                         if active_singer:
-                            s_words = [w for w in re.findall(r'\w+', active_singer.lower()) if len(w) > 2]
-                            cand_words = re.findall(r'\w+', combined)
-                            s_match = 0
-                            for sw in s_words:
-                                if sw in combined or any(difflib.SequenceMatcher(None, sw, cw).ratio() >= 0.75 for cw in cand_words):
-                                    s_match += 1
-                            if s_match == 0:
+                            s_score = calculate_singer_match_score(combined, active_singer)
+                            if s_score < 0 and clean_singer and clean_singer.lower() != active_singer.lower():
+                                alt_s_score = calculate_singer_match_score(combined, clean_singer)
+                                if alt_s_score > s_score:
+                                    s_score = alt_s_score
+                            if s_score < 0:
                                 return -1000.0  # Disqualify unrelated singers!
-                            score += 150.0 * (s_match / len(s_words))
+                            score += s_score
 
                         # Title verification
                         if clean_title:
-                            t_words = [w for w in re.findall(r'\w+', clean_title.lower()) if len(w) > 1]
-                            cand_t_words = re.findall(r'\w+', cand_t)
-                            t_match = 0
-                            for tw in t_words:
-                                if tw in cand_t or any(difflib.SequenceMatcher(None, tw, ctw).ratio() >= 0.8 for ctw in cand_t_words):
-                                    t_match += 1
-                            if t_match == 0:
+                            t_score = calculate_title_match_score(cand_t, clean_title)
+                            if t_score < 0:
                                 return -1000.0  # Disqualify wrong song
-                            score += 150.0 * (t_match / len(t_words))
+                            score += t_score
 
                         # Bonus for pure audio and lyrical tracks
                         if "lyrical" in cand_t:
@@ -2053,27 +2136,21 @@ def download_youtube_song_audio(
 
                 # 1. Singer check (CRITICAL: Candidate MUST match requested singer!)
                 if active_singer:
-                    s_words = [w for w in re.findall(r'\w+', active_singer.lower()) if len(w) > 2]
-                    cand_words = re.findall(r'\w+', combined)
-                    matched_s = 0
-                    for sw in s_words:
-                        if sw in combined or any(difflib.SequenceMatcher(None, sw, cw).ratio() >= 0.75 for cw in cand_words):
-                            matched_s += 1
-                    if matched_s == 0:
+                    s_score = calculate_singer_match_score(combined, active_singer)
+                    if s_score < 0 and clean_singer and clean_singer.lower() != active_singer.lower():
+                        alt_s_score = calculate_singer_match_score(combined, clean_singer)
+                        if alt_s_score > s_score:
+                            s_score = alt_s_score
+                    if s_score < 0:
                         return -1000.0  # STRICTLY DISQUALIFY wrong singer!
-                    score += 150.0 * (matched_s / len(s_words))
+                    score += s_score
 
                 # 2. Title check
                 if clean_title:
-                    t_words = [w for w in re.findall(r'\w+', clean_title.lower()) if len(w) > 1]
-                    cand_t_words = re.findall(r'\w+', cand_t)
-                    matched_t = 0
-                    for tw in t_words:
-                        if tw in cand_t or any(difflib.SequenceMatcher(None, tw, ctw).ratio() >= 0.8 for ctw in cand_t_words):
-                            matched_t += 1
-                    if matched_t == 0:
+                    t_score = calculate_title_match_score(cand_t, clean_title)
+                    if t_score < 0:
                         return -1000.0  # Disqualify wrong song!
-                    score += 150.0 * (matched_t / len(t_words))
+                    score += t_score
 
                 # Bonus for full audio keywords
                 if any(w in cand_t for w in ["full song", "full audio", "audio track", "original track", "official audio"]):
