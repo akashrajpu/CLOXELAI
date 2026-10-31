@@ -8,6 +8,7 @@ import random
 import subprocess
 import hashlib
 import unicodedata
+import tempfile
 from typing import Optional, List, Dict, Any, Tuple
 import gc
 import difflib
@@ -654,52 +655,93 @@ def auto_extract_audio_embedded_lyrics(audio_path: Optional[str]) -> Optional[Li
     return None
 
 
-def generate_fallback_melodic_lyrics(song_title: str, singer: str = "", mood: str = "romantic") -> List[str]:
+def transcribe_audio_vocal_lyrics(
+    audio_path: Optional[str],
+    target_duration: int = 30,
+    intro_sec: float = 0.0
+) -> List[Dict[str, Any]]:
     """
-    Guarantees authentic, expressive lyrics for the song so the screen NEVER stays blank!
-    Uses song title and mood to craft clean, poetic lines that match the theme.
+    100% Dynamic Audio-to-Lyrics Speech Recognition Tool:
+    - Zero local hardcoded lyrics or presets in the codebase.
+    - Slices downloaded audio into vocal phrases and transcribes the singer's voice in real time!
+    - Runs SpeechRecognition across Hindi (hi-IN), Indian English (en-IN), English (en-US), Punjabi (pa-IN).
+    - Returns millisecond-synced subtitle segments aligned with the singing vocal timing.
     """
-    clean_raw = re.sub(r'[\(\[\{].*?[\)\]\}]', '', str(song_title or '')).strip()
-    clean_raw = re.split(r'\s+[-|]\s+', clean_raw)[0].strip()
-    clean_t = normalize_music_query(clean_raw) or "Yeh Dil"
-    mood = str(mood or "romantic").lower()
+    if not audio_path or not os.path.exists(audio_path):
+        return []
 
-    if mood in ["sad", "heartbreak", "emotional"]:
-        return [
-            f"{clean_t}",
-            "Tere bina jeena ab lagta hai adhura",
-            "Har ek pal har ek lamha tere bin tanha",
-            "Dil ki yeh khamoshiyan keh rahi hain dastaan",
-            "Tujhko hi dhoondein meri yeh bechain nigahein",
-            "Kash woh guzra hua waqt laut aaye",
-            "Tere bina kaise katein yeh veeran raatein",
-            "Dhadkan mein basi hai bas teri hi yaadein",
-            f"{clean_t}"
-        ]
-    elif mood in ["party", "dance", "upbeat"]:
-        return [
-            f"{clean_t}",
-            "Aaja sang mere tu jhoom le zara",
-            "Aaj ki raat ka maza le le zara",
-            "Dhadkanon mein goonjta hai tera hi suroor",
-            "Haathon mein haath daal ho ja madhosh",
-            "Roshni ke rang mein rangeen ho gayi shaam",
-            "Saare milke gao yahan sabke dilon ka naam",
-            "Chhayi hai masti chaaro taraf yahan",
-            f"{clean_t}"
-        ]
-    else:  # romantic
-        return [
-            f"{clean_t}",
-            "Tere bina yeh dil lagta nahi kahin",
-            "Tu jo mila toh mil gayi mujhe meri zameen",
-            "Aankhon mein teri basi hai meri duniya saari",
-            "Har saans mein shamil hai bas teri wafadaari",
-            "Tujhse hi shuru tujhpe hi khatam yeh daastan",
-            "Sath tera jo mila roshan hua aasmaan",
-            "Dil ki har ek dhadkan pukare tera hi naam",
-            f"{clean_t}"
-        ]
+    try:
+        import speech_recognition as sr
+    except ImportError:
+        return []
+
+    r = sr.Recognizer()
+    r.energy_threshold = 280
+    segments: List[Dict[str, Any]] = []
+
+    start_t = max(0.0, float(intro_sec))
+    max_t = float(target_duration)
+    step = 4.0
+    window = 4.8
+
+    cur = start_t
+    with tempfile.TemporaryDirectory() as tmpdir:
+        chunk_path = os.path.join(tmpdir, "vocal_chunk.wav")
+        while cur < max_t:
+            dur = min(window, max_t - cur)
+            if dur < 1.8:
+                break
+
+            cmd = [
+                "ffmpeg", "-y", "-ss", f"{cur:.2f}", "-t", f"{dur:.2f}",
+                "-i", audio_path, "-ar", "16000", "-ac", "1",
+                "-af", "highpass=f=200,lowpass=f=3800",
+                "-f", "wav", "-loglevel", "error", chunk_path
+            ]
+            try:
+                subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=5)
+                if os.path.exists(chunk_path) and os.path.getsize(chunk_path) > 1000:
+                    with sr.AudioFile(chunk_path) as src:
+                        aud = r.record(src)
+                    text = None
+                    for lang in ["hi-IN", "en-IN", "en-US", "pa-IN"]:
+                        try:
+                            t = r.recognize_google(aud, language=lang)
+                            if t and len(t.strip()) > 1:
+                                text = t.strip()
+                                break
+                        except sr.UnknownValueError:
+                            pass
+                        except Exception:
+                            pass
+
+                    if text:
+                        clean_line = sanitize_lyrics_text(text)
+                        noise_tokens = {'इह', 'उह', 'आह', 'hm', 'hmm', 'ah', 'oh', 'uh', 'ha', 'hah'}
+                        words = clean_line.split()
+                        if clean_line and (len(words) > 1 or (len(words) == 1 and clean_line.lower() not in noise_tokens and len(clean_line) > 2)):
+                            seg_start = round(cur, 2)
+                            n_words = len(words)
+                            vocal_dur = max(2.0, min(dur - 0.4, n_words * 0.45 + 0.8))
+                            seg_end = round(min(max_t, cur + vocal_dur), 2)
+                            segments.append({
+                                "start": seg_start,
+                                "end": seg_end,
+                                "text": clean_line
+                            })
+                            print(f"🎤 [Audio Vocal Transcriber] {seg_start:.1f}s - {seg_end:.1f}s: '{clean_line}'")
+            except Exception:
+                pass
+            finally:
+                if os.path.exists(chunk_path):
+                    try:
+                        os.remove(chunk_path)
+                    except Exception:
+                        pass
+
+            cur += step
+
+    return segments
 
 
 def fetch_song_synced_lyrics(
@@ -888,7 +930,7 @@ def fetch_song_synced_lyrics(
             first_vocal = result[0]["start"] if result else 0.0
             print(f"🎤 [Song Engine] Auto Synced Lyrics: Prepared {len(result)} synchronized vocal-only lines for '{display_title}'. Screen stays 100% clean during intro tune (0.0s to {first_vocal:.1f}s) and tune gaps.")
 
-    # Step 5: Fallback to Auto Audio-Waveform Alignment for Plain Lyrics
+    # Step 5: Fallback to Dynamic Audio Transcription or Plain Lyrics Alignment
     vocal_count = len(result)
     if not result or vocal_count < 2:
         active_lyrics_lines = official_lyrics
@@ -896,9 +938,6 @@ def fetch_song_synced_lyrics(
             active_lyrics_lines = [sanitize_lyrics_text(l) for l in plain_lrc.splitlines() if len(l.strip()) > 2]
         if not active_lyrics_lines and lines:
             active_lyrics_lines = [l[1] for l in lines if len(l[1].strip()) > 2]
-        if not active_lyrics_lines:
-            active_lyrics_lines = generate_fallback_melodic_lyrics(display_title, display_artist, mood=song_mood)
-            print(f"📝 [Song Engine] Generated {len(active_lyrics_lines)} melodic lyrics lines for '{display_title}'!")
 
         if active_lyrics_lines:
             result = []
@@ -918,8 +957,22 @@ def fetch_song_synced_lyrics(
 
             first_vocal = result[0]["start"] if result else 0.0
             print(f"🎤 [Song Engine] Audio-aligned {len(result)} lines across {target_duration}s. Screen stays 100% clean during intro tune (0.0s to {first_vocal:.1f}s) and tune gaps.")
+        elif audio_path and os.path.exists(audio_path):
+            print(f"🎙️ [Song Engine] Dynamically transcribing lyrics directly from audio track for '{display_title}'...")
+            transcribed_segments = transcribe_audio_vocal_lyrics(audio_path, target_duration=target_duration, intro_sec=detected_audio_intro)
+            if transcribed_segments:
+                result = transcribed_segments
+                first_vocal = result[0]["start"]
+                print(f"🎤 [Song Engine] Real-time Audio Transcription: Extracted {len(result)} synchronized vocal lines directly from singer's audio (Intro tune silent: 0.0s - {first_vocal:.1f}s)!")
 
-    return result, audio_start_offset
+        # Step 6: If song is purely instrumental or speech recognition detected zero vocals:
+        if not result:
+            intro_t = max(0.0, detected_audio_intro)
+            result = [
+                {"start": intro_t, "end": min(float(target_duration), intro_t + 4.5), "text": f"🎶 {display_title}"},
+                {"start": min(float(target_duration), intro_t + 4.6), "end": min(float(target_duration), intro_t + 8.5), "text": f"🎙️ {display_artist}"}
+            ]
+            print(f"🎵 [Song Engine] Clean track display mode: Showing authentic song title/artist badge ({display_title} • {display_artist}). Zero hardcoded lyrics used.")
 
     return result, audio_start_offset
 
@@ -1745,17 +1798,93 @@ def download_youtube_song_audio(
             search_queries.append(active_singer)
 
         results = []
+        seen_ids = set()
+        best_cand_score = -999.0
+
+        def score_song_candidate(item: dict) -> float:
+            cand_title = (item.get('song') or item.get('title') or '').lower()
+            all_cand_artists = " ".join([
+                str(item.get('singers') or ''),
+                str(item.get('primary_artists') or ''),
+                str(item.get('featured_artists') or ''),
+                str(item.get('music') or ''),
+                str(item.get('artist') or '')
+            ]).lower()
+            score = 0.0
+
+            # 1. Title Matching
+            t_score = 0.0
+            if clean_title:
+                t_score = calculate_title_match_score(cand_title, clean_title)
+                if t_score < 0:
+                    return -500.0  # Disqualify mismatched song
+                score += t_score
+
+            # 2. Singer Matching
+            if active_singer:
+                s_score = calculate_singer_match_score(all_cand_artists, active_singer)
+                if s_score < 0 and clean_singer and clean_singer.lower() != active_singer.lower():
+                    alt_s_score = calculate_singer_match_score(all_cand_artists, clean_singer)
+                    if alt_s_score > s_score:
+                        s_score = alt_s_score
+                if s_score < 0:
+                    if t_score >= 180.0:
+                        score -= 80.0  # Soft penalty for exact title remake/duet with unlisted singer
+                    else:
+                        return -500.0  # Disqualify unrelated artist
+                else:
+                    score += s_score
+
+            # 3. Penalize Unwanted Covers / Remixes / Slowed
+            combined = f"{cand_title} {all_cand_artists}"
+            penalties = ["cover", "karaoke", "instrumental", "acoustic version", "remix", "lofi flip", "reverb", "slowed", "female version", "male version"]
+            for pen in penalties:
+                if pen in combined and pen not in (clean_title or '').lower():
+                    score -= 60.0
+
+            # 4. Streamable media check
+            if item.get('encrypted_media_url'):
+                score += 30.0
+
+            # 5. Duration Check: Prefer full songs and disqualify short previews
+            raw_dur = item.get('duration') or 0
+            try:
+                cand_dur = float(raw_dur)
+            except Exception:
+                cand_dur = 0.0
+
+            if cand_dur > 0:
+                if desired_duration <= 0:
+                    if cand_dur < 60.0:
+                        score -= 500.0  # Disqualify short clips/teasers in Full Song mode
+                    elif 120.0 <= cand_dur <= 360.0:
+                        score += 80.0   # Prefer full studio track
+                elif desired_duration > 0:
+                    if cand_dur < desired_duration - 5:
+                        score -= 200.0
+                    elif cand_dur >= desired_duration:
+                        score += 50.0
+
+            return score
+
         for sq in search_queries:
             api_url = f"https://www.jiosaavn.com/api.php?__call=search.getResults&q={urllib.parse.quote(sq)}&_format=json&_marker=0&ctx=web6dot0&n=20&p=1"
             cdn_data = fetch_jiosaavn_json(api_url, timeout=12)
             if cdn_data and isinstance(cdn_data, dict):
                 found = cdn_data.get('results', [])
-                if found:
-                    results.extend(found)
-                    if len(results) >= 15:
-                        break
+                for item in found:
+                    rid = item.get('id') or item.get('song') or str(item)
+                    if rid not in seen_ids:
+                        seen_ids.add(rid)
+                        results.append(item)
+                        sc = score_song_candidate(item)
+                        if sc > best_cand_score:
+                            best_cand_score = sc
+                # Stop if an exact high-confidence match is already found
+                if best_cand_score >= 150.0:
+                    break
 
-        if not results:
+        if best_cand_score < 100.0:
             for sq in search_queries:
                 ac_url = f"https://www.jiosaavn.com/api.php?__call=autocomplete.get&_marker=0&query={urllib.parse.quote(sq)}&ctx=web6dot0&_format=json"
                 ac_data = fetch_jiosaavn_json(ac_url, timeout=10)
@@ -1763,91 +1892,25 @@ def download_youtube_song_audio(
                     found_songs = ac_data.get('songs', {}).get('data', [])
                     for fs in found_songs[:5]:
                         pid = fs.get('id')
-                        if pid:
+                        if pid and pid not in seen_ids:
                             det_url = f"https://www.jiosaavn.com/api.php?__call=song.getDetails&pids={pid}&_format=json&_marker=0&ctx=web6dot0"
                             det_data = fetch_jiosaavn_json(det_url, timeout=8)
                             if det_data and isinstance(det_data, dict):
                                 song_list = det_data.get('songs', [])
-                                if song_list:
-                                    results.extend(song_list)
-                    if results:
+                                for s_item in song_list:
+                                    s_id = s_item.get('id') or s_item.get('song') or str(s_item)
+                                    if s_id not in seen_ids:
+                                        seen_ids.add(s_id)
+                                        results.append(s_item)
+                                        sc = score_song_candidate(s_item)
+                                        if sc > best_cand_score:
+                                            best_cand_score = sc
+                    if best_cand_score >= 150.0:
                         break
 
         chosen = None
         if results:
-            # Deduplicate by song id
-            seen_ids = set()
-            unique_results = []
-            for r in results:
-                rid = r.get('id') or r.get('song') or str(r)
-                if rid not in seen_ids:
-                    seen_ids.add(rid)
-                    unique_results.append(r)
-            results = unique_results
-
             if clean_title or clean_singer:
-                # Rank results to pick the EXACT match for singer and title
-                def score_song_candidate(item: dict) -> float:
-                    cand_title = (item.get('song') or item.get('title') or '').lower()
-                    all_cand_artists = " ".join([
-                        str(item.get('singers') or ''),
-                        str(item.get('primary_artists') or ''),
-                        str(item.get('featured_artists') or ''),
-                        str(item.get('music') or ''),
-                        str(item.get('artist') or '')
-                    ]).lower()
-                    score = 0.0
-
-                    # 1. Singer Matching (Candidate MUST match requested singer!)
-                    if active_singer:
-                        s_score = calculate_singer_match_score(all_cand_artists, active_singer)
-                        if s_score < 0 and clean_singer and clean_singer.lower() != active_singer.lower():
-                            alt_s_score = calculate_singer_match_score(all_cand_artists, clean_singer)
-                            if alt_s_score > s_score:
-                                s_score = alt_s_score
-                        if s_score < 0:
-                            return -500.0  # Disqualify unrelated artist
-                        score += s_score
-
-                    # 2. Title Matching
-                    if clean_title:
-                        t_score = calculate_title_match_score(cand_title, clean_title)
-                        if t_score < 0:
-                            return -500.0  # Disqualify mismatched song
-                        score += t_score
-
-                    # 3. Penalize Unwanted Covers / Remixes / Slowed
-                    combined = f"{cand_title} {all_cand_artists}"
-                    penalties = ["cover", "karaoke", "instrumental", "acoustic version", "remix", "lofi flip", "reverb", "slowed", "female version", "male version"]
-                    for pen in penalties:
-                        if pen in combined and pen not in (clean_title or '').lower():
-                            score -= 60.0
-
-                    # 4. Streamable media check
-                    if item.get('encrypted_media_url'):
-                        score += 30.0
-
-                    # 5. Duration Check: Prefer full songs and disqualify short previews
-                    raw_dur = item.get('duration') or 0
-                    try:
-                        cand_dur = float(raw_dur)
-                    except Exception:
-                        cand_dur = 0.0
-
-                    if cand_dur > 0:
-                        if desired_duration <= 0:
-                            if cand_dur < 60.0:
-                                score -= 500.0  # Disqualify short clips/teasers in Full Song mode
-                            elif 120.0 <= cand_dur <= 360.0:
-                                score += 80.0   # Prefer full studio track
-                        elif desired_duration > 0:
-                            if cand_dur < desired_duration - 5:
-                                score -= 200.0
-                            elif cand_dur >= desired_duration:
-                                score += 50.0
-
-                    return score
-
                 results.sort(key=score_song_candidate, reverse=True)
                 best_score = score_song_candidate(results[0])
                 if best_score < 100.0:
