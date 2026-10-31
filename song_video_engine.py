@@ -854,28 +854,17 @@ def fetch_song_synced_lyrics(
             rem_dur = max(5.0, target_duration - intro_silence)
             n_show = min(len(active_lyrics_lines), max(2, int(round(rem_dur / 5.5))))
 
-            if detected_onsets and len(detected_onsets) >= 2:
-                for idx in range(min(n_show, len(detected_onsets))):
-                    st = detected_onsets[idx]
-                    if st >= target_duration:
-                        break
-                    if idx + 1 < len(detected_onsets):
-                        gap = detected_onsets[idx + 1] - st
-                        vocal_dur = min(3.4, max(2.0, gap - 1.2))
-                    else:
-                        vocal_dur = 3.2
-                    et = round(min(float(target_duration), st + vocal_dur), 2)
-                    result.append({"start": st, "end": et, "text": active_lyrics_lines[idx]})
-            else:
-                slot = round(rem_dur / n_show, 2)
-                for idx in range(n_show):
-                    st = round(intro_silence + (idx * slot), 2)
-                    vocal_dur = min(3.4, max(2.0, slot - 1.8))
-                    et = round(min(float(target_duration), st + vocal_dur), 2)
-                    result.append({"start": st, "end": et, "text": active_lyrics_lines[idx]})
+            slot = round(rem_dur / max(1, n_show), 2)
+            for idx in range(n_show):
+                st = round(intro_silence + (idx * slot), 2)
+                if st >= target_duration:
+                    break
+                vocal_dur = min(3.8, max(2.2, slot - 1.4))
+                et = round(min(float(target_duration), st + vocal_dur), 2)
+                result.append({"start": st, "end": et, "text": active_lyrics_lines[idx]})
 
             first_vocal = result[0]["start"] if result else 0.0
-            print(f"🎤 [Song Engine] Audio-aligned {len(result)} lines. Screen stays 100% clean during intro tune (0.0s to {first_vocal:.1f}s) and tune gaps.")
+            print(f"🎤 [Song Engine] Audio-aligned {len(result)} lines across {target_duration}s. Screen stays 100% clean during intro tune (0.0s to {first_vocal:.1f}s) and tune gaps.")
 
     # Step 6: Pure Instrumental Fallback (Only if no lyrics found anywhere on Earth)
     if not result:
@@ -1501,7 +1490,8 @@ def download_youtube_song_audio(
     singer_name: Optional[str] = None,
     song_title: Optional[str] = None,
     uploaded_audio_path: Optional[str] = None,
-    target_dir: str = "temp_song"
+    target_dir: str = "temp_song",
+    desired_duration: int = 0
 ) -> Dict[str, Any]:
     """
     Downloads official song audio from:
@@ -1695,6 +1685,25 @@ def download_youtube_song_audio(
                     if item.get('encrypted_media_url'):
                         score += 30.0
 
+                    # 5. Duration Check: Prefer full songs and disqualify short previews
+                    raw_dur = item.get('duration') or 0
+                    try:
+                        cand_dur = float(raw_dur)
+                    except Exception:
+                        cand_dur = 0.0
+
+                    if cand_dur > 0:
+                        if desired_duration <= 0:
+                            if cand_dur < 60.0:
+                                score -= 500.0  # Disqualify short clips/teasers in Full Song mode
+                            elif 120.0 <= cand_dur <= 360.0:
+                                score += 80.0   # Prefer full studio track
+                        elif desired_duration > 0:
+                            if cand_dur < desired_duration - 5:
+                                score -= 200.0
+                            elif cand_dur >= desired_duration:
+                                score += 50.0
+
                     return score
 
                 results.sort(key=score_song_candidate, reverse=True)
@@ -1803,20 +1812,21 @@ def download_youtube_song_audio(
             best_yt_id = song_url.strip()
             chosen_yt_title = clean_title or active_singer or "Official Song"
         else:
-            # Query top 5 YouTube candidates prioritizing pure lyrical / audio version
+            # Query top 10 YouTube candidates prioritizing pure lyrical / audio version
             yt_queries = [
                 f"{active_singer} {clean_title} lyrical audio".strip(),
+                f"{active_singer} {clean_title} full song".strip(),
                 f"{active_singer} {clean_title} song".strip()
             ]
             if clean_singer and clean_singer != active_singer:
-                yt_queries.append(f"{clean_singer} {clean_title} lyrical audio".strip())
+                yt_queries.append(f"{clean_singer} {clean_title} full song".strip())
 
             flat_opts = {
                 'quiet': True,
                 'no_warnings': True,
                 'extract_flat': True,
                 'socket_timeout': 15,
-                'extractor_args': {'youtube': {'player_client': ['android', 'web']}}
+                'extractor_args': {'youtube': {'player_client': ['android', 'ios', 'mweb']}}
             }
             if cookie_file and os.path.exists(cookie_file):
                 flat_opts['cookiefile'] = cookie_file
@@ -1827,7 +1837,7 @@ def download_youtube_song_audio(
                 print(f"⚡ [Song Engine] Searching top YouTube candidates for: '{yq}'...")
                 try:
                     with yt_dlp.YoutubeDL(flat_opts) as ydl:
-                        search_res = ydl.extract_info(f"ytsearch5:{yq}", download=False)
+                        search_res = ydl.extract_info(f"ytsearch10:{yq}", download=False)
                         yt_entries = search_res.get('entries', []) if search_res else []
 
                     def score_yt_candidate(e: dict) -> float:
@@ -1836,6 +1846,10 @@ def download_youtube_song_audio(
                         combined = f"{cand_t} {cand_uploader}"
                         c_dur = float(e.get('duration') or 0.0)
                         score = 0.0
+
+                        # Penalize dialogue / teaser / short clips
+                        if any(w in cand_t for w in ["teaser", "trailer", "preview", "snippet", "ringtone", "status", "promo", "shorts", "reels"]):
+                            return -1000.0
 
                         # Singer verification (CRITICAL)
                         if active_singer:
@@ -1867,24 +1881,26 @@ def download_youtube_song_audio(
                         if "official audio" in cand_t or "audio" in cand_t:
                             score += 50.0
                         if "full song" in cand_t or "song" in cand_t:
-                            score += 30.0
-
-                        # Duration check: standard song is 140s - 280s
-                        if 140 <= c_dur <= 280:
                             score += 40.0
-                        elif c_dur > 360:
-                            # 6-7 minute videos are drama short films with talking scenes!
-                            score -= 90.0
-                        elif c_dur < 60:
-                            score -= 300.0
 
-                        # Penalize dialogue / music video drama
-                        if "teaser" in cand_t or "trailer" in cand_t:
-                            score -= 300.0
+                        # Duration check:
+                        if desired_duration <= 0:
+                            if c_dur > 0 and c_dur < 60:
+                                return -1000.0  # Disqualify short clips in Full Song mode!
+                            elif 120 <= c_dur <= 360:
+                                score += 120.0
+                            elif c_dur > 420:
+                                score -= 150.0
+                        elif desired_duration > 0:
+                            if c_dur > 0 and c_dur < desired_duration - 4:
+                                score -= 300.0
+                            elif c_dur >= desired_duration:
+                                score += 60.0
+
                         if "short film" in cand_t or "dialogue" in cand_t:
                             score -= 200.0
                         if "music video" in cand_t and "lyrical" not in cand_t:
-                            score -= 40.0
+                            score -= 30.0
 
                         # Penalize covers/remixes
                         for pen in ["cover", "remix", "reverb", "slowed", "karaoke"]:
@@ -1968,15 +1984,19 @@ def download_youtube_song_audio(
             except Exception as e_yt:
                 print(f"⚠️ [Song Engine] YouTube stream fallback note: {e_yt}")
 
-    # Attempt 3: SoundCloud Stream Fallback (Strict Singer Match Required)
+    # Attempt 3: SoundCloud Stream Fallback (Strict Singer Match & Duration Required)
     sc_queries = []
     if active_singer and clean_title:
-        sc_queries.append(f"{active_singer} {clean_title}")
+        sc_queries.append(f"{active_singer} {clean_title} full song".strip())
+        sc_queries.append(f"{active_singer} {clean_title}".strip())
+        sc_queries.append(f"{clean_title} {active_singer}".strip())
         if clean_singer and clean_singer != active_singer:
-            sc_queries.append(f"{clean_singer} {clean_title}")
+            sc_queries.append(f"{clean_singer} {clean_title}".strip())
     elif active_singer:
+        sc_queries.append(f"{active_singer} full song".strip())
         sc_queries.append(active_singer)
     elif clean_title:
+        sc_queries.append(f"{clean_title} full song".strip())
         sc_queries.append(clean_title)
 
     for sc_query in sc_queries:
@@ -1984,7 +2004,7 @@ def download_youtube_song_audio(
             break
         print(f"⚡ [Song Engine] Searching SoundCloud candidates for: '{sc_query}'...")
         try:
-            sc_target = f"scsearch5:{sc_query}"
+            sc_target = f"scsearch15:{sc_query}"
             flat_sc_opts = {
                 'quiet': True,
                 'no_warnings': True,
@@ -2003,6 +2023,35 @@ def download_youtube_song_audio(
                 cand_uploader = (item.get('uploader') or '').lower()
                 combined = f"{cand_t} {cand_uploader}"
                 score = 0.0
+
+                # 0. Strictly disqualify teasers, trailers, promos, snippets, ringtones, status clips
+                bad_sc_words = ["teaser", "trailer", "preview", "snippet", "ringtone", "status", "promo", "shorts", "reel", "sample", "cut"]
+                if any(w in cand_t for w in bad_sc_words):
+                    return -1000.0
+
+                # Candidate duration (handle seconds or ms)
+                raw_sc_dur = item.get('duration') or 0.0
+                try:
+                    cand_dur = float(raw_sc_dur)
+                    if cand_dur > 1000.0:
+                        cand_dur = cand_dur / 1000.0
+                except Exception:
+                    cand_dur = 0.0
+
+                # Duration filtering
+                if desired_duration <= 0:
+                    # Full Song Mode: NEVER allow clips under 60 seconds!
+                    if cand_dur > 0 and cand_dur < 60.0:
+                        return -1000.0
+                    elif 120.0 <= cand_dur <= 360.0:
+                        score += 160.0  # Massive bonus for authentic full song (2-6 mins)
+                    elif cand_dur > 450.0:
+                        score -= 150.0
+                else:
+                    if cand_dur > 0 and cand_dur < desired_duration - 4:
+                        score -= 400.0
+                    elif cand_dur >= desired_duration:
+                        score += 80.0
 
                 # 1. Singer check (CRITICAL: Candidate MUST match requested singer!)
                 if active_singer:
@@ -2028,6 +2077,10 @@ def download_youtube_song_audio(
                         return -1000.0  # Disqualify wrong song!
                     score += 150.0 * (matched_t / len(t_words))
 
+                # Bonus for full audio keywords
+                if any(w in cand_t for w in ["full song", "full audio", "audio track", "original track", "official audio"]):
+                    score += 60.0
+
                 # Penalize covers/remixes/slowed
                 for pen in ["remix", "reverb", "slowed", "karaoke"]:
                     if pen in cand_t and pen not in (clean_title or '').lower():
@@ -2037,38 +2090,45 @@ def download_youtube_song_audio(
 
             scored_sc = [(score_sc_candidate(e), e) for e in sc_entries]
             scored_sc.sort(key=lambda x: x[0], reverse=True)
-            best_sc_score, best_sc_entry = scored_sc[0]
 
-            if best_sc_score < 100.0:
-                print(f"⚠️ [Song Engine] No SoundCloud candidate matched singer '{active_singer}' and title '{clean_title}' (Best score: {best_sc_score:.1f}). Skipping.")
-                continue
+            downloaded_sc_match = None
+            for best_sc_score, best_sc_entry in scored_sc:
+                if best_sc_score < 100.0:
+                    break
 
-            target_sc_url = best_sc_entry.get('url') or best_sc_entry.get('webpage_url')
-            if not target_sc_url:
-                continue
+                target_sc_url = best_sc_entry.get('url') or best_sc_entry.get('webpage_url')
+                if not target_sc_url:
+                    continue
 
-            print(f"🎯 [Song Engine] Downloading verified SoundCloud match: '{best_sc_entry.get('title')}' (Score: {best_sc_score:.1f})...")
-            sc_opts = {
-                'format': 'bestaudio/best',
-                'outtmpl': os.path.join(target_dir, "sc_song.%(ext)s"),
-                'postprocessors': [{
-                    'key': 'FFmpegExtractAudio',
-                    'preferredcodec': 'mp3',
-                    'preferredquality': '192',
-                }],
-                'quiet': True,
-                'no_warnings': True,
-                'noplaylist': True,
-                'socket_timeout': 30
-            }
-            with yt_dlp.YoutubeDL(sc_opts) as ydl:
-                ydl.download([target_sc_url])
+                cand_title = best_sc_entry.get('title') or clean_title
+                print(f"🎯 [Song Engine] Downloading verified SoundCloud match: '{cand_title}' (Score: {best_sc_score:.1f})...")
+                sc_opts = {
+                    'format': 'bestaudio/best',
+                    'outtmpl': os.path.join(target_dir, "sc_song.%(ext)s"),
+                    'postprocessors': [{
+                        'key': 'FFmpegExtractAudio',
+                        'preferredcodec': 'mp3',
+                        'preferredquality': '192',
+                    }],
+                    'quiet': True,
+                    'no_warnings': True,
+                    'noplaylist': True,
+                    'socket_timeout': 30
+                }
+                try:
+                    with yt_dlp.YoutubeDL(sc_opts) as ydl:
+                        ydl.download([target_sc_url])
+                except Exception as e_dl:
+                    print(f"⚠️ [Song Engine] SoundCloud download failed for candidate: {e_dl}")
+                    continue
 
-            sc_candidates = [
-                f for f in glob.glob(os.path.join(target_dir, "sc_song*.*"))
-                if os.path.getsize(f) > 5000 and not f.endswith('.txt') and not f.endswith('.json')
-            ]
-            if sc_candidates:
+                sc_candidates = [
+                    f for f in glob.glob(os.path.join(target_dir, "sc_song*.*"))
+                    if os.path.getsize(f) > 5000 and not f.endswith('.txt') and not f.endswith('.json')
+                ]
+                if not sc_candidates:
+                    continue
+
                 conv_cmd = [
                     "ffmpeg", "-y", "-i", sc_candidates[0],
                     "-vn", "-acodec", "libmp3lame", "-q:a", "2",
@@ -2077,20 +2137,39 @@ def download_youtube_song_audio(
                 subprocess.run(conv_cmd, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
                 try: os.remove(sc_candidates[0])
                 except Exception: pass
-                extracted_title = best_sc_entry.get('title') or clean_title
-                extracted_duration = float(best_sc_entry.get('duration') or 60.0)
+
+                extracted_title = cand_title
+                extracted_duration = 60.0
                 try:
                     probe_cmd = ["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "default=noprint_wrappers=1:nokey=1", target_path]
                     extracted_duration = float(subprocess.check_output(probe_cmd).decode().strip())
                 except Exception:
                     pass
-                print(f"🎉 [Song Engine] Successfully Retrieved Song Track via SoundCloud: '{extracted_title}' ({os.path.getsize(target_path)} bytes, {extracted_duration:.1f}s)")
-                return {
+
+                # Duration validation: Reject short preview clips (< 50s for full song)
+                if desired_duration <= 0 and extracted_duration < 50.0:
+                    print(f"⚠️ [Song Engine] Downloaded SoundCloud candidate '{extracted_title}' is only {extracted_duration:.1f}s (teaser/snippet). Skipping for Full Song mode...")
+                    try: os.remove(target_path)
+                    except Exception: pass
+                    continue
+
+                if desired_duration >= 45 and extracted_duration < min(float(desired_duration) - 4.0, 40.0):
+                    print(f"⚠️ [Song Engine] Downloaded SoundCloud candidate '{extracted_title}' is only {extracted_duration:.1f}s (shorter than desired {desired_duration}s). Skipping...")
+                    try: os.remove(target_path)
+                    except Exception: pass
+                    continue
+
+                downloaded_sc_match = {
                     "audio_path": target_path,
                     "title": extracted_title,
                     "singer": active_singer,
                     "duration": extracted_duration
                 }
+                break
+
+            if downloaded_sc_match:
+                print(f"🎉 [Song Engine] Successfully Retrieved Song Track via SoundCloud: '{downloaded_sc_match['title']}' ({os.path.getsize(target_path)} bytes, {downloaded_sc_match['duration']:.1f}s)")
+                return downloaded_sc_match
         except Exception as e_sc:
             print(f"⚠️ [Song Engine] SoundCloud candidate processing exception: {e_sc}")
 
@@ -2160,26 +2239,30 @@ def build_full_song_video(
     song_mood = getattr(req, 'song_mood', 'romantic') or 'romantic'
     uploaded_audio_path = getattr(req, 'uploaded_audio_path', None) or getattr(req, 'song_audio_file', None)
 
+    req_dur = int(getattr(req, 'duration', 0) or 0)
     audio_res = download_youtube_song_audio(
         source_type=song_source_type,
         song_url=song_url,
         singer_name=singer_name,
         song_title=song_title,
         uploaded_audio_path=uploaded_audio_path,
-        target_dir=job_dir
+        target_dir=job_dir,
+        desired_duration=req_dur
     )
     master_audio_path = audio_res.get('audio_path')
 
     # Determine exact target duration based on user preference and downloaded audio
     actual_song_dur = float(audio_res.get('duration') or 60.0)
-    req_dur = int(getattr(req, 'duration', 0) or 0)
     
     if req_dur <= 0:
-        # Full song mode: match the audio duration (capped at 180s for memory safety)
-        target_duration = int(min(actual_song_dur, 180.0))
+        # Full song mode: match the audio duration of the full song (up to 300s / 5 minutes)
+        target_duration = int(round(min(actual_song_dur, 300.0))) if actual_song_dur >= 30.0 else 180
+        print(f"🎵 [Song Engine] Full Song Mode Active: Setting Target Duration to full audio length: {target_duration}s (Audio File: {actual_song_dur:.1f}s)")
     else:
-        # Match user duration, but if downloaded song is shorter, don't exceed song audio
-        target_duration = int(min(req_dur, actual_song_dur)) if actual_song_dur > 5 else req_dur
+        # Exact user-chosen duration (e.g. 20s, 30s, 45s, 60s, 90s)
+        # CRITICAL: STRICTLY RESPECT THE USER'S CHOSEN DURATION ("jitni length choose ki hai utni hi bane!")
+        target_duration = int(req_dur)
+        print(f"⏱️ [Song Engine] Fixed Duration Mode: Target Duration set to user's exact choice: {target_duration}s (Audio File: {actual_song_dur:.1f}s)")
 
     exact_song_title = re.sub(r'&quot;|&#039;|&amp;|&lt;|&gt;', '', audio_res.get('title') or song_title or singer_name or "Song").strip()
     exact_singer = re.sub(r'&quot;|&#039;|&amp;|&lt;|&gt;', '', audio_res.get('singer') or singer_name or "").strip()
@@ -2594,12 +2677,14 @@ def build_full_song_video(
 
     # 6. Mux Master Song Audio with 1.5s Audio Fadeout via FFmpeg
     if os.path.exists(master_audio_path) and os.path.getsize(master_audio_path) > 1000:
-        print(f"🎶 [Song Engine] Attaching Master Audio Track to Final Video via FFmpeg (Audio Offset: {audio_start_offset:.2f}s)...")
+        print(f"🎶 [Song Engine] Attaching Master Audio Track to Final Video via FFmpeg (Audio Offset: {audio_start_offset:.2f}s, Target Duration: {target_duration}s)...")
         fade_start = max(0.0, float(target_duration) - 1.5)
         audio_seek_args = ["-ss", f"{audio_start_offset:.2f}"] if audio_start_offset > 0.05 else []
+        loop_args = ["-stream_loop", "-1"] if (actual_song_dur + 1.0 < target_duration) else []
         mux_cmd = [
             "ffmpeg", "-y",
             "-i", temp_video_no_audio,
+            *loop_args,
             *audio_seek_args,
             "-i", master_audio_path,
             "-map", "0:v:0",
@@ -2607,8 +2692,8 @@ def build_full_song_video(
             "-c:v", "copy",
             "-c:a", "aac",
             "-b:a", "192k",
+            "-t", str(target_duration),
             "-af", f"afade=t=out:st={fade_start:.2f}:d=1.5",
-            "-shortest",
             "-movflags", "+faststart",
             output_path
         ]
@@ -2619,6 +2704,7 @@ def build_full_song_video(
             fallback_mux = [
                 "ffmpeg", "-y",
                 "-i", temp_video_no_audio,
+                *loop_args,
                 *audio_seek_args,
                 "-i", master_audio_path,
                 "-map", "0:v:0",
@@ -2626,7 +2712,7 @@ def build_full_song_video(
                 "-c:v", "copy",
                 "-c:a", "aac",
                 "-b:a", "192k",
-                "-shortest",
+                "-t", str(target_duration),
                 "-movflags", "+faststart",
                 output_path
             ]
