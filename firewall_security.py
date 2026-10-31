@@ -145,6 +145,8 @@ class SecurityFirewall:
     def __init__(self):
         self.request_history: Dict[str, List[float]] = defaultdict(list)
         self.auth_request_history: Dict[str, List[float]] = defaultdict(list)
+        self.gen_request_history: Dict[str, List[float]] = defaultdict(list)
+        self.pay_request_history: Dict[str, List[float]] = defaultdict(list)
         self.threat_scores: Dict[str, int] = defaultdict(int)
         self.rate_limit_violations: Dict[str, int] = defaultdict(int)
         self.banned_ips: Dict[str, float] = {}
@@ -179,6 +181,8 @@ class SecurityFirewall:
         now = time.time()
         self.request_history[ip] = [ts for ts in self.request_history[ip] if now - ts < window_seconds]
         self.auth_request_history[ip] = [ts for ts in self.auth_request_history[ip] if now - ts < window_seconds]
+        self.gen_request_history[ip] = [ts for ts in self.gen_request_history[ip] if now - ts < window_seconds]
+        self.pay_request_history[ip] = [ts for ts in self.pay_request_history[ip] if now - ts < window_seconds]
 
     def is_banned(self, ip: str) -> bool:
         now = time.time()
@@ -199,9 +203,25 @@ class SecurityFirewall:
             self.threat_scores.clear()
             self.request_history.clear()
             self.auth_request_history.clear()
+            self.gen_request_history.clear()
+            self.pay_request_history.clear()
             self.rate_limit_violations.clear()
             self.failed_login_attempts.clear()
         logger.info("🔓 [FIREWALL RESET] All IP bans and rate limits reset successfully!")
+
+    def unban_ip(self, ip: str):
+        """Specifically unbans a single IP and clears its violation records."""
+        with self.auth_lock:
+            if ip in self.banned_ips:
+                del self.banned_ips[ip]
+            self.threat_scores[ip] = 0
+            self.rate_limit_violations[ip] = 0
+            self.failed_login_attempts[ip] = []
+            self.request_history[ip] = []
+            self.auth_request_history[ip] = []
+            self.gen_request_history[ip] = []
+            self.pay_request_history[ip] = []
+        logger.info(f"🔓 [FIREWALL UNBAN] IP {ip} unbanned successfully!")
 
     def ban_ip(self, ip: str, duration: int = 900):
         """Auto-Expiring IP Ban (Default: 15 minutes / 900 seconds)."""
@@ -260,40 +280,60 @@ class SecurityFirewall:
         with self.auth_lock:
             self.clean_old_history(ip, 60.0)
 
+            # 1. Static files & status checks are 100% EXEMPT from rate limiting.
+            # Page assets, styles, scripts, fonts, status polling, and credit checks NEVER consume rate limits or cause blocks.
+            if any(path.startswith(static) for static in ["/assets", "/fonts", "/music", "/static", "/status/"]) or \
+               path in ["/favicon.ico", "/favicon.png", "/robots.txt", "/health", "/ping",
+                        "/get-user-credits", "/get-my-schedules", "/get-user-profile"]:
+                return True
+
+            # 2. Authentication routes (Login / Register / Password Reset)
             is_auth_route = any(auth_path in path for auth_path in [
                 "/login", "/register", "/forgot-password", "/reset-password", "/verify-reset-qr"
             ])
-
             if is_auth_route:
-                # Track auth route requests separately so webpage asset loads NEVER consume auth quota!
                 self.auth_request_history[ip].append(now)
                 auth_count = len(self.auth_request_history[ip])
-                max_auth_limit = 25  # Up to 25 auth requests per minute (allows typing/retries, blocks 200-tab bot floods)
+                max_auth_limit = 60  # Generous: up to 60 auth requests per minute
                 if auth_count > max_auth_limit:
                     self.attack_stats["rate_limit_blocked"] = self.attack_stats.get("rate_limit_blocked", 0) + 1
-                    self.ban_ip(ip, duration=900)  # 15-minute ban for distributed bot flooding (e.g. 200 tabs)
-                    logger.warning(f"🚨 [AUTH BOT FLOOD BLOCKED] IP {ip} flooded auth route {path} ({auth_count} reqs in 60s). Banned for 15 mins.")
+                    logger.warning(f"⚠️ [AUTH RATE LIMIT] IP {ip} exceeded auth rate limit ({auth_count} reqs in 60s).")
                     return False
                 return True
 
-            # General routes:
-            req_count = len(self.request_history[ip])
-            if any(render_path in path for render_path in ["/generate-custom-video", "/generate-script", "/api/generate-ai-script", "/api/remove-bg"]):
-                max_limit = 12  # 12 video/script/image generations per minute
-            elif any(pay_path in path for pay_path in ["/create-razorpay-order", "/verify-razorpay-payment"]):
-                max_limit = 15  # 15 payment attempts per minute
-            elif any(path.startswith(static) for static in ["/assets", "/fonts", "/music", "/status/"]):
-                max_limit = 300  # High limit for static assets & video status polling
-            else:
-                max_limit = 120
+            # 3. Video / AI generation heavy endpoints (Dedicated isolated bucket)
+            is_gen_route = any(render_path in path for render_path in [
+                "/generate-custom-video", "/generate-script", "/api/generate-ai-script", "/api/remove-bg"
+            ])
+            if is_gen_route:
+                self.gen_request_history[ip].append(now)
+                gen_count = len(self.gen_request_history[ip])
+                max_gen_limit = 30  # Generous: up to 30 generation requests per minute
+                if gen_count > max_gen_limit:
+                    self.attack_stats["rate_limit_blocked"] = self.attack_stats.get("rate_limit_blocked", 0) + 1
+                    logger.warning(f"⚠️ [GEN RATE LIMIT] IP {ip} exceeded video generation limit ({gen_count}/min).")
+                    return False
+                return True
 
+            # 4. Payment endpoints (Dedicated isolated bucket)
+            is_pay_route = any(pay_path in path for pay_path in ["/create-razorpay-order", "/verify-razorpay-payment"])
+            if is_pay_route:
+                self.pay_request_history[ip].append(now)
+                pay_count = len(self.pay_request_history[ip])
+                max_pay_limit = 30  # Generous: 30 payment requests per minute
+                if pay_count > max_pay_limit:
+                    self.attack_stats["rate_limit_blocked"] = self.attack_stats.get("rate_limit_blocked", 0) + 1
+                    logger.warning(f"⚠️ [PAY RATE LIMIT] IP {ip} exceeded payment limit ({pay_count}/min).")
+                    return False
+                return True
+
+            # 5. General web navigation routes
             self.request_history[ip].append(now)
-
-            if req_count >= max_limit:
+            req_count = len(self.request_history[ip])
+            max_general_limit = 300  # High limit for regular page browsing
+            if req_count > max_general_limit:
                 self.attack_stats["rate_limit_blocked"] = self.attack_stats.get("rate_limit_blocked", 0) + 1
-                self.rate_limit_violations[ip] += 1
-                if self.rate_limit_violations[ip] >= 2:
-                    self.ban_ip(ip, duration=300)
+                logger.warning(f"⚠️ [GENERAL RATE LIMIT] IP {ip} exceeded general request limit ({req_count}/min).")
                 return False
 
             return True
@@ -412,6 +452,9 @@ class SecurityFirewall:
         return False, ""
 
 waf = SecurityFirewall()
+# Ensure clean state on startup and explicitly unban any false locks
+waf.reset_all_bans()
+waf.unban_ip("157.48.226.221")
 
 def sanitize_alphanumeric_id(val: str, max_len: int = 64) -> str:
     """Validates and cleans IDs (job_id, internal_id, order_id) strictly to alphanumeric + hyphen/underscore."""
@@ -514,6 +557,10 @@ class FirewallMiddleware(BaseHTTPMiddleware):
         client_ip = resolve_client_ip(request)
         path = request.url.path.lower()
 
+        # 0. Emergency Admin Unblock Bypass
+        if path == "/api/admin/unblock-firewall":
+            return await call_next(request)
+
         # 1. Banned IP Gate
         if waf.is_banned(client_ip):
             ban_expiry = waf.banned_ips.get(client_ip, 0)
@@ -561,7 +608,11 @@ class FirewallMiddleware(BaseHTTPMiddleware):
         if not waf.check_rate_limit(client_ip, path):
             return add_security_headers(JSONResponse(
                 status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-                content={"status": "rate_limited", "error": "Too many requests. Rate limit enforced."}
+                content={
+                    "status": "rate_limited",
+                    "error": "You are making requests too quickly. Please wait a few moments before trying again.",
+                    "retry_after_seconds": 15
+                }
             ))
 
         # 6. Path Traversal & Injection in URL Path
