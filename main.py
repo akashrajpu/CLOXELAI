@@ -1732,9 +1732,13 @@ def full_process(req: VideoRequest, job_id: str):
         os.makedirs(job_dir, exist_ok=True)
         
         user_id = req.user_id if req.user_id else "anonymous"
-        print(f"🎬 Processing video for User: {user_id} (Category: {req.category})")
+        print(f"🎬 Processing video for User: {user_id} (Category: {req.category}, Video Type: {req.video_type})")
         
-        is_song_video = bool(req.category and ("song video" in str(req.category).lower()))
+        is_song_video = bool(
+            (str(req.video_type or '').lower() == "ultra") and 
+            req.category and 
+            ("song video" in str(req.category).lower())
+        )
         if is_song_video:
             print(f"🎵 [ROUTING] Entering Dedicated Ultra Song Video Engine for Job {job_id}...")
             output_file = f"acoumation_video_{job_id}.mp4"

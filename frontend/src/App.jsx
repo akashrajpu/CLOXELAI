@@ -5,9 +5,8 @@ import { Smartphone, Monitor, Zap, Film, Settings, Sparkles, Clock, Palette, Mic
 
 const API_BASE = window.location.hostname === 'localhost' ? 'http://localhost:8000' : '';
 
-const CATEGORIES = [
+const STANDARD_CATEGORIES = [
   '🎲 Random / All Categories',
-  '🎵 Song Video',
   '🤖 AI & Technology',
   '🌌 Space & Astronomy',
   '🦁 Nature & Wildlife',
@@ -40,6 +39,13 @@ const CATEGORIES = [
   '🛠️ DIY & Crafts',
   '✍️ Custom Category (Type Below)'
 ];
+
+const ULTRA_CATEGORIES = [
+  '🎵 Song Video',
+  ...STANDARD_CATEGORIES
+];
+
+const CATEGORIES = STANDARD_CATEGORIES;
 
 function CustomSelect({ value, onChange, options, theme }) {
   const [isOpen, setIsOpen] = useState(false);
@@ -306,7 +312,10 @@ function App() {
   const [songVisualMode, setSongVisualMode] = useState('motion'); // 'motion' | 'video'
   const [songLyrics, setSongLyrics] = useState('');
   const [songMood, setSongMood] = useState('romantic'); // 'romantic' | 'sad' | 'party' | 'lofi' | 'acoustic' | 'devotional'
-  const isSongVideoMode = (category === '🎵 Song Video' || (category || '').toLowerCase().includes('song video') || (category || '').toLowerCase().includes('song'));
+  const isSongVideoMode = (videoType === 'ultra') && (
+    category === '🎵 Song Video' || 
+    (category || '').toLowerCase().includes('song video')
+  );
 
   const [scenes, setScenes] = useState([
     { text: '', keyword: '' },
@@ -1567,6 +1576,9 @@ function App() {
                     setVideoType('short');
                     setAspectRatio('9:16');
                     if (duration > 55) setDuration(30);
+                    if (category === '🎵 Song Video' || (category || '').toLowerCase().includes('song video')) {
+                      setCategory('🎲 Random / All Categories');
+                    }
                   }}
                   style={{ 
                     flex: 1, 
@@ -1596,6 +1608,9 @@ function App() {
                     setVideoType('long');
                     setAspectRatio('16:9');
                     if (duration < 20) setDuration(60);
+                    if (category === '🎵 Song Video' || (category || '').toLowerCase().includes('song video')) {
+                      setCategory('🎲 Random / All Categories');
+                    }
                   }}
                   style={{ 
                     flex: 1, 
@@ -1625,6 +1640,7 @@ function App() {
                     setVideoType('ultra');
                     setAspectRatio('16:9');
                     if (duration < 20) setDuration(60);
+                    setCategory('🎵 Song Video');
                   }}
                   style={{ 
                     flex: 1, 
@@ -1705,7 +1721,7 @@ function App() {
                     theme={theme}
                     value={category} 
                     onChange={(val) => setCategory(val)}
-                    options={CATEGORIES.map(cat => ({
+                    options={ULTRA_CATEGORIES.map(cat => ({
                       value: cat,
                       label: <span style={{display: 'flex', alignItems: 'center', gap: '6px'}}><Hash size={16} /> {cat.substring(cat.indexOf(' ') + 1)}</span>
                     }))}
@@ -2012,12 +2028,12 @@ function App() {
                   </div>
 
                   <div className="form-group">
-                    <label>Category / Niche (30+ Categories)</label>
+                    <label>Category / Niche ({videoType === 'ultra' ? 'Ultra & 30+ Categories' : '30+ Categories'})</label>
                     <CustomSelect 
                       theme={theme}
                       value={category} 
                       onChange={(val) => setCategory(val)}
-                      options={CATEGORIES.map(cat => ({
+                      options={(videoType === 'ultra' ? ULTRA_CATEGORIES : STANDARD_CATEGORIES).map(cat => ({
                         value: cat,
                         label: <span style={{display: 'flex', alignItems: 'center', gap: '6px'}}><Hash size={16} /> {cat.substring(cat.indexOf(' ') + 1)}</span>
                       }))}
@@ -3215,8 +3231,8 @@ function App() {
                       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', fontSize: '0.82rem' }}>
                         <div>
                           <label style={{ color: '#cbd5e1', display: 'block', marginBottom: '4px' }}>Category / Niche:</label>
-                          <select value={autoSchedule.ultra_category || '🎲 Random / All Categories'} onChange={(e) => setAutoSchedule({ ...autoSchedule, ultra_category: e.target.value })} style={{ width: '100%', padding: '8px', background: '#1e1738', border: '1px solid rgba(255,255,255,0.15)', color: '#fff', borderRadius: '8px' }}>
-                            {CATEGORIES.map((cat, i) => (
+                          <select value={autoSchedule.ultra_category || '🎵 Song Video'} onChange={(e) => setAutoSchedule({ ...autoSchedule, ultra_category: e.target.value })} style={{ width: '100%', padding: '8px', background: '#1e1738', border: '1px solid rgba(255,255,255,0.15)', color: '#fff', borderRadius: '8px' }}>
+                            {ULTRA_CATEGORIES.map((cat, i) => (
                               <option key={i} value={cat}>{cat.substring(cat.indexOf(' ') + 1)}</option>
                             ))}
                           </select>
