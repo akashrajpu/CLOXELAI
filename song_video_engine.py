@@ -512,76 +512,122 @@ def apply_cinematic_photo_filter(im: Image.Image, filter_name: str) -> Image.Ima
     return Image.fromarray(arr_out.astype(np.uint8))
 
 
-def auto_detect_audio_vocal_intro(audio_path: Optional[str], max_scan_sec: float = 30.0) -> float:
+def auto_detect_audio_vocal_timeline(audio_path: Optional[str], max_scan_sec: float = 30.0) -> Tuple[float, List[float]]:
     """
     Automatically detects the exact duration (in seconds) of the opening instrumental
-    tune before singing vocals begin directly from the downloaded audio file.
-    Uses FFmpeg vocal-band formant filtering (250Hz - 3500Hz) to detect energy transitions.
+    tune before singing vocals begin directly from the downloaded audio file using
+    AI Voice Activity Detection (VAD) + Acoustic Formant Power Jump Analysis.
     Guarantees the screen remains 100% clean without text during intro music for ANY song!
     """
     if not audio_path or not os.path.exists(audio_path):
-        return 9.5
+        return 11.5, []
 
-    cmd = [
-        "ffmpeg", "-y", "-i", audio_path, "-t", str(max(10.0, float(max_scan_sec))),
-        "-af", "highpass=f=250,lowpass=f=3500,astats=metadata=1:reset=1,ametadata=print:key=lavfi.astats.Overall.RMS_level",
-        "-f", "null", "-"
-    ]
+    vocal_onsets = []
+
+    # 1. AI Speech Recognition VAD (Multi-language Speech Detection)
     try:
-        res = subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True, timeout=8)
+        import speech_recognition as sr
+        r = sr.Recognizer()
+        r.energy_threshold = 280
+        step = 2.0
+        window = 3.5
+        scan_limit = min(float(max_scan_sec), 30.0)
+        last_onset = -10.0
+
+        for t_start in [x * step for x in range(int(scan_limit / step))]:
+            with tempfile.NamedTemporaryFile(suffix='.wav', delete=False) as tf:
+                wav_path = tf.name
+            try:
+                cmd = [
+                    'ffmpeg', '-y', '-ss', str(t_start), '-t', str(window),
+                    '-i', audio_path, '-ar', '16000', '-ac', '1',
+                    '-af', 'highpass=f=200,lowpass=f=4000',
+                    wav_path
+                ]
+                subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                with sr.AudioFile(wav_path) as src:
+                    aud = r.record(src)
+                    for lang in ['hi-IN', 'en-US', 'pa-IN']:
+                        try:
+                            txt = r.recognize_google(aud, language=lang)
+                            if txt and len(txt.strip()) > 1:
+                                if t_start - last_onset >= 3.0:
+                                    onset_t = max(0.0, round(t_start + 0.5, 2))
+                                    vocal_onsets.append(onset_t)
+                                    last_onset = t_start
+                                    print(f"🎤 [AI VAD] Singing vocal confirmed at {onset_t:.1f}s: '{txt}'.")
+                                break
+                        except sr.UnknownValueError:
+                            pass
+                        except Exception:
+                            break
+            except Exception:
+                pass
+            finally:
+                if os.path.exists(wav_path):
+                    try: os.remove(wav_path)
+                    except Exception: pass
     except Exception:
-        return 9.5
+        pass
 
-    times = []
-    rms_levels = []
-    cur_t = 0.0
-    for line in res.stderr.splitlines():
-        if "pts_time:" in line:
-            m = re.search(r'pts_time:([\d\.]+)', line)
-            if m: cur_t = float(m.group(1))
-        if "lavfi.astats.Overall.RMS_level=" in line:
-            m = re.search(r'lavfi\.astats\.Overall\.RMS_level=([^\s]+)', line)
-            if m:
-                s_val = m.group(1).strip()
-                try:
-                    val = -90.0 if "inf" in s_val.lower() else float(s_val)
-                    times.append(cur_t)
-                    rms_levels.append(val)
-                except ValueError:
-                    pass
+    # 2. Offline Acoustic Vocal-Band Formant Jump Analysis (100% offline, zero network)
+    acoustic_onset = None
+    try:
+        cmd = [
+            "ffmpeg", "-y", "-i", audio_path, "-t", str(max(10.0, float(max_scan_sec))),
+            "-af", "highpass=f=300,lowpass=f=3200,astats=metadata=1:reset=1,ametadata=print:key=lavfi.astats.Overall.RMS_level",
+            "-f", "null", "-"
+        ]
+        res = subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True, timeout=8)
+        times, rms = [], []
+        cur_t = 0.0
+        for line in res.stderr.splitlines():
+            if "pts_time:" in line:
+                m = re.search(r'pts_time:([\d\.]+)', line)
+                if m: cur_t = float(m.group(1))
+            if "lavfi.astats.Overall.RMS_level=" in line:
+                m = re.search(r'lavfi\.astats\.Overall\.RMS_level=([^\s]+)', line)
+                if m:
+                    s_val = m.group(1).strip()
+                    try:
+                        val = -90.0 if "inf" in s_val.lower() else float(s_val)
+                        times.append(cur_t)
+                        rms.append(val)
+                    except ValueError:
+                        pass
 
-    if not times:
-        return 9.5
+        sec_power = []
+        max_s = int(times[-1]) if times else 0
+        for s in range(max_s):
+            vals = [r for t, r in zip(times, rms) if s <= t < s + 1]
+            sec_power.append(sum(vals) / len(vals) if vals else -90.0)
 
-    # Group into 0.4s intervals for noise smoothing
-    bucket_sec = 0.4
-    n_buckets = int(times[-1] / bucket_sec) + 1
-    buckets = [[] for _ in range(n_buckets)]
-    for t, r in zip(times, rms_levels):
-        b_idx = min(int(t / bucket_sec), n_buckets - 1)
-        buckets[b_idx].append(r)
+        if sec_power:
+            intro_baseline = sum(sec_power[:min(5, len(sec_power))]) / max(1, min(5, len(sec_power)))
+            for s in range(len(sec_power) - 2):
+                p0 = sec_power[s]
+                p1 = sec_power[s+1]
+                # Real human singing has sustained vocal power (>= -23dB) OR a +5.5dB surge above intro baseline
+                if (p0 >= -23.0 and p1 >= -23.0) or (p0 >= intro_baseline + 5.5 and p1 >= intro_baseline + 5.5):
+                    acoustic_onset = float(s)
+                    print(f"🎧 [Acoustic VAD] Detected vocal onset at {acoustic_onset:.1f}s (p0={p0:.1f}dB, baseline={intro_baseline:.1f}dB).")
+                    break
 
-    smoothed = []
-    for b_idx, b_vals in enumerate(buckets):
-        t_center = (b_idx + 0.5) * bucket_sec
-        avg_r = sum(b_vals) / len(b_vals) if b_vals else -90.0
-        smoothed.append((t_center, avg_r))
+        if not vocal_onsets and acoustic_onset is not None:
+            vocal_onsets.append(acoustic_onset)
+        elif vocal_onsets and acoustic_onset is not None:
+            vocal_onsets[0] = min(vocal_onsets[0], acoustic_onset)
+    except Exception as e_ac:
+        print(f"⚠️ Acoustic VAD note: {e_ac}")
 
-    valid_r = [s[1] for s in smoothed if s[1] > -80.0]
-    if not valid_r:
-        return 9.5
+    intro_sec = vocal_onsets[0] if vocal_onsets else 11.5
+    return intro_sec, vocal_onsets
 
-    sorted_r = sorted(valid_r)
-    baseline = sorted_r[len(sorted_r) // 4]
-    threshold = max(baseline + 2.5, sorted_r[len(sorted_r) // 2] - 1.5)
 
-    for i in range(len(smoothed) - 2):
-        t, r = smoothed[i]
-        if r >= threshold and smoothed[i+1][1] >= threshold:
-            detected_sec = max(0.0, round(t - 0.2, 2))
-            return detected_sec
-
-    return 9.5
+def auto_detect_audio_vocal_intro(audio_path: Optional[str], max_scan_sec: float = 30.0) -> float:
+    """Wrapper returning detected intro seconds."""
+    intro_sec, _ = auto_detect_audio_vocal_timeline(audio_path, max_scan_sec)
+    return intro_sec
 
 
 def auto_extract_audio_embedded_lyrics(audio_path: Optional[str]) -> Optional[List[str]]:
@@ -636,8 +682,8 @@ def fetch_song_synced_lyrics(
     ctx = ssl._create_unverified_context() if hasattr(ssl, '_create_unverified_context') else None
     browser_headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"}
 
-    # Automatically analyze the song audio file to detect opening instrumental tune
-    detected_audio_intro = auto_detect_audio_vocal_intro(audio_path, max_scan_sec=min(float(target_duration), 35.0)) if audio_path else 0.0
+    # Automatically analyze the song audio file to detect opening instrumental tune & vocal timeline
+    detected_audio_intro, detected_onsets = auto_detect_audio_vocal_timeline(audio_path, max_scan_sec=min(float(target_duration), 35.0)) if audio_path else (11.5, [])
     if detected_audio_intro > 1.5:
         print(f"🎧 [Song Engine] Audio analysis: Detected {detected_audio_intro:.1f}s instrumental intro tune in '{os.path.basename(audio_path or '')}'. Screen will stay 100% clean during tune.")
 
@@ -793,7 +839,7 @@ def fetch_song_synced_lyrics(
             first_vocal = result[0]["start"] if result else 0.0
             print(f"🎤 [Song Engine] Auto Synced Lyrics: Prepared {len(result)} synchronized vocal-only lines for '{display_title}'. Screen stays 100% clean during intro tune (0.0s to {first_vocal:.1f}s) and tune gaps.")
 
-    # Step 5: Fallback to Auto Audio-Waveform Detection for Plain Lyrics
+    # Step 5: Fallback to Auto Audio-Waveform Alignment for Plain Lyrics
     vocal_count = len(result)
     if not result or vocal_count < 2:
         active_lyrics_lines = official_lyrics
@@ -804,24 +850,32 @@ def fetch_song_synced_lyrics(
             print(f"📝 [Song Engine] Using {len(active_lyrics_lines)} auto-fetched lyrics lines for '{display_title}'!")
             result = []
             audio_start_offset = 0.0
-            # Intro musical tune: Use detected intro from audio waveform if available!
-            if detected_audio_intro > 2.0:
-                intro_silence = round(detected_audio_intro, 2)
-            elif target_duration <= 25:
-                intro_silence = 7.0
-            elif target_duration <= 45:
-                intro_silence = 10.5
-            else:
-                intro_silence = 12.0
-
+            intro_silence = max(9.5, detected_audio_intro)
             rem_dur = max(5.0, target_duration - intro_silence)
-            n_show = min(len(active_lyrics_lines), max(2, int(round(rem_dur / 6.0))))
-            slot = round(rem_dur / n_show, 2)
-            for idx in range(n_show):
-                st = round(intro_silence + (idx * slot), 2)
-                vocal_dur = min(3.4, max(2.0, slot - 2.0))
-                et = round(min(float(target_duration), st + vocal_dur), 2)
-                result.append({"start": st, "end": et, "text": active_lyrics_lines[idx]})
+            n_show = min(len(active_lyrics_lines), max(2, int(round(rem_dur / 5.5))))
+
+            if detected_onsets and len(detected_onsets) >= 2:
+                for idx in range(min(n_show, len(detected_onsets))):
+                    st = detected_onsets[idx]
+                    if st >= target_duration:
+                        break
+                    if idx + 1 < len(detected_onsets):
+                        gap = detected_onsets[idx + 1] - st
+                        vocal_dur = min(3.4, max(2.0, gap - 1.2))
+                    else:
+                        vocal_dur = 3.2
+                    et = round(min(float(target_duration), st + vocal_dur), 2)
+                    result.append({"start": st, "end": et, "text": active_lyrics_lines[idx]})
+            else:
+                slot = round(rem_dur / n_show, 2)
+                for idx in range(n_show):
+                    st = round(intro_silence + (idx * slot), 2)
+                    vocal_dur = min(3.4, max(2.0, slot - 1.8))
+                    et = round(min(float(target_duration), st + vocal_dur), 2)
+                    result.append({"start": st, "end": et, "text": active_lyrics_lines[idx]})
+
+            first_vocal = result[0]["start"] if result else 0.0
+            print(f"🎤 [Song Engine] Audio-aligned {len(result)} lines. Screen stays 100% clean during intro tune (0.0s to {first_vocal:.1f}s) and tune gaps.")
 
     # Step 6: Pure Instrumental Fallback (Only if no lyrics found anywhere on Earth)
     if not result:
