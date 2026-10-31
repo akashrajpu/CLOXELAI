@@ -1430,7 +1430,9 @@ def fetch_jiosaavn_json(api_url: str, timeout: int = 12) -> Optional[dict]:
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
         'Accept': 'application/json, text/plain, */*',
         'Accept-Language': 'en-US,en;q=0.9',
-        'Referer': 'https://www.jiosaavn.com/'
+        'Referer': 'https://www.jiosaavn.com/',
+        'X-Forwarded-For': '106.213.120.45',
+        'Client-IP': '106.213.120.45'
     }
     try:
         import requests
@@ -1455,7 +1457,9 @@ def fetch_jiosaavn_json(api_url: str, timeout: int = 12) -> Optional[dict]:
 def download_cdn_stream(stream_url: str, dest_path: str, timeout: int = 35) -> bool:
     headers = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
-        'Referer': 'https://www.jiosaavn.com/'
+        'Referer': 'https://www.jiosaavn.com/',
+        'X-Forwarded-For': '106.213.120.45',
+        'Client-IP': '106.213.120.45'
     }
     try:
         import requests
@@ -1912,77 +1916,72 @@ def download_youtube_song_audio(
                     if yt_entries:
                         scored_entries = [(score_yt_candidate(e), e) for e in yt_entries]
                         scored_entries.sort(key=lambda x: x[0], reverse=True)
-                        best_s, best_e = scored_entries[0]
-                        if best_s >= 100.0:
-                            best_yt_id = best_e.get('id')
-                            chosen_yt_title = best_e.get('title')
-                            chosen_yt_dur = float(best_e.get('duration') or 60.0)
-                            print(f"🎯 [Song Engine] Selected Best YouTube Track: '{chosen_yt_title}' (Score: {best_s:.1f}, Dur: {chosen_yt_dur:.1f}s, ID: {best_yt_id})")
-                        else:
-                            print(f"⚠️ [Song Engine] Top YouTube candidate scored below threshold ({best_s:.1f}). Skipping query '{yq}'.")
+                        for cand_score, cand_e in scored_entries:
+                            if cand_score < 80.0:
+                                break
+                            cand_yt_id = cand_e.get('id')
+                            if not cand_yt_id:
+                                continue
+                            cand_yt_title = cand_e.get('title') or clean_title
+                            cand_yt_dur = float(cand_e.get('duration') or 60.0)
+                            target_yt_url = f"https://www.youtube.com/watch?v={cand_yt_id}" if not cand_yt_id.startswith('http') else cand_yt_id
+                            print(f"🎯 [Song Engine] Attempting verified YouTube track: '{cand_yt_title}' (Score: {cand_score:.1f}, Dur: {cand_yt_dur:.1f}s, ID: {cand_yt_id})...")
+                            try:
+                                yt_temp_pattern = os.path.join(target_dir, "yt_song.%(ext)s")
+                                ydl_opts = {
+                                    'format': 'bestaudio/best[height<=480]/best',
+                                    'outtmpl': yt_temp_pattern,
+                                    'postprocessors': [{
+                                        'key': 'FFmpegExtractAudio',
+                                        'preferredcodec': 'mp3',
+                                        'preferredquality': '192',
+                                    }],
+                                    'quiet': True,
+                                    'no_warnings': True,
+                                    'noplaylist': True,
+                                    'socket_timeout': 30,
+                                    'extractor_args': {
+                                        'youtube': {
+                                            'player_client': ['ios', 'android', 'mweb']
+                                        }
+                                    }
+                                }
+                                if cookie_file and os.path.exists(cookie_file):
+                                    ydl_opts['cookiefile'] = cookie_file
+
+                                with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                                    ydl.download([target_yt_url])
+
+                                yt_candidates = [
+                                    f for f in glob.glob(os.path.join(target_dir, "yt_song*.*"))
+                                    if os.path.getsize(f) > 5000 and not f.endswith('.txt') and not f.endswith('.json')
+                                ]
+                                if yt_candidates:
+                                    conv_cmd = [
+                                        "ffmpeg", "-y", "-i", yt_candidates[0],
+                                        "-vn", "-acodec", "libmp3lame", "-q:a", "2",
+                                        target_path
+                                    ]
+                                    subprocess.run(conv_cmd, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                                    try: os.remove(yt_candidates[0])
+                                    except Exception: pass
+                                    try:
+                                        probe_cmd = ["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "default=noprint_wrappers=1:nokey=1", target_path]
+                                        cand_yt_dur = float(subprocess.check_output(probe_cmd).decode().strip())
+                                    except Exception:
+                                        pass
+                                    print(f"🎉 [Song Engine] Successfully Retrieved Song Track via YouTube: '{cand_yt_title}' ({os.path.getsize(target_path)} bytes, {cand_yt_dur:.1f}s)")
+                                    return {
+                                        "audio_path": target_path,
+                                        "title": cand_yt_title or clean_title,
+                                        "singer": active_singer,
+                                        "duration": cand_yt_dur
+                                    }
+                            except Exception as e_cand_dl:
+                                print(f"⚠️ [Song Engine] YouTube candidate '{cand_yt_title}' failed ({e_cand_dl}). Trying next candidate...")
+                                continue
                 except Exception as e_yt_search:
                     print(f"⚠️ [Song Engine] YouTube candidate search note: {e_yt_search}")
-
-        yt_target_url = (
-            best_yt_id if best_yt_id and best_yt_id.startswith('http')
-            else (f"https://www.youtube.com/watch?v={best_yt_id}" if best_yt_id else None)
-        )
-
-        if yt_target_url:
-            print(f"⚡ [Song Engine] Downloading YouTube audio stream: {yt_target_url}...")
-            try:
-                yt_temp_pattern = os.path.join(target_dir, "yt_song.%(ext)s")
-                ydl_opts = {
-                    'format': 'bestaudio/best',
-                    'outtmpl': yt_temp_pattern,
-                    'postprocessors': [{
-                        'key': 'FFmpegExtractAudio',
-                        'preferredcodec': 'mp3',
-                        'preferredquality': '192',
-                    }],
-                    'quiet': True,
-                    'no_warnings': True,
-                    'noplaylist': True,
-                    'socket_timeout': 30,
-                    'extractor_args': {
-                        'youtube': {
-                            'player_client': ['android', 'web']
-                        }
-                    }
-                }
-                if cookie_file and os.path.exists(cookie_file):
-                    ydl_opts['cookiefile'] = cookie_file
-
-                with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                    ydl.download([yt_target_url])
-
-                yt_candidates = [
-                    f for f in glob.glob(os.path.join(target_dir, "yt_song*.*"))
-                    if os.path.getsize(f) > 5000 and not f.endswith('.txt') and not f.endswith('.json')
-                ]
-                if yt_candidates:
-                    conv_cmd = [
-                        "ffmpeg", "-y", "-i", yt_candidates[0],
-                        "-vn", "-acodec", "libmp3lame", "-q:a", "2",
-                        target_path
-                    ]
-                    subprocess.run(conv_cmd, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-                    try: os.remove(yt_candidates[0])
-                    except Exception: pass
-                    try:
-                        probe_cmd = ["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "default=noprint_wrappers=1:nokey=1", target_path]
-                        chosen_yt_dur = float(subprocess.check_output(probe_cmd).decode().strip())
-                    except Exception:
-                        pass
-                    print(f"🎉 [Song Engine] Successfully Retrieved Song Track via YouTube: '{chosen_yt_title}' ({os.path.getsize(target_path)} bytes, {chosen_yt_dur:.1f}s)")
-                    return {
-                        "audio_path": target_path,
-                        "title": chosen_yt_title or clean_title,
-                        "singer": active_singer,
-                        "duration": chosen_yt_dur
-                    }
-            except Exception as e_yt:
-                print(f"⚠️ [Song Engine] YouTube stream fallback note: {e_yt}")
 
     # Attempt 3: SoundCloud Stream Fallback (Strict Singer Match & Duration Required)
     sc_queries = []
@@ -2024,10 +2023,10 @@ def download_youtube_song_audio(
                 combined = f"{cand_t} {cand_uploader}"
                 score = 0.0
 
-                # 0. Strictly disqualify teasers, trailers, promos, snippets, ringtones, status clips
+                # 0. Penalize teasers, promos, snippets, ringtones (prefer full tracks)
                 bad_sc_words = ["teaser", "trailer", "preview", "snippet", "ringtone", "status", "promo", "shorts", "reel", "sample", "cut"]
                 if any(w in cand_t for w in bad_sc_words):
-                    return -1000.0
+                    score -= 120.0
 
                 # Candidate duration (handle seconds or ms)
                 raw_sc_dur = item.get('duration') or 0.0
@@ -2038,18 +2037,17 @@ def download_youtube_song_audio(
                 except Exception:
                     cand_dur = 0.0
 
-                # Duration filtering
+                # Duration filtering: strongly favor full-length master tracks (120s-360s)
                 if desired_duration <= 0:
-                    # Full Song Mode: NEVER allow clips under 60 seconds!
-                    if cand_dur > 0 and cand_dur < 60.0:
-                        return -1000.0
+                    if cand_dur > 0 and cand_dur < 50.0:
+                        score -= 80.0
                     elif 120.0 <= cand_dur <= 360.0:
                         score += 160.0  # Massive bonus for authentic full song (2-6 mins)
                     elif cand_dur > 450.0:
                         score -= 150.0
                 else:
                     if cand_dur > 0 and cand_dur < desired_duration - 4:
-                        score -= 400.0
+                        score -= 80.0
                     elif cand_dur >= desired_duration:
                         score += 80.0
 
@@ -2146,18 +2144,14 @@ def download_youtube_song_audio(
                 except Exception:
                     pass
 
-                # Duration validation: Reject short preview clips (< 50s for full song)
-                if desired_duration <= 0 and extracted_duration < 50.0:
-                    print(f"⚠️ [Song Engine] Downloaded SoundCloud candidate '{extracted_title}' is only {extracted_duration:.1f}s (teaser/snippet). Skipping for Full Song mode...")
+                if extracted_duration < 10.0:
+                    print(f"⚠️ [Song Engine] Downloaded SoundCloud candidate '{extracted_title}' audio is too short/corrupt ({extracted_duration:.1f}s). Skipping...")
                     try: os.remove(target_path)
                     except Exception: pass
                     continue
 
-                if desired_duration >= 45 and extracted_duration < min(float(desired_duration) - 4.0, 40.0):
-                    print(f"⚠️ [Song Engine] Downloaded SoundCloud candidate '{extracted_title}' is only {extracted_duration:.1f}s (shorter than desired {desired_duration}s). Skipping...")
-                    try: os.remove(target_path)
-                    except Exception: pass
-                    continue
+                if extracted_duration < 50.0:
+                    print(f"ℹ️ [Song Engine] Downloaded SoundCloud candidate '{extracted_title}' is {extracted_duration:.1f}s. Audio will be seamlessly looped to meet target duration.")
 
                 downloaded_sc_match = {
                     "audio_path": target_path,
@@ -2280,11 +2274,7 @@ def build_full_song_video(
         and not any(tag in user_explicit_lyrics.lower() for tag in ['chapter', 'scene 1', 'voiceover', 'title:'])
     )
 
-    if audio_res.get('is_instrumental_fallback'):
-        print(f"ℹ️ [Song Engine] Instrumental background audio track active. Keeping screen clean without fake lyrics.")
-        all_lyrics = []
-        audio_start_offset = 0.0
-    elif has_custom_lyrics:
+    if has_custom_lyrics:
         print(f"📝 [Song Engine] Using {len(user_explicit_lyrics.splitlines())} user-provided custom lyrics lines...")
         # Check if user provided timestamps like [00:12.50]
         custom_lines = []
