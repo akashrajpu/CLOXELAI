@@ -624,14 +624,15 @@ def transcribe_audio_vocal_lyrics(
 
     try:
         import speech_recognition as sr
-    except ImportError:
+    except ImportError as e_sr:
+        print(f"⚠️ [Song Engine] SpeechRecognition import error: {e_sr}")
         return []
 
     r = sr.Recognizer()
     r.energy_threshold = 280
     segments: List[Dict[str, Any]] = []
 
-    start_t = max(0.0, float(intro_sec))
+    start_t = max(0.0, float(intro_sec) - 2.0)
     max_t = float(target_duration)
     step = 4.0
     window = 4.8
@@ -747,7 +748,7 @@ def fetch_song_synced_lyrics(
     if audio_path and os.path.exists(audio_path):
         print(f"🎙️ [Song Engine] Initiating Real-Time Audio Vocal Transcription for '{display_title}'...")
         transcribed_segments = transcribe_audio_vocal_lyrics(audio_path, target_duration=target_duration, intro_sec=detected_audio_intro)
-        if transcribed_segments and len(transcribed_segments) >= 2:
+        if transcribed_segments and len(transcribed_segments) >= 1:
             first_vocal = transcribed_segments[0]["start"]
             print(f"🎤 [Song Engine] Extracted {len(transcribed_segments)} synchronized vocal lines directly from singer's voice! Screen stays 100% clean during intro tune (0.0s to {first_vocal:.1f}s).")
             return transcribed_segments, 0.0

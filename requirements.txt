@@ -27,3 +27,4 @@ webdriver_manager
 playwright
 yt-dlp
 cryptography>=41.0.0
+SpeechRecognition>=3.10.0
