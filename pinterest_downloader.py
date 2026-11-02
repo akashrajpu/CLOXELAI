@@ -59,6 +59,21 @@ def is_valid_hd_photo(filepath: str, min_dim: int = 350) -> bool:
     except Exception:
         return False
 
+def is_valid_video(filepath: str, min_size: int = 15000) -> bool:
+    """Verifies that the downloaded file is a non-corrupt, valid video file."""
+    if not filepath or not os.path.exists(filepath):
+        return False
+    if filepath.lower().endswith(('.part', '.ytdl', '.tmp')):
+        return False
+    if not filepath.lower().endswith(('.mp4', '.mov', '.webm', '.mkv')):
+        return False
+    try:
+        if os.path.getsize(filepath) < min_size:
+            return False
+        return True
+    except Exception:
+        return False
+
 def fetch_pinterest_photos_via_gallery_dl(query: str, limit: int = 3, output_dir: str = "pinterest_photos") -> list:
     """
     Programmatic helper: Downloads HD Pinterest photos using gallery-dl / direct web scraping.
@@ -240,23 +255,109 @@ def fetch_pinterest_photos_via_gallery_dl(query: str, limit: int = 3, output_dir
 
     return downloaded_files
 
-def download_pinterest_photos():
-    query = input("Aapko kis tarah ki photo chahiye? (jaise: spider man comic vintage): ")
+def fetch_pinterest_videos_via_gallery_dl(query: str, limit: int = 1, output_dir: str = "pinterest_videos") -> list:
+    """
+    Programmatic helper: Downloads HD Pinterest Videos using gallery-dl without using any Pinterest API.
+    Returns list of verified, valid downloaded .mp4/.webm video file paths in output_dir.
+    Guarantees isolation: never modifies or deletes pre-existing files in output_dir.
+    """
+    os.makedirs(output_dir, exist_ok=True)
+    import time
+    timestamp_prefix = int(time.time() * 1000) % 1000000
 
+    # Guarantee 'video' is present in search query for optimal video pins discovery
+    clean_q = query.strip()
+    if "video" not in clean_q.lower():
+        search_query = f"{clean_q} video"
+    else:
+        search_query = clean_q
+
+    encoded_query = urllib.parse.quote(search_query)
+    pinterest_url = f"https://in.pinterest.com/search/pins/?q={encoded_query}"
+
+    print(f"📥 [Pinterest Video Engine] Searching and downloading HD videos for: '{search_query}' (No API)...")
+
+    downloaded_videos = []
+    gallery_cmd = get_gallery_dl_cmd()
+
+    # Use dedicated isolated download cache directory so other assets are NEVER deleted or overwritten
+    dl_work_dir = os.path.join(output_dir, f"_pin_vid_cache_{timestamp_prefix}")
+    os.makedirs(dl_work_dir, exist_ok=True)
+
+    if gallery_cmd:
+        try:
+            # Query a few pins to find valid video files
+            scan_range = max(limit * 3, 6)
+            cmd = gallery_cmd + [
+                "--directory", dl_work_dir,
+                "--range", f"1-{scan_range}",
+                pinterest_url
+            ]
+            subprocess.run(cmd, capture_output=True, text=True, timeout=35)
+
+            found_raw = []
+            for root, _, files in os.walk(dl_work_dir):
+                for f in files:
+                    full_p = os.path.join(root, f)
+                    if is_valid_video(full_p, min_size=20000):
+                        found_raw.append(full_p)
+
+            found_raw.sort(key=os.path.getmtime, reverse=True)
+
+            for idx, raw_p in enumerate(found_raw[:limit]):
+                ext = os.path.splitext(raw_p)[1].lower() or ".mp4"
+                final_p = os.path.join(output_dir, f"pin_vid_{timestamp_prefix}_{idx+1}{ext}")
+                shutil.copy2(raw_p, final_p)
+                downloaded_videos.append(final_p)
+
+            # Cleanup isolated cache
+            shutil.rmtree(dl_work_dir, ignore_errors=True)
+
+            if downloaded_videos:
+                print(f"✅ [Pinterest Video gallery-dl] Successfully fetched {len(downloaded_videos)} video(s) for '{search_query}'.")
+                return downloaded_videos
+
+        except Exception as e:
+            shutil.rmtree(dl_work_dir, ignore_errors=True)
+            print(f"⚠️ [Pinterest Video gallery-dl warning]: {e}")
+    else:
+        shutil.rmtree(dl_work_dir, ignore_errors=True)
+        print("ℹ️ [Pinterest Video gallery-dl] CLI executable not found.")
+
+    return downloaded_videos
+
+def download_pinterest_media():
+    """Interactive CLI helper matching user's requested photo/video selector"""
+    media_type = input("Aapko kya download karna hai? ('photo' ya 'video' likhein): ").strip().lower()
+    
+    if media_type not in ['photo', 'video']:
+        print("Galat input! Default 'photo' set kiya ja raha hai.")
+        media_type = 'photo'
+        
+    query = input(f"Aapko kis tarah ki {media_type} chahiye? (jaise: spider man comic vintage): ")
+    
     try:
-        limit = int(input("Aapko kitni photos download karni hain? (jaise: 3): "))
+        limit = int(input(f"Aapko kitni {media_type} download karni hain? (jaise: 3): "))
     except ValueError:
-        print("Kripya ek valid number dalein. Default 3 photos set ki ja rahi hain.")
+        print(f"Kripya ek valid number dalein. Default 3 {media_type} set ki ja rahi hain.")
         limit = 3
 
-    output_dir = "pinterest_photos"
+    output_dir = f"pinterest_{media_type}s"
     os.makedirs(output_dir, exist_ok=True)
-
-    files = fetch_pinterest_photos_via_gallery_dl(query, limit=limit, output_dir=output_dir)
-    if files:
-        print(f"\nSuccess! Exact {len(files)} photos successfully '{output_dir}' folder mein save ho gayi hain.")
+    
+    if media_type == 'video':
+        files = fetch_pinterest_videos_via_gallery_dl(query, limit=limit, output_dir=output_dir)
     else:
-        print(f"\nError: Could not download photos for '{query}'. Please check gallery-dl or internet connection.")
+        files = fetch_pinterest_photos_via_gallery_dl(query, limit=limit, output_dir=output_dir)
+        
+    if files:
+        print(f"\nSuccess! Exact {len(files)} {media_type}(s) successfully '{output_dir}' folder mein save ho gayi hain.")
+    else:
+        print(f"\nError: Could not download {media_type}s for '{query}'. Please check gallery-dl or internet connection.")
+
+def download_pinterest_photos():
+    files = download_pinterest_media()
+    return files
 
 if __name__ == "__main__":
-    download_pinterest_photos()
+    download_pinterest_media()

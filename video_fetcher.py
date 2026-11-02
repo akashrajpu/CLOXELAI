@@ -361,6 +361,41 @@ def fetch_pixabay_videos(keyword, job_id, count=1, orientation="portrait", used_
         print(f"⚠️ [Pixabay] Error: {e}")
     return video_paths
 
+def fetch_pinterest_videos(keyword, job_id, count=1, orientation="portrait", used_media_ids=None):
+    """Pinterest HD Video clips download karta hai using gallery-dl (NO API needed)"""
+    dir_name = os.path.dirname(job_id) if job_id else ""
+    base_name = os.path.basename(job_id) if job_id else "pinterest_video"
+    target_dir = dir_name if dir_name else "."
+    
+    if used_media_ids is None:
+        used_media_ids = set()
+
+    try:
+        from pinterest_downloader import fetch_pinterest_videos_via_gallery_dl
+        downloaded = fetch_pinterest_videos_via_gallery_dl(keyword, limit=count, output_dir=target_dir)
+        if downloaded:
+            media_paths = []
+            for v_file in downloaded:
+                if v_file in used_media_ids or v_file in GLOBAL_USED_MEDIA_IDS:
+                    continue
+                ext = os.path.splitext(v_file)[1] or ".mp4"
+                target_filename = os.path.join(target_dir, f"pinterest_{base_name}_{len(media_paths)}{ext}") if target_dir != "." else f"pinterest_{base_name}_{len(media_paths)}{ext}"
+                if v_file != target_filename:
+                    import shutil
+                    shutil.move(v_file, target_filename)
+                media_paths.append(target_filename)
+                used_media_ids.add(target_filename)
+                GLOBAL_USED_MEDIA_IDS.add(target_filename)
+                print(f"✅ [Pinterest Video gallery-dl] Video clip saved: {target_filename}")
+                if len(media_paths) >= count:
+                    break
+            if media_paths:
+                return media_paths
+    except Exception as e_dl:
+        print(f"⚠️ [Pinterest Video gallery-dl fallback]: {e_dl}")
+
+    return []
+
 def fetch_pinterest_pins(keyword, job_id, count=1, orientation="portrait", used_media_ids=None):
     """Pinterest HD Pins media download karta hai using gallery-dl & fail-safe API/scraper"""
     dir_name = os.path.dirname(job_id) if job_id else ""
@@ -471,8 +506,19 @@ def fetch_videos(keyword, job_id, count=1, orientation="portrait", category="Ran
     clean_words = ascii_words if ascii_words else raw_words
     video_query = " ".join(clean_words) if clean_words else (topic or keyword)
 
-    # For Ultra Mode: never use Pinterest for After Effects (use real video), but allow other categories
-    if is_ultra_mode and not is_after_effects:
+    # For Ultra Mode: fetch Pinterest HD Videos for After Effects (No API), Pinterest HD Pins for others
+    if is_ultra_mode and is_after_effects:
+        try:
+            print(f"🎬 [Ultra After Effects Priority: {category}] Trying Pinterest HD Videos via gallery-dl (No API)...")
+            search_term = f"{video_query} graphics video" if "graphics video" not in video_query.lower() else video_query
+            pin_videos = fetch_pinterest_videos(search_term, job_id, count=count, orientation=orientation, used_media_ids=used_media_ids)
+            if not pin_videos and topic and topic.strip() not in video_query.lower():
+                pin_videos = fetch_pinterest_videos(f"{topic.strip()} graphics video", job_id, count=count, orientation=orientation, used_media_ids=used_media_ids)
+            if pin_videos:
+                return pin_videos
+        except Exception as e_pv:
+            print(f"⚠️ [Pinterest Video Skip]: {e_pv}")
+    elif is_ultra_mode and not is_after_effects:
         prefer_pinterest = any(c in cat_lower for c in ['cartoon', 'animation', 'documentary', 'comedy', 'horror', 'mythology', 'history', 'anime', 'art', 'photo'])
         if prefer_pinterest:
             try:
@@ -575,7 +621,14 @@ def fetch_videos(keyword, job_id, count=1, orientation="portrait", category="Ran
             except Exception:
                 continue
 
-    if is_ultra_mode and not is_after_effects:
+    if is_ultra_mode and is_after_effects:
+        try:
+            pin_videos = fetch_pinterest_videos(f"{keyword} graphics video", job_id, count=count, orientation=orientation, used_media_ids=used_media_ids)
+            if pin_videos:
+                return pin_videos
+        except Exception as e_pv2:
+            print(f"⚠️ [Pinterest Video Fallback Skip]: {e_pv2}")
+    elif is_ultra_mode and not is_after_effects:
         try:
             pins = fetch_pinterest_pins(keyword, job_id, count=count, orientation=orientation, used_media_ids=used_media_ids)
             if pins:
