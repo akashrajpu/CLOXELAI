@@ -1400,6 +1400,7 @@ def merge_and_export(
             else:
                 video_paths = scene['video'] if isinstance(scene['video'], list) else [scene['video']]
                 valid_paths = [p for p in video_paths if p and os.path.exists(p) and os.path.getsize(p) > 1000]
+                show_cutout = (i % 2 == 0) and (i < 6)
                 if valid_paths:
                     bg_path = valid_paths[0]
                     fg_path = valid_paths[1] if (show_cutout and len(valid_paths) > 1) else None
