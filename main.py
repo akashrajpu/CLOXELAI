@@ -2012,14 +2012,16 @@ def full_process(req: VideoRequest, job_id: str):
                         else:
                             scene_visual_phrase = scene_kw or main_topic
                             
-                        vid_term = f"{main_topic} {scene_visual_phrase} graphics video".strip()
+                        clean_t = " ".join([w for w in (req.topic or main_topic).split() if w.lower() not in ["ancient", "historical", "deep", "outer"]][:3]) or main_topic
+                        clean_p = " ".join([w for w in scene_visual_phrase.split() if w.lower() not in [x.lower() for x in clean_t.split()]][:3])
+                        vid_term = f"{clean_t} {clean_p} graphics video".strip()
                         print(f"🎬 [Ultra After Effects Scene {i+1}] Narrative Video Line detected ({len(words)} words)! Fetching Pinterest Video: '{vid_term}' (Pinterest Only)...")
                         vid_files = fetch_pinterest_videos_via_gallery_dl(vid_term, limit=1, output_dir=job_dir)
                         if vid_files and os.path.exists(vid_files[0]):
                             v_paths.append(vid_files[0])
                         else:
                             # Fallback 1 on Pinterest: shorter video search
-                            fb_vid = f"{scene_kw or main_topic} graphics video".strip()
+                            fb_vid = f"{clean_t} graphics video".strip()
                             print(f"🔄 [Ultra After Effects Scene {i+1}] Fallback searching Pinterest Video: '{fb_vid}'...")
                             vid_files = fetch_pinterest_videos_via_gallery_dl(fb_vid, limit=1, output_dir=job_dir)
                             if vid_files and os.path.exists(vid_files[0]):

@@ -265,13 +265,24 @@ def fetch_pinterest_videos_via_gallery_dl(query: str, limit: int = 1, output_dir
     import time
     timestamp_prefix = int(time.time() * 1000) % 1000000
 
-    # Guarantee 'video' is present in search query for optimal video pins discovery
-    clean_q = query.strip()
-    if "video" not in clean_q.lower():
-        search_query = f"{clean_q} video"
-    else:
-        search_query = clean_q
+    # Clean query to concise, high-impact search term (max 4-5 words before 'graphics video')
+    raw_words = query.strip().split()
+    seen_w = set()
+    compact_words = []
+    for w in raw_words:
+        wl = w.lower().strip(".,!?:;\"'")
+        # remove repetitive words like 'ancient', 'historical' if 'history' is already there
+        if wl in ["historical", "ancient"] and any(h in seen_w for h in ["history", "itihas"]):
+            continue
+        if wl and wl not in seen_w:
+            seen_w.add(wl)
+            compact_words.append(w)
 
+    non_gv_words = [w for w in compact_words if w.lower() not in ["graphics", "video", "photo"]]
+    if len(non_gv_words) > 4:
+        non_gv_words = non_gv_words[:4]
+
+    search_query = f"{' '.join(non_gv_words)} graphics video".strip()
     encoded_query = urllib.parse.quote(search_query)
     pinterest_url = f"https://in.pinterest.com/search/pins/?q={encoded_query}"
 
@@ -285,16 +296,22 @@ def fetch_pinterest_videos_via_gallery_dl(query: str, limit: int = 1, output_dir
     os.makedirs(dl_work_dir, exist_ok=True)
 
     if gallery_cmd:
+        # Fast & tight scan range: max(2, limit + 1) so it never lingers downloading 6 huge videos
+        scan_range = max(2, limit + 1)
+        cmd = gallery_cmd + [
+            "--directory", dl_work_dir,
+            "--range", f"1-{scan_range}",
+            pinterest_url
+        ]
         try:
-            # Query a few pins to find valid video files
-            scan_range = max(limit * 3, 6)
-            cmd = gallery_cmd + [
-                "--directory", dl_work_dir,
-                "--range", f"1-{scan_range}",
-                pinterest_url
-            ]
-            subprocess.run(cmd, capture_output=True, text=True, timeout=35)
+            subprocess.run(cmd, capture_output=True, text=True, timeout=45)
+        except subprocess.TimeoutExpired:
+            print(f"⚠️ [Pinterest Video] gallery-dl scan reached 45s threshold for '{search_query}', checking downloaded files...")
+        except Exception as e:
+            print(f"⚠️ [Pinterest Video gallery-dl warning]: {e}")
 
+        # Scan for ANY valid video files downloaded before or during run
+        try:
             found_raw = []
             for root, _, files in os.walk(dl_work_dir):
                 for f in files:
@@ -310,16 +327,14 @@ def fetch_pinterest_videos_via_gallery_dl(query: str, limit: int = 1, output_dir
                 shutil.copy2(raw_p, final_p)
                 downloaded_videos.append(final_p)
 
-            # Cleanup isolated cache
+        except Exception as e_salvage:
+            print(f"⚠️ [Pinterest Video salvage warning]: {e_salvage}")
+        finally:
             shutil.rmtree(dl_work_dir, ignore_errors=True)
 
-            if downloaded_videos:
-                print(f"✅ [Pinterest Video gallery-dl] Successfully fetched {len(downloaded_videos)} video(s) for '{search_query}'.")
-                return downloaded_videos
-
-        except Exception as e:
-            shutil.rmtree(dl_work_dir, ignore_errors=True)
-            print(f"⚠️ [Pinterest Video gallery-dl warning]: {e}")
+        if downloaded_videos:
+            print(f"✅ [Pinterest Video gallery-dl] Successfully fetched {len(downloaded_videos)} video(s) for '{search_query}'.")
+            return downloaded_videos
     else:
         shutil.rmtree(dl_work_dir, ignore_errors=True)
         print("ℹ️ [Pinterest Video gallery-dl] CLI executable not found.")
