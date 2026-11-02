@@ -62,9 +62,13 @@ def is_valid_hd_photo(filepath: str, min_dim: int = 350) -> bool:
 def fetch_pinterest_photos_via_gallery_dl(query: str, limit: int = 3, output_dir: str = "pinterest_photos") -> list:
     """
     Programmatic helper: Downloads HD Pinterest photos using gallery-dl / direct web scraping.
-    Returns list of verified, valid HD downloaded file paths.
+    Returns list of verified, valid HD downloaded file paths in output_dir.
+    Guarantees isolation: never modifies or deletes pre-existing files in output_dir.
     """
     os.makedirs(output_dir, exist_ok=True)
+    import time
+    timestamp_prefix = int(time.time() * 1000) % 1000000
+
     encoded_query = urllib.parse.quote(query)
     pinterest_url = f"https://www.pinterest.com/search/pins/?q={encoded_query}"
 
@@ -73,45 +77,47 @@ def fetch_pinterest_photos_via_gallery_dl(query: str, limit: int = 3, output_dir
     downloaded_files = []
     gallery_cmd = get_gallery_dl_cmd()
 
+    # Use dedicated isolated download cache directory so other assets are NEVER deleted or overwritten
+    dl_work_dir = os.path.join(output_dir, f"_pin_cache_{timestamp_prefix}")
+    os.makedirs(dl_work_dir, exist_ok=True)
+
     if gallery_cmd:
         try:
             cmd = gallery_cmd + [
-                "--directory", output_dir,
+                "--directory", dl_work_dir,
                 "--range", f"1-{max(limit, 3)}",
                 pinterest_url
             ]
-            subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+            subprocess.run(cmd, capture_output=True, text=True, timeout=20)
 
-            for root, _, files in os.walk(output_dir):
+            found_raw = []
+            for root, _, files in os.walk(dl_work_dir):
                 for f in files:
                     if f.lower().endswith(('.jpg', '.jpeg', '.png', '.webp')):
                         full_p = os.path.join(root, f)
-                        if full_p not in downloaded_files:
-                            if is_valid_hd_photo(full_p, min_dim=350):
-                                downloaded_files.append(full_p)
-                            else:
-                                try:
-                                    os.remove(full_p)
-                                except Exception:
-                                    pass
+                        if is_valid_hd_photo(full_p, min_dim=350):
+                            found_raw.append(full_p)
 
-            downloaded_files.sort(key=os.path.getmtime, reverse=True)
+            found_raw.sort(key=os.path.getmtime, reverse=True)
 
-            if len(downloaded_files) > limit:
-                for extra in downloaded_files[limit:]:
-                    try:
-                        os.remove(extra)
-                    except Exception:
-                        pass
-                downloaded_files = downloaded_files[:limit]
+            for idx, raw_p in enumerate(found_raw[:limit]):
+                ext = os.path.splitext(raw_p)[1].lower() or ".jpg"
+                final_p = os.path.join(output_dir, f"pin_asset_{timestamp_prefix}_{idx+1}{ext}")
+                shutil.copy2(raw_p, final_p)
+                downloaded_files.append(final_p)
+
+            # Cleanup isolated cache
+            shutil.rmtree(dl_work_dir, ignore_errors=True)
 
             if downloaded_files:
                 print(f"✅ [Pinterest gallery-dl] Successfully fetched {len(downloaded_files)} photos for '{query}'.")
                 return downloaded_files
 
         except Exception as e:
+            shutil.rmtree(dl_work_dir, ignore_errors=True)
             print(f"⚠️ [Pinterest gallery-dl warning]: {e}. Trying direct web scraper fallback...")
     else:
+        shutil.rmtree(dl_work_dir, ignore_errors=True)
         print("ℹ️ [Pinterest gallery-dl] CLI executable not found, using web scraper fallbacks...")
 
     # Fallback 1: Direct Pinterest Scraper
@@ -132,7 +138,7 @@ def fetch_pinterest_photos_via_gallery_dl(query: str, limit: int = 3, output_dir
                     break
                 try:
                     ext = ".png" if img_url.lower().endswith(".png") else ".jpg"
-                    save_path = os.path.join(output_dir, f"pinterest_pin_{len(downloaded_files)+1}{ext}")
+                    save_path = os.path.join(output_dir, f"pin_direct_{timestamp_prefix}_{len(downloaded_files)+1}{ext}")
                     img_req = requests.get(img_url, headers=HEADERS, timeout=8)
                     if img_req.status_code == 200 and len(img_req.content) > 10000:
                         with open(save_path, "wb") as f:
@@ -178,7 +184,7 @@ def fetch_pinterest_photos_via_gallery_dl(query: str, limit: int = 3, output_dir
                     break
                 try:
                     ext = ".png" if img_url.lower().endswith(".png") else ".jpg"
-                    save_path = os.path.join(output_dir, f"pinterest_bing_{len(downloaded_files)+1}{ext}")
+                    save_path = os.path.join(output_dir, f"pin_bing_{timestamp_prefix}_{len(downloaded_files)+1}{ext}")
                     img_req = requests.get(img_url, headers=HEADERS, timeout=8)
                     if img_req.status_code == 200 and len(img_req.content) > 10000:
                         with open(save_path, "wb") as f:
@@ -211,7 +217,7 @@ def fetch_pinterest_photos_via_gallery_dl(query: str, limit: int = 3, output_dir
                     break
                 try:
                     ext = ".png" if img_url.lower().endswith(".png") else ".jpg"
-                    save_path = os.path.join(output_dir, f"pinterest_google_{len(downloaded_files)+1}{ext}")
+                    save_path = os.path.join(output_dir, f"pin_google_{timestamp_prefix}_{len(downloaded_files)+1}{ext}")
                     img_req = requests.get(img_url, headers=HEADERS, timeout=6)
                     if img_req.status_code == 200 and len(img_req.content) > 10000:
                         with open(save_path, "wb") as f:

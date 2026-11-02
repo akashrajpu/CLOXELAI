@@ -674,6 +674,23 @@ def create_ultra_photo_motion_clip(
     w, h = size
     print(f"🎨 [Ultra Engine] Generating 3D Ultra Clip (BG: {photo_path}, FG: {fg_photo_path}, Filter: {filter_style}, Motion: {motion_type.upper()})...")
     
+    # Robust asset discovery: If photo_path is missing or invalid, check fg_photo_path or any valid image in the directory
+    if not photo_path or not os.path.exists(photo_path) or os.path.getsize(photo_path) < 1000:
+        if fg_photo_path and os.path.exists(fg_photo_path) and os.path.getsize(fg_photo_path) > 1000:
+            print(f"🔄 [Ultra Motion Fallback] Primary photo '{photo_path}' missing, using secondary asset '{fg_photo_path}' as base photo.")
+            photo_path = fg_photo_path
+            fg_photo_path = None
+        else:
+            p_dir = os.path.dirname(photo_path) if photo_path else "."
+            if p_dir and os.path.exists(p_dir):
+                for candidate in os.listdir(p_dir):
+                    if candidate.lower().endswith(('.jpg', '.jpeg', '.png', '.webp')) and not candidate.startswith("tmp_sub"):
+                        cand_full = os.path.join(p_dir, candidate)
+                        if os.path.getsize(cand_full) > 5000:
+                            photo_path = cand_full
+                            print(f"🔄 [Ultra Motion Fallback] Discovered valid photo candidate in job dir: '{photo_path}'")
+                            break
+
     if not photo_path or not os.path.exists(photo_path):
         bg_pil = create_parchment_background(size, color_theme="warm")
         def get_fallback_frame(t):
@@ -694,6 +711,14 @@ def create_ultra_photo_motion_clip(
     else:
         try:
             orig_pil = Image.open(photo_path).convert("RGBA")
+        except Exception:
+            orig_pil = None
+
+    if orig_pil is None and fg_photo_path and os.path.exists(fg_photo_path):
+        try:
+            orig_pil = Image.open(fg_photo_path).convert("RGBA")
+            print(f"🔄 [Ultra Motion Fallback] Successfully opened secondary asset '{fg_photo_path}' as base photo.")
+            fg_photo_path = None
         except Exception:
             orig_pil = None
 
@@ -1374,9 +1399,13 @@ def merge_and_export(
                 )
             else:
                 video_paths = scene['video'] if isinstance(scene['video'], list) else [scene['video']]
-                bg_path = video_paths[0]
-                show_cutout = (i % 2 == 0) and (i < 6)
-                fg_path = video_paths[1] if (show_cutout and len(video_paths) > 1) else None
+                valid_paths = [p for p in video_paths if p and os.path.exists(p) and os.path.getsize(p) > 1000]
+                if valid_paths:
+                    bg_path = valid_paths[0]
+                    fg_path = valid_paths[1] if (show_cutout and len(valid_paths) > 1) else None
+                else:
+                    bg_path = video_paths[0] if video_paths else None
+                    fg_path = None
                 filters = [
                     "warm_epic", "cyber_teal_orange", "vintage_parchment", 
                     "royal_gold", "dramatic_cinematic", "dark_gothic", 

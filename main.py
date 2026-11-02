@@ -1967,13 +1967,13 @@ def full_process(req: VideoRequest, job_id: str):
                         scene_visual_phrase = scene_kw or main_topic
                     
                     print(f"   📥 Fetching Dual HD Assets: BG='{bg_query}', FG='{fg_query}'...")
-                    fetch_web_image(bg_query, bg_img_path)
-                    fetch_web_image(fg_query, fg_img_path)
+                    fetch_web_image(bg_query, bg_img_path, orientation=orientation)
+                    fetch_web_image(fg_query, fg_img_path, orientation=orientation)
                     
                     v_paths = []
-                    if os.path.exists(bg_img_path):
+                    if os.path.exists(bg_img_path) and os.path.getsize(bg_img_path) > 1000:
                         v_paths.append(bg_img_path)
-                    if os.path.exists(fg_img_path):
+                    if os.path.exists(fg_img_path) and os.path.getsize(fg_img_path) > 1000:
                         v_paths.append(fg_img_path)
                         
                     if not v_paths or any(w in scene_visual_phrase.lower() for w in ["battle", "war", "action", "fight", "army"]):

@@ -347,26 +347,45 @@ def optimize_image_for_ram(file_path: str) -> bool:
     try:
         from PIL import Image
         import os
-        if not os.path.exists(file_path):
+        if not os.path.exists(file_path) or os.path.getsize(file_path) < 1000:
             return False
             
         with Image.open(file_path) as img:
             img.verify()
             
         with Image.open(file_path) as img:
-            if img.width < 400 or img.height < 400:
+            if img.width < 350 or img.height < 350:
                 raise ValueError("Image is too small (likely a thumbnail or tracking pixel)")
                 
+            needs_resave = False
+            # If saving to .jpg / .jpeg, ensure mode is RGB (not RGBA/P/LA) to prevent OSError
+            is_jpeg = file_path.lower().endswith(('.jpg', '.jpeg'))
+            if is_jpeg and img.mode in ('RGBA', 'LA', 'P'):
+                rgb_img = Image.new('RGB', img.size, (255, 255, 255))
+                if img.mode == 'RGBA':
+                    rgb_img.paste(img, mask=img.split()[3])
+                else:
+                    rgb_img.paste(img.convert('RGB'))
+                img = rgb_img
+                needs_resave = True
+
             if img.width > 1280 or img.height > 1280:
                 img.thumbnail((1280, 1280), Image.LANCZOS)
-                img.save(file_path, quality=88, optimize=True)
+                needs_resave = True
+
+            if needs_resave:
+                if is_jpeg:
+                    img.save(file_path, format="JPEG", quality=88, optimize=True)
+                else:
+                    img.save(file_path, optimize=True)
         return True
     except Exception as e:
-        import os
-        if os.path.exists(file_path):
+        print(f"⚠️ optimize_image_for_ram notice for {file_path}: {e}")
+        # Only remove if the file is completely corrupt / 0-byte
+        if os.path.exists(file_path) and os.path.getsize(file_path) < 1000:
             try:
                 os.remove(file_path)
-            except:
+            except Exception:
                 pass
         return False
 
