@@ -2612,10 +2612,11 @@ def build_full_song_video(
                     print(f"⚠️ Stock video clip load note: {e_v}")
 
         if not seg_clip:
-            # ⚡ Ultra 3D Photo Motion with Filter & Typewriter Lyrics
+            # ⚡ Ultra 3D Photo Motion with Filter & Typewriter Lyrics (Uses Pexels HD Photo API exclusively)
             img_path = os.path.join(job_dir, f"bg_photo_{seg_idx}.jpg")
             photo_query = f"{chosen_scene}".strip()
-            fetch_web_image(photo_query, img_path)
+            print(f"📸 [Ultra Song Visual] Fetching HD Scene Photo via Pexels API (Query: '{photo_query}', Orientation: {orientation})...")
+            fetch_web_image(photo_query, img_path, prefer_source="pexels", orientation=orientation)
 
             try:
                 with Image.open(img_path) as raw_im:

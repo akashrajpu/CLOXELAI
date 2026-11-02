@@ -331,7 +331,7 @@ def translate_query(query: str) -> str:
             dedup.append(w)
     return " ".join(dedup) if dedup else query
 
-PEXELS_API_KEY = os.getenv("PEXELS_API_KEY", "563492ad6f917000010000013b5bf9583b2744799017ae70ec86ca93")
+PEXELS_API_KEY = os.getenv("PEXELS_API_KEY", "jqGZN1a4uHQFpxqdFAdVaD1l1eyjW1kzHqtdlNJ1TPkSmOEXcbAL7yhN")
 
 def clean_search_term(text: str) -> str:
     """Cleans search terms for Pexels, Pinterest, and Unsplash lookups while maintaining rich, multi-word queries."""
@@ -370,49 +370,88 @@ def optimize_image_for_ram(file_path: str) -> bool:
                 pass
         return False
 
-def fetch_web_image(query: str, save_path: str) -> bool:
+def fetch_pexels_photo(query: str, save_path: str, orientation: str = "landscape") -> bool:
     """
-    Searches and downloads a high-resolution photo for any topic/character query using Pinterest HD, Pexels Photo API, Unsplash HD, Google Images, Wikimedia & Pollinations AI.
+    Downloads an HD photo directly from Pexels Photo API matching topic and orientation (landscape/portrait).
+    Returns True if successfully downloaded and validated.
     """
-    import shutil
-    english_query = translate_query(query)
-    clean_q_term = clean_search_term(english_query)
-    print(f"🔎 [Web Image Search Engine] Searching HD Photos for: '{clean_q_term}' (Original Query: '{query}')...")
+    api_key = os.getenv("PEXELS_API_KEY") or PEXELS_API_KEY
+    if not api_key:
+        return False
 
-    try:
-        from pinterest_downloader import fetch_pinterest_photos_via_gallery_dl
-        temp_p_dir = os.path.join(os.path.dirname(save_path) or ".", "pinterest_temp")
-        p_files = fetch_pinterest_photos_via_gallery_dl(clean_q_term, limit=1, output_dir=temp_p_dir)
-        if p_files and os.path.exists(p_files[0]):
-            shutil.copy(p_files[0], save_path)
-            if optimize_image_for_ram(save_path):
-                print(f"✅ [Pinterest HD Engine] Successfully downloaded: {save_path}")
-                return True
-            else:
-                print("⚠️ [Pinterest HD Engine] Downloaded file was invalid/corrupt. Falling back...")
-    except Exception as e_pin:
-        print(f"⚠️ Pinterest HD search skip: {e_pin}")
+    orient = "portrait" if "port" in str(orientation).lower() or orientation == "9:16" else "landscape"
+    clean_term = clean_search_term(translate_query(query))
+    queries_to_try = [clean_term]
+    trans_q = translate_query(query)
+    if trans_q != clean_term and trans_q not in queries_to_try:
+        queries_to_try.append(trans_q)
+    queries_to_try.append(f"{clean_term} cinematic")
 
-    if PEXELS_API_KEY:
+    for q in queries_to_try:
         try:
-            p_url = f"https://api.pexels.com/v1/search?query={urllib.parse.quote(clean_q_term)}&per_page=5&orientation=landscape"
-            p_res = requests.get(p_url, headers={"Authorization": PEXELS_API_KEY}, timeout=5)
+            p_url = f"https://api.pexels.com/v1/search?query={urllib.parse.quote(q)}&per_page=8&orientation={orient}"
+            p_res = requests.get(p_url, headers={"Authorization": api_key}, timeout=6)
             if p_res.status_code == 200:
                 data = p_res.json()
                 photos = data.get("photos", [])
                 if photos:
-                    best_photo = random.choice(photos[:3])
-                    img_url = best_photo.get("src", {}).get("large2x") or best_photo.get("src", {}).get("landscape") or best_photo.get("src", {}).get("original")
-                    if img_url:
-                        img_req = requests.get(img_url, timeout=6)
+                    candidates = photos[:5]
+                    random.shuffle(candidates)
+                    for photo in candidates:
+                        src = photo.get("src", {})
+                        img_url = src.get("large2x") or src.get(orient) or src.get("large") or src.get("original")
+                        if not img_url:
+                            continue
+                        img_req = requests.get(img_url, timeout=7)
                         if img_req.status_code == 200 and len(img_req.content) > 15000:
                             with open(save_path, "wb") as f:
                                 f.write(img_req.content)
                             if optimize_image_for_ram(save_path):
-                                print(f"✅ [Pexels HD Photo API] Successfully downloaded: {save_path}")
+                                print(f"✅ [Pexels HD Photo API] Successfully downloaded HD ({orient}): {save_path} for '{q}'")
                                 return True
+            elif p_res.status_code == 401:
+                print("⚠️ [Pexels API] Unauthorized (401), invalid API key.")
+                break
         except Exception as e_pex:
-            print(f"⚠️ Pexels photo search skip: {e_pex}")
+            print(f"⚠️ Pexels photo search note for '{q}': {e_pex}")
+
+    return False
+
+def fetch_web_image(query: str, save_path: str, prefer_source: str = "auto", orientation: str = "landscape") -> bool:
+    """
+    Searches and downloads a high-resolution photo for any topic/character query.
+    If prefer_source == "pexels", it uses Pexels directly and strictly bypasses Pinterest.
+    """
+    import shutil
+    english_query = translate_query(query)
+    clean_q_term = clean_search_term(english_query)
+    print(f"🔎 [Web Image Search Engine] Searching HD Photos for: '{clean_q_term}' (Original Query: '{query}', Prefer: {prefer_source})...")
+
+    # Priority 1 for Ultra Songs: Strict Pexels API (bypassing Pinterest completely)
+    if prefer_source == "pexels":
+        if fetch_pexels_photo(query, save_path, orientation=orientation):
+            return True
+        print("⚠️ [Pexels Direct] Could not find specific photo on Pexels, proceeding to direct image generators...")
+
+    # For standard requests, try Pinterest first
+    if prefer_source != "pexels":
+        try:
+            from pinterest_downloader import fetch_pinterest_photos_via_gallery_dl
+            temp_p_dir = os.path.join(os.path.dirname(save_path) or ".", "pinterest_temp")
+            p_files = fetch_pinterest_photos_via_gallery_dl(clean_q_term, limit=1, output_dir=temp_p_dir)
+            if p_files and os.path.exists(p_files[0]):
+                shutil.copy(p_files[0], save_path)
+                if optimize_image_for_ram(save_path):
+                    print(f"✅ [Pinterest HD Engine] Successfully downloaded: {save_path}")
+                    return True
+                else:
+                    print("⚠️ [Pinterest HD Engine] Downloaded file was invalid/corrupt. Falling back...")
+        except Exception as e_pin:
+            print(f"⚠️ Pinterest HD search skip: {e_pin}")
+
+        # If Pinterest didn't succeed, try Pexels Photo API
+        if fetch_pexels_photo(query, save_path, orientation=orientation):
+            return True
 
     try:
         clean_prompt = urllib.parse.quote(f"epic cinematic photo of {clean_q_term}, 8k resolution, detailed background")

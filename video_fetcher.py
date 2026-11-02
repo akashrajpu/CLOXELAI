@@ -421,9 +421,22 @@ def fetch_pinterest_pins(keyword, job_id, count=1, orientation="portrait", used_
                     continue
                 filename = os.path.join(dir_name, f"pinterest_{base_name}_{len(media_paths)}.jpg") if dir_name else f"pinterest_{base_name}_{len(media_paths)}.jpg"
                 
-                img_data = requests.get(img_url, timeout=10).content
+                img_resp = requests.get(img_url, timeout=10)
+                if img_resp.status_code != 200 or len(img_resp.content) < 5000:
+                    continue
                 with open(filename, "wb") as f:
-                    f.write(img_data)
+                    f.write(img_resp.content)
+                try:
+                    from PIL import Image
+                    with Image.open(filename) as im:
+                        if im.width < 350 or im.height < 350:
+                            os.remove(filename)
+                            continue
+                except Exception:
+                    if os.path.exists(filename):
+                        try: os.remove(filename)
+                        except Exception: pass
+                    continue
                 if pin_id:
                     used_media_ids.add(pin_id)
                     GLOBAL_USED_MEDIA_IDS.add(pin_id)
