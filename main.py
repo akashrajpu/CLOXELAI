@@ -1947,70 +1947,104 @@ def full_process(req: VideoRequest, job_id: str):
                 v_paths = []
             elif is_ultra and is_after_effects_req:
                 try:
+                    from pinterest_downloader import fetch_pinterest_photos_via_gallery_dl, fetch_pinterest_videos_via_gallery_dl
                     main_topic = req.topic if req.topic else "motion graphics"
-                    scene_text = sc.get('text', '')
+                    scene_text = sc.get('text', '').strip()
                     scene_kw = sc.get('keyword', '').strip()
+                    words = scene_text.split()
                     
-                    if extract_rich_scene_visual_keywords:
-                        _, _, scene_visual_phrase = extract_rich_scene_visual_keywords(
-                            topic=main_topic,
-                            scene_text=scene_text,
-                            scene_kw=scene_kw,
-                            scene_idx=i,
-                            category=req.category
-                        )
+                    # 1. Detect contrasting punchline in the line (e.g. "modi dictator ya real hero", "sach ya jhooth", "hero ya villain")
+                    import re
+                    contrast_patterns = [
+                        r'\s+(?:ya\s+phir|ya\s+fir|ya)\s+',
+                        r'\s+or\s+',
+                        r'\s+vs\.?\s+',
+                        r'\s+versus\s+'
+                    ]
+                    is_contrast = False
+                    contrast_parts = []
+                    for pat in contrast_patterns:
+                        parts = re.split(pat, scene_text, maxsplit=1, flags=re.IGNORECASE)
+                        if len(parts) == 2 and len(parts[0].split()) >= 1 and len(parts[1].split()) >= 1 and len(words) <= 14:
+                            is_contrast = True
+                            contrast_parts = [parts[0].strip(), parts[1].strip()]
+                            break
+                            
+                    # 2. Distinguish short lines vs longer narrative:
+                    # User rule: Use photos when short lines appear in between (<= 7 words or contrast)
+                    # Use videos when it is a normal longer narrative line (> 7 words)
+                    is_short_line = (len(words) <= 7 or len(scene_text) <= 45)
+                    
+                    v_paths = []
+                    
+                    if is_contrast and len(contrast_parts) == 2:
+                        # Contrast Punchline: Fetch 2 separate Pinterest photos with 'graphics photo'
+                        # e.g. "Modi dictator graphics photo" and "Modi real hero graphics photo"
+                        p1_term = f"{main_topic} {contrast_parts[0]} graphics photo".strip()
+                        p2_term = f"{main_topic} {contrast_parts[1]} graphics photo".strip()
+                        print(f"🎬 [Ultra After Effects Scene {i+1}] Contrast Punchline detected! Fetching 2 Pinterest Photos: '{p1_term}' & '{p2_term}' (Pinterest Only)...")
+                        
+                        p1_files = fetch_pinterest_photos_via_gallery_dl(p1_term, limit=1, output_dir=job_dir)
+                        p2_files = fetch_pinterest_photos_via_gallery_dl(p2_term, limit=1, output_dir=job_dir)
+                        
+                        if p1_files and os.path.exists(p1_files[0]):
+                            v_paths.append(p1_files[0])
+                        if p2_files and os.path.exists(p2_files[0]):
+                            v_paths.append(p2_files[0])
+                            
+                    elif is_short_line:
+                        # Short line: Fetch 1 Pinterest photo with 'graphics photo'
+                        photo_term = f"{main_topic} {scene_kw or scene_text} graphics photo".strip()
+                        print(f"📸 [Ultra After Effects Scene {i+1}] Short Line detected ({len(words)} words)! Fetching Pinterest Photo: '{photo_term}' (Pinterest Only)...")
+                        p_files = fetch_pinterest_photos_via_gallery_dl(photo_term, limit=1, output_dir=job_dir)
+                        if p_files and os.path.exists(p_files[0]):
+                            v_paths.append(p_files[0])
                     else:
-                        scene_visual_phrase = scene_kw or main_topic
-                    
-                    # Ultra After Effects Video Search Rule: Always append 'graphics video' to every search query
-                    search_term = f"{main_topic} {scene_visual_phrase}".strip()
-                    if "graphics video" not in search_term.lower():
-                        search_term = f"{search_term} graphics video"
-                    
-                    print(f"🎬 [Ultra After Effects Scene {i+1}] Searching video with 'graphics video': '{search_term}'...")
-                    v_paths = fetch_videos(
-                        keyword=search_term,
-                        job_id=v_path,
-                        orientation=orientation,
-                        category=req.category or "✨ After Effect Video",
-                        video_type="ultra",
-                        topic=main_topic,
-                        used_media_ids=used_media_ids
-                    )
+                        # Longer narrative: Fetch 1 Pinterest Video with 'graphics video'
+                        if extract_rich_scene_visual_keywords:
+                            _, _, scene_visual_phrase = extract_rich_scene_visual_keywords(
+                                topic=main_topic,
+                                scene_text=scene_text,
+                                scene_kw=scene_kw,
+                                scene_idx=i,
+                                category=req.category
+                            )
+                        else:
+                            scene_visual_phrase = scene_kw or main_topic
+                            
+                        vid_term = f"{main_topic} {scene_visual_phrase} graphics video".strip()
+                        print(f"🎬 [Ultra After Effects Scene {i+1}] Narrative Video Line detected ({len(words)} words)! Fetching Pinterest Video: '{vid_term}' (Pinterest Only)...")
+                        vid_files = fetch_pinterest_videos_via_gallery_dl(vid_term, limit=1, output_dir=job_dir)
+                        if vid_files and os.path.exists(vid_files[0]):
+                            v_paths.append(vid_files[0])
+                        else:
+                            # Fallback 1 on Pinterest: shorter video search
+                            fb_vid = f"{scene_kw or main_topic} graphics video".strip()
+                            print(f"🔄 [Ultra After Effects Scene {i+1}] Fallback searching Pinterest Video: '{fb_vid}'...")
+                            vid_files = fetch_pinterest_videos_via_gallery_dl(fb_vid, limit=1, output_dir=job_dir)
+                            if vid_files and os.path.exists(vid_files[0]):
+                                v_paths.append(vid_files[0])
+                                
+                    # If Pinterest video was not found for narrative, fall back to Pinterest photo with 'graphics photo' (STRICTLY PINTEREST ONLY)
                     if not v_paths or not os.path.exists(v_paths[0]) or os.path.getsize(v_paths[0]) < 1000:
-                        fb_term = f"{scene_kw or main_topic} graphics video".strip()
-                        print(f"🔄 [Ultra After Effects Scene {i+1}] Fallback searching: '{fb_term}'...")
-                        v_paths = fetch_videos(
-                            keyword=fb_term,
-                            job_id=v_path,
-                            orientation=orientation,
-                            category=req.category or "✨ After Effect Video",
-                            video_type="ultra",
-                            topic=main_topic,
-                            used_media_ids=used_media_ids
-                        )
-                    if not v_paths or not os.path.exists(v_paths[0]) or os.path.getsize(v_paths[0]) < 1000:
-                        print(f"🔄 [Ultra After Effects Scene {i+1}] Ultimate fallback searching: 'cinematic motion graphics video'...")
-                        v_paths = fetch_videos(
-                            keyword="cinematic motion graphics video",
-                            job_id=v_path,
-                            orientation=orientation,
-                            category=req.category or "✨ After Effect Video",
-                            video_type="ultra",
-                            topic=main_topic,
-                            used_media_ids=used_media_ids
-                        )
+                        fb_photo_term = f"{main_topic} {scene_kw or scene_text} graphics photo".strip()
+                        print(f"🔄 [Ultra After Effects Scene {i+1}] Pinterest Video fallback -> Fetching Pinterest Photo: '{fb_photo_term}'...")
+                        p_fb_files = fetch_pinterest_photos_via_gallery_dl(fb_photo_term, limit=1, output_dir=job_dir)
+                        if p_fb_files and os.path.exists(p_fb_files[0]):
+                            v_paths = [p_fb_files[0]]
+                        else:
+                            # Ultimate Pinterest fallback
+                            ult_p = fetch_pinterest_photos_via_gallery_dl(f"{main_topic} graphics photo", limit=1, output_dir=job_dir)
+                            if ult_p and os.path.exists(ult_p[0]):
+                                v_paths = [ult_p[0]]
                 except Exception as e_ae:
-                    print(f"⚠️ [Ultra After Effects Video Fetch Error]: {e_ae}")
-                    v_paths = fetch_videos(
-                        keyword=f"{sc.get('keyword', req.topic or '')} graphics video",
-                        job_id=v_path,
-                        orientation=orientation,
-                        category=req.category or "✨ After Effect Video",
-                        video_type="ultra",
-                        topic=req.topic or "",
-                        used_media_ids=used_media_ids
-                    )
+                    print(f"⚠️ [Ultra After Effects Pinterest Pipeline Error]: {e_ae}")
+                    try:
+                        from pinterest_downloader import fetch_pinterest_photos_via_gallery_dl
+                        fb = fetch_pinterest_photos_via_gallery_dl(f"{req.topic or 'motion'} graphics photo", limit=1, output_dir=job_dir)
+                        v_paths = fb if fb else []
+                    except Exception:
+                        v_paths = []
             elif is_ultra and fetch_web_image:
                 try:
                     bg_img_path = os.path.join(job_dir, f"bg_photo_{i}.jpg")
@@ -2140,18 +2174,19 @@ def full_process(req: VideoRequest, job_id: str):
                     print(f"⚠️ [main.py Guard] Scene {i+1} got duplicate clip of previous scene! Re-fetching unique footage...")
                     clean_guard_kw = " ".join([w for w in re.findall(r'[a-zA-Z0-9]+', scene_kw) if len(w) > 1]) if scene_kw else ""
                     if is_after_effects_req:
-                        alt_query = f"{clean_guard_kw or main_topic} graphics video scene {i+1}"
+                        alt_query = f"{clean_guard_kw or main_topic} graphics video angle {i+1}"
+                        v_paths = fetch_pinterest_videos_via_gallery_dl(alt_query, limit=1, output_dir=job_dir)
                     else:
                         alt_query = f"{clean_guard_kw or main_topic} cinematic different angle {i+1}"
-                    v_paths = fetch_videos(
-                        alt_query,
-                        v_path,
-                        orientation=orientation,
-                        category=req.category or "Random",
-                        video_type=req.video_type or "short",
-                        topic=main_topic,
-                        used_media_ids=used_media_ids
-                    )
+                        v_paths = fetch_videos(
+                            alt_query,
+                            v_path,
+                            orientation=orientation,
+                            category=req.category or "Random",
+                            video_type=req.video_type or "short",
+                            topic=main_topic,
+                            used_media_ids=used_media_ids
+                        )
             
             if os.path.exists(a_path):
                 if not v_paths:

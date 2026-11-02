@@ -568,20 +568,30 @@ def fetch_videos(keyword, job_id, count=1, orientation="portrait", category="Ran
             seen_q.add(ql)
             queries_to_try.append(q.strip())
 
-    for q_item in queries_to_try:
-        try:
-            clips = fetch_pexels_videos(q_item, job_id, count=count, orientation=orientation, used_media_ids=used_media_ids)
-            if clips:
-                return clips
-        except Exception as e_px:
-            print(f"⚠️ [Pexels Query Skip]: {e_px}")
-            
-        try:
-            clips = fetch_pixabay_videos(q_item, job_id, count=count, orientation=orientation, used_media_ids=used_media_ids)
-            if clips:
-                return clips
-        except Exception as e_pb:
-            print(f"⚠️ [Pixabay Query Skip]: {e_pb}")
+    if is_after_effects:
+        # User Rule: For After Effects, ONLY fetch from Pinterest (no Pexels/Pixabay)
+        for q_item in queries_to_try:
+            try:
+                clips = fetch_pinterest_videos(q_item, job_id, count=count, orientation=orientation, used_media_ids=used_media_ids)
+                if clips:
+                    return clips
+            except Exception as e_pv:
+                print(f"⚠️ [Pinterest Video Query Skip]: {e_pv}")
+    else:
+        for q_item in queries_to_try:
+            try:
+                clips = fetch_pexels_videos(q_item, job_id, count=count, orientation=orientation, used_media_ids=used_media_ids)
+                if clips:
+                    return clips
+            except Exception as e_px:
+                print(f"⚠️ [Pexels Query Skip]: {e_px}")
+                
+            try:
+                clips = fetch_pixabay_videos(q_item, job_id, count=count, orientation=orientation, used_media_ids=used_media_ids)
+                if clips:
+                    return clips
+            except Exception as e_pb:
+                print(f"⚠️ [Pixabay Query Skip]: {e_pb}")
 
     # Contextual fallbacks based on topic and category
     contextual_fallbacks = []
@@ -613,21 +623,27 @@ def fetch_videos(keyword, job_id, count=1, orientation="portrait", category="Ran
         if fallback_kw.lower() not in seen_q:
             try:
                 print(f"🔄 Retrying with contextual fallback video clip keyword: '{fallback_kw}'...")
-                clips = fetch_pexels_videos(fallback_kw, job_id, count=count, orientation=orientation, used_media_ids=used_media_ids)
-                if not clips:
-                    clips = fetch_pixabay_videos(fallback_kw, job_id, count=count, orientation=orientation, used_media_ids=used_media_ids)
+                if is_after_effects:
+                    clips = fetch_pinterest_videos(fallback_kw, job_id, count=count, orientation=orientation, used_media_ids=used_media_ids)
+                else:
+                    clips = fetch_pexels_videos(fallback_kw, job_id, count=count, orientation=orientation, used_media_ids=used_media_ids)
+                    if not clips:
+                        clips = fetch_pixabay_videos(fallback_kw, job_id, count=count, orientation=orientation, used_media_ids=used_media_ids)
                 if clips:
                     return clips
             except Exception:
                 continue
 
     if is_ultra_mode and is_after_effects:
+        # Ultimate fallback on Pinterest: fetch Pinterest photo with 'graphics photo'
         try:
-            pin_videos = fetch_pinterest_videos(f"{keyword} graphics video", job_id, count=count, orientation=orientation, used_media_ids=used_media_ids)
-            if pin_videos:
-                return pin_videos
-        except Exception as e_pv2:
-            print(f"⚠️ [Pinterest Video Fallback Skip]: {e_pv2}")
+            from pinterest_downloader import fetch_pinterest_photos_via_gallery_dl
+            t_dir = os.path.dirname(job_id) if job_id else "."
+            fb_photo = fetch_pinterest_photos_via_gallery_dl(f"{keyword} graphics photo", limit=count, output_dir=t_dir)
+            if fb_photo:
+                return fb_photo
+        except Exception as e_pfb:
+            print(f"⚠️ [Pinterest Photo Fallback Skip]: {e_pfb}")
     elif is_ultra_mode and not is_after_effects:
         try:
             pins = fetch_pinterest_pins(keyword, job_id, count=count, orientation=orientation, used_media_ids=used_media_ids)

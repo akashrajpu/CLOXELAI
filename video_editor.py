@@ -1016,29 +1016,59 @@ def render_scene_native_ffmpeg(
 
     input_args = []
     fallback_created = None
+    audio_input_idx = 1
     
-    if video_path and os.path.exists(video_path) and os.path.getsize(video_path) > 500:
-        if str(video_path).lower().endswith(('.jpg', '.jpeg', '.png', '.webp')):
-            input_args.extend(["-loop", "1", "-i", os.path.abspath(video_path)])
+    if isinstance(video_path, (list, tuple)) and len(video_path) >= 2:
+        # Dual-asset rapid cut montage (e.g. contrasting photos/clips cut halfway through scene)
+        p0, p1 = video_path[0], video_path[1]
+        half_dur = max(0.5, duration / 2.0)
+        
+        if str(p0).lower().endswith(('.jpg', '.jpeg', '.png', '.webp')):
+            input_args.extend(["-loop", "1", "-t", f"{half_dur:.2f}", "-i", os.path.abspath(p0)])
         else:
-            input_args.extend(["-stream_loop", "-1", "-fflags", "+genpts", "-i", os.path.abspath(video_path)])
+            input_args.extend(["-ss", "0", "-t", f"{half_dur:.2f}", "-i", os.path.abspath(p0)])
+            
+        if str(p1).lower().endswith(('.jpg', '.jpeg', '.png', '.webp')):
+            input_args.extend(["-loop", "1", "-t", f"{half_dur:.2f}", "-i", os.path.abspath(p1)])
+        else:
+            input_args.extend(["-ss", "0", "-t", f"{half_dur:.2f}", "-i", os.path.abspath(p1)])
+            
+        input_args.extend(["-i", os.path.abspath(audio_path)])
+        audio_input_idx = 2
+        
+        for sub_path, _, _ in sub_overlay_files:
+            input_args.extend(["-i", sub_path])
+            
+        filter_parts = [
+            f"[0:v]scale={w}:{h}:force_original_aspect_ratio=increase,crop={w}:{h},setsar=1,fps=25,trim=duration={half_dur:.2f}[v0]",
+            f"[1:v]scale={w}:{h}:force_original_aspect_ratio=increase,crop={w}:{h},setsar=1,fps=25,trim=duration={half_dur:.2f}[v1]",
+            f"[v0][v1]concat=n=2:v=1:a=0[vbg]"
+        ]
     else:
-        fallback_created = os.path.abspath(os.path.join(job_dir, f"tmp_fallback_canvas_{random.randint(1000, 9999)}.png"))
-        fb_img = Image.new("RGB", (w, h), (15, 10, 35))
-        fb_img.save(fallback_created, "PNG")
-        input_args.extend(["-loop", "1", "-i", fallback_created])
+        v_single = video_path[0] if isinstance(video_path, (list, tuple)) and video_path else video_path
+        if v_single and os.path.exists(v_single) and os.path.getsize(v_single) > 500:
+            if str(v_single).lower().endswith(('.jpg', '.jpeg', '.png', '.webp')):
+                input_args.extend(["-loop", "1", "-i", os.path.abspath(v_single)])
+            else:
+                input_args.extend(["-stream_loop", "-1", "-fflags", "+genpts", "-i", os.path.abspath(v_single)])
+        else:
+            fallback_created = os.path.abspath(os.path.join(job_dir, f"tmp_fallback_canvas_{random.randint(1000, 9999)}.png"))
+            fb_img = Image.new("RGB", (w, h), (15, 10, 35))
+            fb_img.save(fallback_created, "PNG")
+            input_args.extend(["-loop", "1", "-i", fallback_created])
+            
+        input_args.extend(["-i", os.path.abspath(audio_path)])
+        audio_input_idx = 1
         
-    input_args.extend(["-i", os.path.abspath(audio_path)])
-    
-    for sub_path, _, _ in sub_overlay_files:
-        input_args.extend(["-i", sub_path])
+        for sub_path, _, _ in sub_overlay_files:
+            input_args.extend(["-i", sub_path])
+            
+        filter_parts = [f"[0:v]scale={w}:{h}:force_original_aspect_ratio=increase,crop={w}:{h},setsar=1[vbg]"]
         
-    filter_parts = [f"[0:v]scale={w}:{h}:force_original_aspect_ratio=increase,crop={w}:{h},setsar=1[vbg]"]
     last_v = "vbg"
-    
     for idx, (_, t_s, t_e) in enumerate(sub_overlay_files):
         next_v = f"vsub{idx}" if idx < len(sub_overlay_files) - 1 else "outv"
-        sub_input_idx = idx + 2
+        sub_input_idx = idx + (audio_input_idx + 1)
         filter_parts.append(f"[{last_v}][{sub_input_idx}:v]overlay=0:0:enable='between(t,{t_s:.2f},{t_e:.2f})'[{next_v}]")
         last_v = next_v
         
@@ -1052,7 +1082,7 @@ def render_scene_native_ffmpeg(
         *input_args,
         "-filter_complex", filter_complex,
         "-map", "[outv]",
-        "-map", "1:a",
+        "-map", f"{audio_input_idx}:a",
         "-c:v", "libx264",
         "-preset", "ultrafast",
         "-crf", "26",
@@ -1425,8 +1455,29 @@ def merge_and_export(
                     ]
                     motions = ["zoom_in", "zoom_out", "pan_right", "pan_left", "diagonal_fast", "spiral_zoom"]
                 is_bg_video = bg_path and str(bg_path).lower().endswith(('.mp4', '.mov', '.avi', '.webm', '.mkv'))
-                if is_after_effects_cat and is_bg_video:
-                    print(f"🎬 Scene {i+1}: Ultra After Effects Mode - Rendering Real Motion Graphics Video via Native FFmpeg...")
+                # Case 1: After Effects Dual Photo/Asset Rapid Contrast Cut (e.g. 2 contrasting photos like Modi dictator vs real hero)
+                if is_after_effects_cat and len(valid_paths) >= 2 and all(not str(p).lower().endswith(('.mp4', '.mov', '.avi', '.webm', '.mkv')) for p in valid_paths[:2]):
+                    print(f"🎬 Scene {i+1}: Ultra After Effects Mode - Rapid Dual Photo Contrast Cut ({valid_paths[0]} & {valid_paths[1]})...")
+                    try:
+                        rendered_successfully = render_scene_native_ffmpeg(
+                            scene_output=scene_output,
+                            video_path=valid_paths[:2],
+                            audio_path=audio_path,
+                            duration=clip_duration,
+                            text=clip_text_segment,
+                            target_size=target_size,
+                            font_path=font_path,
+                            font_size=font_size,
+                            category_style=cat_style,
+                            highlight_color=color,
+                            job_dir=job_dir
+                        )
+                    except Exception as e_ae_dual:
+                        print(f"⚠️ Ultra After Effects dual cut notice: {e_ae_dual}")
+                        rendered_successfully = False
+
+                elif is_after_effects_cat and is_bg_video:
+                    print(f"🎬 Scene {i+1}: Ultra After Effects Mode - Rendering Real Motion Graphics Video via Native FFmpeg (Trimmed to {clip_duration:.1f}s)...")
                     try:
                         rendered_successfully = render_scene_native_ffmpeg(
                             scene_output=scene_output,
