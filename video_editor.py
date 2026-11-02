@@ -1317,11 +1317,14 @@ def merge_and_export(
         
         cat_lower = str(category).lower()
         is_cartoon_cat = any(k in cat_lower for k in ["cartoon", "anime", "animation", "character", "comic"])
+        is_after_effects_cat = any(k in cat_lower for k in ["after effect", "after iffect", "after effects", "vfx", "motion graphic"])
 
         if any(k in cat_lower for k in ["history", "mythology", "ancient", "historical", "purana", "epic", "warrior"]):
             cat_style = "history"
         elif is_cartoon_cat:
             cat_style = "cartoon"
+        elif is_after_effects_cat:
+            cat_style = "clean"
         elif any(k in cat_lower for k in ["random", "all"]):
             cat_style = random.choice(["history", "cartoon", "clean"])
         else:
@@ -1407,15 +1410,22 @@ def merge_and_export(
                 else:
                     bg_path = video_paths[0] if video_paths else None
                     fg_path = None
-                filters = [
-                    "warm_epic", "cyber_teal_orange", "vintage_parchment", 
-                    "royal_gold", "dramatic_cinematic", "dark_gothic", 
-                    "neon_cyberpunk", "golden_sunburst", "emerald_fantasy", 
-                    "crimson_warrior", "vintage_sepia_film", "ice_blue_cyber"
-                ]
+                if is_after_effects_cat:
+                    filters = [
+                        "cyber_teal_orange", "neon_cyberpunk", "ice_blue_cyber", 
+                        "dramatic_cinematic", "golden_sunburst", "emerald_fantasy"
+                    ]
+                    motions = ["diagonal_fast", "spiral_zoom", "zoom_in", "pan_right", "zoom_out"]
+                else:
+                    filters = [
+                        "warm_epic", "cyber_teal_orange", "vintage_parchment", 
+                        "royal_gold", "dramatic_cinematic", "dark_gothic", 
+                        "neon_cyberpunk", "golden_sunburst", "emerald_fantasy", 
+                        "crimson_warrior", "vintage_sepia_film", "ice_blue_cyber"
+                    ]
+                    motions = ["zoom_in", "zoom_out", "pan_right", "pan_left", "diagonal_fast", "spiral_zoom"]
                 filter_choice = random.choice(filters)
                 side_pos = "left" if i % 2 == 0 else "right"
-                motions = ["zoom_in", "zoom_out", "pan_right", "pan_left", "diagonal_fast", "spiral_zoom"]
                 motion_choice = random.choice(motions)
                 print(f"✨ Scene {i+1}: Generating Ultra Motion Clip (Filter: {filter_choice}, Motion: {motion_choice.upper()}, Cutout: {show_cutout}, Side: {side_pos.upper()})...")
                 try:

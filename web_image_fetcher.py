@@ -277,6 +277,8 @@ def extract_rich_scene_visual_keywords(topic: str, scene_text: str, scene_kw: st
             visual_parts = visual_angles[scene_idx % len(visual_angles)]
         elif any(k in t_low or k in cat_lower for k in ["space", "universe", "galaxy", "cosmos", "science"]):
             visual_parts = ["deep", "outer", "space", "nebula", "galaxy", "stars"]
+        elif any(k in t_low or k in cat_lower for k in ["after effect", "after iffect", "after effects", "vfx", "motion graphic"]):
+            visual_parts = ["futuristic", "cinematic", "vfx", "neon", "cyberpunk", "epic", "dynamic"]
         elif any(k in t_low or k in cat_lower for k in ["cartoon", "anime", "animation", "comic"]):
             visual_parts = ["vibrant", "3d", "animated", "colorful", "cartoon", "adventure"]
         else:
@@ -285,11 +287,15 @@ def extract_rich_scene_visual_keywords(topic: str, scene_text: str, scene_kw: st
     scene_visual_phrase = " ".join(visual_parts)
     
     # Context-aware suffixes
+    is_after_effects = any(k in cat_lower or k in topic_clean.lower() for k in ["after effect", "after iffect", "after effects", "vfx", "motion graphic", "cgi"])
     is_cartoon = any(k in cat_lower or k in topic_clean.lower() for k in ["cartoon", "anime", "animation", "comic"])
     is_space = any(k in cat_lower or k in topic_clean.lower() for k in ["space", "galaxy", "universe", "cosmos"])
     is_history = any(k in cat_lower or k in topic_clean.lower() for k in ["history", "war", "battle", "king", "warrior", "ancient"])
     
-    if is_cartoon:
+    if is_after_effects:
+        bg_suffix = "cinematic 3D VFX motion graphics dramatic wallpaper 8k"
+        fg_suffix = "epic cinematic VFX character motion portrait 8k"
+    elif is_cartoon:
         bg_suffix = "vibrant 3D colorful environment wallpaper photo"
         fg_suffix = "3D animated expressive hero character portrait"
     elif is_space:

@@ -42,6 +42,7 @@ const STANDARD_CATEGORIES = [
 
 const ULTRA_CATEGORIES = [
   '🎵 Song Video',
+  '✨ After Effect Video',
   ...STANDARD_CATEGORIES
 ];
 

@@ -4653,8 +4653,11 @@ def generate_ai_script_core(topic: str, duration: int, video_type: str = "short"
     elif video_type == "long":
         instruction_topic = f"{topic} [{lang_prompt} Write a complete, detailed {duration}-second documentary script. MUST be approximately {word_count} spoken words across {scene_count} progressive scenes to cover the entire {duration} seconds without stopping early.]"
     elif video_type == "ultra":
+        is_after_effects_cat = any(k in cat_lower for k in ["after effect", "after iffect", "after effects", "vfx", "motion graphic"])
         if is_cartoon_cat:
             instruction_topic = f"{topic} [{lang_prompt} Write an entertaining cartoon story script of approximately {word_count} spoken words across {scene_count} scenes for {duration} seconds.]"
+        elif is_after_effects_cat:
+            instruction_topic = f"{topic} [{lang_prompt} Write a high-intensity, visually dramatic, fast-paced cinematic After Effects motion video script of approximately {word_count} spoken words across {scene_count} scenes for {duration} seconds.]"
         else:
             instruction_topic = f"{topic} [{lang_prompt} Write a narrative script strictly in the style of category '{category}' with approximately {word_count} spoken words across {scene_count} scenes for {duration} seconds.]"
 
