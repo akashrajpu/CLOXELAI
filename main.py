@@ -1940,10 +1940,77 @@ def full_process(req: VideoRequest, job_id: str):
             cat_lower_req = str(req.category).lower()
             is_cartoon_req = any(k in cat_lower_req for k in ["cartoon", "anime", "animation", "character", "comic"])
             is_world_news_req = any(k in cat_lower_req for k in ["world news", "geopolitics", "news"])
+            is_after_effects_req = any(k in cat_lower_req for k in ["after effect", "after iffect", "after effects", "vfx", "motion graphic"])
 
             if is_ultra and (is_cartoon_req or is_world_news_req):
                 print(f"🎨 [Ultra Scene {i+1}] Pure AI Render Mode (Cartoon/WebGL). Skipping web photo downloads; Cloxel AI Director will generate scene directly from script!")
                 v_paths = []
+            elif is_ultra and is_after_effects_req:
+                try:
+                    main_topic = req.topic if req.topic else "motion graphics"
+                    scene_text = sc.get('text', '')
+                    scene_kw = sc.get('keyword', '').strip()
+                    
+                    if extract_rich_scene_visual_keywords:
+                        _, _, scene_visual_phrase = extract_rich_scene_visual_keywords(
+                            topic=main_topic,
+                            scene_text=scene_text,
+                            scene_kw=scene_kw,
+                            scene_idx=i,
+                            category=req.category
+                        )
+                    else:
+                        scene_visual_phrase = scene_kw or main_topic
+                    
+                    # Ultra After Effects Video Search Rule: Always append 'graphics video' to every search query
+                    search_term = f"{main_topic} {scene_visual_phrase}".strip()
+                    if "graphics video" not in search_term.lower():
+                        search_term = f"{search_term} graphics video"
+                    
+                    print(f"🎬 [Ultra After Effects Scene {i+1}] Searching video with 'graphics video': '{search_term}'...")
+                    v_paths = fetch_videos(
+                        keyword=search_term,
+                        job_id=v_path,
+                        orientation=orientation,
+                        category=req.category or "✨ After Effect Video",
+                        video_type="ultra",
+                        topic=main_topic,
+                        used_media_ids=used_media_ids
+                    )
+                    if not v_paths or not os.path.exists(v_paths[0]) or os.path.getsize(v_paths[0]) < 1000:
+                        fb_term = f"{scene_kw or main_topic} graphics video".strip()
+                        print(f"🔄 [Ultra After Effects Scene {i+1}] Fallback searching: '{fb_term}'...")
+                        v_paths = fetch_videos(
+                            keyword=fb_term,
+                            job_id=v_path,
+                            orientation=orientation,
+                            category=req.category or "✨ After Effect Video",
+                            video_type="ultra",
+                            topic=main_topic,
+                            used_media_ids=used_media_ids
+                        )
+                    if not v_paths or not os.path.exists(v_paths[0]) or os.path.getsize(v_paths[0]) < 1000:
+                        print(f"🔄 [Ultra After Effects Scene {i+1}] Ultimate fallback searching: 'cinematic motion graphics video'...")
+                        v_paths = fetch_videos(
+                            keyword="cinematic motion graphics video",
+                            job_id=v_path,
+                            orientation=orientation,
+                            category=req.category or "✨ After Effect Video",
+                            video_type="ultra",
+                            topic=main_topic,
+                            used_media_ids=used_media_ids
+                        )
+                except Exception as e_ae:
+                    print(f"⚠️ [Ultra After Effects Video Fetch Error]: {e_ae}")
+                    v_paths = fetch_videos(
+                        keyword=f"{sc.get('keyword', req.topic or '')} graphics video",
+                        job_id=v_path,
+                        orientation=orientation,
+                        category=req.category or "✨ After Effect Video",
+                        video_type="ultra",
+                        topic=req.topic or "",
+                        used_media_ids=used_media_ids
+                    )
             elif is_ultra and fetch_web_image:
                 try:
                     bg_img_path = os.path.join(job_dir, f"bg_photo_{i}.jpg")
@@ -2072,7 +2139,10 @@ def full_process(req: VideoRequest, job_id: str):
                 if is_duplicate:
                     print(f"⚠️ [main.py Guard] Scene {i+1} got duplicate clip of previous scene! Re-fetching unique footage...")
                     clean_guard_kw = " ".join([w for w in re.findall(r'[a-zA-Z0-9]+', scene_kw) if len(w) > 1]) if scene_kw else ""
-                    alt_query = f"{clean_guard_kw or main_topic} cinematic different angle {i+1}"
+                    if is_after_effects_req:
+                        alt_query = f"{clean_guard_kw or main_topic} graphics video scene {i+1}"
+                    else:
+                        alt_query = f"{clean_guard_kw or main_topic} cinematic different angle {i+1}"
                     v_paths = fetch_videos(
                         alt_query,
                         v_path,

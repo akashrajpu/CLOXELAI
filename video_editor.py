@@ -1424,35 +1424,57 @@ def merge_and_export(
                         "crimson_warrior", "vintage_sepia_film", "ice_blue_cyber"
                     ]
                     motions = ["zoom_in", "zoom_out", "pan_right", "pan_left", "diagonal_fast", "spiral_zoom"]
-                filter_choice = random.choice(filters)
-                side_pos = "left" if i % 2 == 0 else "right"
-                motion_choice = random.choice(motions)
-                print(f"✨ Scene {i+1}: Generating Ultra Motion Clip (Filter: {filter_choice}, Motion: {motion_choice.upper()}, Cutout: {show_cutout}, Side: {side_pos.upper()})...")
-                try:
-                    v_clip = create_ultra_photo_motion_clip(bg_path, fg_photo_path=fg_path, duration=clip_duration, size=target_size, filter_style=filter_choice, cutout_pos=side_pos, motion_type=motion_choice)
-                    temp_ultra_base = os.path.join(job_dir, f"temp_ultra_base_{i}.mp4")
-                    v_clip.write_videofile(temp_ultra_base, fps=15, preset="ultrafast", threads=1, logger=None)
-                    try: v_clip.close()
-                    except Exception: pass
-                    release_system_memory()
-                    rendered_successfully = render_scene_native_ffmpeg(
-                        scene_output=scene_output,
-                        video_path=temp_ultra_base,
-                        audio_path=audio_path,
-                        duration=clip_duration,
-                        text=clip_text_segment,
-                        target_size=target_size,
-                        font_path=font_path,
-                        font_size=font_size,
-                        category_style=cat_style,
-                        highlight_color=color,
-                        job_dir=job_dir
-                    )
-                    if os.path.exists(temp_ultra_base):
-                        try: os.remove(temp_ultra_base)
+                is_bg_video = bg_path and str(bg_path).lower().endswith(('.mp4', '.mov', '.avi', '.webm', '.mkv'))
+                if is_after_effects_cat and is_bg_video:
+                    print(f"🎬 Scene {i+1}: Ultra After Effects Mode - Rendering Real Motion Graphics Video via Native FFmpeg...")
+                    try:
+                        rendered_successfully = render_scene_native_ffmpeg(
+                            scene_output=scene_output,
+                            video_path=bg_path,
+                            audio_path=audio_path,
+                            duration=clip_duration,
+                            text=clip_text_segment,
+                            target_size=target_size,
+                            font_path=font_path,
+                            font_size=font_size,
+                            category_style=cat_style,
+                            highlight_color=color,
+                            job_dir=job_dir
+                        )
+                    except Exception as e_ae_render:
+                        print(f"⚠️ Ultra After Effects real video render notice: {e_ae_render}")
+                        rendered_successfully = False
+
+                if not rendered_successfully:
+                    filter_choice = random.choice(filters)
+                    side_pos = "left" if i % 2 == 0 else "right"
+                    motion_choice = random.choice(motions)
+                    print(f"✨ Scene {i+1}: Generating Ultra Motion Clip (Filter: {filter_choice}, Motion: {motion_choice.upper()}, Cutout: {show_cutout}, Side: {side_pos.upper()})...")
+                    try:
+                        v_clip = create_ultra_photo_motion_clip(bg_path, fg_photo_path=fg_path, duration=clip_duration, size=target_size, filter_style=filter_choice, cutout_pos=side_pos, motion_type=motion_choice)
+                        temp_ultra_base = os.path.join(job_dir, f"temp_ultra_base_{i}.mp4")
+                        v_clip.write_videofile(temp_ultra_base, fps=15, preset="ultrafast", threads=1, logger=None)
+                        try: v_clip.close()
                         except Exception: pass
-                except Exception as e_um:
-                    print(f"⚠️ Ultra motion render notice: {e_um}")
+                        release_system_memory()
+                        rendered_successfully = render_scene_native_ffmpeg(
+                            scene_output=scene_output,
+                            video_path=temp_ultra_base,
+                            audio_path=audio_path,
+                            duration=clip_duration,
+                            text=clip_text_segment,
+                            target_size=target_size,
+                            font_path=font_path,
+                            font_size=font_size,
+                            category_style=cat_style,
+                            highlight_color=color,
+                            job_dir=job_dir
+                        )
+                        if os.path.exists(temp_ultra_base):
+                            try: os.remove(temp_ultra_base)
+                            except Exception: pass
+                    except Exception as e_um:
+                        print(f"⚠️ Ultra motion render notice: {e_um}")
         else:
             video_path = scene['video'][0] if isinstance(scene['video'], list) else scene['video']
             rendered_successfully = render_scene_native_ffmpeg(

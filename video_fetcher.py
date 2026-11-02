@@ -460,6 +460,7 @@ def fetch_videos(keyword, job_id, count=1, orientation="portrait", category="Ran
     """
     cat_lower = str(category).lower()
     is_ultra_mode = (str(video_type).lower() == "ultra")
+    is_after_effects = any(k in cat_lower for k in ["after effect", "after iffect", "after effects", "vfx", "motion graphic"])
 
     # Translate Hinglish/Hindi concepts to rich English and remove stop words like 'यह' or 'woh'
     translated_kw = translate_query(keyword)
@@ -470,7 +471,8 @@ def fetch_videos(keyword, job_id, count=1, orientation="portrait", category="Ran
     clean_words = ascii_words if ascii_words else raw_words
     video_query = " ".join(clean_words) if clean_words else (topic or keyword)
 
-    if is_ultra_mode:
+    # For Ultra Mode: never use Pinterest for After Effects (use real video), but allow other categories
+    if is_ultra_mode and not is_after_effects:
         prefer_pinterest = any(c in cat_lower for c in ['cartoon', 'animation', 'documentary', 'comedy', 'horror', 'mythology', 'history', 'anime', 'art', 'photo'])
         if prefer_pinterest:
             try:
@@ -496,6 +498,20 @@ def fetch_videos(keyword, job_id, count=1, orientation="portrait", category="Ran
         search_queries.append(" ".join(words_list[:3]))
     if topic and topic.strip() and topic.strip() not in search_queries:
         search_queries.append(topic.strip())
+
+    # For After Effects category: ALWAYS append 'graphics video' to every search query
+    if is_after_effects:
+        ae_queries = []
+        for q in search_queries:
+            q_clean = q.strip()
+            if "graphics video" not in q_clean.lower():
+                ae_queries.append(f"{q_clean} graphics video")
+            else:
+                ae_queries.append(q_clean)
+        for extra in ["motion graphics video", "vfx graphics video", "abstract particles graphics video"]:
+            if extra not in [x.lower() for x in ae_queries]:
+                ae_queries.append(extra)
+        search_queries = ae_queries
 
     # Deduplicate queries preserving order
     seen_q = set()
@@ -523,19 +539,29 @@ def fetch_videos(keyword, job_id, count=1, orientation="portrait", category="Ran
 
     # Contextual fallbacks based on topic and category
     contextual_fallbacks = []
-    if topic and topic.strip():
-        contextual_fallbacks.append(topic.strip())
-        if orientation == "landscape" or str(video_type).lower() == "long":
-            contextual_fallbacks.append(f"{topic.strip()} documentary scene")
-            contextual_fallbacks.append(f"{topic.strip()} cinematic landscape")
-    if category and category.lower() not in ["random", "all"]:
-        contextual_fallbacks.append(f"{category} cinematic footage")
-    if clean_words:
-        contextual_fallbacks.append(clean_words[0])
-    if orientation == "landscape" or str(video_type).lower() == "long":
-        contextual_fallbacks.extend(["cinematic documentary landscape", "atmospheric wide angle scene", "epic landscape backdrop"])
+    if is_after_effects:
+        contextual_fallbacks = [
+            f"{topic.strip()} graphics video" if topic and topic.strip() else "cinematic graphics video",
+            "motion graphics video",
+            "futuristic hud graphics video",
+            "neon cyberpunk graphics video",
+            "cinematic vfx graphics video",
+            "abstract 3d particles graphics video"
+        ]
     else:
-        contextual_fallbacks.extend(["cinematic atmospheric backdrop", "abstract background motion"])
+        if topic and topic.strip():
+            contextual_fallbacks.append(topic.strip())
+            if orientation == "landscape" or str(video_type).lower() == "long":
+                contextual_fallbacks.append(f"{topic.strip()} documentary scene")
+                contextual_fallbacks.append(f"{topic.strip()} cinematic landscape")
+        if category and category.lower() not in ["random", "all"]:
+            contextual_fallbacks.append(f"{category} cinematic footage")
+        if clean_words:
+            contextual_fallbacks.append(clean_words[0])
+        if orientation == "landscape" or str(video_type).lower() == "long":
+            contextual_fallbacks.extend(["cinematic documentary landscape", "atmospheric wide angle scene", "epic landscape backdrop"])
+        else:
+            contextual_fallbacks.extend(["cinematic atmospheric backdrop", "abstract background motion"])
 
     for fallback_kw in contextual_fallbacks:
         if fallback_kw.lower() not in seen_q:
@@ -549,7 +575,7 @@ def fetch_videos(keyword, job_id, count=1, orientation="portrait", category="Ran
             except Exception:
                 continue
 
-    if is_ultra_mode:
+    if is_ultra_mode and not is_after_effects:
         try:
             pins = fetch_pinterest_pins(keyword, job_id, count=count, orientation=orientation, used_media_ids=used_media_ids)
             if pins:
