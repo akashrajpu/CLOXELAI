@@ -452,6 +452,9 @@ def create_parchment_background(size, color_theme="warm"):
 
 def apply_color_filter(pil_img: Image.Image, filter_style: str = "warm_epic") -> Image.Image:
     """Applies premium cinematic color grading LUTs, Film Grain, Dust, Haze Smoke & Vintage Paper Textures."""
+    if not filter_style or str(filter_style).lower() in ["none", "normal", "original", "clean", "no_filter", "raw"]:
+        return pil_img.copy().convert("RGB")
+
     img = pil_img.copy().convert("RGB")
     w, h = img.size
 
@@ -1460,10 +1463,7 @@ def merge_and_export(
                     bg_path = video_paths[0] if video_paths else None
                     fg_path = None
                 if is_after_effects_cat:
-                    filters = [
-                        "cyber_teal_orange", "neon_cyberpunk", "ice_blue_cyber", 
-                        "dramatic_cinematic", "golden_sunburst", "emerald_fantasy"
-                    ]
+                    filters = ["none"]
                     motions = ["diagonal_fast", "spiral_zoom", "zoom_in", "pan_right", "zoom_out"]
                 else:
                     filters = [
@@ -1519,7 +1519,8 @@ def merge_and_export(
                     filter_choice = random.choice(filters)
                     side_pos = "left" if i % 2 == 0 else "right"
                     motion_choice = random.choice(motions)
-                    print(f"✨ Scene {i+1}: Generating Ultra Motion Clip (Filter: {filter_choice}, Motion: {motion_choice.upper()}, Cutout: {show_cutout}, Side: {side_pos.upper()})...")
+                    filter_str = "None (Original Raw Colors)" if filter_choice == "none" else filter_choice
+                    print(f"✨ Scene {i+1}: Generating Ultra Motion Clip (Filter: {filter_str}, Motion: {motion_choice.upper()}, Cutout: {show_cutout}, Side: {side_pos.upper()})...")
                     try:
                         v_clip = create_ultra_photo_motion_clip(bg_path, fg_photo_path=fg_path, duration=clip_duration, size=target_size, filter_style=filter_choice, cutout_pos=side_pos, motion_type=motion_choice)
                         temp_ultra_base = os.path.join(job_dir, f"temp_ultra_base_{i}.mp4")
