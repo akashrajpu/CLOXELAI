@@ -195,7 +195,7 @@ def fetch_pinterest_photos_via_gallery_dl(query: str, limit: int = 3, output_dir
                 "--range", f"1-{scan_range}",
                 pinterest_url
             ]
-            subprocess.run(cmd, capture_output=True, text=True, timeout=20)
+            subprocess.run(cmd, capture_output=True, text=True, timeout=40)
 
             found_raw = []
             for root, _, files in os.walk(dl_work_dir):
