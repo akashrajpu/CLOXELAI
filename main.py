@@ -78,6 +78,7 @@ except Exception as e:
 from video_editor import merge_and_export, get_audio_duration_fast
 from audio_engine import make_audio
 from video_fetcher import fetch_videos
+from pinterest_downloader import get_media_fingerprint, fetch_pinterest_photos_via_gallery_dl, fetch_pinterest_videos_via_gallery_dl
 
 from passlib.context import CryptContext
 from pymongo import MongoClient
@@ -1971,7 +1972,7 @@ def full_process(req: VideoRequest, job_id: str):
                 v_paths = []
             elif is_ultra and is_after_effects_req:
                 try:
-                    from pinterest_downloader import fetch_pinterest_photos_via_gallery_dl, fetch_pinterest_videos_via_gallery_dl
+                    from pinterest_downloader import fetch_pinterest_photos_via_gallery_dl, fetch_pinterest_videos_via_gallery_dl, get_media_fingerprint
                     main_topic = req.topic if req.topic else "motion graphics"
                     scene_text = sc.get('text', '').strip()
                     scene_kw = sc.get('keyword', '').strip()
@@ -2008,8 +2009,8 @@ def full_process(req: VideoRequest, job_id: str):
                         p2_term = f"{main_topic} {contrast_parts[1]} graphics photo".strip()
                         print(f"🎬 [Ultra After Effects Scene {i+1}] Contrast Punchline detected! Fetching 2 Pinterest Photos: '{p1_term}' & '{p2_term}' (Pinterest Only)...")
                         
-                        p1_files = fetch_pinterest_photos_via_gallery_dl(p1_term, limit=1, output_dir=job_dir)
-                        p2_files = fetch_pinterest_photos_via_gallery_dl(p2_term, limit=1, output_dir=job_dir)
+                        p1_files = fetch_pinterest_photos_via_gallery_dl(p1_term, limit=1, output_dir=job_dir, used_media_ids=used_media_ids)
+                        p2_files = fetch_pinterest_photos_via_gallery_dl(p2_term, limit=1, output_dir=job_dir, used_media_ids=used_media_ids)
                         
                         if p1_files and os.path.exists(p1_files[0]):
                             v_paths.append(p1_files[0])
@@ -2033,7 +2034,7 @@ def full_process(req: VideoRequest, job_id: str):
                         clean_p = " ".join([w for w in (photo_visual_phrase or scene_kw).split() if w.lower() not in [x.lower() for x in clean_t.split()]][:3])
                         photo_term = f"{clean_t} {clean_p} graphics photo".strip()
                         print(f"📸 [Ultra After Effects Scene {i+1}] Short Line detected ({len(words)} words)! Fetching Pinterest Photo: '{photo_term}' (Pinterest Only)...")
-                        p_files = fetch_pinterest_photos_via_gallery_dl(photo_term, limit=1, output_dir=job_dir)
+                        p_files = fetch_pinterest_photos_via_gallery_dl(photo_term, limit=1, output_dir=job_dir, used_media_ids=used_media_ids)
                         if p_files and os.path.exists(p_files[0]):
                             v_paths.append(p_files[0])
                     else:
@@ -2053,14 +2054,14 @@ def full_process(req: VideoRequest, job_id: str):
                         clean_p = " ".join([w for w in scene_visual_phrase.split() if w.lower() not in [x.lower() for x in clean_t.split()]][:3])
                         vid_term = f"{clean_t} {clean_p} graphics video".strip()
                         print(f"🎬 [Ultra After Effects Scene {i+1}] Narrative Video Line detected ({len(words)} words)! Fetching Pinterest Video: '{vid_term}' (Pinterest Only)...")
-                        vid_files = fetch_pinterest_videos_via_gallery_dl(vid_term, limit=1, output_dir=job_dir)
+                        vid_files = fetch_pinterest_videos_via_gallery_dl(vid_term, limit=1, output_dir=job_dir, used_media_ids=used_media_ids)
                         if vid_files and os.path.exists(vid_files[0]):
                             v_paths.append(vid_files[0])
                         else:
                             # Fallback 1 on Pinterest: shorter video search
                             fb_vid = f"{clean_t} graphics video".strip()
                             print(f"🔄 [Ultra After Effects Scene {i+1}] Fallback searching Pinterest Video: '{fb_vid}'...")
-                            vid_files = fetch_pinterest_videos_via_gallery_dl(fb_vid, limit=1, output_dir=job_dir)
+                            vid_files = fetch_pinterest_videos_via_gallery_dl(fb_vid, limit=1, output_dir=job_dir, used_media_ids=used_media_ids)
                             if vid_files and os.path.exists(vid_files[0]):
                                 v_paths.append(vid_files[0])
                                 
@@ -2068,19 +2069,19 @@ def full_process(req: VideoRequest, job_id: str):
                     if not v_paths or not os.path.exists(v_paths[0]) or os.path.getsize(v_paths[0]) < 1000:
                         fb_photo_term = f"{clean_t} {clean_p or 'graphics'} graphics photo".strip()
                         print(f"🔄 [Ultra After Effects Scene {i+1}] Pinterest Video fallback -> Fetching Pinterest Photo: '{fb_photo_term}'...")
-                        p_fb_files = fetch_pinterest_photos_via_gallery_dl(fb_photo_term, limit=1, output_dir=job_dir)
+                        p_fb_files = fetch_pinterest_photos_via_gallery_dl(fb_photo_term, limit=1, output_dir=job_dir, used_media_ids=used_media_ids)
                         if p_fb_files and os.path.exists(p_fb_files[0]):
                             v_paths = [p_fb_files[0]]
                         else:
                             # Ultimate Pinterest fallback
-                            ult_p = fetch_pinterest_photos_via_gallery_dl(f"{clean_t} graphics photo", limit=1, output_dir=job_dir)
+                            ult_p = fetch_pinterest_photos_via_gallery_dl(f"{clean_t} graphics photo", limit=1, output_dir=job_dir, used_media_ids=used_media_ids)
                             if ult_p and os.path.exists(ult_p[0]):
                                 v_paths = [ult_p[0]]
                 except Exception as e_ae:
                     print(f"⚠️ [Ultra After Effects Pinterest Pipeline Error]: {e_ae}")
                     try:
                         from pinterest_downloader import fetch_pinterest_photos_via_gallery_dl
-                        fb = fetch_pinterest_photos_via_gallery_dl(f"{req.topic or 'motion'} graphics photo", limit=1, output_dir=job_dir)
+                        fb = fetch_pinterest_photos_via_gallery_dl(f"{req.topic or 'motion'} graphics photo", limit=1, output_dir=job_dir, used_media_ids=used_media_ids)
                         v_paths = fb if fb else []
                     except Exception:
                         v_paths = []
@@ -2196,25 +2197,39 @@ def full_process(req: VideoRequest, job_id: str):
                     used_media_ids=used_media_ids
                 )
             
-            # Double Safety Net: Ensure scene video is never identical in size or name to previous scenes in this video
+            # Double Safety Net: Ensure scene video/photo is NEVER identical in content hash, size, or name to ANY previous scene
             if v_paths and os.path.exists(v_paths[0]):
                 current_size = os.path.getsize(v_paths[0])
+                current_hash = get_media_fingerprint(v_paths[0])
                 current_name = os.path.basename(v_paths[0])
                 is_duplicate = False
+
                 for prev_sc in taiyaar_scenes:
                     prev_v_list = prev_sc.get("video", [])
-                    if prev_v_list and os.path.exists(prev_v_list[0]):
-                        if (os.path.basename(prev_v_list[0]) == current_name or 
-                            os.path.getsize(prev_v_list[0]) == current_size):
-                            is_duplicate = True
-                            break
+                    for prev_item in (prev_v_list if isinstance(prev_v_list, list) else [prev_v_list]):
+                        if prev_item and os.path.exists(prev_item):
+                            p_size = os.path.getsize(prev_item)
+                            p_hash = get_media_fingerprint(prev_item)
+                            if ((p_hash and current_hash and p_hash == current_hash) or
+                                (p_size > 0 and p_size == current_size)):
+                                is_duplicate = True
+                                break
+                    if is_duplicate:
+                        break
                             
                 if is_duplicate:
-                    print(f"⚠️ [main.py Guard] Scene {i+1} got duplicate clip of previous scene! Re-fetching unique footage...")
+                    print(f"⚠️ [main.py Guard] Scene {i+1} got duplicate asset (hash {current_hash[:8] if current_hash else 'none'}, size {current_size})! Re-fetching guaranteed unique media...")
                     clean_guard_kw = " ".join([w for w in re.findall(r'[a-zA-Z0-9]+', scene_kw) if len(w) > 1]) if scene_kw else ""
                     if is_after_effects_req:
-                        alt_query = f"{clean_guard_kw or main_topic} graphics video angle {i+1}"
-                        v_paths = fetch_pinterest_videos_via_gallery_dl(alt_query, limit=1, output_dir=job_dir)
+                        alt_query = f"{clean_guard_kw or main_topic} graphics video scene {i+1} motion"
+                        new_v = fetch_pinterest_videos_via_gallery_dl(alt_query, limit=1, output_dir=job_dir, used_media_ids=used_media_ids)
+                        if new_v and os.path.exists(new_v[0]) and get_media_fingerprint(new_v[0]) != current_hash:
+                            v_paths = new_v
+                        else:
+                            alt_p_query = f"{clean_guard_kw or main_topic} graphics photo scene {i+1} visual"
+                            new_p = fetch_pinterest_photos_via_gallery_dl(alt_p_query, limit=1, output_dir=job_dir, used_media_ids=used_media_ids)
+                            if new_p and os.path.exists(new_p[0]) and get_media_fingerprint(new_p[0]) != current_hash:
+                                v_paths = new_p
                     else:
                         alt_query = f"{clean_guard_kw or main_topic} cinematic different angle {i+1}"
                         v_paths = fetch_videos(
@@ -2226,6 +2241,14 @@ def full_process(req: VideoRequest, job_id: str):
                             topic=main_topic,
                             used_media_ids=used_media_ids
                         )
+
+                # Register chosen asset(s) in used_media_ids so subsequent scenes NEVER duplicate them
+                for p_item in (v_paths if isinstance(v_paths, list) else [v_paths]):
+                    if p_item and os.path.exists(p_item):
+                        p_h = get_media_fingerprint(p_item)
+                        if p_h: used_media_ids.add(p_h)
+                        used_media_ids.add(f"size_{os.path.getsize(p_item)}")
+                        used_media_ids.add(os.path.basename(p_item))
             
             if os.path.exists(a_path):
                 if not v_paths:

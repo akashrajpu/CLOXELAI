@@ -11,10 +11,24 @@ import urllib.parse
 import subprocess
 import requests
 import re
+import hashlib
 
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
 }
+
+def get_media_fingerprint(filepath: str) -> str:
+    """Computes MD5 hash of file content for reliable deduplication."""
+    try:
+        if not filepath or not os.path.exists(filepath):
+            return ""
+        h = hashlib.md5()
+        with open(filepath, "rb") as f:
+            while chunk := f.read(16384):
+                h.update(chunk)
+        return h.hexdigest()
+    except Exception:
+        return ""
 
 def get_gallery_dl_cmd():
     """Locates the gallery-dl command (binary or python module) on the system."""
@@ -74,15 +88,17 @@ def is_valid_video(filepath: str, min_size: int = 15000) -> bool:
     except Exception:
         return False
 
-def fetch_pinterest_photos_via_gallery_dl(query: str, limit: int = 3, output_dir: str = "pinterest_photos") -> list:
+def fetch_pinterest_photos_via_gallery_dl(query: str, limit: int = 3, output_dir: str = "pinterest_photos", used_media_ids: set = None) -> list:
     """
     Programmatic helper: Downloads HD Pinterest photos using gallery-dl / direct web scraping.
     Returns list of verified, valid HD downloaded file paths in output_dir.
     Guarantees isolation: never modifies or deletes pre-existing files in output_dir.
+    Deduplication: Never returns any photo previously used in the same video job.
     """
     os.makedirs(output_dir, exist_ok=True)
     import time
     timestamp_prefix = int(time.time() * 1000) % 1000000
+    used_media_ids = used_media_ids if used_media_ids is not None else set()
 
     encoded_query = urllib.parse.quote(query)
     pinterest_url = f"https://www.pinterest.com/search/pins/?q={encoded_query}"
@@ -98,9 +114,10 @@ def fetch_pinterest_photos_via_gallery_dl(query: str, limit: int = 3, output_dir
 
     if gallery_cmd:
         try:
+            scan_range = max(limit + 3, 5 + min(len(used_media_ids), 12))
             cmd = gallery_cmd + [
                 "--directory", dl_work_dir,
-                "--range", f"1-{max(limit, 3)}",
+                "--range", f"1-{scan_range}",
                 pinterest_url
             ]
             subprocess.run(cmd, capture_output=True, text=True, timeout=20)
@@ -115,11 +132,31 @@ def fetch_pinterest_photos_via_gallery_dl(query: str, limit: int = 3, output_dir
 
             found_raw.sort(key=os.path.getmtime, reverse=True)
 
-            for idx, raw_p in enumerate(found_raw[:limit]):
+            for raw_p in found_raw:
+                if len(downloaded_files) >= limit:
+                    break
+                raw_name = os.path.basename(raw_p)
+                pin_id = re.sub(r'[^a-zA-Z0-9]', '', os.path.splitext(raw_name)[0])
+                f_hash = get_media_fingerprint(raw_p)
+                f_size = os.path.getsize(raw_p)
+
+                # Deduplication check: Ensure photo was not previously used
+                if (raw_name in used_media_ids or 
+                    (pin_id and pin_id in used_media_ids) or 
+                    (f_hash and f_hash in used_media_ids) or
+                    f"size_{f_size}" in used_media_ids):
+                    print(f"🔄 [Pinterest Photo Deduplication] Skipping duplicate photo: {raw_name} (hash: {f_hash[:8] if f_hash else 'none'})...")
+                    continue
+
                 ext = os.path.splitext(raw_p)[1].lower() or ".jpg"
-                final_p = os.path.join(output_dir, f"pin_asset_{timestamp_prefix}_{idx+1}{ext}")
+                final_p = os.path.join(output_dir, f"pin_asset_{timestamp_prefix}_{len(downloaded_files)+1}{ext}")
                 shutil.copy2(raw_p, final_p)
                 downloaded_files.append(final_p)
+
+                used_media_ids.add(raw_name)
+                if pin_id: used_media_ids.add(pin_id)
+                if f_hash: used_media_ids.add(f_hash)
+                used_media_ids.add(f"size_{f_size}")
 
             # Cleanup isolated cache
             shutil.rmtree(dl_work_dir, ignore_errors=True)
@@ -148,9 +185,12 @@ def fetch_pinterest_photos_via_gallery_dl(query: str, limit: int = 3, output_dir
                 if hd_u not in unique_hd_urls:
                     unique_hd_urls.append(hd_u)
 
-            for i, img_url in enumerate(unique_hd_urls[:limit * 2]):
+            for i, img_url in enumerate(unique_hd_urls):
                 if len(downloaded_files) >= limit:
                     break
+                url_id = os.path.basename(img_url)
+                if url_id in used_media_ids or img_url in used_media_ids:
+                    continue
                 try:
                     ext = ".png" if img_url.lower().endswith(".png") else ".jpg"
                     save_path = os.path.join(output_dir, f"pin_direct_{timestamp_prefix}_{len(downloaded_files)+1}{ext}")
@@ -159,7 +199,17 @@ def fetch_pinterest_photos_via_gallery_dl(query: str, limit: int = 3, output_dir
                         with open(save_path, "wb") as f:
                             f.write(img_req.content)
                         if is_valid_hd_photo(save_path, min_dim=350):
+                            f_hash = get_media_fingerprint(save_path)
+                            f_size = os.path.getsize(save_path)
+                            if (f_hash and f_hash in used_media_ids) or f"size_{f_size}" in used_media_ids:
+                                try: os.remove(save_path)
+                                except Exception: pass
+                                continue
                             downloaded_files.append(save_path)
+                            used_media_ids.add(url_id)
+                            used_media_ids.add(img_url)
+                            if f_hash: used_media_ids.add(f_hash)
+                            used_media_ids.add(f"size_{f_size}")
                         else:
                             try:
                                 os.remove(save_path)
@@ -194,9 +244,12 @@ def fetch_pinterest_photos_via_gallery_dl(query: str, limit: int = 3, output_dir
                     if u not in candidate_urls and not u.endswith(('.svg', '.gif')):
                         candidate_urls.append(u)
 
-            for i, img_url in enumerate(candidate_urls[:limit * 3]):
+            for i, img_url in enumerate(candidate_urls):
                 if len(downloaded_files) >= limit:
                     break
+                url_id = os.path.basename(img_url)
+                if url_id in used_media_ids or img_url in used_media_ids:
+                    continue
                 try:
                     ext = ".png" if img_url.lower().endswith(".png") else ".jpg"
                     save_path = os.path.join(output_dir, f"pin_bing_{timestamp_prefix}_{len(downloaded_files)+1}{ext}")
@@ -205,7 +258,17 @@ def fetch_pinterest_photos_via_gallery_dl(query: str, limit: int = 3, output_dir
                         with open(save_path, "wb") as f:
                             f.write(img_req.content)
                         if is_valid_hd_photo(save_path, min_dim=350):
+                            f_hash = get_media_fingerprint(save_path)
+                            f_size = os.path.getsize(save_path)
+                            if (f_hash and f_hash in used_media_ids) or f"size_{f_size}" in used_media_ids:
+                                try: os.remove(save_path)
+                                except Exception: pass
+                                continue
                             downloaded_files.append(save_path)
+                            used_media_ids.add(url_id)
+                            used_media_ids.add(img_url)
+                            if f_hash: used_media_ids.add(f_hash)
+                            used_media_ids.add(f"size_{f_size}")
                         else:
                             try:
                                 os.remove(save_path)
@@ -227,9 +290,12 @@ def fetch_pinterest_photos_via_gallery_dl(query: str, limit: int = 3, output_dir
         if g_resp.status_code == 200:
             g_urls = re.findall(r'https?://[^"\s]+\.(?:jpg|jpeg|png|webp)', g_resp.text, re.IGNORECASE)
             valid_g_urls = [u for u in g_urls if "gstatic" not in u and "google" not in u]
-            for i, img_url in enumerate(valid_g_urls[:limit * 2]):
+            for i, img_url in enumerate(valid_g_urls):
                 if len(downloaded_files) >= limit:
                     break
+                url_id = os.path.basename(img_url)
+                if url_id in used_media_ids or img_url in used_media_ids:
+                    continue
                 try:
                     ext = ".png" if img_url.lower().endswith(".png") else ".jpg"
                     save_path = os.path.join(output_dir, f"pin_google_{timestamp_prefix}_{len(downloaded_files)+1}{ext}")
@@ -238,7 +304,17 @@ def fetch_pinterest_photos_via_gallery_dl(query: str, limit: int = 3, output_dir
                         with open(save_path, "wb") as f:
                             f.write(img_req.content)
                         if is_valid_hd_photo(save_path, min_dim=350):
+                            f_hash = get_media_fingerprint(save_path)
+                            f_size = os.path.getsize(save_path)
+                            if (f_hash and f_hash in used_media_ids) or f"size_{f_size}" in used_media_ids:
+                                try: os.remove(save_path)
+                                except Exception: pass
+                                continue
                             downloaded_files.append(save_path)
+                            used_media_ids.add(url_id)
+                            used_media_ids.add(img_url)
+                            if f_hash: used_media_ids.add(f_hash)
+                            used_media_ids.add(f"size_{f_size}")
                         else:
                             try:
                                 os.remove(save_path)
@@ -255,15 +331,17 @@ def fetch_pinterest_photos_via_gallery_dl(query: str, limit: int = 3, output_dir
 
     return downloaded_files
 
-def fetch_pinterest_videos_via_gallery_dl(query: str, limit: int = 1, output_dir: str = "pinterest_videos") -> list:
+def fetch_pinterest_videos_via_gallery_dl(query: str, limit: int = 1, output_dir: str = "pinterest_videos", used_media_ids: set = None) -> list:
     """
     Programmatic helper: Downloads HD Pinterest Videos using gallery-dl without using any Pinterest API.
     Returns list of verified, valid downloaded .mp4/.webm video file paths in output_dir.
     Guarantees isolation: never modifies or deletes pre-existing files in output_dir.
+    Deduplication: Never returns any video previously used in the same video job.
     """
     os.makedirs(output_dir, exist_ok=True)
     import time
     timestamp_prefix = int(time.time() * 1000) % 1000000
+    used_media_ids = used_media_ids if used_media_ids is not None else set()
 
     # Clean query to concise, high-impact search term (max 4-5 words before 'graphics video')
     raw_words = query.strip().split()
@@ -296,8 +374,7 @@ def fetch_pinterest_videos_via_gallery_dl(query: str, limit: int = 1, output_dir
     os.makedirs(dl_work_dir, exist_ok=True)
 
     if gallery_cmd:
-        # Fast & tight scan range: max(2, limit + 1) so it never lingers downloading 6 huge videos
-        scan_range = max(2, limit + 1)
+        scan_range = max(3, limit + min(len(used_media_ids), 8) + 2)
         cmd = gallery_cmd + [
             "--directory", dl_work_dir,
             "--range", f"1-{scan_range}",
@@ -321,11 +398,68 @@ def fetch_pinterest_videos_via_gallery_dl(query: str, limit: int = 1, output_dir
 
             found_raw.sort(key=os.path.getmtime, reverse=True)
 
-            for idx, raw_p in enumerate(found_raw[:limit]):
+            for raw_p in found_raw:
+                if len(downloaded_videos) >= limit:
+                    break
+                raw_name = os.path.basename(raw_p)
+                pin_id = re.sub(r'[^a-zA-Z0-9]', '', os.path.splitext(raw_name)[0])
+                f_hash = get_media_fingerprint(raw_p)
+                f_size = os.path.getsize(raw_p)
+
+                # Deduplication check: Ensure video was not previously used
+                if (raw_name in used_media_ids or 
+                    (pin_id and pin_id in used_media_ids) or 
+                    (f_hash and f_hash in used_media_ids) or
+                    f"size_{f_size}" in used_media_ids):
+                    print(f"🔄 [Pinterest Video Deduplication] Skipping duplicate video: {raw_name} (hash: {f_hash[:8] if f_hash else 'none'})...")
+                    continue
+
                 ext = os.path.splitext(raw_p)[1].lower() or ".mp4"
-                final_p = os.path.join(output_dir, f"pin_vid_{timestamp_prefix}_{idx+1}{ext}")
+                final_p = os.path.join(output_dir, f"pin_vid_{timestamp_prefix}_{len(downloaded_videos)+1}{ext}")
                 shutil.copy2(raw_p, final_p)
                 downloaded_videos.append(final_p)
+
+                used_media_ids.add(raw_name)
+                if pin_id: used_media_ids.add(pin_id)
+                if f_hash: used_media_ids.add(f_hash)
+                used_media_ids.add(f"size_{f_size}")
+
+            # If all were duplicates or none found, try alternate query with offset
+            if not downloaded_videos and found_raw:
+                print(f"🔄 [Pinterest Video Deduplication] All candidates in initial query were duplicates. Retrying with alternate cinematic query...")
+                alt_search = f"{' '.join(non_gv_words)} 4k motion graphics video"
+                alt_url = f"https://in.pinterest.com/search/pins/?q={urllib.parse.quote(alt_search)}"
+                cmd_alt = gallery_cmd + [
+                    "--directory", dl_work_dir,
+                    "--range", f"1-{scan_range + 3}",
+                    alt_url
+                ]
+                try:
+                    subprocess.run(cmd_alt, capture_output=True, text=True, timeout=30)
+                    for root, _, files in os.walk(dl_work_dir):
+                        for f in files:
+                            full_p = os.path.join(root, f)
+                            if is_valid_video(full_p, min_size=20000):
+                                r_name = os.path.basename(full_p)
+                                p_id = re.sub(r'[^a-zA-Z0-9]', '', os.path.splitext(r_name)[0])
+                                h = get_media_fingerprint(full_p)
+                                s = os.path.getsize(full_p)
+                                if (r_name not in used_media_ids and 
+                                    (not p_id or p_id not in used_media_ids) and 
+                                    (not h or h not in used_media_ids) and 
+                                    f"size_{s}" not in used_media_ids):
+                                    ext = os.path.splitext(full_p)[1].lower() or ".mp4"
+                                    final_p = os.path.join(output_dir, f"pin_vid_{timestamp_prefix}_alt_{len(downloaded_videos)+1}{ext}")
+                                    shutil.copy2(full_p, final_p)
+                                    downloaded_videos.append(final_p)
+                                    used_media_ids.add(r_name)
+                                    if p_id: used_media_ids.add(p_id)
+                                    if h: used_media_ids.add(h)
+                                    used_media_ids.add(f"size_{s}")
+                                    if len(downloaded_videos) >= limit:
+                                        break
+                except Exception as e_alt:
+                    print(f"⚠️ [Pinterest Video alternate scan notice]: {e_alt}")
 
         except Exception as e_salvage:
             print(f"⚠️ [Pinterest Video salvage warning]: {e_salvage}")
@@ -333,7 +467,7 @@ def fetch_pinterest_videos_via_gallery_dl(query: str, limit: int = 1, output_dir
             shutil.rmtree(dl_work_dir, ignore_errors=True)
 
         if downloaded_videos:
-            print(f"✅ [Pinterest Video gallery-dl] Successfully fetched {len(downloaded_videos)} video(s) for '{search_query}'.")
+            print(f"✅ [Pinterest Video gallery-dl] Successfully fetched {len(downloaded_videos)} unique video(s) for '{search_query}'.")
             return downloaded_videos
     else:
         shutil.rmtree(dl_work_dir, ignore_errors=True)
