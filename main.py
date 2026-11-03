@@ -75,7 +75,7 @@ except Exception as e:
     razorpay_client = None
     print(f"Razorpay initialization warning: {e}")
 
-from video_editor import merge_and_export
+from video_editor import merge_and_export, get_audio_duration_fast
 from audio_engine import make_audio
 from video_fetcher import fetch_videos
 
@@ -1724,6 +1724,69 @@ class ScriptRequest(BaseModel):
 
 jobs = {}
 
+def smart_split_script_to_scenes(script_text: str, max_words: int = 14) -> list:
+    """
+    Intelligently splits Hindi, Hinglish, or English scripts into dynamic visual scenes.
+    - Handles Hindi Purna Viram (। = \u0964), Double Danda (॥ = \u0965), ASCII . ! ?, pipe |, Arabic ? (؟ = \u061F), and newlines.
+    - Breaks long compound sentences (> max_words) on commas, semicolons, or conjunctions (बल्कि, लेकिन, aur, etc.) while keeping 100% of the original words intact.
+    - Guarantees multi-clip dynamic generation for long scripts.
+    """
+    if not script_text or not script_text.strip():
+        return []
+    clean_text = script_text.strip()
+    
+    # 1. Primary Split on Sentence Terminators:
+    sentence_delimiters = r'(?<=[.!?।॥|؟])\s*|\n+'
+    raw_sentences = [s.strip() for s in re.split(sentence_delimiters, clean_text) if len(s.strip()) > 0]
+    
+    final_scenes = []
+    for sent in raw_sentences:
+        words = sent.split()
+        if len(words) <= max_words:
+            if len(sent.strip(' ,;:-—')) > 1:
+                final_scenes.append(sent.strip())
+            continue
+            
+        # 2. Overly long sentence (> max_words words): Split at natural commas or semicolons
+        clauses = [c.strip() for c in re.split(r'[,;—–]\s*', sent) if len(c.strip()) > 0]
+        expanded_clauses = []
+        for cl in clauses:
+            if len(cl.split()) > max_words:
+                sub_parts = re.split(r'(?<=\S)\s+(?=(?:बल्कि|लेकिन|ताकि|aur|lekin|balki|because|while|whereas)\b)', cl)
+                expanded_clauses.extend([sp.strip() for sp in sub_parts if sp.strip()])
+            else:
+                expanded_clauses.append(cl)
+                
+        curr = ''
+        for c in expanded_clauses:
+            if not curr:
+                curr = c
+            else:
+                combined_words = len((curr + ' ' + c).split())
+                if combined_words <= max_words:
+                    curr = curr + ', ' + c
+                else:
+                    if len(curr.strip(' ,;:-—')) > 1:
+                        final_scenes.append(curr.strip())
+                    curr = c
+        if curr and len(curr.strip(' ,;:-—')) > 1:
+            final_scenes.append(curr.strip())
+            
+    # 3. Fallback: If still any chunk is massive (> 18 words without punctuation), split by word count
+    ultra_final = []
+    for sc in final_scenes:
+        w = sc.split()
+        if len(w) > 18:
+            for i in range(0, len(w), 12):
+                chunk = ' '.join(w[i:i+12]).strip()
+                if chunk:
+                    ultra_final.append(chunk)
+        else:
+            ultra_final.append(sc)
+            
+    cleaned = [s for s in ultra_final if len(s.strip(' ,;:-—')) > 1]
+    return cleaned if cleaned else [clean_text]
+
 def full_process(req: VideoRequest, job_id: str):
     """Asli logic jo background mein chalega"""
     register_manual_job_start()
@@ -1807,91 +1870,46 @@ def full_process(req: VideoRequest, job_id: str):
         print(f"==================================================")
 
         print(f"📊 [PROGRESS 10%] STEP 1/6: Processing Script & Scene Breakdown...")
-        if req.video_type == "short":
-            # For SHORT videos:
-            # 1. First Priority: If structured scenes were provided (with dedicated video search keywords & script chunks), PRESERVE THEM!
-            valid_scenes = [s for s in (req.scenes or []) if (s.text and s.text.strip()) or (s.keyword and s.keyword.strip())]
-            if valid_scenes:
-                scenes_data = []
-                for s in valid_scenes:
-                    txt = s.text.strip() if s.text else ""
-                    kw = s.keyword.strip() if s.keyword else ""
-                    scenes_data.append({"text": txt or req.topic or "short scene", "keyword": kw})
-            elif req.full_script and req.full_script.strip():
-                # 2. Manual script provided for SHORT without pre-split scene cards:
-                # Break down script into individual scene sentences
-                import re
-                raw_sentences = [s.strip() for s in re.split(r'(?<=[.!?])\s+|\n+', req.full_script.strip()) if len(s.strip()) > 3]
-                if not raw_sentences:
-                    raw_sentences = [req.full_script.strip()]
-                
-                scenes_data = []
-                for sc_idx, sentence in enumerate(raw_sentences):
-                    # Extract big, meaningful English keywords from script (length >= 4, filtered against stop words)
-                    eng_words = [w for w in re.findall(r'[a-zA-Z]+', sentence) if len(w) >= 4 and w.lower() not in {
-                        "this", "that", "with", "from", "have", "been", "will", "would", "could", "should",
-                        "what", "when", "where", "which", "there", "their", "about", "your", "they", "them",
-                        "more", "some", "into", "then", "than", "very", "also", "just", "like", "make", "take",
-                        "know", "come", "give", "look", "time", "year", "people", "thing", "tell"
-                    }]
-                    if eng_words:
-                        kw = " ".join(eng_words[:3])
+        existing_kw_map = {s.text.strip(): s.keyword.strip() for s in (req.scenes or []) if s.text and s.keyword}
+        scenes_data = []
+
+        if req.full_script and req.full_script.strip():
+            # 1. Full script provided (SHORT, LONG, or ULTRA):
+            # Smartly split script into progressive dynamic scene sentences & clauses (supports Hindi danda ।, ?, !, clauses)
+            raw_sentences = smart_split_script_to_scenes(req.full_script.strip())
+            for sc_idx, sentence in enumerate(raw_sentences):
+                kw = existing_kw_map.get(sentence)
+                if not kw or len(kw.split()) < 2 or (kw.lower() in HINDI_STOPWORDS or kw in HINDI_STOPWORDS):
+                    if extract_rich_scene_visual_keywords:
+                        _, _, rich_phrase = extract_rich_scene_visual_keywords(req.topic or "", sentence, kw or "", sc_idx, req.category)
+                        kw = rich_phrase or req.topic or "cinematic hd"
                     else:
-                        # Script in Hindi/Devanagari: Use topic with visual angles (never single Hindi stopwords!)
-                        main_t = (req.topic or "cinematic").strip()
-                        visual_angles = [
-                            f"{main_t} action visual",
-                            f"{main_t} close up scene",
-                            f"{main_t} cinematic dramatic",
-                            f"{main_t} detailed view",
-                            f"{main_t} atmosphere",
-                            f"{main_t} dynamic motion"
-                        ]
-                        kw = visual_angles[sc_idx % len(visual_angles)]
-                    scenes_data.append({"text": sentence, "keyword": kw})
-        else:
-            # For LONG or ULTRA: Extract rich, descriptive keywords according to script so exact assets download without tiny fragments
-            if req.full_script and req.full_script.strip():
-                import re
-                raw_sentences = [s.strip() for s in re.split(r'(?<=[.!?])\s+|\n+', req.full_script.strip()) if len(s.strip()) > 3]
-                existing_kw_map = {s.text.strip(): s.keyword.strip() for s in (req.scenes or []) if s.text and s.keyword}
-                
-                scenes_data = []
-                for sc_idx, sentence in enumerate(raw_sentences):
-                    kw = existing_kw_map.get(sentence)
-                    # If keyword is missing, tiny (1 word), or a stopword (like 'यह' or 'woh'):
-                    # Generate rich, descriptive visual keywords from the script sentence + topic
-                    if not kw or len(kw.split()) < 2 or (kw.lower() in HINDI_STOPWORDS or kw in HINDI_STOPWORDS):
-                        if extract_rich_scene_visual_keywords:
-                            _, _, rich_phrase = extract_rich_scene_visual_keywords(req.topic or "", sentence, kw or "", sc_idx, req.category)
-                            kw = rich_phrase or req.topic or "cinematic hd"
-                        else:
-                            kw = req.topic or "cinematic hd"
-                    scenes_data.append({"text": sentence, "keyword": kw})
-                    
-                if not scenes_data:
-                    scenes_data = [{"text": req.full_script.strip(), "keyword": "cinematic hd"}]
-            elif req.scenes and len(req.scenes) > 0 and any(s.text and s.text.strip() for s in req.scenes):
-                scenes_data = []
-                for sc_idx, s in enumerate(req.scenes):
-                    if not s.text or not s.text.strip():
-                        continue
-                    txt = s.text.strip()
+                        kw = req.topic or "cinematic hd"
+                scenes_data.append({"text": sentence, "keyword": kw})
+
+        elif req.scenes and len(req.scenes) > 0 and any(s.text and s.text.strip() for s in req.scenes):
+            # 2. Scene cards provided: Split long cards if they contain multiple sentences or long paragraphs
+            for sc_idx, s in enumerate(req.scenes):
+                if not s.text or not s.text.strip():
+                    continue
+                txt = s.text.strip()
+                sub_sentences = smart_split_script_to_scenes(txt)
+                for sub_s in sub_sentences:
                     k_raw = (s.keyword or "").strip()
                     if not k_raw or len(k_raw.split()) < 2 or (k_raw.lower() in HINDI_STOPWORDS or k_raw in HINDI_STOPWORDS):
                         if extract_rich_scene_visual_keywords:
-                            _, _, rich_phrase = extract_rich_scene_visual_keywords(req.topic or "", txt, k_raw, sc_idx, req.category)
+                            _, _, rich_phrase = extract_rich_scene_visual_keywords(req.topic or "", sub_s, k_raw, len(scenes_data), req.category)
                             k_raw = rich_phrase or req.topic or "cinematic hd"
                         else:
                             k_raw = req.topic or "cinematic hd"
-                    scenes_data.append({"text": txt, "keyword": k_raw})
+                    scenes_data.append({"text": sub_s, "keyword": k_raw})
 
         if not scenes_data:
             fallback_text = req.topic if req.topic else "AI Video Generation"
             scenes_data = [{"text": fallback_text, "keyword": "technology"}]
 
         total_scenes = len(scenes_data)
-        print(f"✅ STEP 1 COMPLETE: Prepared {total_scenes} scenes for rendering.")
+        print(f"✅ STEP 1 COMPLETE: Prepared {total_scenes} dynamic scenes for rendering.")
         
         is_ultra = (req.video_type == "ultra")
         if req.video_type == "short":
@@ -1924,6 +1942,12 @@ def full_process(req: VideoRequest, job_id: str):
 
         taiyaar_scenes = []
         used_media_ids = set()
+        total_accumulated_audio_duration = 0.0
+
+        # Max limit safety cap:
+        target_limit_duration = float(req.duration) if (req.duration and req.duration > 5) else (58.0 if req.video_type == "short" else 300.0)
+        if req.video_type == "short":
+            target_limit_duration = min(target_limit_duration, 58.0)
         for i, sc in enumerate(scenes_data):
             sc_progress = 10 + int(((i + 1) / total_scenes) * 40)
             print(f"\n🎙️ [PROGRESS {sc_progress}%] STEP 2 & 3 ({i+1}/{total_scenes}): Synthesizing Voice & Fetching Assets for Scene {i+1}...")
@@ -1994,7 +2018,20 @@ def full_process(req: VideoRequest, job_id: str):
                             
                     elif is_short_line:
                         # Short line: Fetch 1 Pinterest photo with 'graphics photo'
-                        photo_term = f"{main_topic} {scene_kw or scene_text} graphics photo".strip()
+                        if extract_rich_scene_visual_keywords:
+                            _, _, photo_visual_phrase = extract_rich_scene_visual_keywords(
+                                topic=main_topic,
+                                scene_text=scene_text,
+                                scene_kw=scene_kw,
+                                scene_idx=i,
+                                category=req.category
+                            )
+                        else:
+                            photo_visual_phrase = scene_kw or main_topic
+                            
+                        clean_t = " ".join([w for w in (req.topic or main_topic).split() if w.lower() not in ["ancient", "historical", "deep", "outer"]][:3]) or main_topic
+                        clean_p = " ".join([w for w in (photo_visual_phrase or scene_kw).split() if w.lower() not in [x.lower() for x in clean_t.split()]][:3])
+                        photo_term = f"{clean_t} {clean_p} graphics photo".strip()
                         print(f"📸 [Ultra After Effects Scene {i+1}] Short Line detected ({len(words)} words)! Fetching Pinterest Photo: '{photo_term}' (Pinterest Only)...")
                         p_files = fetch_pinterest_photos_via_gallery_dl(photo_term, limit=1, output_dir=job_dir)
                         if p_files and os.path.exists(p_files[0]):
@@ -2029,14 +2066,14 @@ def full_process(req: VideoRequest, job_id: str):
                                 
                     # If Pinterest video was not found for narrative, fall back to Pinterest photo with 'graphics photo' (STRICTLY PINTEREST ONLY)
                     if not v_paths or not os.path.exists(v_paths[0]) or os.path.getsize(v_paths[0]) < 1000:
-                        fb_photo_term = f"{main_topic} {scene_kw or scene_text} graphics photo".strip()
+                        fb_photo_term = f"{clean_t} {clean_p or 'graphics'} graphics photo".strip()
                         print(f"🔄 [Ultra After Effects Scene {i+1}] Pinterest Video fallback -> Fetching Pinterest Photo: '{fb_photo_term}'...")
                         p_fb_files = fetch_pinterest_photos_via_gallery_dl(fb_photo_term, limit=1, output_dir=job_dir)
                         if p_fb_files and os.path.exists(p_fb_files[0]):
                             v_paths = [p_fb_files[0]]
                         else:
                             # Ultimate Pinterest fallback
-                            ult_p = fetch_pinterest_photos_via_gallery_dl(f"{main_topic} graphics photo", limit=1, output_dir=job_dir)
+                            ult_p = fetch_pinterest_photos_via_gallery_dl(f"{clean_t} graphics photo", limit=1, output_dir=job_dir)
                             if ult_p and os.path.exists(ult_p[0]):
                                 v_paths = [ult_p[0]]
                 except Exception as e_ae:
@@ -2198,12 +2235,23 @@ def full_process(req: VideoRequest, job_id: str):
                     blank_img.save(fallback_img_path)
                     v_paths = [fallback_img_path]
 
+                try:
+                    sc_a_dur = get_audio_duration_fast(a_path, fallback=4.0)
+                except Exception:
+                    sc_a_dur = 4.0
+
                 taiyaar_scenes.append({
                     "audio": a_path, 
                     "video": v_paths, 
                     "text": sc["text"]
                 })
-                print(f"   ✅ Scene {i+1}/{total_scenes} ready for video assembly.")
+                total_accumulated_audio_duration += sc_a_dur
+                print(f"   ✅ Scene {i+1}/{total_scenes} ready for video assembly (Duration: {sc_a_dur:.1f}s | Total: {total_accumulated_audio_duration:.1f}s / max {target_limit_duration:.1f}s).")
+
+                # If duration limit is reached, stop pulling extra scenes to prevent exceeding user limit
+                if len(taiyaar_scenes) >= 1 and (total_accumulated_audio_duration >= target_limit_duration):
+                    print(f"⏱️ [Duration Cap Reached] Accumulated {total_accumulated_audio_duration:.1f}s reached target limit ({target_limit_duration:.1f}s). Finalizing scenes.")
+                    break
             release_system_memory()
 
         if taiyaar_scenes:
