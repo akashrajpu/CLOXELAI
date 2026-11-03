@@ -848,6 +848,25 @@ def get_audio_duration_fast(audio_path: str, fallback: float = 5.0) -> float:
         pass
     return fallback
 
+def has_video_stream(filepath: str) -> bool:
+    """Verifies that a video file has at least one valid, playable video stream via ffprobe."""
+    if not filepath or not os.path.exists(filepath):
+        return False
+    if str(filepath).lower().endswith(('.jpg', '.jpeg', '.png', '.webp')):
+        return True
+    try:
+        cmd = [
+            "ffprobe", "-v", "error",
+            "-select_streams", "v:0",
+            "-show_entries", "stream=codec_type",
+            "-of", "default=noprint_wrappers=1:nokey=1",
+            os.path.abspath(filepath)
+        ]
+        out = subprocess.check_output(cmd, stderr=subprocess.DEVNULL, timeout=4).decode().strip()
+        return "video" in out.lower()
+    except Exception:
+        return False
+
 def render_scene_native_ffmpeg(
     scene_output: str,
     video_path: str,
@@ -1018,7 +1037,7 @@ def render_scene_native_ffmpeg(
     fallback_created = None
     audio_input_idx = 1
     
-    if isinstance(video_path, (list, tuple)) and len(video_path) >= 2:
+    if isinstance(video_path, (list, tuple)) and len(video_path) >= 2 and has_video_stream(video_path[0]) and has_video_stream(video_path[1]):
         # Dual-asset rapid cut montage (e.g. contrasting photos/clips cut halfway through scene)
         p0, p1 = video_path[0], video_path[1]
         half_dur = max(0.5, duration / 2.0)
@@ -1046,7 +1065,7 @@ def render_scene_native_ffmpeg(
         ]
     else:
         v_single = video_path[0] if isinstance(video_path, (list, tuple)) and video_path else video_path
-        if v_single and os.path.exists(v_single) and os.path.getsize(v_single) > 500:
+        if v_single and os.path.exists(v_single) and os.path.getsize(v_single) > 500 and has_video_stream(v_single):
             if str(v_single).lower().endswith(('.jpg', '.jpeg', '.png', '.webp')):
                 input_args.extend(["-loop", "1", "-i", os.path.abspath(v_single)])
             else:
@@ -1454,7 +1473,7 @@ def merge_and_export(
                         "crimson_warrior", "vintage_sepia_film", "ice_blue_cyber"
                     ]
                     motions = ["zoom_in", "zoom_out", "pan_right", "pan_left", "diagonal_fast", "spiral_zoom"]
-                is_bg_video = bg_path and str(bg_path).lower().endswith(('.mp4', '.mov', '.avi', '.webm', '.mkv'))
+                is_bg_video = bg_path and str(bg_path).lower().endswith(('.mp4', '.mov', '.avi', '.webm', '.mkv')) and has_video_stream(bg_path)
                 # Case 1: After Effects Dual Photo/Asset Rapid Contrast Cut (e.g. 2 contrasting photos like Modi dictator vs real hero)
                 if is_after_effects_cat and len(valid_paths) >= 2 and all(not str(p).lower().endswith(('.mp4', '.mov', '.avi', '.webm', '.mkv')) for p in valid_paths[:2]):
                     print(f"🎬 Scene {i+1}: Ultra After Effects Mode - Rapid Dual Photo Contrast Cut ({valid_paths[0]} & {valid_paths[1]})...")

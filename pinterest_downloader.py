@@ -135,18 +135,20 @@ def is_valid_video(filepath: str, min_size: int = 15000, orientation: str = None
         if os.path.getsize(filepath) < min_size:
             return False
         
+        # Verify video has an actual playable video stream with valid dimensions
+        w, h = get_video_dimensions(filepath)
+        if not w or not h or w < 100 or h < 100:
+            return False
+
         # Strict aspect ratio validation
-        if orientation in ["portrait", "9:16", "landscape", "16:9"]:
-            w, h = get_video_dimensions(filepath)
-            if w and h:
-                if orientation in ["portrait", "9:16"]:
-                    # Must be 9:16 vertical (height >= width)
-                    if h < w:
-                        return False
-                elif orientation in ["landscape", "16:9"]:
-                    # Must be 16:9 horizontal (width >= height)
-                    if w < h:
-                        return False
+        if orientation in ["portrait", "9:16"]:
+            # Must be 9:16 vertical (height >= width)
+            if h < w:
+                return False
+        elif orientation in ["landscape", "16:9"]:
+            # Must be 16:9 horizontal (width >= height)
+            if w < h:
+                return False
         return True
     except Exception:
         return False
