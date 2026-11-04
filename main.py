@@ -842,6 +842,7 @@ import threading
 
 auto_worker_executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="AutoRenderWorker")
 render_queue_lock = threading.Lock()
+video_pipeline_lock = threading.Lock()
 manual_job_lock = threading.Lock()
 active_manual_jobs_count = 0
 active_auto_users_lock = threading.Lock()
@@ -864,6 +865,11 @@ def process_single_user_schedule(user: dict, now_ist: datetime, today_str: str):
     """
     internal_id = user.get("internal_id")
     if not internal_id:
+        return
+
+    global active_manual_jobs_count
+    if active_manual_jobs_count > 0:
+        print(f"⏸️ [AUTO SCHEDULER] User manual video rendering is in progress ({active_manual_jobs_count} active job). Postponing auto worker for user {internal_id} to protect 512MB RAM...")
         return
 
     try:
@@ -940,7 +946,11 @@ def process_single_user_schedule(user: dict, now_ist: datetime, today_str: str):
             staged_map = fresh_user.get("staged_auto_videos", {})
             staged_item = staged_map.get(kind, {})
 
-            if 5 < mins_until <= 720:
+            if 5 < mins_until <= 60:
+                global active_manual_jobs_count
+                if active_manual_jobs_count > 0:
+                    print(f"⏸️ [AUTO STAGING] User manual video generation is active! Skipping background staging to protect 512MB RAM...")
+                    return
                 has_valid_staged = bool(staged_item.get("cloudinary_url")) or (staged_item.get("file") and os.path.exists(staged_item.get("file", "")))
                 if not has_valid_staged:
                     lock_field = f"auto_locks.staging_{kind}"
@@ -1246,6 +1256,10 @@ def check_and_run_auto_schedules():
     Scans schedules and dispatches rendering jobs to ThreadPoolExecutor pool sorted by earliest target IST.
     """
     if users_collection is None:
+        return
+
+    global active_manual_jobs_count
+    if active_manual_jobs_count > 0:
         return
 
     now_utc = datetime.utcnow()
@@ -1791,6 +1805,7 @@ def smart_split_script_to_scenes(script_text: str, max_words: int = 14) -> list:
 def full_process(req: VideoRequest, job_id: str):
     """Asli logic jo background mein chalega"""
     register_manual_job_start()
+    video_pipeline_lock.acquire()
     try:
         job_dir = f"temp_{job_id}"
         os.makedirs(job_dir, exist_ok=True)
@@ -2345,6 +2360,10 @@ def full_process(req: VideoRequest, job_id: str):
         update_job_status(job_id, {"status": "failed", "error": str(e)})
     finally:
         register_manual_job_end()
+        try:
+            video_pipeline_lock.release()
+        except Exception:
+            pass
         try:
             if os.path.exists(job_dir):
                 shutil.rmtree(job_dir, ignore_errors=True)
