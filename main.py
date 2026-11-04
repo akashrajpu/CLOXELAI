@@ -1972,7 +1972,6 @@ def full_process(req: VideoRequest, job_id: str):
                 v_paths = []
             elif is_ultra and is_after_effects_req:
                 try:
-                    from pinterest_downloader import fetch_pinterest_photos_via_gallery_dl, fetch_pinterest_videos_via_gallery_dl, get_media_fingerprint
                     main_topic = req.topic if req.topic else "motion graphics"
                     scene_text = sc.get('text', '').strip()
                     scene_kw = sc.get('keyword', '').strip()
@@ -2080,7 +2079,6 @@ def full_process(req: VideoRequest, job_id: str):
                 except Exception as e_ae:
                     print(f"⚠️ [Ultra After Effects Pinterest Pipeline Error]: {e_ae}")
                     try:
-                        from pinterest_downloader import fetch_pinterest_photos_via_gallery_dl
                         fb = fetch_pinterest_photos_via_gallery_dl(f"{req.topic or 'motion'} graphics photo", limit=1, output_dir=job_dir, used_media_ids=used_media_ids, orientation=orientation)
                         v_paths = fb if fb else []
                     except Exception:
