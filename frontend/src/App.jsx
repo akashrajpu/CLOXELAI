@@ -86,10 +86,10 @@ function CustomSelect({ value, onChange, options, theme }) {
           transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)'
         }}
       >
-        <span style={{ display: 'flex', alignItems: 'center', gap: '8px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontFamily: selectedFontFamily || 'inherit' }}>
+        <span style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontFamily: selectedFontFamily || 'inherit' }}>
           {selectedLabel}
         </span>
-        <span style={{ transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.25s ease', color: isPastel ? '#7e22ce' : '#c084fc', fontSize: '0.8rem', fontWeight: 'bold' }}>
+        <span style={{ flexShrink: 0, marginLeft: '8px', transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.25s ease', color: isPastel ? '#7e22ce' : '#c084fc', fontSize: '0.8rem', fontWeight: 'bold' }}>
           ▼
         </span>
       </div>
@@ -1494,7 +1494,7 @@ function App() {
           </button>
           <h1>Cloxel <span>AI Video Generator</span></h1>
         </div>
-        <div className="header-right" id="tour-header-actions" style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+        <div className="header-right" id="tour-header-actions">
           <button 
             type="button"
             className="btn-tour-pill" 
@@ -1508,7 +1508,7 @@ function App() {
             <span>App Guide</span>
           </button>
           {isAutoScheduleActive && (
-            <div style={{ background: 'rgba(34, 197, 94, 0.15)', border: '1px solid rgba(34, 197, 94, 0.4)', color: '#4ade80', padding: '5px 12px', borderRadius: '20px', fontSize: '0.8rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px', boxShadow: '0 0 12px rgba(34, 197, 94, 0.3)' }}>
+            <div className="auto-upload-badge" style={{ background: 'rgba(34, 197, 94, 0.15)', border: '1px solid rgba(34, 197, 94, 0.4)', color: '#4ade80', padding: '5px 12px', borderRadius: '20px', fontSize: '0.8rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px', boxShadow: '0 0 12px rgba(34, 197, 94, 0.3)' }}>
               <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#22c55e', boxShadow: '0 0 8px #22c55e' }}></span>
               <span>Auto-Upload: 🟢 ACTIVE</span>
             </div>
@@ -1528,7 +1528,8 @@ function App() {
               display: 'flex',
               alignItems: 'center',
               position: 'relative',
-              transition: 'all 0.3s ease'
+              transition: 'all 0.3s ease',
+              flexShrink: 0
             }}
           >
             <div 
@@ -1567,10 +1568,10 @@ function App() {
         <main className="panel">
           <h2 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><Clapperboard size={26} /> Script & Content Editor</h2>
           
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }} id="tour-video-type">
+          <div className="responsive-grid-2" id="tour-video-type">
             <div className="form-group">
               <label>Video Type</label>
-              <div style={{ display: 'flex', gap: '0.5rem' }}>
+              <div className="video-type-btn-group">
                 <button 
                   className={`button ${videoType === 'short' ? 'primary' : 'secondary'}`}
                   onClick={() => {
@@ -1702,7 +1703,7 @@ function App() {
               boxShadow: '0 8px 32px rgba(168, 85, 247, 0.2)'
             }}>
               {/* Top Bar with Category Selector */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1.2rem', alignItems: 'flex-end' }}>
+              <div className="responsive-grid-2" style={{ marginBottom: '1.2rem', alignItems: 'flex-end' }}>
                 <div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
                     <span style={{ fontSize: '1.4rem' }}>🎵</span>
@@ -1735,7 +1736,7 @@ function App() {
                 <label style={{ display: 'block', fontSize: '0.88rem', fontWeight: '800', color: '#e2e8f0', marginBottom: '8px' }}>
                   1. Singer & Song Selection
                 </label>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', margin: 0 }}>
+                <div className="responsive-grid-2" style={{ gap: '10px', margin: 0 }}>
                   <div>
                     <label style={{ fontSize: '0.78rem', color: '#cbd5e1', display: 'block', marginBottom: '4px' }}>Singer / Artist Name *</label>
                     <input
@@ -1861,7 +1862,7 @@ function App() {
                 <label style={{ display: 'block', fontSize: '0.88rem', fontWeight: '800', color: '#e2e8f0', marginBottom: '8px' }}>
                   4. Visual Creation Mode (Video Clips vs Motion Photos)
                 </label>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div className="responsive-grid-2" style={{ gap: '12px' }}>
                   <button
                     type="button"
                     onClick={() => {
@@ -1926,7 +1927,7 @@ function App() {
                     🖨️ Typewriter Printer Animation Active
                   </span>
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                <div className="responsive-grid-2" style={{ gap: '10px' }}>
                   <div>
                     <label style={{ fontSize: '0.78rem', color: '#cbd5e1', display: 'block', marginBottom: '4px' }}>Primary Font Vibe</label>
                     <CustomSelect
@@ -2017,7 +2018,7 @@ function App() {
             /* Regular Dashboard (Shown for all other 30+ categories) */
             <>
               <div id="tour-topic-script">
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                <div className="responsive-grid-2">
                   <div className="form-group">
                     <label>Main Topic</label>
                     <input 
@@ -2133,7 +2134,7 @@ function App() {
                 <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: '800' }}>
                   <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Sparkles size={16} /> Engine Generation Mode</span>
                 </label>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginTop: '6px' }}>
+                <div className="responsive-grid-2" style={{ gap: '8px', marginTop: '6px' }}>
                   <button
                     type="button"
                     onClick={() => setGenerationMode('ultra')}
@@ -2324,7 +2325,7 @@ function App() {
             </label>
             <div style={{ 
               display: 'grid', 
-              gridTemplateColumns: 'repeat(6, 1fr)', 
+              gridTemplateColumns: 'repeat(auto-fit, minmax(40px, 1fr))', 
               gap: '8px', 
               background: 'rgba(15, 23, 42, 0.6)', 
               padding: '12px', 
@@ -2385,10 +2386,14 @@ function App() {
           <button 
             type="button" 
             id="tour-generate-btn"
-            className="btn-primary" 
+            className="btn-primary button" 
             onClick={handleGenerateVideo}
             disabled={isGeneratingVideo || jobStatus === 'processing' || jobStatus === 'initializing'}
             style={{ 
+              width: '100%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
               marginTop: '2rem',
               background: (isGeneratingVideo || jobStatus === 'processing' || jobStatus === 'initializing')
                 ? 'linear-gradient(135deg, #4b5563 0%, #374151 100%)'
@@ -2921,7 +2926,7 @@ function App() {
               <h4 style={{ color: '#38bdf8', marginBottom: '10px', fontSize: '1rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
                 👑 Active Membership Plan Status
               </h4>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', fontSize: '0.85rem', color: '#cbd5e1' }}>
+              <div className="responsive-grid-2" style={{ gap: '12px', fontSize: '0.85rem', color: '#cbd5e1' }}>
                 <div><strong>Current Plan:</strong> <span style={{ color: '#c084fc', textTransform: 'uppercase', fontWeight: 'bold' }}>{subStatus.has_active_subscription ? `${subStatus.plan_type} (${autoSchedule.purchase_count || 1}x Stacked)` : 'Free Demo'}</span></div>
                 <div><strong>Daily Video Limit:</strong> <span style={{ color: '#22c55e', fontWeight: 'bold' }}>{subStatus.daily_limit_text || (subStatus.plan_type === 'combo' ? '2 Videos Daily (1 Short + 1 Long)' : '1 Video Daily')}</span></div>
                 <div><strong>Today Auto Short Reels:</strong> <span style={{ color: '#38bdf8' }}>{subStatus.today_auto_short_count ?? 0} / {subStatus.plan_type === 'combo' || subStatus.plan_type === 'short' ? '1' : '0'} Auto-Uploaded</span></div>
@@ -3030,7 +3035,7 @@ function App() {
                     )}
                   </div>
 
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', fontSize: '0.82rem' }}>
+                  <div className="responsive-grid-2" style={{ gap: '12px', fontSize: '0.82rem' }}>
                     <div>
                       <label style={{ color: '#cbd5e1', display: 'block', marginBottom: '4px' }}>Category / Niche (30+ Options):</label>
                       <select value={autoSchedule.short_category || '🎲 Random / All Categories'} onChange={(e) => setAutoSchedule({ ...autoSchedule, short_category: e.target.value })} style={{ width: '100%', padding: '8px', background: '#1e1738', border: '1px solid rgba(255,255,255,0.15)', color: '#fff', borderRadius: '8px' }}>
@@ -3122,7 +3127,7 @@ function App() {
                     )}
                   </div>
 
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', fontSize: '0.82rem' }}>
+                  <div className="responsive-grid-2" style={{ gap: '12px', fontSize: '0.82rem' }}>
                     <div>
                       <label style={{ color: '#cbd5e1', display: 'block', marginBottom: '4px' }}>Category / Niche (30+ Options):</label>
                       <select value={autoSchedule.long_category || '🎲 Random / All Categories'} onChange={(e) => setAutoSchedule({ ...autoSchedule, long_category: e.target.value })} style={{ width: '100%', padding: '8px', background: '#1e1738', border: '1px solid rgba(255,255,255,0.15)', color: '#fff', borderRadius: '8px' }}>
@@ -3229,7 +3234,7 @@ function App() {
                         )}
                       </div>
 
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', fontSize: '0.82rem' }}>
+                      <div className="responsive-grid-2" style={{ gap: '12px', fontSize: '0.82rem' }}>
                         <div>
                           <label style={{ color: '#cbd5e1', display: 'block', marginBottom: '4px' }}>Category / Niche:</label>
                           <select value={autoSchedule.ultra_category || '🎵 Song Video'} onChange={(e) => setAutoSchedule({ ...autoSchedule, ultra_category: e.target.value })} style={{ width: '100%', padding: '8px', background: '#1e1738', border: '1px solid rgba(255,255,255,0.15)', color: '#fff', borderRadius: '8px' }}>

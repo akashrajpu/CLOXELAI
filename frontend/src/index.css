@@ -72,6 +72,12 @@
   vertical-align: middle;
 }
 
+html, body {
+  overflow-x: hidden;
+  max-width: 100vw;
+  width: 100%;
+}
+
 * {
   box-sizing: border-box;
   margin: 0;
@@ -114,6 +120,35 @@ body {
   margin: 0 auto;
   padding: 2rem;
   min-height: 100vh;
+  box-sizing: border-box;
+  width: 100%;
+}
+
+.responsive-grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  width: 100%;
+}
+
+.header-right {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.video-type-btn-group {
+  display: flex;
+  gap: 0.5rem;
+  width: 100%;
+}
+
+.btn-primary {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
 }
 
 .app-header {
@@ -2021,5 +2056,225 @@ body.theme-pastel .tour-btn-secondary:hover:not(:disabled) {
 @media (max-width: 640px) {
   .tour-card {
     padding: 16px;
+  }
+}
+
+/* ==========================================================================
+   MOBILE RESPONSIVE SYSTEM (Phones & Tablets)
+   Fixes layout clipping, header overflows, hidden buttons, and small screens
+   ========================================================================== */
+
+@media (max-width: 900px) {
+  .dashboard {
+    grid-template-columns: 1fr !important;
+    gap: 1.5rem !important;
+  }
+}
+
+@media (max-width: 768px) {
+  html, body {
+    overflow-x: hidden !important;
+    width: 100% !important;
+    max-width: 100vw !important;
+  }
+
+  .app-container {
+    padding: 0.85rem 0.65rem !important;
+    width: 100% !important;
+    max-width: 100vw !important;
+    overflow-x: hidden !important;
+  }
+
+  /* --- Mobile Header: Clean Wrap with Complete Button Visibility --- */
+  .app-header {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 12px !important;
+    padding: 12px 14px !important;
+    margin-bottom: 1.2rem !important;
+    border-radius: 18px !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  .header-left {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    gap: 10px !important;
+    width: 100% !important;
+  }
+
+  .header-left h1 {
+    font-size: 1.22rem !important;
+    line-height: 1.2 !important;
+    white-space: normal !important;
+    margin: 0 !important;
+  }
+
+  .header-left h1 span {
+    font-size: 0.82rem !important;
+    opacity: 0.9 !important;
+    display: inline-block !important;
+  }
+
+  .hamburger-btn {
+    font-size: 1.6rem !important;
+    padding: 2px 6px !important;
+    flex-shrink: 0 !important;
+  }
+
+  .header-right {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    gap: 8px !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    width: 100% !important;
+  }
+
+  .header-right .btn-tour-pill,
+  .header-right .btn-upgrade-pill {
+    flex: 1 1 calc(50% - 6px) !important;
+    justify-content: center !important;
+    padding: 8px 10px !important;
+    font-size: 0.8rem !important;
+    min-height: 38px !important;
+    text-align: center !important;
+    white-space: nowrap !important;
+    box-sizing: border-box !important;
+  }
+
+  .header-right .profile-pill-btn {
+    padding: 6px 12px !important;
+    font-size: 0.8rem !important;
+    min-height: 38px !important;
+    flex: 0 0 auto !important;
+    white-space: nowrap !important;
+  }
+
+  .header-right .auto-upload-badge {
+    width: 100% !important;
+    justify-content: center !important;
+    order: 10 !important;
+    padding: 6px 12px !important;
+    font-size: 0.78rem !important;
+    text-align: center !important;
+  }
+
+  /* --- Main & Aside Panels --- */
+  .panel {
+    padding: 1.25rem 0.95rem !important;
+    border-radius: 20px !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+    overflow-x: hidden !important;
+  }
+
+  h2, h3, h4 {
+    font-size: 1.25rem !important;
+    gap: 6px !important;
+  }
+
+  /* --- Grid 2-Column Collapses Cleanly to 1 Column on Mobile --- */
+  .responsive-grid-2 {
+    grid-template-columns: 1fr !important;
+    gap: 0.9rem !important;
+    width: 100% !important;
+  }
+
+  /* --- Video Type Button Group --- */
+  .video-type-btn-group {
+    display: flex !important;
+    gap: 0.45rem !important;
+    width: 100% !important;
+  }
+
+  .video-type-btn-group .button {
+    flex: 1 !important;
+    padding: 11px 6px !important;
+    font-size: 0.84rem !important;
+    border-radius: 14px !important;
+    gap: 4px !important;
+  }
+
+  /* --- Scene Cards --- */
+  .scene-card {
+    padding: 1.1rem 0.85rem !important;
+    border-radius: 16px !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  /* --- Inputs, Selects, Buttons Touch Target Optimization --- */
+  input, select, textarea {
+    padding: 0.8rem 0.95rem !important;
+    font-size: 0.92rem !important;
+    border-radius: 14px !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  .button {
+    padding: 0.85rem 1.2rem !important;
+    font-size: 0.92rem !important;
+    border-radius: 14px !important;
+  }
+
+  /* --- Modals on Mobile --- */
+  .auth-modal-card {
+    padding: 18px 16px !important;
+    border-radius: 18px !important;
+    max-width: 95vw !important;
+    width: 100% !important;
+  }
+
+  .pricing-grid {
+    grid-template-columns: 1fr !important;
+    gap: 16px !important;
+  }
+
+  .pricing-card {
+    padding: 20px 16px !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .app-container {
+    padding: 0.5rem 0.35rem !important;
+  }
+
+  .app-header {
+    padding: 10px 10px !important;
+    border-radius: 16px !important;
+    gap: 8px !important;
+  }
+
+  .header-left h1 {
+    font-size: 1.08rem !important;
+  }
+
+  .panel {
+    padding: 1rem 0.75rem !important;
+    border-radius: 16px !important;
+  }
+
+  .video-type-btn-group {
+    gap: 0.3rem !important;
+  }
+
+  .video-type-btn-group .button {
+    padding: 9px 3px !important;
+    font-size: 0.78rem !important;
+    gap: 3px !important;
+  }
+
+  .header-right .btn-tour-pill,
+  .header-right .btn-upgrade-pill {
+    font-size: 0.76rem !important;
+    padding: 7px 6px !important;
+    min-height: 36px !important;
   }
 }
