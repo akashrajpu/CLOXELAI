@@ -1,5 +1,6 @@
 """
-Example usage of bg_remover module.
+Example usage of bg_remover module
+.
 """
 
 from bg_remover import remove_background, remove_background_batch
