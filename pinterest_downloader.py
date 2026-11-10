@@ -168,13 +168,21 @@ def fetch_pinterest_photos_via_gallery_dl(query: str, limit: int = 3, output_dir
     orientation = str(orientation or "portrait").lower()
 
     if orientation in ["portrait", "9:16"]:
-        aspect_keyword = "9:16 vertical phone wallpaper"
+        aspect_keyword = "9:16 vertical phone wallpaper cinematic animation"
     elif orientation in ["landscape", "16:9"]:
-        aspect_keyword = "16:9 landscape desktop wallpaper widescreen"
+        aspect_keyword = "16:9 landscape desktop wallpaper widescreen cinematic animation"
+    elif orientation in ["square", "1:1"]:
+        aspect_keyword = "1:1 square wallpaper cinematic animation"
     else:
-        aspect_keyword = ""
+        aspect_keyword = "cinematic animation"
 
-    search_query = f"{query} {aspect_keyword}".strip() if aspect_keyword else query
+    # Avoid duplicate words in search query
+    q_words = query.strip().split()
+    combined_words = []
+    for w in (q_words + aspect_keyword.split()):
+        if w.lower() not in [cw.lower() for cw in combined_words]:
+            combined_words.append(w)
+    search_query = " ".join(combined_words).strip()
     encoded_query = urllib.parse.quote(search_query)
     pinterest_url = f"https://www.pinterest.com/search/pins/?q={encoded_query}"
 
@@ -434,18 +442,20 @@ def fetch_pinterest_videos_via_gallery_dl(query: str, limit: int = 1, output_dir
             seen_w.add(wl)
             compact_words.append(w)
 
-    non_gv_words = [w for w in compact_words if w.lower() not in ["graphics", "video", "photo"]]
-    if len(non_gv_words) > 4:
-        non_gv_words = non_gv_words[:4]
+    non_gv_words = [w for w in compact_words if w.lower() not in ["graphics", "video", "photo", "cinematic", "animation"]]
+    if len(non_gv_words) > 5:
+        non_gv_words = non_gv_words[:5]
 
     if orientation in ["portrait", "9:16"]:
-        aspect_term = "9:16 vertical reels"
+        aspect_term = "9:16 vertical reels cinematic animation"
     elif orientation in ["landscape", "16:9"]:
-        aspect_term = "16:9 landscape widescreen"
+        aspect_term = "16:9 landscape widescreen cinematic animation"
+    elif orientation in ["square", "1:1"]:
+        aspect_term = "1:1 square cinematic animation"
     else:
-        aspect_term = ""
+        aspect_term = "cinematic animation"
 
-    search_query = f"{' '.join(non_gv_words)} {aspect_term} graphics video".strip()
+    search_query = f"{' '.join(non_gv_words)} {aspect_term} video".strip()
     encoded_query = urllib.parse.quote(search_query)
     pinterest_url = f"https://in.pinterest.com/search/pins/?q={encoded_query}"
 
@@ -513,9 +523,11 @@ def fetch_pinterest_videos_via_gallery_dl(query: str, limit: int = 1, output_dir
             if not downloaded_videos and found_raw:
                 print(f"🔄 [Pinterest Video Deduplication] All candidates in initial query were duplicates. Retrying with alternate {orientation.upper()} query...")
                 if orientation in ["portrait", "9:16"]:
-                    alt_search = f"{' '.join(non_gv_words)} 9:16 vertical reels motion graphics video"
+                    alt_search = f"{' '.join(non_gv_words[:4])} 9:16 vertical reels cinematic animation video"
+                elif orientation in ["square", "1:1"]:
+                    alt_search = f"{' '.join(non_gv_words[:4])} 1:1 square cinematic animation video"
                 else:
-                    alt_search = f"{' '.join(non_gv_words)} 16:9 widescreen landscape motion graphics video"
+                    alt_search = f"{' '.join(non_gv_words[:4])} 16:9 widescreen landscape cinematic animation video"
                 alt_url = f"https://in.pinterest.com/search/pins/?q={urllib.parse.quote(alt_search)}"
                 cmd_alt = gallery_cmd + [
                     "--directory", dl_work_dir,

@@ -281,79 +281,95 @@ def detect_expression_emoji(text: str, mood: str = "romantic", line_idx: int = 0
 
 MOOD_VISUAL_POOLS = {
     "romantic": [
-        "romantic couple walking holding hands beach golden hour sunset aesthetic 4k",
-        "cozy couple sitting under warm fairy lights cafe bokeh candlelight romantic 4k",
-        "vintage lovers in flower garden aesthetic soft morning sunshine romantic 4k",
-        "aesthetic couple silhouette stargazing night sky crescent moon dream 4k",
-        "couple sharing umbrella in gentle rain street reflections warm glow romantic 4k",
-        "couple embracing scenic mountain sunrise dramatic clouds soft cinematic 4k",
-        "aesthetic coffee date cafe window warm autumn leaves cozy love 4k",
-        "lovers walking along dreamy forest pathway sun rays dappled light 4k",
-        "romantic rooftop terrace twilight fairy lights city skyline sunset 4k",
-        "aesthetic vintage car drive lovers coastal highway summer breeze 4k"
+        "romantic couple walking holding hands beach sunset golden glow cinematic animation",
+        "lovers under umbrella gentle rain warm street lights reflections cinematic animation",
+        "cozy couple sitting under fairy lights warm cafe candlelight romantic cinematic animation",
+        "aesthetic couple stargazing under milky way night sky crescent moon cinematic animation",
+        "lovers embracing scenic mountain sunrise dramatic soft clouds cinematic animation",
+        "romantic flower petals falling lovers walking dreamy forest sun rays cinematic animation",
+        "aesthetic rooftop terrace twilight fairy lights lovers city skyline sunset cinematic animation",
+        "lovers holding hands cozy autumn leaves gentle breeze warm bokeh cinematic animation",
+        "vintage car drive lovers coastal highway summer golden hour breeze cinematic animation",
+        "lovers slow dance under warm moonlight ethereal starlight glow cinematic animation"
     ],
     "sad": [
-        "melancholy silhouette standing alone dramatic ocean cliffs twilight moody 4k",
-        "lonely person looking out rain drenched window drops city lights bokeh 4k",
-        "empty bench autumn park fallen leaves foggy misty path heartbreak 4k",
-        "solitary figure walking down dark deserted street vintage streetlamp noir 4k",
-        "dark moody bedroom moonlight through blinds lone shadow reflection 4k",
-        "sad acoustic guitar leaning against abandoned vintage wall quiet dust motes 4k",
-        "dramatic dark storm clouds over calm ocean lone lighthouse heartbreak 4k",
-        "person sitting alone rooftop dusk gazing at distant city lights melancholy 4k",
-        "foggy pine forest solitary hiker misty cold atmosphere cinematic solitude 4k",
-        "tear drops falling in still lake water ripples dark reflection sorrow 4k"
-    ],
-    "party": [
-        "neon night club dynamic strobe lights stage smoke crowd hands in air 4k",
-        "dj turntable mixer deck glowing neon lasers electronic dance music fest 4k",
-        "electric concert crowd confetti falling stage spotlights festival energy 4k",
-        "cyberpunk synthwave vibrant purple cyan neon city lights party 4k",
-        "sparklers celebration friends laughing beach bonfire party night 4k",
-        "glitter disco ball reflections dancing neon colorful lights party 4k",
-        "urban rooftop party dusk city skyline cocktails festive neon 4k",
-        "kaleidoscope abstract neon light trails motion blur festival energy 4k"
-    ],
-    "lofi": [
-        "lofi anime aesthetic cozy bedroom desk warm lamp window night rain 4k",
-        "steaming cup of coffee vinyl record player warm wooden table aesthetic 4k",
-        "midnight city view bedroom balcony plants soft neon purple glow lofi 4k",
-        "vintage cassette tape headphones autumn foliage warm sweater cozy 4k",
-        "bookshelf warm fairy lights cat sleeping on windowsill night stars lofi 4k",
-        "train window reflection dusk city skyline earphones music chill vibes 4k",
-        "cozy fireplace reading nook warm blanket soft ambient candlelight 4k",
-        "retro neon midnight diner counter rain reflections pastel chill 4k"
-    ],
-    "acoustic": [
-        "acoustic guitar resting against vintage wooden chair warm sunset glow 4k",
-        "camper van parked on mountain edge campfire dusk horizon road trip 4k",
-        "hands gently playing acoustic wooden guitar close up warm sunbeam 4k",
-        "winding coastal highway ocean cliffs golden hour adventure indie travel 4k",
-        "wildflower meadow pine trees distant snowy peaks sunny breeze 4k",
-        "bonfire on beach at twilight acoustic music gathering sea breeze 4k",
-        "cabin in pine woods morning mist sun rays tranquil nature aesthetic 4k",
-        "open road sunset endless horizon vintage travel wandering spirit 4k"
+        "lonely person walking in rain silhouette city streetlights sad cinematic animation",
+        "heartbroken solitary figure watching sunset storm clouds dark aesthetic cinematic animation",
+        "rain drops falling on window glass blurred neon night lights moody noir cinematic animation",
+        "solitary anime aesthetic figure sitting on rooftop night city stars sad cinematic animation",
+        "empty bench in misty autumn park fallen leaves cold fog melancholy cinematic animation",
+        "lone shadow walking on deserted railway tracks twilight solitude cinematic animation",
+        "dark moody ocean waves crashing against solitary cliffs twilight cinematic animation",
+        "tear falling reflection in calm water ripples dark aesthetic sorrow cinematic animation",
+        "abandoned guitar dusty room soft moonlight gloomy atmosphere cinematic animation",
+        "solitary figure looking at distant glowing city melancholy night cinematic animation"
     ],
     "devotional": [
-        "divine temple golden spires morning mist sacred brass oil lamp glow 4k",
-        "sacred lotus floating on tranquil holy river sunrise golden reflection 4k",
-        "incense smoke rising brass diya lamp temple bells spiritual peace 4k",
-        "majestic himalayan mountains morning sun rays divine meditation spiritual 4k",
-        "holy river ghats morning prayers brass lamps floating flowers serenity 4k",
-        "ancient temple carving sunlight illuminating deities spiritual aura 4k",
-        "golden temple water reflection sacred dusk peaceful evening aarti 4k",
-        "peacock feathers holy flute sacred flowers divine spiritual backdrop 4k"
+        "Lord Krishna playing flute divine golden aura Vrindavan peacock feathers 3d cinematic animation",
+        "Lord Shiva Mahadev meditating Himalayas trishul cosmic blue aura 3d cinematic animation",
+        "Lord Rama Ayodhya golden palace divine sacred bow arrow spiritual aura 3d cinematic animation",
+        "Lord Hanuman Bajrangbali flying divine golden clouds bhakti 3d cinematic animation",
+        "Radha Krishna divine eternal love flower garden golden sunshine 3d cinematic animation",
+        "divine golden temple sacred aarti brass lamps floating holy river 3d cinematic animation",
+        "sacred lotus blooming temple bells divine spiritual energy 3d cinematic animation",
+        "Kedarnath temple Himalayas snow peaks divine spiritual clouds 3d cinematic animation",
+        "holy river Ganga ghats morning aarti diya lights spiritual serenity 3d cinematic animation",
+        "divine glowing Om symbol cosmic universe spiritual energy meditation 3d cinematic animation"
+    ],
+    "party": [
+        "neon night club dynamic strobe lights stage smoke crowd hands in air cinematic animation",
+        "dj turntable mixer glowing neon lasers electronic dance music festival energy cinematic animation",
+        "electric concert crowd confetti falling stage spotlights festival energy cinematic animation",
+        "cyberpunk synthwave vibrant purple cyan neon city lights party 3d cinematic animation",
+        "sparklers celebration friends laughing beach bonfire party night cinematic animation",
+        "glitter disco ball reflections dancing neon colorful lights party cinematic animation",
+        "urban rooftop party dusk city skyline cocktails festive neon cinematic animation",
+        "kaleidoscope abstract neon light trails motion blur festival energy cinematic animation"
+    ],
+    "lofi": [
+        "lofi anime aesthetic cozy bedroom desk warm lamp window night rain cinematic animation",
+        "steaming cup of coffee vinyl record player warm wooden table aesthetic cinematic animation",
+        "midnight city view bedroom balcony plants soft neon purple glow lofi cinematic animation",
+        "vintage cassette tape headphones autumn foliage warm sweater cozy cinematic animation",
+        "bookshelf warm fairy lights cat sleeping on windowsill night stars lofi cinematic animation",
+        "train window reflection dusk city skyline earphones music chill vibes cinematic animation",
+        "cozy fireplace reading nook warm blanket soft ambient candlelight cinematic animation",
+        "retro neon midnight diner counter rain reflections pastel chill cinematic animation"
+    ],
+    "acoustic": [
+        "acoustic guitar resting against vintage wooden chair warm sunset glow cinematic animation",
+        "camper van parked on mountain edge campfire dusk horizon road trip cinematic animation",
+        "hands gently playing acoustic wooden guitar close up warm sunbeam cinematic animation",
+        "winding coastal highway ocean cliffs golden hour adventure indie travel cinematic animation",
+        "wildflower meadow pine trees distant snowy peaks sunny breeze cinematic animation",
+        "bonfire on beach at twilight acoustic music gathering sea breeze cinematic animation",
+        "cabin in pine woods morning mist sun rays tranquil nature aesthetic cinematic animation",
+        "open road sunset endless horizon vintage travel wandering spirit cinematic animation"
     ]
 }
 
+# Aliases for mood pools
+MOOD_VISUAL_POOLS["dharmik"] = MOOD_VISUAL_POOLS["devotional"]
+MOOD_VISUAL_POOLS["bhakti"] = MOOD_VISUAL_POOLS["devotional"]
+MOOD_VISUAL_POOLS["spiritual"] = MOOD_VISUAL_POOLS["devotional"]
+MOOD_VISUAL_POOLS["sed"] = MOOD_VISUAL_POOLS["sad"]
+MOOD_VISUAL_POOLS["dard"] = MOOD_VISUAL_POOLS["sad"]
+MOOD_VISUAL_POOLS["love"] = MOOD_VISUAL_POOLS["romantic"]
+MOOD_VISUAL_POOLS["sove"] = MOOD_VISUAL_POOLS["romantic"]
+
 MOOD_KEYWORDS = {
-    "romantic": "romantic couple love golden hour sunset warm bokeh aesthetic dream 4k",
-    "sad": "sad lonely heartbreak rain darkness silhouette alone window moody noir 4k",
-    "party": "party neon night club strobe lights concert crowd smoke lasers bass 4k",
-    "lofi": "lofi cozy bedroom warm lamp night rain stars window chill vibes 4k",
-    "acoustic": "acoustic guitar indie travel road trip nature mountains horizon aesthetic 4k",
-    "devotional": "divine spiritual temple golden rays morning sacred peaceful aesthetic 4k",
+    "romantic": "romantic couple love golden hour sunset warm bokeh aesthetic dream cinematic animation",
+    "sad": "sad lonely heartbreak rain darkness silhouette alone window moody noir cinematic animation",
+    "devotional": "divine spiritual temple golden rays sacred Lord Krishna Shiva Rama cinematic animation",
+    "party": "party neon night club strobe lights concert crowd smoke lasers bass cinematic animation",
+    "lofi": "lofi cozy bedroom warm lamp night rain stars window chill vibes cinematic animation",
+    "acoustic": "acoustic guitar indie travel road trip nature mountains horizon aesthetic cinematic animation",
 }
+MOOD_KEYWORDS["dharmik"] = MOOD_KEYWORDS["devotional"]
+MOOD_KEYWORDS["bhakti"] = MOOD_KEYWORDS["devotional"]
+MOOD_KEYWORDS["sed"] = MOOD_KEYWORDS["sad"]
+MOOD_KEYWORDS["love"] = MOOD_KEYWORDS["romantic"]
+MOOD_KEYWORDS["sove"] = MOOD_KEYWORDS["romantic"]
 
 CAMERA_MOTION_STYLES = [
     "zoom_in",
@@ -369,11 +385,16 @@ CAMERA_MOTION_STYLES = [
 MOOD_FILTERS = {
     "romantic": ["golden_dream", "vintage_film", "teal_orange"],
     "sad": ["moody_noir", "teal_orange", "vintage_film"],
+    "devotional": ["golden_dream", "vintage_film"],
     "party": ["cyber_neon", "teal_orange", "emerald_cinema"],
     "lofi": ["golden_dream", "vintage_film", "moody_noir"],
     "acoustic": ["vintage_film", "golden_dream", "emerald_cinema"],
-    "devotional": ["golden_dream", "vintage_film"],
 }
+MOOD_FILTERS["dharmik"] = MOOD_FILTERS["devotional"]
+MOOD_FILTERS["bhakti"] = MOOD_FILTERS["devotional"]
+MOOD_FILTERS["sed"] = MOOD_FILTERS["sad"]
+MOOD_FILTERS["love"] = MOOD_FILTERS["romantic"]
+MOOD_FILTERS["sove"] = MOOD_FILTERS["romantic"]
 
 ALL_FILTERS = ["teal_orange", "golden_dream", "moody_noir", "cyber_neon", "vintage_film", "emerald_cinema"]
 
@@ -2394,6 +2415,43 @@ def build_full_song_video(
     exact_song_title = re.sub(r'&quot;|&#039;|&amp;|&lt;|&gt;', '', audio_res.get('title') or song_title or singer_name or "Song").strip()
     exact_singer = re.sub(r'&quot;|&#039;|&amp;|&lt;|&gt;', '', audio_res.get('singer') or singer_name or "").strip()
 
+    raw_mood = str(getattr(req, 'song_mood', 'romantic') or 'romantic').lower().strip()
+    MOOD_ALIAS_MAP = {
+        "sed": "sad",
+        "dard": "sad",
+        "broken": "sad",
+        "dharmik": "devotional",
+        "bhakti": "devotional",
+        "spiritual": "devotional",
+        "sove": "romantic",
+        "love": "romantic",
+        "pyaar": "romantic",
+        "ishq": "romantic",
+        "chill": "lofi",
+        "dance": "party",
+        "club": "party",
+        "indie": "acoustic"
+    }
+    song_mood = MOOD_ALIAS_MAP.get(raw_mood, raw_mood)
+    if song_mood not in MOOD_VISUAL_POOLS:
+        song_mood = "romantic"
+
+    # Context-based Auto-Detection from song title, singer, topic, or category
+    context_text = f"{exact_song_title} {exact_singer} {getattr(req, 'topic', '')} {getattr(req, 'category', '')}".lower()
+    devotional_triggers = ["dharmik", "bhakti", "devotional", "ram", "shyam", "krishna", "kanha", "radha", "shiv", "mahadev", "bhole", "hanuman", "bajrangbali", "mata", "durga", "ganesh", "temple", "bhajan", "aarti", "katha", "khatu", "chalisa", "vaishno", "kedarnath", "kashi", "vrindavan", "har har", "shankar"]
+    sad_triggers = ["sad", "dard", "sed", "bewafa", "juda", "dhokha", "alone", "broken", "heartbreak", "ronde", "aansu", "tears", "khamoshi", "tadap", "tanha", "gham", "chhod", "yaad"]
+    romantic_triggers = ["love", "sove", "pyaar", "ishq", "mohabbat", "romantic", "dil", "deewana", "humsafar", "jaan", "saathiya", "couple"]
+
+    if any(trig in context_text for trig in devotional_triggers):
+        song_mood = "devotional"
+        print(f"✨ [Smart Mood Auto-Detect] Detected Devotional/Dharmik Song from '{exact_song_title} / {exact_singer}'. Mood set to DEVOTIONAL.")
+    elif any(trig in context_text for trig in sad_triggers):
+        song_mood = "sad"
+        print(f"✨ [Smart Mood Auto-Detect] Detected Sad/Dard Song from '{exact_song_title} / {exact_singer}'. Mood set to SAD.")
+    elif any(trig in context_text for trig in romantic_triggers) and song_mood not in ["devotional", "sad"]:
+        song_mood = "romantic"
+        print(f"✨ [Smart Mood Auto-Detect] Detected Love/Romantic Song from '{exact_song_title} / {exact_singer}'. Mood set to ROMANTIC.")
+
     print(f"\n==================================================")
     print(f"🎵 [ULTRA SONG VIDEO PIPELINE] Job ID: {job_id}")
     print(f"🎶 Song: '{exact_song_title}' • Artist: '{exact_singer}'")
@@ -2534,7 +2592,13 @@ def build_full_song_video(
 
     from video_fetcher import fetch_videos
     from web_image_fetcher import fetch_web_image
+    from pinterest_downloader import (
+        fetch_pinterest_photos_via_gallery_dl,
+        fetch_pinterest_videos_via_gallery_dl,
+        get_media_fingerprint
+    )
 
+    used_media_ids = set()
     rendered_scene_files = []
 
     for seg_idx in range(num_segments):
@@ -2559,17 +2623,47 @@ def build_full_song_video(
         v_paths = None
 
         if is_stock_video:
-            # 🎥 Stock Video Clip
+            # 🎥 Stock Video Clip: First Priority: Pinterest Video with cinematic animation & aspect ratio
             v_temp = os.path.join(job_dir, f"stock_vid_{seg_idx}.mp4")
-            v_query = f"{chosen_scene}"
-            v_paths = fetch_videos(
-                v_query, v_temp,
-                orientation=orientation,
-                category="Music",
-                video_type="short" if target_aspect == "9:16" else "long",
-                topic=song_mood
+            pin_vid_query = f"{chosen_scene} cinematic animation".strip()
+            print(f"🎬 [Ultra Song Visual] Fetching Pinterest {orientation.upper()} Video: '{pin_vid_query}' (Cinematic Animation, No API)...")
+            v_paths = fetch_pinterest_videos_via_gallery_dl(
+                query=pin_vid_query,
+                limit=1,
+                output_dir=job_dir,
+                used_media_ids=used_media_ids,
+                orientation=orientation
             )
+
+            # Fallback 1 on Pinterest: Shorter query
+            if not v_paths or not os.path.exists(v_paths[0]) or os.path.getsize(v_paths[0]) < 5000:
+                fb_pin_query = f"{song_mood} cinematic animation".strip()
+                print(f"🔄 [Ultra Song Visual] Fallback Pinterest Video query: '{fb_pin_query}'...")
+                v_paths = fetch_pinterest_videos_via_gallery_dl(
+                    query=fb_pin_query,
+                    limit=1,
+                    output_dir=job_dir,
+                    used_media_ids=used_media_ids,
+                    orientation=orientation
+                )
+
+            # Fallback 2: Standard fetch_videos (Pexels)
+            if not v_paths or not os.path.exists(v_paths[0]) or os.path.getsize(v_paths[0]) < 5000:
+                print(f"🔄 [Ultra Song Visual] Fallback to Web/Pexels video engine: '{pin_vid_query}'...")
+                v_paths = fetch_videos(
+                    f"{chosen_scene} cinematic animation", v_temp,
+                    orientation=orientation,
+                    category="Music",
+                    video_type="short" if target_aspect == "9:16" else "long",
+                    topic=song_mood,
+                    used_media_ids=used_media_ids
+                )
+
             if v_paths and os.path.exists(v_paths[0]) and os.path.getsize(v_paths[0]) > 5000:
+                v_h = get_media_fingerprint(v_paths[0])
+                if v_h: used_media_ids.add(v_h)
+                used_media_ids.add(f"size_{os.path.getsize(v_paths[0])}")
+                used_media_ids.add(os.path.basename(v_paths[0]))
                 try:
                     tw, th = target_size
                     prep_clip_path = os.path.join(job_dir, f"prep_stock_{seg_idx}.mp4")
@@ -2612,11 +2706,49 @@ def build_full_song_video(
                     print(f"⚠️ Stock video clip load note: {e_v}")
 
         if not seg_clip:
-            # ⚡ Ultra 3D Photo Motion with Filter & Typewriter Lyrics (Uses Pexels HD Photo API exclusively)
+            # ⚡ Ultra 3D Photo Motion with Filter & Typewriter Lyrics
+            # First Priority: Pinterest HD Photos with cinematic animation & aspect ratio
             img_path = os.path.join(job_dir, f"bg_photo_{seg_idx}.jpg")
-            photo_query = f"{chosen_scene}".strip()
-            print(f"📸 [Ultra Song Visual] Fetching HD Scene Photo via Pexels API (Query: '{photo_query}', Orientation: {orientation})...")
-            fetch_web_image(photo_query, img_path, prefer_source="pexels", orientation=orientation)
+            photo_query = f"{chosen_scene} cinematic animation".strip()
+            print(f"📸 [Ultra Song Visual] Fetching HD Pinterest {orientation.upper()} Photo: '{photo_query}' (Cinematic Animation, No API)...")
+
+            p_files = fetch_pinterest_photos_via_gallery_dl(
+                query=photo_query,
+                limit=1,
+                output_dir=job_dir,
+                used_media_ids=used_media_ids,
+                orientation=orientation
+            )
+
+            # Fallback 1 on Pinterest: Shorter query
+            if not p_files or not os.path.exists(p_files[0]) or os.path.getsize(p_files[0]) < 1000:
+                fb_photo_query = f"{song_mood} cinematic animation".strip()
+                print(f"🔄 [Ultra Song Visual] Fallback Pinterest Photo query: '{fb_photo_query}'...")
+                p_files = fetch_pinterest_photos_via_gallery_dl(
+                    query=fb_photo_query,
+                    limit=1,
+                    output_dir=job_dir,
+                    used_media_ids=used_media_ids,
+                    orientation=orientation
+                )
+
+            got_pinterest_photo = False
+            if p_files and os.path.exists(p_files[0]) and os.path.getsize(p_files[0]) > 1000:
+                try:
+                    shutil.copy2(p_files[0], img_path)
+                    got_pinterest_photo = True
+                    f_hash = get_media_fingerprint(img_path)
+                    if f_hash: used_media_ids.add(f_hash)
+                    used_media_ids.add(f"size_{os.path.getsize(img_path)}")
+                    used_media_ids.add(os.path.basename(img_path))
+                    print(f"✅ [Ultra Song Visual] Successfully loaded Pinterest Photo for Segment {seg_idx+1}: {os.path.basename(p_files[0])}")
+                except Exception as e_cp:
+                    print(f"⚠️ Pinterest photo copy note: {e_cp}")
+
+            # Fallback 2: Web Image API (Bing/Pexels)
+            if not got_pinterest_photo or not os.path.exists(img_path) or os.path.getsize(img_path) < 1000:
+                print(f"🔄 [Ultra Song Visual] Fallback to Web Image API: '{photo_query}'...")
+                fetch_web_image(photo_query, img_path, prefer_source="bing", orientation=orientation)
 
             try:
                 with Image.open(img_path) as raw_im:
