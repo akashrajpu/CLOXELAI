@@ -2602,6 +2602,13 @@ def build_full_song_video(
     rendered_scene_files = []
 
     for seg_idx in range(num_segments):
+        try:
+            import main
+            if main.jobs.get(job_id, {}).get("status") == "cancelled":
+                print(f"🛑 [Ultra Song Engine CANCELLED] User cancelled Job ID {job_id} at Segment {seg_idx+1}. Exiting...")
+                return None
+        except Exception:
+            pass
         release_system_memory()
         seg_start = seg_idx * seg_dur
         seg_end = min(float(target_duration), (seg_idx + 1) * seg_dur if seg_idx < num_segments - 1 else target_duration)
@@ -2901,6 +2908,14 @@ def build_full_song_video(
 
         if os.path.exists(scene_mp4) and os.path.getsize(scene_mp4) > 1000:
             rendered_scene_files.append(scene_mp4)
+
+    try:
+        import main
+        if main.jobs.get(job_id, {}).get("status") == "cancelled":
+            print(f"🛑 [Ultra Song Engine CANCELLED] User cancelled Job ID {job_id} before final stitch. Exiting...")
+            return None
+    except Exception:
+        pass
 
     if not rendered_scene_files:
         raise RuntimeError("No visual segments were rendered successfully!")

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import Auth from './Auth';
 import YouTubeIntegration from './YouTubeIntegration';
 import { Smartphone, Monitor, Zap, Film, Settings, Sparkles, Clock, Palette, Mic, Music, Layout, Hash, Dices, Clapperboard, MonitorPlay, User, Sun, Scroll, Circle, Ban, Rocket, Box, Square, Tv, Compass, Upload } from 'lucide-react';
@@ -59,6 +59,15 @@ export const formatUserFriendlyError = (rawError) => {
 
   const err = String(rawError).trim();
   const lower = err.toLowerCase();
+
+  // 0. User Cancelled Job
+  if (lower.includes("cancelled") || lower.includes("canceled")) {
+    return {
+      title: "Video Generation Cancelled",
+      reason: "You stopped this video rendering. Resources have been freed and the pipeline is clean.",
+      action: "You can start generating a new video whenever you are ready."
+    };
+  }
 
   // 1. Server Restart / Disconnect
   if (
@@ -585,6 +594,7 @@ function App() {
   const [jobId, setJobId] = useState(null);
   const [jobStatus, setJobStatus] = useState(null);
   const [renderError, setRenderError] = useState(null);
+  const pollIntervalRef = useRef(null);
   const [cloudinaryUrl, setCloudinaryUrl] = useState(null);
   const [downloadUrl, setDownloadUrl] = useState(null);
   const [isGeneratingScript, setIsGeneratingScript] = useState(false);
@@ -1080,6 +1090,67 @@ function App() {
     ]);
   }, [userId]);
 
+  // 🔄 Seamless Active Job Persistence & Recovery Across Page Refreshes
+  useEffect(() => {
+    if (!userId) return;
+    try {
+      const savedJobRaw = localStorage.getItem(`cloxel_active_job_${userId}`);
+      if (savedJobRaw) {
+        const savedJob = JSON.parse(savedJobRaw);
+        if (savedJob && savedJob.jobId) {
+          // If older than 20 mins, discard stale item
+          if (Date.now() - (savedJob.startedAt || 0) > 20 * 60 * 1000) {
+            localStorage.removeItem(`cloxel_active_job_${userId}`);
+            return;
+          }
+
+          console.log("🔍 Checking active video job after page load:", savedJob.jobId);
+          fetch(`${API_BASE}/status/${savedJob.jobId}`)
+            .then(res => res.json())
+            .then(data => {
+              if (data.status === 'processing' || data.status === 'initializing') {
+                console.log("🎬 Resuming video rendering after page refresh:", savedJob.jobId);
+                setJobId(savedJob.jobId);
+                setJobStatus(data.status);
+                setIsGeneratingVideo(true);
+                pollStatus(savedJob.jobId);
+              } else if (data.status === 'completed') {
+                localStorage.removeItem(`cloxel_active_job_${userId}`);
+                if (data.cloudinary_url) {
+                  setCloudinaryUrl(data.cloudinary_url);
+                }
+                setDownloadUrl(`${API_BASE}/download/${savedJob.jobId}`);
+                fetchHistory();
+                fetchSubscriptionStatus();
+              } else if (data.status === 'cancelled') {
+                localStorage.removeItem(`cloxel_active_job_${userId}`);
+                setIsGeneratingVideo(false);
+                setJobStatus(null);
+              } else {
+                localStorage.removeItem(`cloxel_active_job_${userId}`);
+                setIsGeneratingVideo(false);
+                setJobStatus(null);
+                const rawMsg = data.raw_error || data.error || "";
+                if (rawMsg) {
+                  const friendly = formatUserFriendlyError(rawMsg);
+                  setRenderError(friendly);
+                }
+              }
+            })
+            .catch(err => {
+              console.warn("Could not reach status endpoint, resuming poll:", err);
+              setJobId(savedJob.jobId);
+              setJobStatus('processing');
+              setIsGeneratingVideo(true);
+              pollStatus(savedJob.jobId);
+            });
+        }
+      }
+    } catch (e) {
+      console.error("Failed to restore active job:", e);
+    }
+  }, [userId]);
+
   const handleSaveAutoSchedule = async (explicitEnabledState = null) => {
     if (!userId || isSavingSchedule) return;
     if (!subStatus.has_active_subscription) {
@@ -1417,6 +1488,17 @@ function App() {
       if (data.job_id) {
         setJobId(data.job_id);
         setJobStatus('processing');
+        if (userId) {
+          try {
+            localStorage.setItem(`cloxel_active_job_${userId}`, JSON.stringify({
+              jobId: data.job_id,
+              userId: userId,
+              videoType: videoType,
+              topic: isSongVideoMode ? `${singerName} ${songTitle}` : topic,
+              startedAt: Date.now()
+            }));
+          } catch (e) {}
+        }
         pollStatus(data.job_id);
       } else if (data.detail) {
         setIsGeneratingVideo(false);
@@ -1458,13 +1540,23 @@ function App() {
   const pollStatus = async (id) => {
     let notFoundStrikes = 0;
     let networkErrorStrikes = 0;
-    const interval = setInterval(async () => {
+    if (pollIntervalRef.current) {
+      clearInterval(pollIntervalRef.current);
+      pollIntervalRef.current = null;
+    }
+    pollIntervalRef.current = setInterval(async () => {
       try {
         const response = await fetch(`${API_BASE}/status/${id}`);
         if (!response.ok) {
           networkErrorStrikes++;
           if (networkErrorStrikes >= 6) {
-            clearInterval(interval);
+            if (pollIntervalRef.current) {
+              clearInterval(pollIntervalRef.current);
+              pollIntervalRef.current = null;
+            }
+            if (userId) {
+              try { localStorage.removeItem(`cloxel_active_job_${userId}`); } catch (e) {}
+            }
             setJobStatus(null);
             setIsGeneratingVideo(false);
             const friendly = formatUserFriendlyError("SERVER_RESTARTED");
@@ -1488,7 +1580,13 @@ function App() {
         if (data.status === 'not_found') {
           notFoundStrikes++;
           if (notFoundStrikes >= 3) {
-            clearInterval(interval);
+            if (pollIntervalRef.current) {
+              clearInterval(pollIntervalRef.current);
+              pollIntervalRef.current = null;
+            }
+            if (userId) {
+              try { localStorage.removeItem(`cloxel_active_job_${userId}`); } catch (e) {}
+            }
             setJobStatus(null);
             setIsGeneratingVideo(false);
             const friendly = formatUserFriendlyError("SERVER_RESTARTED");
@@ -1509,8 +1607,14 @@ function App() {
         notFoundStrikes = 0;
         setJobStatus(data.status);
         
-        if (data.status === 'completed' || data.status === 'failed') {
-          clearInterval(interval);
+        if (data.status === 'completed' || data.status === 'failed' || data.status === 'cancelled') {
+          if (pollIntervalRef.current) {
+            clearInterval(pollIntervalRef.current);
+            pollIntervalRef.current = null;
+          }
+          if (userId) {
+            try { localStorage.removeItem(`cloxel_active_job_${userId}`); } catch (e) {}
+          }
           setIsGeneratingVideo(false);
 
           if (data.status === 'completed') {
@@ -1523,6 +1627,9 @@ function App() {
               fetchHistory();
               fetchSubscriptionStatus();
             }
+          } else if (data.status === 'cancelled') {
+            setJobStatus(null);
+            setRenderError(null);
           } else if (data.status === 'failed') {
             setJobStatus(null);
             const rawMsg = data.raw_error || data.error || "";
@@ -1548,7 +1655,13 @@ function App() {
         console.error("Poll status error:", e);
         networkErrorStrikes++;
         if (networkErrorStrikes >= 6) {
-          clearInterval(interval);
+          if (pollIntervalRef.current) {
+            clearInterval(pollIntervalRef.current);
+            pollIntervalRef.current = null;
+          }
+          if (userId) {
+            try { localStorage.removeItem(`cloxel_active_job_${userId}`); } catch (e) {}
+          }
           setJobStatus(null);
           setIsGeneratingVideo(false);
           const friendly = formatUserFriendlyError("SERVER_RESTARTED");
@@ -1565,6 +1678,56 @@ function App() {
         }
       }
     }, 2000);
+  };
+
+  const handleCancelGeneration = () => {
+    const targetJobId = jobId;
+    if (!targetJobId) {
+      if (pollIntervalRef.current) {
+        clearInterval(pollIntervalRef.current);
+        pollIntervalRef.current = null;
+      }
+      setIsGeneratingVideo(false);
+      setJobStatus(null);
+      if (userId) {
+        try { localStorage.removeItem(`cloxel_active_job_${userId}`); } catch (e) {}
+      }
+      return;
+    }
+
+    triggerAlert(
+      "🛑 Cancel Video Generation?",
+      "Are you sure you want to stop and cancel this video rendering? Current progress will be stopped immediately and server memory will be cleared for your next video.",
+      "🛑",
+      "warning",
+      async () => {
+        try {
+          if (pollIntervalRef.current) {
+            clearInterval(pollIntervalRef.current);
+            pollIntervalRef.current = null;
+          }
+          await fetch(`${API_BASE}/cancel/${targetJobId}`, { method: 'POST' });
+        } catch (e) {
+          console.error("Cancel job error:", e);
+        } finally {
+          if (userId) {
+            try { localStorage.removeItem(`cloxel_active_job_${userId}`); } catch (e) {}
+          }
+          setIsGeneratingVideo(false);
+          setJobStatus(null);
+          setJobId(null);
+          setRenderError(null);
+          triggerAlert(
+            "✅ Video Cancelled",
+            "Video generation was successfully cancelled. The server rendering engine has been cleaned and is ready for your next video!",
+            "✅",
+            "info"
+          );
+        }
+      },
+      "Yes, Cancel Video",
+      "Keep Rendering"
+    );
   };
 
   const handleProfilePicUpload = (e) => {
@@ -2328,6 +2491,30 @@ function App() {
                   <Music size={22} />
                   {isGeneratingVideo ? 'Crafting Your Masterpiece Song Video...' : '🚀 Create Ultra Song Video'}
                 </button>
+                {isGeneratingVideo && (
+                  <div style={{ marginTop: '12px', textAlign: 'center' }}>
+                    <button
+                      type="button"
+                      onClick={handleCancelGeneration}
+                      style={{
+                        background: 'rgba(239, 68, 68, 0.14)',
+                        color: '#f87171',
+                        border: '1px solid rgba(239, 68, 68, 0.4)',
+                        padding: '9px 22px',
+                        borderRadius: '12px',
+                        fontSize: '0.9rem',
+                        fontWeight: '700',
+                        cursor: 'pointer',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        boxShadow: '0 4px 15px rgba(239, 68, 68, 0.15)'
+                      }}
+                    >
+                      <Ban size={16} /> 🛑 Cancel Song Video
+                    </button>
+                  </div>
+                )}
                 {renderErrorNotice}
               </div>
             </div>
@@ -2732,6 +2919,31 @@ function App() {
               : (isLimitExhausted ? '🔒 Free 2 Video Limit Reached - Unlock Premium' : (isSongVideoMode ? '🚀 Generate Ultra Song Video' : '🚀 Generate Video'))}
           </button>
 
+          {isGeneratingVideo && (
+            <div style={{ marginTop: '12px', textAlign: 'center' }}>
+              <button
+                type="button"
+                onClick={handleCancelGeneration}
+                style={{
+                  background: 'rgba(239, 68, 68, 0.14)',
+                  color: '#f87171',
+                  border: '1px solid rgba(239, 68, 68, 0.4)',
+                  padding: '9px 24px',
+                  borderRadius: '12px',
+                  fontSize: '0.9rem',
+                  fontWeight: '700',
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  boxShadow: '0 4px 15px rgba(239, 68, 68, 0.15)'
+                }}
+              >
+                <Ban size={16} /> 🛑 Cancel Video Generation
+              </button>
+            </div>
+          )}
+
           {renderErrorNotice}
 
           {jobStatus && (
@@ -2759,6 +2971,33 @@ function App() {
                   <p style={{ color: '#94a3b8', fontSize: '0.8rem', margin: 0 }}>
                     💡 You can keep using the dashboard! Edit scripts, change settings, or view history while rendering proceeds.
                   </p>
+
+                  {/* Dedicated In-Card Cancel Button */}
+                  <div style={{ marginTop: '18px' }}>
+                    <button
+                      type="button"
+                      onClick={handleCancelGeneration}
+                      style={{
+                        background: 'rgba(239, 68, 68, 0.15)',
+                        color: '#f87171',
+                        border: '1px solid rgba(239, 68, 68, 0.45)',
+                        padding: '10px 22px',
+                        borderRadius: '12px',
+                        fontSize: '0.9rem',
+                        fontWeight: '700',
+                        cursor: 'pointer',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        transition: 'all 0.2s ease',
+                        boxShadow: '0 4px 15px rgba(239, 68, 68, 0.2)'
+                      }}
+                      onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(239, 68, 68, 0.3)'; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(239, 68, 68, 0.15)'; }}
+                    >
+                      <Ban size={16} /> 🛑 Cancel Video Generation
+                    </button>
+                  </div>
                 </div>
               )}
             </div>

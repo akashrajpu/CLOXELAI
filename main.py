@@ -210,6 +210,14 @@ def categorize_user_friendly_error(raw_err: str) -> dict:
             "action": "Please click Retry Video Generation to start a fresh render."
         }
 
+    # 0. User cancelled job
+    if any(k in err_lower for k in ["cancelled", "canceled"]):
+        return {
+            "title": "Video Generation Cancelled",
+            "reason": "You stopped this video rendering. Resources have been freed and the pipeline is clean.",
+            "action": "You can start generating a new video whenever you are ready."
+        }
+
     # 1. Server restart or killed process
     if any(k in err_lower for k in ["server_restarted", "restart", "reboot", "broken pipe", "connection reset", "econnreset"]):
         return {
@@ -2078,6 +2086,9 @@ def full_process(req: VideoRequest, job_id: str):
         if req.video_type == "short":
             target_limit_duration = min(target_limit_duration, 58.0)
         for i, sc in enumerate(scenes_data):
+            if jobs.get(job_id, {}).get("status") == "cancelled":
+                print(f"🛑 [WORKFLOW CANCELLED] User cancelled Job ID {job_id} at Scene {i+1}. Stopping immediately...")
+                return
             sc_progress = 10 + int(((i + 1) / total_scenes) * 40)
             print(f"\n🎙️ [PROGRESS {sc_progress}%] STEP 2 & 3 ({i+1}/{total_scenes}): Synthesizing Voice & Fetching Assets for Scene {i+1}...")
             
@@ -2404,6 +2415,9 @@ def full_process(req: VideoRequest, job_id: str):
             release_system_memory()
 
         if taiyaar_scenes:
+            if jobs.get(job_id, {}).get("status") == "cancelled":
+                print(f"🛑 [WORKFLOW CANCELLED] User cancelled Job ID {job_id} before final assembly. Stopping immediately...")
+                return
             print(f"\n🎬 [PROGRESS 65%] STEP 4 & 5: Entering FFmpeg & 3D Motion Render Queue...")
             output_file = f"acoumation_video_{job_id}.mp4"
             adjusted_font_size = int(req.font_size * 0.7) if req.aspect_ratio == "16:9" else req.font_size
@@ -2412,6 +2426,9 @@ def full_process(req: VideoRequest, job_id: str):
                 merge_and_export(taiyaar_scenes, output_file, font_path=f"./fonts/{req.font_name}", color=req.font_color, font_size=adjusted_font_size, target_size=target_size, bg_music=req.bg_music, mode=req.video_type, category=req.category or "Random") 
             gc.collect()
             
+            if jobs.get(job_id, {}).get("status") == "cancelled":
+                print(f"🛑 [WORKFLOW CANCELLED] User cancelled Job ID {job_id} before Cloudinary upload. Stopping immediately...")
+                return
             print(f"\n☁️ [PROGRESS 90%] STEP 6/6: Uploading Completed Video to Cloudinary CDN...")
             cloudinary_url = None
             try:
@@ -4525,6 +4542,68 @@ async def cleanup(job_id: str):
         if os.path.exists(job.get("dir", "")): shutil.rmtree(job["dir"])
         return {"status": "Cleaned"}
     return {"error": "Job not found"}
+
+@app.post("/cancel/{job_id}")
+@app.post("/cancel-job/{job_id}")
+async def cancel_job(job_id: str):
+    """User voluntarily cancels in-progress video generation; releases locks and cleans resources."""
+    clean_job_id = sanitize_alphanumeric_id(job_id)
+    print(f"🛑 [CANCEL REQUEST] Cancelling Job ID: {clean_job_id}...")
+
+    # 1. Update in-memory job status immediately
+    if clean_job_id in jobs:
+        jobs[clean_job_id]["status"] = "cancelled"
+        jobs[clean_job_id]["error"] = "Video generation was cancelled by the user."
+    else:
+        jobs[clean_job_id] = {
+            "status": "cancelled",
+            "error": "Video generation was cancelled by the user."
+        }
+
+    # 2. Update persistent database
+    if rendering_jobs is not None:
+        try:
+            rendering_jobs.update_one(
+                {"job_id": clean_job_id},
+                {"$set": {
+                    "status": "cancelled",
+                    "error": "Video generation was cancelled by the user.",
+                    "cancelled_at": datetime.utcnow()
+                }},
+                upsert=True
+            )
+        except Exception as e_db:
+            print(f"⚠️ DB cancel notice: {e_db}")
+
+    # 3. Clean up directory & intermediate files
+    job_dir = f"temp_{clean_job_id}"
+    try:
+        if os.path.exists(job_dir):
+            shutil.rmtree(job_dir, ignore_errors=True)
+            print(f"🧹 [CANCEL CLEANUP] Cleaned up temporary directory: {job_dir}")
+    except Exception as e_rm:
+        print(f"Temp cleanup warning on cancel: {e_rm}")
+
+    output_file = f"acoumation_video_{clean_job_id}.mp4"
+    try:
+        if os.path.exists(output_file):
+            os.remove(output_file)
+    except Exception:
+        pass
+
+    # 4. Release locks & counters so pipeline is completely freed for next video
+    register_manual_job_end()
+    if video_pipeline_lock.locked():
+        try:
+            video_pipeline_lock.release()
+        except Exception:
+            pass
+    release_system_memory()
+
+    return {
+        "status": "cancelled",
+        "message": "Video rendering was successfully cancelled and pipeline cleaned."
+    }
 
 YOUTUBE_SCOPES = ["https://www.googleapis.com/auth/youtube.upload"]
 
