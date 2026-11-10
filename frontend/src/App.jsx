@@ -48,6 +48,182 @@ const ULTRA_CATEGORIES = [
 
 const CATEGORIES = STANDARD_CATEGORIES;
 
+export const formatUserFriendlyError = (rawError) => {
+  if (!rawError) {
+    return {
+      title: "Video Generation Interrupted",
+      reason: "An unexpected issue stopped video rendering before all scenes could finish.",
+      action: "Please click Retry Video Generation to re-run your video."
+    };
+  }
+
+  const err = String(rawError).trim();
+  const lower = err.toLowerCase();
+
+  // 1. Server Restart / Disconnect
+  if (
+    lower.includes("server_restarted") ||
+    lower.includes("restart") ||
+    lower.includes("reboot") ||
+    lower.includes("broken pipe") ||
+    lower.includes("connection reset") ||
+    lower.includes("econnreset") ||
+    lower.includes("status notice") ||
+    lower.includes("not found on the server")
+  ) {
+    return {
+      title: "Server Restart Detected",
+      reason: "The rendering server was restarted or updated while your video was being processed. The previous task was safely stopped.",
+      action: "Please click Retry Video Generation to start rendering on the fresh server instance."
+    };
+  }
+
+  // 2. Network connectivity / Lost connection
+  if (
+    lower.includes("failed to fetch") ||
+    lower.includes("networkerror") ||
+    lower.includes("network error") ||
+    lower.includes("econnrefused") ||
+    lower.includes("unreachable") ||
+    lower.includes("502") ||
+    lower.includes("503") ||
+    lower.includes("504") ||
+    lower.includes("bad gateway") ||
+    lower.includes("service unavailable")
+  ) {
+    return {
+      title: "Connection Lost to Server",
+      reason: "The dashboard temporarily lost communication with the rendering server. The server may be restarting or experiencing momentary network latency.",
+      action: "Please verify your internet connection and click Retry Video Generation."
+    };
+  }
+
+  // 3. System Memory / High Resource Cap
+  if (
+    lower.includes("memory") ||
+    lower.includes("oom") ||
+    lower.includes("killed") ||
+    lower.includes("allocation") ||
+    lower.includes("512mb") ||
+    lower.includes("out of memory")
+  ) {
+    return {
+      title: "High System Load / Memory Cap",
+      reason: "The server reached temporary memory capacity while stitching high-resolution video frames and 3D graphics.",
+      action: "Background memory has been recycled. Please click Retry Video Generation."
+    };
+  }
+
+  // 4. Video Rendering / FFmpeg / Stream / Overlay Error
+  if (
+    lower.includes("filtergraph") ||
+    lower.includes("overlay") ||
+    lower.includes("stream") ||
+    lower.includes("ffmpeg") ||
+    lower.includes("encoder") ||
+    lower.includes("invalid argument") ||
+    lower.includes("matches no stream") ||
+    lower.includes("muxing") ||
+    lower.includes("lavc") ||
+    lower.includes("exit code 1")
+  ) {
+    return {
+      title: "Video Rendering Engine Notice",
+      reason: "The video composition engine encountered an unexpected stream timing or codec alignment issue while rendering visual scenes.",
+      action: "Please click Retry Video Generation to re-render with fresh timeline synchronization."
+    };
+  }
+
+  // 5. Visual Asset / Stock Photo / Video Download Failure
+  if (
+    lower.includes("gallery-dl") ||
+    lower.includes("pinterest") ||
+    lower.includes("pexels") ||
+    lower.includes("timed out") ||
+    lower.includes("timeout") ||
+    lower.includes("download") ||
+    lower.includes("no scenes ready") ||
+    lower.includes("asset") ||
+    lower.includes("image_fetcher")
+  ) {
+    return {
+      title: "Media Asset Retrieval Delay",
+      reason: "Could not retrieve all high-definition animations or background clips within the network download time limit.",
+      action: "Please click Retry Video Generation to fetch fresh visual assets, or slightly refine your topic keywords."
+    };
+  }
+
+  // 6. Voice / Speech / TTS Error
+  if (
+    lower.includes("voice") ||
+    lower.includes("tts") ||
+    lower.includes("edge_tts") ||
+    lower.includes("gtts") ||
+    lower.includes("speech") ||
+    lower.includes("audio synthesis") ||
+    lower.includes("audio_full")
+  ) {
+    return {
+      title: "Voice Narration Service Delay",
+      reason: "The AI voiceover synthesis service timed out or was temporarily unavailable while generating narration audio.",
+      action: "Please click Retry Video Generation, or choose an alternative voice from the voice dropdown."
+    };
+  }
+
+  // 7. AI Script / LLM Error
+  if (
+    lower.includes("script") ||
+    lower.includes("gemini") ||
+    lower.includes("groq") ||
+    lower.includes("openai") ||
+    lower.includes("rate limit") ||
+    lower.includes("quota") ||
+    lower.includes("429")
+  ) {
+    return {
+      title: "AI Script Generator Busy",
+      reason: "The AI scriptwriter encountered a momentary rate limit or service delay while drafting scene storylines.",
+      action: "Please wait a moment and click Retry Video Generation."
+    };
+  }
+
+  // 8. Audio Mixing / Background Music Error
+  if (
+    lower.includes("music") ||
+    lower.includes("audio sync") ||
+    lower.includes("mix") ||
+    lower.includes("sound") ||
+    lower.includes("mp3") ||
+    lower.includes("wav")
+  ) {
+    return {
+      title: "Audio Mastering Notice",
+      reason: "An error occurred while layering and synchronizing the background music track with the spoken narration.",
+      action: "Please click Retry Video Generation or select an alternative background music track."
+    };
+  }
+
+  // 9. Cloudinary / CDN Upload Error
+  if (
+    lower.includes("cloudinary") ||
+    lower.includes("upload") ||
+    lower.includes("cdn")
+  ) {
+    return {
+      title: "Cloud Delivery Notice",
+      reason: "Your video rendered successfully on the server, but transferring the final video to Cloud CDN encountered a network delay.",
+      action: "Please click Retry Video Generation to re-upload your finished video."
+    };
+  }
+
+  // 10. General Clean Fallback
+  return {
+    title: "Video Generation Interrupted",
+    reason: "An unexpected issue interrupted the video generation pipeline before rendering completed.",
+    action: "Please click Retry Video Generation to generate your video again."
+  };
+};
+
 function CustomSelect({ value, onChange, options, theme }) {
   const [isOpen, setIsOpen] = useState(false);
   const isPastel = theme ? (theme === 'pastel') : (typeof document !== 'undefined' && document.body.classList.contains('theme-pastel'));
@@ -408,6 +584,7 @@ function App() {
   
   const [jobId, setJobId] = useState(null);
   const [jobStatus, setJobStatus] = useState(null);
+  const [renderError, setRenderError] = useState(null);
   const [cloudinaryUrl, setCloudinaryUrl] = useState(null);
   const [downloadUrl, setDownloadUrl] = useState(null);
   const [isGeneratingScript, setIsGeneratingScript] = useState(false);
@@ -1196,6 +1373,7 @@ function App() {
       return;
     }
 
+    setRenderError(null);
     setIsGeneratingVideo(true);
     setJobStatus('initializing');
     setJobId(null);
@@ -1247,29 +1425,64 @@ function App() {
         const alertTitle = (detailStr && (detailStr.toLowerCase().includes("daily") || detailStr.toLowerCase().includes("quota")))
           ? "⚠️ Daily Limit Reached"
           : "⚠️ Generation Notice";
-        triggerAlert(alertTitle, detailStr, "⚠️", "warning");
+        const friendly = formatUserFriendlyError(detailStr);
+        setRenderError({
+          title: alertTitle,
+          reason: detailStr,
+          action: "Please review your account quota or click Retry."
+        });
+        triggerAlert(alertTitle, detailStr, "⚠️", "warning", () => { setRenderError(null); handleGenerateVideo(); }, "🔄 Retry Video Generation", "Dismiss");
       } else if (data.error || data.message) {
         setIsGeneratingVideo(false);
         setJobStatus(null);
-        triggerAlert("⚠️ Generation Notice", data.error || data.message, "⚠️", "warning");
+        const raw = data.error || data.message;
+        const friendly = formatUserFriendlyError(raw);
+        setRenderError(friendly);
+        triggerAlert(friendly.title, `${friendly.reason}\n\n💡 ${friendly.action}`, "⚠️", "warning", () => { setRenderError(null); handleGenerateVideo(); }, "🔄 Retry Video Generation", "Dismiss");
       } else {
         setIsGeneratingVideo(false);
         setJobStatus(null);
-        triggerAlert("⚠️ Generation Error", "Failed to start video generation. Please check your account subscription or login status.", "⚠️", "warning");
+        const friendly = formatUserFriendlyError("Failed to start video generation.");
+        setRenderError(friendly);
+        triggerAlert("⚠️ Generation Error", "Failed to start video generation. Please check your account subscription or login status.", "⚠️", "warning", () => { setRenderError(null); handleGenerateVideo(); }, "🔄 Retry Video Generation", "Dismiss");
       }
     } catch (error) {
       setIsGeneratingVideo(false);
       setJobStatus(null);
-      triggerAlert("⚠️ Network Error", "Failed to connect to video generator backend.", "⚠️", "warning");
+      const friendly = formatUserFriendlyError(error?.message || "Failed to connect to video generator backend.");
+      setRenderError(friendly);
+      triggerAlert(friendly.title, `${friendly.reason}\n\n💡 ${friendly.action}`, "⚠️", "warning", () => { setRenderError(null); handleGenerateVideo(); }, "🔄 Retry Video Generation", "Dismiss");
     }
   };
 
   const pollStatus = async (id) => {
     let notFoundStrikes = 0;
+    let networkErrorStrikes = 0;
     const interval = setInterval(async () => {
       try {
         const response = await fetch(`${API_BASE}/status/${id}`);
-        if (!response.ok) return;
+        if (!response.ok) {
+          networkErrorStrikes++;
+          if (networkErrorStrikes >= 6) {
+            clearInterval(interval);
+            setJobStatus(null);
+            setIsGeneratingVideo(false);
+            const friendly = formatUserFriendlyError("SERVER_RESTARTED");
+            setRenderError(friendly);
+            triggerAlert(
+              friendly.title,
+              `${friendly.reason}\n\n💡 ${friendly.action}`,
+              "⚠️",
+              "warning",
+              () => { setRenderError(null); handleGenerateVideo(); },
+              "🔄 Retry Video Generation",
+              "Dismiss"
+            );
+          }
+          return;
+        }
+
+        networkErrorStrikes = 0;
         const data = await response.json();
         
         if (data.status === 'not_found') {
@@ -1278,11 +1491,16 @@ function App() {
             clearInterval(interval);
             setJobStatus(null);
             setIsGeneratingVideo(false);
+            const friendly = formatUserFriendlyError("SERVER_RESTARTED");
+            setRenderError(friendly);
             triggerAlert(
-              "⚠️ Server Status Notice",
-              "Video rendering status was not found on the server. Please click Generate Video again.",
+              friendly.title,
+              `${friendly.reason}\n\n💡 ${friendly.action}`,
               "⚠️",
-              "warning"
+              "warning",
+              () => { setRenderError(null); handleGenerateVideo(); },
+              "🔄 Retry Video Generation",
+              "Dismiss"
             );
           }
           return;
@@ -1296,6 +1514,7 @@ function App() {
           setIsGeneratingVideo(false);
 
           if (data.status === 'completed') {
+            setRenderError(null);
             if (data.cloudinary_url) {
               setCloudinaryUrl(data.cloudinary_url);
             }
@@ -1306,16 +1525,44 @@ function App() {
             }
           } else if (data.status === 'failed') {
             setJobStatus(null);
+            const rawMsg = data.raw_error || data.error || "";
+            const fallbackFriendly = formatUserFriendlyError(rawMsg);
+            const friendly = {
+              title: data.error_title || fallbackFriendly.title,
+              reason: data.error_reason || fallbackFriendly.reason,
+              action: data.error_action || fallbackFriendly.action
+            };
+            setRenderError(friendly);
             triggerAlert(
-              "⚠️ Generation Error",
-              data.error || "Video generation encountered an error. Please try again.",
+              friendly.title,
+              `${friendly.reason}\n\n💡 ${friendly.action}`,
               "⚠️",
-              "warning"
+              "warning",
+              () => { setRenderError(null); handleGenerateVideo(); },
+              "🔄 Retry Video Generation",
+              "Dismiss"
             );
           }
         }
       } catch (e) {
         console.error("Poll status error:", e);
+        networkErrorStrikes++;
+        if (networkErrorStrikes >= 6) {
+          clearInterval(interval);
+          setJobStatus(null);
+          setIsGeneratingVideo(false);
+          const friendly = formatUserFriendlyError("SERVER_RESTARTED");
+          setRenderError(friendly);
+          triggerAlert(
+            friendly.title,
+            `${friendly.reason}\n\n💡 ${friendly.action}`,
+            "⚠️",
+            "warning",
+            () => { setRenderError(null); handleGenerateVideo(); },
+            "🔄 Retry Video Generation",
+            "Dismiss"
+          );
+        }
       }
     }, 2000);
   };
@@ -1484,6 +1731,75 @@ function App() {
   }
 
   const isAutoScheduleActive = !!(autoSchedule?.schedule_enabled && ytStatus?.linked);
+
+  const renderErrorNotice = renderError && !isGeneratingVideo ? (
+    <div style={{
+      marginTop: '1.5rem',
+      textAlign: 'center',
+      background: 'linear-gradient(180deg, rgba(239, 68, 68, 0.14) 0%, rgba(15, 23, 42, 0.9) 100%)',
+      padding: '24px 20px',
+      borderRadius: '16px',
+      border: '1.5px solid rgba(239, 68, 68, 0.5)',
+      boxShadow: '0 12px 35px rgba(239, 68, 68, 0.25)'
+    }}>
+      <div style={{ fontSize: '2.5rem', marginBottom: '8px' }}>⚠️</div>
+      <h4 style={{ color: '#f87171', fontSize: '1.25rem', fontWeight: '800', marginBottom: '8px' }}>
+        {renderError.title}
+      </h4>
+      <p style={{ color: '#fca5a5', fontSize: '0.94rem', lineHeight: '1.6', maxWidth: '640px', margin: '0 auto 14px auto' }}>
+        {renderError.reason}
+      </p>
+      <div style={{
+        background: 'rgba(0, 0, 0, 0.45)',
+        padding: '10px 18px',
+        borderRadius: '12px',
+        display: 'inline-block',
+        marginBottom: '18px',
+        border: '1px solid rgba(255, 255, 255, 0.12)'
+      }}>
+        <span style={{ color: '#cbd5e1', fontSize: '0.86rem' }}>
+          💡 <b>Suggested Action:</b> {renderError.action}
+        </span>
+      </div>
+      <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap' }}>
+        <button
+          type="button"
+          onClick={() => { setRenderError(null); handleGenerateVideo(); }}
+          style={{
+            background: 'linear-gradient(135deg, #a855f7 0%, #ec4899 100%)',
+            color: '#ffffff',
+            border: 'none',
+            padding: '13px 28px',
+            borderRadius: '12px',
+            fontSize: '1rem',
+            fontWeight: 'bold',
+            cursor: 'pointer',
+            boxShadow: '0 8px 25px rgba(168, 85, 247, 0.45)',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '8px'
+          }}
+        >
+          <span>🔄</span> Retry Video Generation
+        </button>
+        <button
+          type="button"
+          onClick={() => setRenderError(null)}
+          style={{
+            background: 'rgba(255, 255, 255, 0.08)',
+            color: '#94a3b8',
+            border: '1px solid rgba(255, 255, 255, 0.15)',
+            padding: '13px 20px',
+            borderRadius: '12px',
+            fontSize: '0.95rem',
+            cursor: 'pointer'
+          }}
+        >
+          Dismiss
+        </button>
+      </div>
+    </div>
+  ) : null;
 
   return (
     <div className="app-container" style={{ paddingBottom: isTourActive ? '260px' : undefined }}>
@@ -2012,6 +2328,7 @@ function App() {
                   <Music size={22} />
                   {isGeneratingVideo ? 'Crafting Your Masterpiece Song Video...' : '🚀 Create Ultra Song Video'}
                 </button>
+                {renderErrorNotice}
               </div>
             </div>
           ) : (
@@ -2414,6 +2731,8 @@ function App() {
               ? '⏳ Starting Video Generation (Locked 🔒)...' 
               : (isLimitExhausted ? '🔒 Free 2 Video Limit Reached - Unlock Premium' : (isSongVideoMode ? '🚀 Generate Ultra Song Video' : '🚀 Generate Video'))}
           </button>
+
+          {renderErrorNotice}
 
           {jobStatus && (
             <div style={{ marginTop: '1.5rem', textAlign: 'center', background: 'rgba(255, 255, 255, 0.04)', padding: '20px', borderRadius: '16px', border: '1px solid rgba(168, 85, 247, 0.3)', boxShadow: '0 10px 30px rgba(0,0,0,0.5)' }}>

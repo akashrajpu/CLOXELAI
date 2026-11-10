@@ -136,6 +136,26 @@ if MONGO_URI:
         except Exception as idx_err:
             print(f"Index creation notice: {idx_err}")
 
+        # Stale in-flight job cleanup: If the server restarted while jobs were rendering,
+        # mark lingering 'processing'/'initializing' jobs as failed so frontend stops spinning
+        try:
+            stale_cleanup = rendering_jobs.update_many(
+                {"status": {"$in": ["processing", "initializing"]}},
+                {"$set": {
+                    "status": "failed",
+                    "raw_error": "SERVER_RESTARTED",
+                    "error_title": "Server Restart Detected",
+                    "error_reason": "The video rendering server was restarted or updated while your video was being processed. The active task was stopped.",
+                    "error_action": "Please click Retry Video Generation to start rendering on the fresh server instance.",
+                    "error": "Server Restart Detected: The video rendering server was restarted while your video was being processed.",
+                    "failed_at": datetime.utcnow()
+                }}
+            )
+            if stale_cleanup.modified_count > 0:
+                print(f"🔄 [SERVER STARTUP] Cleaned up {stale_cleanup.modified_count} stale in-flight job(s) from previous server instance.")
+        except Exception as e_clean:
+            print(f"Stale job cleanup note: {e_clean}")
+
         print("✅ Production MongoDB connected and hardened successfully!")
     except Exception as e:
         print(f"❌ CRITICAL WARNING: Failed to connect to MongoDB using provided MONGO_URI. Error: {e}")
@@ -178,7 +198,100 @@ def ensure_db_alive():
             except Exception as rec_err:
                 print(f"❌ DB Auto-reconnect failed: {rec_err}")
 
+def categorize_user_friendly_error(raw_err: str) -> dict:
+    """Translates any low-level error, crash, timeout, or exception into clean, user-friendly English."""
+    err = str(raw_err or "").strip()
+    err_lower = err.lower()
+
+    if not err:
+        return {
+            "title": "Video Generation Interrupted",
+            "reason": "An unexpected issue stopped the video rendering process before all scenes could finish.",
+            "action": "Please click Retry Video Generation to start a fresh render."
+        }
+
+    # 1. Server restart or killed process
+    if any(k in err_lower for k in ["server_restarted", "restart", "reboot", "broken pipe", "connection reset", "econnreset"]):
+        return {
+            "title": "Server Restart Detected",
+            "reason": "The video rendering server was restarted or updated while your video was processing. The active render task was stopped.",
+            "action": "Please click Retry Video Generation to re-run your video immediately on the fresh server instance."
+        }
+
+    # 2. Out of Memory / System Resource limit
+    if any(k in err_lower for k in ["memory", "oom", "killed", "allocation", "512mb", "out of memory"]):
+        return {
+            "title": "High Server Memory Usage",
+            "reason": "The server temporarily reached its processing memory cap while compositing high-definition video frames and animations.",
+            "action": "Temporary memory has been fully cleared. Please click Retry Video Generation to re-render smoothly."
+        }
+
+    # 3. Native FFmpeg / Filtergraph / Stream sync error
+    if any(k in err_lower for k in ["filtergraph", "overlay", "stream", "ffmpeg", "encoder", "invalid argument", "matches no stream", "muxing", "lavc"]):
+        return {
+            "title": "Video Rendering Engine Notice",
+            "reason": "The video composition engine encountered an unexpected stream timing or codec alignment issue while stitching scene layers together.",
+            "action": "Please click Retry Video Generation to re-render your video with fresh timeline synchronization."
+        }
+
+    # 4. Downloading / Stock visual media (Pinterest / Gallery-dl / Pexels / No scenes)
+    if any(k in err_lower for k in ["gallery-dl", "pinterest", "pexels", "timed out", "timeout", "download", "no scenes ready", "asset", "image_fetcher"]):
+        return {
+            "title": "Media Asset Retrieval Delay",
+            "reason": "The system could not download all required high-resolution background video clips or animations within the network timeout window.",
+            "action": "Please click Retry Video Generation to fetch fresh visual assets, or try slightly tweaking your topic keywords."
+        }
+
+    # 5. Voiceover / Text-to-speech error
+    if any(k in err_lower for k in ["voice", "tts", "edge_tts", "gtts", "audio synthesis", "speech", "audio_full"]):
+        return {
+            "title": "Voice Narration Service Delay",
+            "reason": "The AI voiceover synthesis service was temporarily unresponsive or timed out while generating the spoken narration.",
+            "action": "Please click Retry Video Generation to re-synthesize audio, or try choosing another voice from the dropdown."
+        }
+
+    # 6. AI Script generation error
+    if any(k in err_lower for k in ["script", "gemini", "groq", "openai", "rate limit", "quota", "429"]):
+        return {
+            "title": "AI Script Generator Busy",
+            "reason": "The AI scriptwriting model encountered a temporary rate limit or service delay while crafting the scene storylines.",
+            "action": "Please wait a few moments and click Retry Video Generation."
+        }
+
+    # 7. Audio mixing / Music error
+    if any(k in err_lower for k in ["music", "audio sync", "mix", "sound", "mp3", "wav"]):
+        return {
+            "title": "Audio Mastering Notice",
+            "reason": "An error occurred while blending and synchronizing the background soundtrack with the narration voiceover.",
+            "action": "Please click Retry Video Generation or pick an alternative background music track."
+        }
+
+    # 8. Cloudinary upload error
+    if any(k in err_lower for k in ["cloudinary", "upload", "cdn"]):
+        return {
+            "title": "Cloud Upload Notice",
+            "reason": "The video rendered successfully on the server, but transferring the final video to Cloudinary CDN encountered a network hiccup.",
+            "action": "Please click Retry Video Generation to re-upload the finished video to cloud delivery."
+        }
+
+    # 9. Generic clean fallback
+    clean_msg = err[:140].replace("\n", " ").strip()
+    return {
+        "title": "Video Generation Interrupted",
+        "reason": f"Video generation stopped unexpectedly during rendering ({clean_msg}).",
+        "action": "Please click Retry Video Generation to start again."
+    }
+
 def update_job_status(job_id: str, status_data: dict):
+    if status_data.get("status") == "failed":
+        raw_err = status_data.get("error", "")
+        friendly = categorize_user_friendly_error(raw_err)
+        status_data["error_title"] = friendly["title"]
+        status_data["error_reason"] = friendly["reason"]
+        status_data["error_action"] = friendly["action"]
+        status_data["raw_error"] = str(raw_err)
+        status_data["error"] = f"{friendly['title']}: {friendly['reason']}"
+
     jobs[job_id] = status_data
     if len(jobs) > 100:
         try:
@@ -4327,6 +4440,31 @@ async def get_status(job_id: str):
         try:
             job_doc = rendering_jobs.find_one({"job_id": clean_job_id}, {"_id": 0})
             if job_doc:
+                # If job in DB is in 'processing' or 'initializing' state, but NOT in active memory 'jobs',
+                # it means the server restarted while this video was rendering!
+                if job_doc.get("status") in ["processing", "initializing"]:
+                    friendly = categorize_user_friendly_error("SERVER_RESTARTED")
+                    job_doc["status"] = "failed"
+                    job_doc["raw_error"] = "SERVER_RESTARTED"
+                    job_doc["error_title"] = friendly["title"]
+                    job_doc["error_reason"] = friendly["reason"]
+                    job_doc["error_action"] = friendly["action"]
+                    job_doc["error"] = f"{friendly['title']}: {friendly['reason']}"
+                    try:
+                        rendering_jobs.update_one(
+                            {"job_id": clean_job_id},
+                            {"$set": {
+                                "status": "failed",
+                                "raw_error": "SERVER_RESTARTED",
+                                "error": job_doc["error"],
+                                "error_title": friendly["title"],
+                                "error_reason": friendly["reason"],
+                                "error_action": friendly["action"],
+                                "failed_at": datetime.utcnow()
+                            }}
+                        )
+                    except Exception as e_up:
+                        print(f"Failed to update interrupted job in DB: {e_up}")
                 jobs[clean_job_id] = job_doc
                 return job_doc
         except Exception as e:
