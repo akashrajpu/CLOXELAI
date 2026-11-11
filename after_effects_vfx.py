@@ -1101,6 +1101,7 @@ def apply_after_effects_vfx_overlay(
             total_frames = max(1, int(round(overlay_dur * fps)))
             flood_kind = vfx_info.get("flood_kind", "neutral_grey")
             idx = 0
+            enc_err = b""
             try:
                 while idx < total_frames:
                     raw = dec_proc.stdout.read(frame_bytes)
@@ -1117,15 +1118,49 @@ def apply_after_effects_vfx_overlay(
                     if f_mul < 0.999:
                         rgba = rgba.copy()
                         rgba[..., 3] = np.clip(rgba[..., 3].astype(np.float32) * f_mul, 0, 255).astype(np.uint8)
-                    enc_proc.stdin.write(rgba.tobytes())
+                    try:
+                        enc_proc.stdin.write(rgba.tobytes())
+                    except (BrokenPipeError, ValueError, OSError):
+                        break
                     idx += 1
             finally:
                 if dec_proc.stdout:
-                    dec_proc.stdout.close()
+                    try:
+                        dec_proc.stdout.close()
+                    except Exception:
+                        pass
+                    dec_proc.stdout = None
                 if enc_proc.stdin:
-                    enc_proc.stdin.close()
-                dec_proc.wait(timeout=30)
-                _, enc_err = enc_proc.communicate(timeout=180)
+                    try:
+                        enc_proc.stdin.flush()
+                    except Exception:
+                        pass
+                    try:
+                        enc_proc.stdin.close()
+                    except Exception:
+                        pass
+                    enc_proc.stdin = None
+                if enc_proc.stderr:
+                    try:
+                        enc_err = enc_proc.stderr.read()
+                    except Exception:
+                        enc_err = b""
+                    try:
+                        enc_proc.stderr.close()
+                    except Exception:
+                        pass
+                    enc_proc.stderr = None
+                try:
+                    dec_proc.wait(timeout=30)
+                except Exception:
+                    pass
+                try:
+                    enc_proc.wait(timeout=180)
+                except Exception:
+                    try:
+                        enc_proc.kill()
+                    except Exception:
+                        pass
 
             if enc_proc.returncode == 0 and os.path.exists(tmp_out) and os.path.getsize(tmp_out) > 1000:
                 os.replace(tmp_out, scene_mp4)

@@ -1189,14 +1189,44 @@ def _render_bridge_clip(
 
     try:
         proc = subprocess.Popen(cmd, stdin=subprocess.PIPE, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
-        for k in range(n_frames):
-            prog = (k + 0.5) / float(n_frames)
-            frame_u8 = render_glsl_transition_frame(plan["file"], from_frames[k], to_frames[k], prog, uniforms)
+        err_b = b""
+        try:
+            for k in range(n_frames):
+                prog = (k + 0.5) / float(n_frames)
+                frame_u8 = render_glsl_transition_frame(plan["file"], from_frames[k], to_frames[k], prog, uniforms)
+                if proc.stdin:
+                    try:
+                        proc.stdin.write(frame_u8.tobytes())
+                    except (BrokenPipeError, ValueError, OSError):
+                        break
+        finally:
             if proc.stdin:
-                proc.stdin.write(frame_u8.tobytes())
-        if proc.stdin:
-            proc.stdin.close()
-        _, err_b = proc.communicate(timeout=90)
+                try:
+                    proc.stdin.flush()
+                except Exception:
+                    pass
+                try:
+                    proc.stdin.close()
+                except Exception:
+                    pass
+                proc.stdin = None
+            if proc.stderr:
+                try:
+                    err_b = proc.stderr.read()
+                except Exception:
+                    err_b = b""
+                try:
+                    proc.stderr.close()
+                except Exception:
+                    pass
+                proc.stderr = None
+            try:
+                proc.wait(timeout=90)
+            except Exception:
+                try:
+                    proc.kill()
+                except Exception:
+                    pass
         ok = proc.returncode == 0 and os.path.exists(out_mp4) and os.path.getsize(out_mp4) > 1000
         if not ok and err_b:
             print(f"⚠️ [GLSL Bridge Warning]: {err_b.decode(errors='ignore')[-220:]}")

@@ -2031,11 +2031,13 @@ def full_process(req: VideoRequest, job_id: str):
         print(f"📊 [PROGRESS 10%] STEP 1/6: Processing Script & Scene Breakdown...")
         existing_kw_map = {s.text.strip(): s.keyword.strip() for s in (req.scenes or []) if s.text and s.keyword}
         scenes_data = []
+        is_user_manual_script = False
 
         if req.full_script and req.full_script.strip():
             # 1. Full script provided (SHORT, LONG, or ULTRA):
             # Smartly split script into progressive dynamic scene sentences & clauses (supports Hindi danda ।, ?, !, clauses)
             raw_sentences = smart_split_script_to_scenes(req.full_script.strip())
+            is_user_manual_script = bool(raw_sentences) and not any(s in existing_kw_map for s in raw_sentences)
             for sc_idx, sentence in enumerate(raw_sentences):
                 kw = existing_kw_map.get(sentence)
                 if not kw or len(kw.split()) < 2 or (kw.lower() in HINDI_STOPWORDS or kw in HINDI_STOPWORDS):
@@ -2105,6 +2107,9 @@ def full_process(req: VideoRequest, job_id: str):
 
         # Max limit safety cap:
         target_limit_duration = float(req.duration) if (req.duration and req.duration > 5) else (58.0 if req.video_type == "short" else 300.0)
+        if is_user_manual_script:
+            target_limit_duration = 58.0 if req.video_type == "short" else max(target_limit_duration, 300.0)
+            print(f"📝 [Manual Script Mode] Rendering full custom script ({total_scenes} scenes, safety cap {target_limit_duration:.0f}s).")
         if req.video_type == "short":
             target_limit_duration = min(target_limit_duration, 58.0)
         for i, sc in enumerate(scenes_data):
