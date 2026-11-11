@@ -57,14 +57,12 @@ AFTER_EFFECTS_VFX_CATALOG: List[Dict[str, Any]] = [
         "scale_frac": 0.92,
         "max_dur": 3.35,
         "opacity": 0.95,
-        "weight": 4.4,
+        "weight": 4.6,
         "keywords": [
-            "spark", "sparks", "fire", "flame", "explosion", "blast", "burn",
-            "energy", "electric", "electricity", "lightning", "power", "attack",
-            "fight", "battle", "war", "rocket", "diwali", "cracker", "thunder",
-            "crash", "lava", "heat", "blaze", "inferno",
-            "aag", "chingari", "dhamaka", "bijli", "ladai", "junoon", "shakti",
-            "आग", "चिंगारी", "धमाका", "बिजली", "ऊर्जा", "लड़ाई", "युद्ध", "विस्फोट",
+            "spark", "sparks", "sparkle", "fireworks", "firework", "diwali",
+            "cracker", "crackers", "rocket", "welding", "blaze", "festival",
+            "victory sparks", "roshni", "chingari", "patakha", "aag",
+            "चिंगारी", "पटाखा", "दिवाली", "रोशनी", "आतिशबाजी",
         ],
     },
     {
@@ -74,14 +72,13 @@ AFTER_EFFECTS_VFX_CATALOG: List[Dict[str, Any]] = [
         "scale_frac": 0.95,
         "max_dur": 5.40,
         "opacity": 0.92,
-        "weight": 4.2,
+        "weight": 4.3,
         "keywords": [
-            "paper", "papers", "document", "documents", "file", "files", "book",
-            "page", "pages", "exam", "newspaper", "news", "report", "office",
-            "letter", "record", "contract", "notes", "bill", "wind", "storm",
-            "chaos", "library", "archive", "law", "court",
-            "kaagaz", "kagaz", "panna", "kitaab", "tufan", "hawa", "patra",
-            "कागज", "फाइल", "किताब", "अखबार", "नोट", "तूफान", "हवा", "दस्तावेज",
+            "paper", "papers", "page", "pages", "exam", "newspaper", "news",
+            "office", "contract", "notes", "bill", "wind", "storm", "chaos",
+            "library", "archive", "courtroom", "files flying",
+            "kaagaz", "panna", "kitaab", "tufan", "hawa", "patra", "akhbar",
+            "कागज", "पन्ना", "किताब", "अखबार", "नोट", "तूफान", "हवा",
         ],
     },
     {
@@ -356,6 +353,272 @@ AFTER_EFFECTS_VFX_CATALOG: List[Dict[str, Any]] = [
             "हेलो", "नमस्ते", "नमस्कार", "स्वागत", "दोस्तों", "भाइयों", "मित्रों",
         ],
     },
+    {
+        "file": "FootageCrate-Jail_Door_Slam_4-LQ.mov",
+        "key_mode": "native_alpha",
+        "layout": "full_cover",
+        "clip_start": 0.25,
+        "max_dur": 3.00,
+        "opacity": 0.95,
+        "weight": 5.4,
+        "keywords": [
+            "jail", "prison", "thana", "police station", "lockup", "behind bars",
+            "arrest", "arrested", "imprisoned", "convict", "criminal", "guilty",
+            "verdict", "sentence", "custody", "crime", "culprit",
+            "qaid", "qaidi", "hiraasat", "saza", "mukadma", "jailkhana", "giraftar",
+            "जेल", "थाना", "क़ैद", "कैदी", "हिरासत", "सज़ा", "गिरफ़्तार", "अरेस्ट",
+            "लॉकअप", "अदालत", "मुजरिम", "अपराधी",
+        ],
+    },
+    {
+        "file": "FootageCrate-Police_Car_Double_Drift_1-LQ.mov",
+        "key_mode": "native_alpha",
+        "layout": "mid_bottom",
+        "scale_frac": 0.72,
+        "scale_frac_vert": 0.96,
+        "y_offset_frac": 0.21,
+        "clip_start": 0.60,
+        "max_dur": 4.40,
+        "opacity": 0.95,
+        "weight": 5.2,
+        "keywords": [
+            "police", "cop", "cops", "patrol", "siren", "chase", "chasing",
+            "pursuit", "drift", "car chase", "mafia", "gangster", "escape",
+            "flee", "robbery", "heist", "highway", "smuggler", "encounter",
+            "sipahi", "daroga", "picha", "bhaga", "chori", "dakaiti", "chor",
+            "पुलिस", "सिपाही", "दरोगा", "चोर", "डकैती", "पीछा", "माफिया", "गैंगस्टर", "सायरन",
+        ],
+    },
+    {
+        "file": "folder_gallery.mp4",
+        "key_mode": "pyramid_flood",
+        "flood_kind": "peach_pink",
+        "crop_norm": (0.21, 0.12, 0.58, 0.82),
+        "layout": "corner_right",
+        "height_frac_land": 0.48,
+        "height_frac_vert": 0.34,
+        "max_w_frac_land": 0.42,
+        "clip_start": 1.60,
+        "max_dur": 4.35,
+        "weight": 5.3,
+        "keywords": [
+            "leak", "leaked", "document", "documents", "file", "files", "folder",
+            "gallery", "data", "hack", "hacked", "hacker", "password", "privacy",
+            "expose", "exposed", "scandal", "database", "classified", "confidential",
+            "passport", "backup", "dossier", "secret file",
+            "khulasa", "parda", "faash", "dastavez",
+            "फ़ाइल", "दस्तावेज़", "डॉक्यूमेंट", "लीक", "हैक", "खुलासा", "डेटा", "गैलरी", "पासवर्ड",
+        ],
+    },
+    {
+        "file": "FootageCrate-Building_Destruction_Impact_2_2-LQ.mov",
+        "key_mode": "native_alpha",
+        "crop_norm": (0.14, 0.05, 0.74, 0.92),
+        "layout": "corner_right",
+        "height_frac_land": 0.56,
+        "height_frac_vert": 0.38,
+        "max_w_frac_land": 0.44,
+        "clip_start": 0.40,
+        "max_dur": 5.60,
+        "opacity": 0.95,
+        "weight": 5.1,
+        "keywords": [
+            "building", "earthquake", "collapse", "collapsed", "demolition",
+            "destroy", "destroyed", "destruction", "ruin", "disaster", "crash",
+            "impact", "tower", "skyscraper", "debris", "rubble", "shatter",
+            "devastation", "crumble",
+            "bhukamp", "tabahi", "barbad", "imaarat", "makan", "toot",
+            "ढह", "भूकंप", "तबाही", "बर्बाद", "इमारत", "मकान", "टूटना", "मलबा",
+        ],
+    },
+    {
+        "file": "FootageCrate-Nuclear_Explosion_1-LQ.mov",
+        "key_mode": "native_alpha",
+        "crop_norm": (0.16, 0.06, 0.70, 0.92),
+        "layout": "corner_right",
+        "height_frac_land": 0.60,
+        "height_frac_vert": 0.42,
+        "max_w_frac_land": 0.44,
+        "clip_start": 0.00,
+        "max_dur": 4.00,
+        "opacity": 0.96,
+        "weight": 5.2,
+        "keywords": [
+            "nuclear", "atomic", "atom", "bomb", "explosion", "explode", "blast",
+            "mushroom cloud", "hiroshima", "nagasaki", "warhead", "apocalypse",
+            "radiation", "detonate",
+            "parmanu", "visphot", "vishphot", "bam", "dhamaka",
+            "परमाणु", "बम", "विस्फोट", "धमाका", "हमला",
+        ],
+    },
+    {
+        "file": "FootageCrate-Fighter_Jet_Fly_Away_6-4K.mov",
+        "key_mode": "native_alpha",
+        "layout": "full_center",
+        "scale_frac": 0.98,
+        "clip_start": 0.00,
+        "max_dur": 2.30,
+        "opacity": 0.96,
+        "weight": 5.1,
+        "keywords": [
+            "fighter", "jet", "plane", "aircraft", "airforce", "air force",
+            "rafale", "f16", "missile", "flight", "fly", "pilot", "aviation",
+            "supersonic", "aerial", "airstrike", "mission", "cockpit", "squadron",
+            "udaan", "jahaj", "vimaan", "fauj",
+            "सेना", "फाइटर", "जेट", "विमान", "जहाज", "वायुसेना", "उड़ान", "मिसाइल",
+        ],
+    },
+    {
+        "file": "FootageCrate-Comic_Zap_Lightning-LQ.mov",
+        "key_mode": "native_alpha",
+        "crop_norm": (0.20, 0.04, 0.76, 0.92),
+        "layout": "corner_right",
+        "height_frac_land": 0.48,
+        "height_frac_vert": 0.32,
+        "max_w_frac_land": 0.42,
+        "clip_start": 0.10,
+        "max_dur": 0.90,
+        "opacity": 0.97,
+        "weight": 5.0,
+        "keywords": [
+            "zap", "lightning", "thunder", "thunderbolt", "electric", "electricity",
+            "shock", "shocking", "voltage", "current", "charge", "bolt",
+            "bijli", "jhatka", "karant", "shok",
+            "बिजली", "झटका", "करंट", "शॉक", "तड़ित",
+        ],
+    },
+    {
+        "file": "FootageCrate-Comic_Words_Style_2_Thud-LQ.mov",
+        "key_mode": "native_alpha",
+        "crop_norm": (0.14, 0.04, 0.72, 0.92),
+        "layout": "corner_left",
+        "height_frac_land": 0.46,
+        "height_frac_vert": 0.30,
+        "max_w_frac_land": 0.42,
+        "clip_start": 0.00,
+        "max_dur": 1.00,
+        "opacity": 0.97,
+        "weight": 5.0,
+        "keywords": [
+            "thud", "punch", "slap", "knockout", "bang", "boom", "hit", "smash",
+            "collision", "accident", "dropped", "slammed", "knock",
+            "mukka", "thappad", "takkar", "gira", "dhadam",
+            "चोट", "मुक्का", "थप्पड़", "टक्कर", "धड़ाम",
+        ],
+    },
+    {
+        "file": "FootageCrate-Looping_Busterbeam_8-LQ.mov",
+        "key_mode": "native_alpha",
+        "layout": "full_center",
+        "scale_frac": 0.98,
+        "clip_start": 0.00,
+        "max_dur": 2.00,
+        "opacity": 0.94,
+        "weight": 4.9,
+        "keywords": [
+            "laser", "beam", "energy", "power", "superpower", "plasma",
+            "scifi", "sci fi", "alien", "portal", "superhero", "weapon",
+            "shakti", "urja", "kiran",
+            "शक्ति", "ऊर्जा", "लेज़र", "किरण", "सुपरपावर", "एलियन",
+        ],
+    },
+    {
+        "file": "FootageCrate-Brief_Aerial_Fire_Burst.mov",
+        "key_mode": "native_alpha",
+        "crop_norm": (0.20, 0.12, 0.62, 0.78),
+        "layout": "corner_left",
+        "height_frac_land": 0.54,
+        "height_frac_vert": 0.36,
+        "max_w_frac_land": 0.44,
+        "clip_start": 0.05,
+        "max_dur": 1.95,
+        "opacity": 0.94,
+        "weight": 4.8,
+        "keywords": [
+            "fire", "flame", "flames", "fireball", "burst", "inferno", "heat",
+            "hell", "volcano", "eruption", "lava", "ignite",
+            "aag", "jwala", "aggan", "shola",
+            "आग", "ज्वाला", "आगज़नी", "धधक", "शोला", "लावा",
+        ],
+    },
+    {
+        "file": "FootageCrate-Burning_Away_Ember_Particle_2.mov",
+        "key_mode": "native_alpha",
+        "crop_norm": (0.24, 0.08, 0.52, 0.64),
+        "layout": "corner_right",
+        "height_frac_land": 0.48,
+        "height_frac_vert": 0.32,
+        "clip_start": 0.00,
+        "max_dur": 4.50,
+        "opacity": 0.95,
+        "weight": 4.7,
+        "keywords": [
+            "ash", "ashes", "burn", "burning", "burnt", "burn away", "smoke",
+            "torch", "candle", "pyre", "cremation", "dissolve", "vanish",
+            "raakh", "jalna", "jala", "dhuaan", "bhasm",
+            "राख", "जल", "जलाना", "धुआँ", "गायब", "भस्म",
+        ],
+    },
+    {
+        "file": "FootageCrate-Slow_Motion_Embers_Hit_14-LQ.mov",
+        "key_mode": "native_alpha",
+        "layout": "full_cover",
+        "clip_start": 0.05,
+        "max_dur": 1.50,
+        "opacity": 0.95,
+        "weight": 4.3,
+        "keywords": [
+            "embers", "ember", "war", "battle", "sword", "warrior", "fight",
+            "battlefield", "forge", "brave", "courage", "attack", "combat",
+            "yudh", "ladai", "jang", "veer", "talwar",
+            "युद्ध", "जंग", "लड़ाई", "वीर", "योद्धा", "तलवार",
+        ],
+    },
+    {
+        "file": "FootageCrate-Slow_Motion_Embers_Hit_15-LQ.mov",
+        "key_mode": "native_alpha",
+        "layout": "full_cover",
+        "clip_start": 0.45,
+        "max_dur": 3.50,
+        "opacity": 0.92,
+        "weight": 4.2,
+        "keywords": [
+            "fury", "rage", "anger", "revenge", "passion", "clash", "defeat",
+            "sacrifice", "campfire", "bonfire", "angare",
+            "gussa", "krodh", "badla", "balidan", "junoon",
+            "गुस्सा", "क्रोध", "बदला", "बलिदान", "आक्रोश", "अंगारे",
+        ],
+    },
+    {
+        "file": "FootageCrate-Film_Burn_Overlay_2-LQ.mov",
+        "key_mode": "native_alpha",
+        "layout": "full_cover",
+        "clip_start": 0.25,
+        "max_dur": 2.05,
+        "opacity": 0.78,
+        "weight": 4.5,
+        "keywords": [
+            "film", "camera", "movie", "cinema", "retro", "vintage", "flashback",
+            "memory", "memories", "past", "nostalgia", "ancient", "decade",
+            "century", "puraana", "yaad", "yaadein", "beeta",
+            "याद", "यादें", "पुराना", "अतीत", "सिनेमा", "फ़िल्म",
+        ],
+    },
+    {
+        "file": "footagecrate-ink-drip-transtion-3.mp4",
+        "key_mode": "luma_ink_matte",
+        "layout": "full_cover",
+        "clip_start": 0.00,
+        "max_dur": 1.20,
+        "opacity": 0.68,
+        "weight": 4.5,
+        "keywords": [
+            "ink", "darkness", "shadow", "dark", "horror", "ghost", "haunted",
+            "curse", "evil", "devil", "black", "diary", "written", "inkblot",
+            "syahi", "kala", "andhera", "bhoot", "shraap", "shaitaan",
+            "स्याही", "काला", "अंधेरा", "भूत", "डरावना", "ख़ौफ़", "डायरी",
+        ],
+    },
 ]
 
 
@@ -604,6 +867,33 @@ def _remove_bg_flood_frame(rgb_u8: np.ndarray, flood_kind: str) -> np.ndarray:
         soft = near & (row_dist < 38.0) & (luma >= 95.0)
         alpha = np.where(soft, np.clip((row_dist - 16.0) / 22.0, 0.0, 1.0), alpha)
 
+    elif flood_kind == "peach_pink":
+        ref = np.median(
+            np.vstack([
+                f[:4, :4].reshape(-1, 3),
+                f[:4, -4:].reshape(-1, 3),
+                f[-4:, :4].reshape(-1, 3),
+                f[-4:, -4:].reshape(-1, 3),
+            ]),
+            axis=0,
+        )
+        dist = np.linalg.norm(f - ref[None, None, :], axis=2)
+        luma = f.mean(axis=2)
+        # Walk across flat peach backdrop and soft outer peach drop shadow while stopping cleanly at dark bezel & blue folder
+        trav = (dist < 44.0) | ((dist < 84.0) & (luma > 142.0) & (f[..., 0] > f[..., 1] + 6.0))
+        seed = np.zeros_like(trav)
+        seed[0, :] = seed[-1, :] = seed[:, 0] = seed[:, -1] = True
+        bg = _pyramid_geodesic_flood(seed, trav)
+        near = _dilate_bool(bg, 3) & (~bg)
+        alpha = np.where(bg, 0.0, 1.0).astype(np.float32)
+        rim = near & (dist < 110.0) & (luma > 110.0)
+        alpha = np.where(rim, np.clip((dist - 70.0) / 40.0, 0.0, 1.0), alpha)
+        out_rgb[..., 0] = np.where(
+            near & (f[..., 0] > f[..., 1] + 8.0),
+            np.minimum(out_rgb[..., 0], np.maximum(out_rgb[..., 1], out_rgb[..., 2]) + 6.0),
+            out_rgb[..., 0],
+        )
+
     else:  # teal_gradient (`qution_mark_effect.mp4`)
         r_ch, g_ch, b_ch = f[..., 0], f[..., 1], f[..., 2]
         excess = np.maximum(g_ch - r_ch, b_ch - r_ch)
@@ -638,13 +928,32 @@ def _compute_overlay_geometry(vfx_info: Dict[str, Any], target_size: Tuple[int, 
     is_vertical = th > tw
     layout = vfx_info.get("layout", "corner_right")
 
-    if layout in ("full_bottom", "full_center"):
-        sf = float(vfx_info.get("scale_frac", 0.95))
+    if layout == "full_cover":
+        return {
+            "scale_filter": f"scale={tw}:{th}:force_original_aspect_ratio=increase,crop={tw}:{th}",
+            "x_expr": "0",
+            "y_expr": "0",
+            "ow": tw,
+            "oh": th,
+        }
+
+    if layout in ("full_bottom", "full_center", "mid_bottom"):
+        sf = float(
+            vfx_info.get("scale_frac_vert" if is_vertical else "scale_frac", 0.95)
+            or vfx_info.get("scale_frac", 0.95)
+        )
         ow = max(64, int(round(tw * sf)) & ~1)
+        if layout == "full_bottom":
+            y_expr = "H-h"
+        elif layout == "mid_bottom":
+            y_off = max(8, int(round(th * float(vfx_info.get("y_offset_frac", 0.20)))))
+            y_expr = f"H-h-{y_off}"
+        else:
+            y_expr = "(H-h)/2"
         return {
             "scale_filter": f"scale={ow}:-2",
             "x_expr": "(W-w)/2",
-            "y_expr": "H-h" if layout == "full_bottom" else "(H-h)/2",
+            "y_expr": y_expr,
             "ow": tw,
             "oh": th,
         }
@@ -652,7 +961,10 @@ def _compute_overlay_geometry(vfx_info: Dict[str, Any], target_size: Tuple[int, 
     h_frac = float(vfx_info.get("height_frac_vert" if is_vertical else "height_frac_land", 0.42))
     oh = max(96, int(round(th * h_frac)) & ~1)
     # Conservative max width so character never covers center subtitles
-    max_w = int(tw * (0.44 if is_vertical else 0.34)) & ~1
+    max_w_frac = float(
+        vfx_info.get("max_w_frac_vert" if is_vertical else "max_w_frac_land", 0.44 if is_vertical else 0.34)
+    )
+    max_w = int(tw * max_w_frac) & ~1
     margin_x = max(8, int(tw * 0.015))
 
     if layout == "peek_right":
@@ -737,16 +1049,18 @@ def apply_after_effects_vfx_overlay(
     clip_start = float(vfx_info.get("clip_start", 0.0))
     max_dur = float(vfx_info.get("max_dur", 5.5))
     overlay_dur = min(safe_dur, max_dur)
+    src_w, src_h, src_dur = _probe_video_dims(vfx_path)
+    if src_dur > clip_start + 0.30:
+        overlay_dur = min(overlay_dur, max(0.45, src_dur - clip_start - 0.02))
     fade_in = min(0.20, overlay_dur * 0.15)
-    fade_out = min(0.30 if key_mode != "luma_screen" else 0.45, overlay_dur * 0.25)
+    fade_out = min(0.30 if key_mode not in ("luma_screen", "luma_ink_matte") else 0.45, overlay_dur * 0.25)
     fade_out_st = max(fade_in, overlay_dur - fade_out)
 
     geom = _compute_overlay_geometry(vfx_info, target_size)
-    src_w, src_h, _ = _probe_video_dims(vfx_path)
     crop_filter, eff_w, eff_h = _resolve_crop_box(src_w, src_h, vfx_info)
 
     # Compute responsive target size honoring max_w guard on narrow 9:16 screens
-    if vfx_info.get("layout", "corner_right") not in ("full_bottom", "full_center"):
+    if vfx_info.get("layout", "corner_right") not in ("full_bottom", "full_center", "full_cover", "mid_bottom"):
         oh = int(geom["oh"]) & ~1
         ow = max(32, int(round(oh * (eff_w / max(1, eff_h)))) & ~1)
         max_w = int(geom.get("max_w", tw)) & ~1
@@ -842,7 +1156,7 @@ def apply_after_effects_vfx_overlay(
             input_args.extend(["-ss", f"{clip_start:.3f}", "-t", f"{overlay_dur:.3f}", "-i", os.path.abspath(vfx_path)])
             op = float(vfx_info.get("opacity", 0.95))
             fg_chain = (
-                f"[1:v]format=rgba,{scale_filter},colorchannelmixer=aa={op:.2f},"
+                f"[1:v]{crop_filter}format=rgba,{scale_filter},colorchannelmixer=aa={op:.2f},"
                 f"{fade_chain}[vfx];"
                 f"[0:v][vfx]overlay=x={geom['x_expr']}:y={geom['y_expr']}:eof_action=pass[outv]"
             )
@@ -852,6 +1166,17 @@ def apply_after_effects_vfx_overlay(
             fg_chain = (
                 f"[1:v]lumakey=threshold=0.14:tolerance=0.20:softness=0.15,"
                 f"format=rgba,colorchannelmixer=aa={op:.2f},scale={tw}:{th}:force_original_aspect_ratio=increase,crop={tw}:{th},"
+                f"{fade_chain}[vfx];"
+                f"[0:v][vfx]overlay=x=0:y=0:eof_action=pass[outv]"
+            )
+        elif key_mode == "luma_ink_matte":
+            input_args.extend(["-ss", f"{clip_start:.3f}", "-t", f"{overlay_dur:.3f}", "-i", os.path.abspath(vfx_path)])
+            op = float(vfx_info.get("opacity", 0.78))
+            fg_chain = (
+                f"[1:v]format=rgb24,negate,format=rgba,"
+                f"lumakey=threshold=0.06:tolerance=0.24:softness=0.22,"
+                f"lutrgb=r=10:g=10:b=16,colorchannelmixer=aa={op:.2f},"
+                f"scale={tw}:{th}:force_original_aspect_ratio=increase,crop={tw}:{th},"
                 f"{fade_chain}[vfx];"
                 f"[0:v][vfx]overlay=x=0:y=0:eof_action=pass[outv]"
             )
