@@ -1,7 +1,7 @@
 """
 GLSL Shader-Driven Scene Transition Engine for Ultra, Long, and Short Videos.
 
-Reads and parses gl-transitions `.glsl` shader files directly from the repository root
+Reads and parses gl-transitions `.glsl` shader files directly from `glsl_shaders/`
 and executes their transition math in vectorized NumPy, keeping 100% A/V sync and low
 memory footprint compatible with headless Linux/macOS FFmpeg pipelines.
 
@@ -10,7 +10,7 @@ Strict Mode Rules:
     (`glich*`) or light/color (`light*` / `color*`), pairing ONLY glitch transitions
     with Mixkit glitch SFX (from `sound_effects/`).
   - Long & Short (`mode in ("long", "short")`): Randomly selects across ALL `.glsl`
-    transition shaders in the repository without adding glitch SFX.
+    transition shaders in `glsl_shaders/` without adding glitch SFX.
   - Script-Triggered Only: Never applies transitions blindly on every cut; triggers
     only when script pause/tense/narrative-shift cues warrant a transition, with
     anti-consecutive spacing.
@@ -26,9 +26,10 @@ from typing import Any, Dict, List, Optional, Tuple
 import numpy as np
 
 _GLSL_BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+_GLSL_SHADERS_DIR = os.path.join(_GLSL_BASE_DIR, "glsl_shaders")
 _GLSL_SPLIT_RE = re.compile(r'[\s,.\-!?;:"\'()\[\]{}<>/\\|~`@#$%^&*_+=।॥]+')
 
-# Exact `.glsl` transition files in repository root
+# Exact `.glsl` transition files in `glsl_shaders/`
 GLSL_TRANSITION_FILES = {
     "glitch": [
         "glich2_tranjection.glsl",
@@ -116,10 +117,13 @@ _SCRIPT_PAUSE_SINGLE_TOKENS = {
 
 
 def resolve_glsl_path(filename: str) -> Optional[str]:
-    """Resolve a `.glsl` shader file path from repo root or current working directory."""
+    """Resolve a `.glsl` shader file path from `glsl_shaders/` (with repo-root fallback)."""
     if not filename:
         return None
+    base = os.path.basename(filename)
     for candidate in (
+        os.path.join(_GLSL_SHADERS_DIR, base),
+        os.path.abspath(os.path.join("glsl_shaders", base)),
         os.path.join(_GLSL_BASE_DIR, filename),
         os.path.abspath(filename),
     ):
