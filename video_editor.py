@@ -11,6 +11,7 @@ Description: Advanced video editor supporting:
 """
 
 import os
+import re
 import math
 import random
 import gc
@@ -1143,6 +1144,644 @@ def render_scene_native_ffmpeg(
     release_system_memory()
     return success
 
+
+_AE_SFX_BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+_AE_SFX_SPLIT_RE = re.compile(r'[\s,.\-!?;:"\'()\[\]{}<>/\\|~`@#$%^&*_+=।॥]+')
+
+# Catalog of Mixkit & local SFX assets mapped directly by filename intent and script context.
+# Used EXCLUSIVELY when mode == "ultra" and category is After Effects / VFX / Motion Graphics.
+AFTER_EFFECTS_SFX_CATALOG = [
+    {
+        "file": "mixkit-intro-text-glitch-2950.wav",
+        "kind": "intro",
+        "volume": 0.34,
+        "weight": 4.0,
+        "max_clip_dur": 8.0,
+        "keywords": [
+            "title", "glitch", "breaking", "cyber", "hack", "secret", "mystery",
+            "dark", "shocking", "truth", "exposed", "hidden", "ai", "technology",
+            "matrix", "digital", "rahasya", "sach", "khulasa", "gupt", "tech",
+            "रहस्य", "खुलासा", "गुप्त", "सच", "टेक्नोलॉजी",
+        ],
+    },
+    {
+        "file": "mixkit-intro-transition-1146.wav",
+        "kind": "intro",
+        "volume": 0.34,
+        "weight": 3.5,
+        "max_clip_dur": 8.0,
+        "keywords": [
+            "intro", "welcome", "today", "imagine", "beginning", "did you know",
+            "swagat", "aaj", "shuru", "kya aap jante", "sochiye",
+            "स्वागत", "शुरू", "कल्पना", "क्या आप जानते",
+        ],
+    },
+    {
+        "file": "49053354-page-turn-305789.mp3",
+        "kind": "event",
+        "volume": 0.42,
+        "weight": 4.0,
+        "keywords": [
+            "page", "book", "chapter", "read", "reading", "diary", "journal",
+            "notebook", "manuscript", "document", "letter", "note", "archive",
+            "story", "ancient", "history", "rule", "lesson", "record", "paper",
+            "kitaab", "kitab", "panna", "panne", "kahani", "itihas", "itihaas", "patra",
+            "किताब", "पन्ना", "पन्ने", "कहानी", "इतिहास", "डायरी", "चिट्ठी", "दस्तावेज", "नियम",
+        ],
+    },
+    {
+        "file": "mixkit-classic-alarm-995.wav",
+        "kind": "event",
+        "volume": 0.28,
+        "weight": 4.5,
+        "keywords": [
+            "alarm", "siren", "warning", "danger", "dangerous", "alert", "red alert",
+            "emergency", "caution", "threat", "security", "breach", "police",
+            "red flag", "hazard", "risk", "fatal", "deadly", "wake up",
+            "khatra", "khatarnak", "chetavni", "savdhan", "jaanleva",
+            "खतरा", "खतरनाक", "चेतावनी", "सावधान", "अलार्म", "पुलिस", "आपातकाल", "जानलेवा",
+        ],
+    },
+    {
+        "file": "mixkit-clock-countdown-bleeps-916.wav",
+        "kind": "event",
+        "volume": 0.32,
+        "weight": 4.5,
+        "keywords": [
+            "countdown", "3 2 1", "seconds left", "minutes left", "deadline",
+            "last chance", "limited time", "timer", "hurry", "running out of time",
+            "race against time", "count down", "final seconds",
+            "akhiri mauka", "jaldi", "time khatam", "kam samay", "ginti",
+            "गिनती", "आखिरी मौका", "समय खत्म", "जल्दी", "डेडलाइन",
+        ],
+    },
+    {
+        "file": "mixkit-tick-tock-clock-timer-1045.wav",
+        "kind": "ambient",
+        "volume": 0.25,
+        "weight": 3.5,
+        "keywords": [
+            "clock", "tick", "tock", "hour", "hours", "years", "decade", "decades",
+            "century", "centuries", "wait", "waiting", "patience", "timeline",
+            "aging", "eternity", "slowly", "every day", "time passed", "ghadi",
+            "samay", "waqt", "saal", "sadi", "intezar",
+            "घड़ी", "समय", "वक्त", "साल", "सदी", "इंतज़ार", "इंतजार",
+        ],
+    },
+    {
+        "file": "mixkit-female-astonished-gasp-964.wav",
+        "kind": "event",
+        "volume": 0.36,
+        "weight": 4.0,
+        "keywords": [
+            "gasp", "shock", "shocking", "shocked", "unbelievable", "omg",
+            "mind blowing", "stunned", "surprised", "surprise", "jaw dropping",
+            "cant believe", "cannot believe", "impossible", "astonished", "twist",
+            "hairan", "chaunk", "chaukane", "ashcharya", "gajab",
+            "हैरान", "चौंक", "चौकाने", "आश्चर्य", "असंभव", "यकीन", "गजब",
+        ],
+    },
+    {
+        "file": "mixkit-glitch-roar-1033.wav",
+        "kind": "event",
+        "volume": 0.34,
+        "weight": 4.5,
+        "keywords": [
+            "roar", "monster", "beast", "dragon", "dinosaur", "lion", "tiger",
+            "demon", "devil", "ghost", "horror", "terrifying", "nightmare",
+            "predator", "scary", "haunted", "creature", "rage", "angry", "evil",
+            "dahad", "sher", "rakshas", "bhoot", "shaitan", "darawna", "bhayanak",
+            "दहाड़", "शेर", "राक्षस", "भूत", "शैतान", "डरावना", "भयानक", "खूंखार",
+        ],
+    },
+    {
+        "file": "mixkit-dog-barking-twice-1.wav",
+        "kind": "event",
+        "volume": 0.38,
+        "weight": 5.0,
+        "keywords": [
+            "dog", "puppy", "bark", "barking", "hound", "wolf", "canine", "pet",
+            "kutta", "kutte", "pilla", "bhonk", "bhediya",
+            "कुत्ता", "कुत्ते", "पिल्ला", "भौंक", "भेड़िया",
+        ],
+    },
+    {
+        "file": "mixkit-little-birds-singing-in-the-trees-17.wav",
+        "kind": "ambient",
+        "volume": 0.26,
+        "weight": 4.0,
+        "keywords": [
+            "bird", "birds", "chirp", "morning", "sunrise", "dawn", "nature",
+            "tree", "trees", "garden", "peace", "peaceful", "calm", "spring",
+            "village", "paradise", "sunshine", "forest", "fresh air",
+            "chidiya", "pakshi", "panchi", "subah", "prakriti", "ped", "bagicha", "shanti",
+            "चिड़िया", "पक्षी", "पंछी", "सुबह", "प्रकृति", "पेड़", "बगीचा", "शांति", "गाँव",
+        ],
+    },
+    {
+        "file": "mixkit-light-rain-loop-2393.wav",
+        "kind": "ambient",
+        "volume": 0.25,
+        "weight": 4.2,
+        "keywords": [
+            "rain", "raining", "rainy", "monsoon", "drizzle", "umbrella", "tears",
+            "cry", "crying", "sad", "lonely", "loneliness", "heartbreak", "sorrow",
+            "grief", "gloomy", "emotional", "depressed", "stormy", "wet",
+            "barish", "baarish", "barsat", "aansu", "rona", "dukh", "udas", "akela",
+            "बारिश", "बरसात", "आँसू", "आंसू", "रोना", "दुख", "उदास", "अकेला", "मौसम",
+        ],
+    },
+    {
+        "file": "mixkit-footsteps-on-tall-grass-532.wav",
+        "kind": "ambient",
+        "volume": 0.28,
+        "weight": 4.0,
+        "keywords": [
+            "footstep", "footsteps", "walk", "walking", "grass", "jungle",
+            "trail", "path", "journey", "hike", "sneak", "follow", "following",
+            "chase", "escape", "woods", "explore", "stepped", "kadam", "chalna",
+            "chalne", "rasta", "junglee", "safar", "yatra", "picha",
+            "कदम", "चलना", "रास्ता", "जंगल", "सफर", "यात्रा", "पीछा", "घास",
+        ],
+    },
+    {
+        "file": "mixkit-keyboard-typing-1386.wav",
+        "kind": "ambient",
+        "volume": 0.26,
+        "weight": 4.0,
+        "keywords": [
+            "typing", "keyboard", "code", "coding", "programming", "programmer",
+            "developer", "software", "laptop", "computer", "internet", "online",
+            "website", "search", "google", "email", "message", "chat", "algorithm",
+            "database", "server", "terminal", "type", "office",
+            "कंप्यूटर", "लैपटॉप", "टाइपिंग", "कोडिंग", "इंटरनेट", "वेबसाइट", "डेटा", "संदेश",
+        ],
+    },
+    {
+        "file": "mixkit-fast-rocket-whoosh-1714.wav",
+        "kind": "event",
+        "volume": 0.35,
+        "weight": 4.5,
+        "keywords": [
+            "rocket", "space", "astronaut", "nasa", "isro", "moon", "mars",
+            "planet", "galaxy", "universe", "orbit", "launch", "blast off", "jet",
+            "supersonic", "airplane", "flight", "fly", "flying", "skyrocket", "soar",
+            "antariksh", "chand", "mangal", "grah", "brahmand", "udaan",
+            "रॉकेट", "अंतरिक्ष", "चाँद", "मंगल", "ग्रह", "ब्रह्मांड", "उड़ान", "आकाश",
+        ],
+    },
+    {
+        "file": "mixkit-arrow-whoosh-1491.wav",
+        "kind": "event",
+        "volume": 0.40,
+        "weight": 4.2,
+        "keywords": [
+            "arrow", "bow", "archery", "target", "bullseye", "aim", "spear",
+            "sword", "warrior", "battle", "war", "fight", "strike", "bullet",
+            "precision", "sharp", "weapon", "hit", "teer", "dhanush", "lakshya",
+            "nishana", "talwar", "yoddha", "yudh", "ladai", "vaar",
+            "तीर", "धनुष", "लक्ष्य", "निशाना", "तलवार", "योद्धा", "युद्ध", "लड़ाई", "वार",
+        ],
+    },
+    {
+        "file": "mixkit-cinematic-laser-gun-thunder-1287.wav",
+        "kind": "event",
+        "volume": 0.32,
+        "weight": 4.5,
+        "keywords": [
+            "thunder", "lightning", "laser", "explosion", "explode", "blast",
+            "bomb", "gun", "shoot", "meteor", "asteroid", "destroy", "destruction",
+            "nuclear", "beam", "storm", "boom", "collide", "collision", "impact",
+            "dhamaka", "visfot", "toofan", "gadgadahat", "tabahi", "hamla",
+            "धमाका", "विस्फोट", "तूफान", "तबाही", "गड़गड़ाहट", "हमला", "लेजर",
+        ],
+    },
+    {
+        "file": "mixkit-small-electric-glitch-2595.wav",
+        "kind": "event",
+        "volume": 0.38,
+        "weight": 4.2,
+        "keywords": [
+            "electric", "electricity", "voltage", "spark", "circuit", "short circuit",
+            "wire", "battery", "charge", "zap", "current", "neuron", "pulse",
+            "energy", "power grid", "magnet", "bijli", "jhatka", "tar",
+            "बिजली", "करंट", "झटका", "चिंगारी", "सर्किट", "ऊर्जा",
+        ],
+    },
+    {
+        "file": "mixkit-cinematic-glitch-trailer-1021.wav",
+        "kind": "event",
+        "volume": 0.38,
+        "weight": 3.8,
+        "keywords": [
+            "glitch", "hack", "hacker", "matrix", "illusion", "fake", "corrupt",
+            "virus", "bug", "simulation", "conspiracy", "shadow", "trap",
+            "plot twist", "control", "brainwash", "dhoka", "jaal", "mayajaal", "bharam",
+            "धोखा", "भ्रम", "माया", "साजिश", "वायरस", "हैक", "जाल",
+        ],
+    },
+    {
+        "file": "mixkit-glitch-static-1457.wav",
+        "kind": "event",
+        "volume": 0.34,
+        "weight": 4.2,
+        "keywords": [
+            "static", "signal", "offline", "disconnected", "error", "crash",
+            "freeze", "froze", "television", "tv", "cctv", "footage", "radio",
+            "transmission", "broken", "interference", "distortion", "lost connection",
+            "kharab", "band", "सिग्नल", "टीवी", "कैमरा", "फ़ुटेज", "त्रुटि", "खराब",
+        ],
+    },
+    {
+        "file": "mixkit-arcade-retro-game-over-213.wav",
+        "kind": "event",
+        "volume": 0.36,
+        "weight": 4.2,
+        "keywords": [
+            "fail", "failed", "failure", "lose", "lost", "loser", "game over",
+            "mistake", "wrong", "defeat", "bankrupt", "ruin", "ruined", "quit",
+            "arcade", "retro", "video game", "regret", "loss", "collapse",
+            "haar", "haara", "nakaam", "galti", "barbad", "nuksan", "khatam",
+            "हार", "नाकाम", "गलती", "बर्बाद", "नुकसान", "खेल खत्म", "गेम",
+        ],
+    },
+    {
+        "file": "mixkit-cartoon-toy-whistle-616.wav",
+        "kind": "event",
+        "volume": 0.36,
+        "weight": 4.2,
+        "keywords": [
+            "funny", "joke", "comedy", "laugh", "laughing", "prank", "silly",
+            "toy", "whistle", "weird", "absurd", "meme", "oops", "clown",
+            "hilarious", "kid", "cartoon", "mazak", "hasi", "masti", "khilona", "ajeeb",
+            "मजाक", "हंसी", "खिलौना", "अजीब", "कॉमेडी",
+        ],
+    },
+    {
+        "file": "mixkit-epic-orchestra-transition-2290.wav",
+        "kind": "intro",
+        "volume": 0.32,
+        "weight": 3.8,
+        "keywords": [
+            "epic", "orchestra", "king", "queen", "emperor", "empire", "kingdom",
+            "victory", "win", "won", "champion", "hero", "legend", "glory",
+            "triumph", "conquer", "billionaire", "success", "powerful", "crown",
+            "miracle", "god", "divine", "raja", "maharaja", "samrat", "jeet",
+            "vijay", "safalta", "baadshah", "mahan",
+            "राजा", "महाराजा", "सम्राट", "साम्राज्य", "जीत", "विजय", "महान", "सफलता", "शक्तिशाली", "बादशाह",
+        ],
+    },
+    {
+        "file": "mixkit-air-zoom-vacuum-2608.wav",
+        "kind": "transition",
+        "volume": 0.38,
+        "weight": 3.5,
+        "keywords": [
+            "zoom", "closer", "deep dive", "vacuum", "black hole", "gravity",
+            "absorb", "disappear", "vanish", "suck", "focus", "detail", "micro",
+            "inside", "center", "secret inside", "andar", "gahrai", "gayab", "dhyaan",
+            "अंदर", "गहराई", "गायब", "ध्यान", "ब्लैक होल", "फोकस",
+        ],
+    },
+    {
+        "file": "mixkit-air-woosh-1489.wav",
+        "kind": "transition",
+        "volume": 0.35,
+        "weight": 2.4,
+        "keywords": [
+            "wind", "breeze", "air", "breath", "breathe", "atmosphere", "sky",
+            "float", "drift", "shift", "change", "meanwhile", "transform",
+            "hawa", "saans", "badlav", "agla", "हवा", "सांस", "बदलाव", "आसमान",
+        ],
+    },
+    {
+        "file": "mixkit-cinematic-whoosh-fast-transition-1492.wav",
+        "kind": "transition",
+        "volume": 0.38,
+        "weight": 2.2,
+        "keywords": [
+            "fast", "quick", "quickly", "rapid", "instant", "speed", "suddenly",
+            "however", "but wait", "switch", "flash", "next", "reason", "fact",
+            "tez", "tezi", "turant", "fatafat", "achanak", "lekin",
+            "तेज", "तुरंत", "फटाफट", "अचानक", "लेकिन",
+        ],
+    },
+    {
+        "file": "mixkit-fast-small-sweep-transition-166.wav",
+        "kind": "transition",
+        "volume": 0.38,
+        "weight": 2.0,
+        "keywords": [
+            "point", "tip", "hack", "trick", "step", "method", "first", "second",
+            "third", "also", "look", "check", "number", "baat", "tarika", "dekho",
+            "पहला", "दूसरा", "तीसरा", "तरीका", "देखो",
+        ],
+    },
+]
+
+
+def _resolve_ae_sfx_path(filename: str):
+    """Resolve an SFX file path from repo root or current working directory."""
+    if not filename:
+        return None
+    for candidate in (
+        os.path.join(_AE_SFX_BASE_DIR, filename),
+        os.path.abspath(filename),
+    ):
+        if os.path.exists(candidate) and os.path.getsize(candidate) > 500:
+            return candidate
+    return None
+
+
+def _ae_tokenize(text: str) -> list:
+    if not text:
+        return []
+    return [t for t in _AE_SFX_SPLIT_RE.split(str(text).lower()) if t]
+
+
+def _ae_find_keyword_hit(tokens: list, joined_text: str, kw: str):
+    """
+    Match a keyword against normalized tokens safely without false substrings
+    (e.g., prevents 'rain' from matching 'brain' or 'war' from matching 'warning').
+    Supports English inflections and Hindi Devanagari prefixes cleanly.
+    Returns (matched: bool, first_token_idx: int).
+    """
+    if not tokens or not kw:
+        return False, -1
+
+    kw_clean = kw.strip().lower()
+    if " " in kw_clean:
+        needle = f" {kw_clean} "
+        pos = joined_text.find(needle)
+        if pos != -1:
+            word_idx = len(joined_text[:pos].strip().split()) if joined_text[:pos].strip() else 0
+            return True, word_idx
+        return False, -1
+
+    is_ascii = kw_clean.isascii()
+    valid_ascii = {kw_clean}
+    if is_ascii:
+        if len(kw_clean) >= 3:
+            valid_ascii.add(kw_clean + "s")
+        if len(kw_clean) >= 4:
+            valid_ascii.update((kw_clean + "es", kw_clean + "ed", kw_clean + "ing", kw_clean + "ly"))
+
+    for idx, tok in enumerate(tokens):
+        if is_ascii:
+            if tok in valid_ascii:
+                return True, idx
+        else:
+            if tok == kw_clean or (len(kw_clean) >= 3 and tok.startswith(kw_clean)):
+                return True, idx
+
+    return False, -1
+
+
+def select_after_effects_sfx(
+    scene_text: str,
+    scene_keyword: str = "",
+    scene_idx: int = 0,
+    total_scenes: int = 1,
+    clip_duration: float = 5.0,
+    used_sfx: list = None,
+):
+    """
+    Selects the best matching Mixkit/local SFX for an Ultra After Effects scene
+    using the SFX filename's intended role and multi-lingual script analysis.
+    """
+    used_sfx = used_sfx or []
+    tokens = _ae_tokenize(scene_text)
+    joined_text = f" {' '.join(tokens)} " if tokens else ""
+    kw_tokens = _ae_tokenize(scene_keyword)
+    joined_kw = f" {' '.join(kw_tokens)} " if kw_tokens else ""
+
+    last_file = used_sfx[-1] if used_sfx else None
+    used_set = set(used_sfx)
+
+    best_entry = None
+    best_score = -1.0
+    best_hit_idx = 0
+    best_matched_kw = ""
+
+    # Scene 0 cues for tech/mystery cyber glitch intro vs grand cinematic intro
+    tech_mystery_cues = {"ai", "tech", "technology", "cyber", "hack", "glitch", "secret", "mystery", "dark", "rahasya", "gupt", "रहस्य", "गुप्त", "सच"}
+    tech_intro_bias = any(t in tech_mystery_cues for t in (tokens + kw_tokens))
+
+    for entry in AFTER_EFFECTS_SFX_CATALOG:
+        fname = entry["file"]
+        resolved = _resolve_ae_sfx_path(fname)
+        if not resolved:
+            continue
+
+        # Reserve intro SFX primarily for Scene 0 unless explicitly matched in script
+        is_intro_file = fname in ("mixkit-intro-transition-1146.wav", "mixkit-intro-text-glitch-2950.wav")
+        if is_intro_file and scene_idx > 0:
+            explicit_intro_hits = 0
+            for kw in entry["keywords"][:4]:
+                m, _ = _ae_find_keyword_hit(tokens, joined_text, kw)
+                if m:
+                    explicit_intro_hits += 1
+            if explicit_intro_hits == 0:
+                continue
+
+        score = 0.0
+        first_idx = len(tokens)
+        matched_kw = ""
+        matched_kws = set()
+
+        for kw in entry["keywords"]:
+            hit, idx = _ae_find_keyword_hit(tokens, joined_text, kw)
+            if hit:
+                matched_kws.add(kw)
+                score += entry["weight"]
+                if idx < first_idx:
+                    first_idx = idx
+                    matched_kw = kw
+            elif kw_tokens:
+                kw_hit, _ = _ae_find_keyword_hit(kw_tokens, joined_kw, kw)
+                if kw_hit and kw not in matched_kws:
+                    matched_kws.add(kw)
+                    score += entry["weight"] * 0.6
+                    if not matched_kw:
+                        matched_kw = f"[kw:{kw}]"
+
+        # Scene 0 opening hook affinity (matching intro filenames directly)
+        if scene_idx == 0:
+            if fname == "mixkit-intro-text-glitch-2950.wav":
+                score += 4.2 if tech_intro_bias else 2.0
+                if not matched_kw:
+                    matched_kw = "scene0_intro_glitch"
+                    first_idx = 0
+            elif fname == "mixkit-intro-transition-1146.wav":
+                score += 2.2 if tech_intro_bias else 4.2
+                if not matched_kw:
+                    matched_kw = "scene0_intro"
+                    first_idx = 0
+
+        # Climax finishing boost for orchestral hit on final scene
+        if scene_idx > 0 and total_scenes >= 3 and scene_idx == total_scenes - 1:
+            if fname == "mixkit-epic-orchestra-transition-2290.wav":
+                score += 2.0
+                if not matched_kw:
+                    matched_kw = "final_climax"
+                    first_idx = 0
+
+        if score <= 0.0:
+            continue
+
+        # Penalize back-to-back or repeated SFX to keep edits dynamic
+        if fname == last_file:
+            score -= 5.0
+        elif fname in used_set:
+            score -= 1.5
+
+        if score > best_score:
+            best_score = score
+            best_entry = entry
+            best_hit_idx = first_idx if first_idx < len(tokens) else 0
+            best_matched_kw = matched_kw
+
+    # Clean After Effects cut transitions when no specific SFX matched strongly
+    if best_entry is None or best_score < 1.0:
+        short_transitions = [
+            "mixkit-cinematic-whoosh-fast-transition-1492.wav",
+            "mixkit-fast-small-sweep-transition-166.wav",
+            "mixkit-air-zoom-vacuum-2608.wav",
+        ]
+        if clip_duration >= 2.2:
+            short_transitions.append("mixkit-air-woosh-1489.wav")
+
+        if scene_idx == 0:
+            preferred_order = [
+                "mixkit-intro-text-glitch-2950.wav" if tech_intro_bias else "mixkit-intro-transition-1146.wav",
+                "mixkit-intro-transition-1146.wav",
+            ]
+        else:
+            rot = scene_idx % len(short_transitions)
+            preferred_order = short_transitions[rot:] + short_transitions[:rot]
+
+        chosen_fname = None
+        for cand in preferred_order:
+            if cand != last_file and _resolve_ae_sfx_path(cand):
+                chosen_fname = cand
+                break
+        if not chosen_fname:
+            for cand in preferred_order:
+                if _resolve_ae_sfx_path(cand):
+                    chosen_fname = cand
+                    break
+
+        if not chosen_fname:
+            return None
+
+        best_entry = next((e for e in AFTER_EFFECTS_SFX_CATALOG if e["file"] == chosen_fname), None)
+        if not best_entry:
+            return None
+        best_hit_idx = 0
+        best_matched_kw = "scene_transition"
+
+    resolved_path = _resolve_ae_sfx_path(best_entry["file"])
+    if not resolved_path:
+        return None
+
+    sfx_dur = get_audio_duration_fast(resolved_path, fallback=1.5)
+    onset_sec = 0.0
+
+    # Sync punctual event SFX to the spoken position inside the scene script
+    if best_entry["kind"] == "event" and tokens and not str(best_matched_kw).startswith("[kw:") and clip_duration >= 2.2:
+        word_ratio = best_hit_idx / max(1, len(tokens))
+        if word_ratio > 0.22:
+            usable_tail = min(max(sfx_dur, 0.8), 1.35)
+            max_onset = max(0.0, clip_duration - usable_tail)
+            onset_sec = min(max_onset, word_ratio * clip_duration * 0.82)
+
+    return {
+        "path": resolved_path,
+        "file": best_entry["file"],
+        "kind": best_entry["kind"],
+        "volume": best_entry["volume"],
+        "onset_sec": round(onset_sec, 3),
+        "sfx_duration": sfx_dur,
+        "reason": best_matched_kw or "context",
+    }
+
+
+def mix_sfx_into_scene_audio(voice_audio_path: str, sfx_info: dict, clip_duration: float, out_audio_path: str) -> str:
+    """
+    Mixes a selected SFX track cleanly into a scene's voice narration using FFmpeg
+    without lowering the primary voiceover volume, safely falling back on any error.
+    """
+    if not sfx_info or not voice_audio_path or not os.path.exists(voice_audio_path):
+        return voice_audio_path
+
+    sfx_path = sfx_info.get("path")
+    if not sfx_path or not os.path.exists(sfx_path):
+        return voice_audio_path
+
+    try:
+        kind = sfx_info.get("kind", "event")
+        vol = float(sfx_info.get("volume", 0.34))
+        onset_sec = max(0.0, float(sfx_info.get("onset_sec", 0.0)))
+        sfx_dur = float(sfx_info.get("sfx_duration") or get_audio_duration_fast(sfx_path, fallback=1.5))
+
+        safe_clip_dur = max(0.5, float(clip_duration))
+        play_window = max(0.25, safe_clip_dur - onset_sec)
+
+        sfx_input_args = []
+        if kind == "ambient" and sfx_dur > 0.2 and sfx_dur < play_window:
+            sfx_input_args.extend(["-stream_loop", "-1"])
+            trim_len = play_window
+        else:
+            trim_len = min(sfx_dur, play_window)
+
+        trim_len = max(0.20, trim_len)
+        fade_in = 0.22 if kind == "ambient" else 0.02
+        fade_out = min(0.55 if kind in ("ambient", "intro") else 0.30, max(0.05, trim_len * 0.30))
+        fade_out_start = max(0.0, trim_len - fade_out)
+
+        sfx_chain = (
+            f"[1:a]aresample=44100,aformat=channel_layouts=stereo,"
+            f"atrim=0:{trim_len:.3f},asetpts=PTS-STARTPTS,"
+            f"afade=t=in:st=0:d={fade_in:.3f},"
+            f"afade=t=out:st={fade_out_start:.3f}:d={fade_out:.3f},"
+            f"volume={vol:.2f}"
+        )
+        if onset_sec >= 0.05:
+            delay_ms = int(round(onset_sec * 1000))
+            sfx_chain += f",adelay={delay_ms}|{delay_ms}"
+        sfx_chain += "[sfx]"
+
+        filter_complex = (
+            f"[0:a]aresample=44100,aformat=channel_layouts=stereo,volume=1.0[voice];"
+            f"{sfx_chain};"
+            f"[voice][sfx]amix=inputs=2:duration=first:dropout_transition=0:normalize=0,"
+            f"alimiter=limit=0.96:level=disabled[aout]"
+        )
+
+        cmd = [
+            "ffmpeg", "-y",
+            "-i", os.path.abspath(voice_audio_path),
+            *sfx_input_args,
+            "-i", os.path.abspath(sfx_path),
+            "-filter_complex", filter_complex,
+            "-map", "[aout]",
+            "-c:a", "pcm_s16le",
+            "-ar", "44100",
+            "-ac", "2",
+            os.path.abspath(out_audio_path),
+        ]
+        res = subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, timeout=60)
+        if res.returncode == 0 and os.path.exists(out_audio_path) and os.path.getsize(out_audio_path) > 1000:
+            return out_audio_path
+
+        if res.stderr:
+            err_tail = res.stderr.decode(errors="ignore")[-250:]
+            print(f"⚠️ [After Effects SFX Mix Warning]: {err_tail}")
+    except Exception as e_sfx:
+        print(f"⚠️ [After Effects SFX Mix Error]: {e_sfx}")
+
+    return voice_audio_path
+
 def merge_and_export(
     scene_list: list,
     output_name: str,
@@ -1165,6 +1804,7 @@ def merge_and_export(
     print(f"\n🎬 Rendering {len(scene_list)} scenes (Mode: {mode.upper()}, Category: {category}, Size: {target_size})...")
     
     temp_scene_files = []
+    used_sfx_history = []
     job_dir = os.path.dirname(output_name) if os.path.dirname(output_name) else "."
 
     cat_lower = str(category).lower()
@@ -1383,6 +2023,26 @@ def merge_and_export(
             cat_style = "clean"
 
         clip_text_segment = scene.get('text', '')
+        current_sfx_mixed_path = None
+        if str(mode).strip().lower() == "ultra" and is_after_effects_cat:
+            scene_kw = scene.get('keyword') or scene.get('keywords') or scene.get('visual_prompt') or ''
+            sfx_choice = select_after_effects_sfx(
+                scene_text=clip_text_segment,
+                scene_keyword=scene_kw,
+                scene_idx=i,
+                total_scenes=len(scene_list),
+                clip_duration=clip_duration,
+                used_sfx=used_sfx_history,
+            )
+            if sfx_choice:
+                sfx_out_wav = os.path.join(job_dir, f"temp_sfx_mixed_{i}.wav")
+                mixed_res = mix_sfx_into_scene_audio(audio_path, sfx_choice, clip_duration, sfx_out_wav)
+                if mixed_res != audio_path and os.path.exists(mixed_res):
+                    audio_path = mixed_res
+                    current_sfx_mixed_path = mixed_res
+                    used_sfx_history.append(sfx_choice["file"])
+                    print(f"🔊 [Ultra After Effects SFX] Scene {i+1}/{len(scene_list)}: Applied '{sfx_choice['file']}' (kind={sfx_choice['kind']}, onset={sfx_choice['onset_sec']}s, trigger={sfx_choice['reason']})")
+
         scene_output = os.path.join(job_dir, f"temp_rendered_scene_{i}.mp4")
         step_pct = int(((i + 1) / len(scene_list)) * 100)
         print(f"🎬 [FFMPEG HARDWARE RENDER {step_pct}%] Stitching Scene {i+1}/{len(scene_list)} (Duration: {clip_duration:.1f}s) -> {scene_output}...")
@@ -1622,6 +2282,10 @@ def merge_and_export(
 
         release_system_memory()
         
+        if current_sfx_mixed_path and os.path.exists(current_sfx_mixed_path):
+            try: os.remove(current_sfx_mixed_path)
+            except Exception: pass
+
         temp_scene_files.append(scene_output)
         msg = f"✅ [Scene {i+1}/{len(scene_list)}] Encoded HD scene clip successfully!"
         print(f"   {msg}")
