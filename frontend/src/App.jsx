@@ -1339,6 +1339,11 @@ function App() {
 
   const isLimitExhausted = !subStatus.has_active_subscription && !subStatus.has_active_ultra_subscription && (subStatus.free_demo_count !== undefined ? subStatus.free_demo_count <= 0 : false);
 
+  const getEffectiveCategory = () => {
+    if (videoType !== 'ultra') return '🎲 Random / All Categories';
+    return (category || '').includes('Custom Category') ? (customCategory || 'Random') : category;
+  };
+
   const handleAutoGenerate = async () => {
     if (isLimitExhausted) {
       triggerAlert(
@@ -1353,7 +1358,7 @@ function App() {
       return;
     }
     setIsGeneratingScript(true);
-    const finalCategory = (category || '').includes('Custom Category') ? (customCategory || 'Random') : category;
+    const finalCategory = getEffectiveCategory();
     try {
       const response = await fetch(`${API_BASE}/generate-script`, {
         method: 'POST',
@@ -1459,7 +1464,7 @@ function App() {
           topic: isSongVideoMode
             ? `${singerName} ${songTitle || 'Hit Song'}`.trim()
             : topic,
-          category: (category || '').includes('Custom Category') ? (customCategory || 'Random') : category,
+          category: getEffectiveCategory(),
           scenes: scenes,
           font_name: fontName,
           font_color: fontColor,
@@ -2057,9 +2062,7 @@ function App() {
                     setVideoType('short');
                     setAspectRatio('9:16');
                     if (duration > 55) setDuration(30);
-                    if (category === '🎵 Song Video' || (category || '').toLowerCase().includes('song video')) {
-                      setCategory('🎲 Random / All Categories');
-                    }
+                    setCategory('🎲 Random / All Categories');
                   }}
                   style={{ 
                     flex: 1, 
@@ -2089,9 +2092,7 @@ function App() {
                     setVideoType('long');
                     setAspectRatio('16:9');
                     if (duration < 20) setDuration(60);
-                    if (category === '🎵 Song Video' || (category || '').toLowerCase().includes('song video')) {
-                      setCategory('🎲 Random / All Categories');
-                    }
+                    setCategory('🎲 Random / All Categories');
                   }}
                   style={{ 
                     flex: 1, 
@@ -2121,7 +2122,9 @@ function App() {
                     setVideoType('ultra');
                     setAspectRatio('16:9');
                     if (duration < 20) setDuration(60);
-                    setCategory('🎵 Song Video');
+                    if (videoType !== 'ultra') {
+                      setCategory('🎲 Random / All Categories');
+                    }
                   }}
                   style={{ 
                     flex: 1, 
@@ -2522,7 +2525,7 @@ function App() {
             /* Regular Dashboard (Shown for all other 30+ categories) */
             <>
               <div id="tour-topic-script">
-                <div className="responsive-grid-2">
+                <div className={videoType === 'ultra' ? 'responsive-grid-2' : ''}>
                   <div className="form-group">
                     <label>Main Topic</label>
                     <input 
@@ -2533,21 +2536,23 @@ function App() {
                     />
                   </div>
 
-                  <div className="form-group">
-                    <label>Category / Niche ({videoType === 'ultra' ? 'Ultra & 30+ Categories' : '30+ Categories'})</label>
-                    <CustomSelect 
-                      theme={theme}
-                      value={category} 
-                      onChange={(val) => setCategory(val)}
-                      options={(videoType === 'ultra' ? ULTRA_CATEGORIES : STANDARD_CATEGORIES).map(cat => ({
-                        value: cat,
-                        label: <span style={{display: 'flex', alignItems: 'center', gap: '6px'}}><Hash size={16} /> {cat.substring(cat.indexOf(' ') + 1)}</span>
-                      }))}
-                    />
-                  </div>
+                  {videoType === 'ultra' && (
+                    <div className="form-group">
+                      <label>Category / Niche (Ultra &amp; 30+ Categories)</label>
+                      <CustomSelect 
+                        theme={theme}
+                        value={category} 
+                        onChange={(val) => setCategory(val)}
+                        options={ULTRA_CATEGORIES.map(cat => ({
+                          value: cat,
+                          label: <span style={{display: 'flex', alignItems: 'center', gap: '6px'}}><Hash size={16} /> {cat.substring(cat.indexOf(' ') + 1)}</span>
+                        }))}
+                      />
+                    </div>
+                  )}
                 </div>
 
-                {category === '✍️ Custom Category (Type Below)' && (
+                {videoType === 'ultra' && category === '✍️ Custom Category (Type Below)' && (
                   <div className="form-group">
                     <label>Custom Category / Niche Name</label>
                     <input 
@@ -3795,7 +3800,7 @@ function App() {
                       <div className="responsive-grid-2" style={{ gap: '12px', fontSize: '0.82rem' }}>
                         <div>
                           <label style={{ color: '#cbd5e1', display: 'block', marginBottom: '4px' }}>Category / Niche:</label>
-                          <select value={autoSchedule.ultra_category || '🎵 Song Video'} onChange={(e) => setAutoSchedule({ ...autoSchedule, ultra_category: e.target.value })} style={{ width: '100%', padding: '8px', background: '#1e1738', border: '1px solid rgba(255,255,255,0.15)', color: '#fff', borderRadius: '8px' }}>
+                          <select value={autoSchedule.ultra_category || '🎲 Random / All Categories'} onChange={(e) => setAutoSchedule({ ...autoSchedule, ultra_category: e.target.value })} style={{ width: '100%', padding: '8px', background: '#1e1738', border: '1px solid rgba(255,255,255,0.15)', color: '#fff', borderRadius: '8px' }}>
                             {ULTRA_CATEGORIES.map((cat, i) => (
                               <option key={i} value={cat}>{cat.substring(cat.indexOf(' ') + 1)}</option>
                             ))}
