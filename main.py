@@ -1948,6 +1948,10 @@ def full_process(req: VideoRequest, job_id: str):
                 build_full_song_video(req, job_id, job_dir, output_file)
                 release_system_memory()
 
+            if jobs.get(job_id, {}).get("status") == "cancelled":
+                print(f"🛑 [WORKFLOW CANCELLED] Job ID {job_id} was cancelled during song video build. Stopping immediately...")
+                return
+
             print(f"\n☁️ [PROGRESS 90%] STEP 6/6: Uploading Completed Song Video to Cloudinary CDN...")
             cloudinary_url = None
             try:
@@ -1976,10 +1980,28 @@ def full_process(req: VideoRequest, job_id: str):
                 "cloudinary_url": cloudinary_url,
                 "title": gen_title,
                 "description": gen_desc,
+                "video_type": req.video_type,
+                "topic": display_title,
                 "created_at": datetime.utcnow()
             })
 
             clean_user_id = sanitize_alphanumeric_id(user_id) if user_id else None
+            if videos_collection is not None and user_id != "anonymous":
+                try:
+                    videos_collection.insert_one({
+                        "internal_id": clean_user_id or req.user_id,
+                        "job_id": job_id,
+                        "topic": display_title,
+                        "title": gen_title,
+                        "description": gen_desc,
+                        "video_type": req.video_type,
+                        "cloudinary_url": cloudinary_url,
+                        "created_at": datetime.utcnow()
+                    })
+                    print(f"✅ Song Video history saved to MongoDB (videos_collection) for user {req.user_id}: {gen_title}")
+                except Exception as e_vid_hist:
+                    print(f"❌ Failed to save song video history to videos_collection DB: {e_vid_hist}")
+
             if users_collection is not None and clean_user_id:
                 try:
                     history_entry = {
@@ -4407,6 +4429,7 @@ async def get_video_history(internal_id: str):
     
     try:
         user_or_terms = [{"internal_id": clean_id}, {"user_id": clean_id}]
+        user = None
         if users_collection is not None:
             user = users_collection.find_one({"internal_id": clean_id})
             if user:
@@ -4443,6 +4466,27 @@ async def get_video_history(internal_id: str):
                 "cloudinary_url": v.get("cloudinary_url"),
                 "created_at": c_at_str
             })
+
+        # Also merge any legacy Song Videos stored in user.video_history array
+        if user and isinstance(user.get("video_history"), list):
+            for vh in reversed(user.get("video_history")):
+                j_id = vh.get("job_id")
+                if j_id and j_id in seen_job_ids:
+                    continue
+                if j_id:
+                    seen_job_ids.add(j_id)
+                c_at = vh.get("created_at")
+                c_at_str = c_at.isoformat() if isinstance(c_at, datetime) else (str(c_at) if c_at else None)
+                videos_list.append({
+                    "job_id": j_id,
+                    "topic": vh.get("topic") or vh.get("title") or "Ultra Song Video",
+                    "title": vh.get("title") or vh.get("topic") or "Ultra AI Song Video",
+                    "description": vh.get("description", ""),
+                    "cloudinary_url": vh.get("cloudinary_url"),
+                    "created_at": c_at_str
+                })
+            videos_list.sort(key=lambda x: x.get("created_at") or "", reverse=True)
+
         return {"history": videos_list}
     except Exception as e:
         print(f"⚠️ get_video_history fallback: {e}")
