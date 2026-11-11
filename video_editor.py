@@ -1808,6 +1808,7 @@ def merge_and_export(
     
     temp_scene_files = []
     used_sfx_history = []
+    used_vfx_history = []
     job_dir = os.path.dirname(output_name) if os.path.dirname(output_name) else "."
 
     cat_lower = str(category).lower()
@@ -2311,6 +2312,24 @@ def merge_and_export(
         if current_sfx_mixed_path and os.path.exists(current_sfx_mixed_path):
             try: os.remove(current_sfx_mixed_path)
             except Exception: pass
+
+        if str(mode).strip().lower() == "ultra" and is_after_effects_cat and os.path.exists(scene_output):
+            try:
+                from after_effects_vfx import apply_after_effects_vfx_overlay, select_after_effects_vfx
+                scene_kw_vfx = scene.get('keyword') or scene.get('keywords') or scene.get('visual_prompt') or ''
+                vfx_choice = select_after_effects_vfx(
+                    scene_text=clip_text_segment,
+                    scene_keyword=scene_kw_vfx,
+                    scene_idx=i,
+                    total_scenes=len(scene_list),
+                    clip_duration=clip_duration,
+                    used_vfx=used_vfx_history,
+                )
+                if vfx_choice and apply_after_effects_vfx_overlay(scene_output, vfx_choice, clip_duration, target_size, job_dir=job_dir):
+                    used_vfx_history.append(vfx_choice["file"])
+                    print(f"✨ [Ultra After Effects VFX] Scene {i+1}/{len(scene_list)}: Overlaid '{vfx_choice['file']}' (mode={vfx_choice['key_mode']}, trigger={vfx_choice['reason']})")
+            except Exception as e_vfx:
+                print(f"⚠️ Ultra After Effects VFX overlay notice: {e_vfx}")
 
         temp_scene_files.append(scene_output)
         msg = f"✅ [Scene {i+1}/{len(scene_list)}] Encoded HD scene clip successfully!"

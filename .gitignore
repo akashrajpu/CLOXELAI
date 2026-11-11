@@ -20,5 +20,7 @@ crop_actual_portrait.py
 !frontend/public/*.jpg
 !assets/emojis/*.png
 !sound_effects/*.mp3
+!vfx_overlays/*.mp4
+!vfx_overlays/*.mov
 cloxel-load-balancer/
 scratch/
