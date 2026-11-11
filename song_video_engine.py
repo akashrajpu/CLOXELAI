@@ -2600,6 +2600,7 @@ def build_full_song_video(
 
     used_media_ids = set()
     rendered_scene_files = []
+    rendered_seg_texts = []
 
     for seg_idx in range(num_segments):
         try:
@@ -2908,6 +2909,8 @@ def build_full_song_video(
 
         if os.path.exists(scene_mp4) and os.path.getsize(scene_mp4) > 1000:
             rendered_scene_files.append(scene_mp4)
+            seg_text = " ".join([l.get("text", "") for l in lines_in_seg]).strip()
+            rendered_seg_texts.append(seg_text)
 
     try:
         import main
@@ -2920,6 +2923,22 @@ def build_full_song_video(
     if not rendered_scene_files:
         raise RuntimeError("No visual segments were rendered successfully!")
 
+    orig_scene_files = list(rendered_scene_files)
+    glsl_temps = []
+    glsl_sfx_events = []
+    try:
+        from glsl_transitions import apply_glsl_transitions_to_segments
+        rendered_scene_files, glsl_temps, glsl_sfx_events = apply_glsl_transitions_to_segments(
+            segment_paths=rendered_scene_files,
+            scene_texts=rendered_seg_texts,
+            mode="ultra",
+            target_size=(tw, th),
+            job_dir=job_dir,
+            fps=20,
+        )
+    except Exception as e_glsl_song:
+        print(f"⚠️ [Song Engine GLSL Transition Notice]: {e_glsl_song}")
+
     # 5. Stream Concatenate Segments via FFmpeg (Takes 0 MB RAM)
     print(f"\n🎞️ [Song Engine] Stitching {len(rendered_scene_files)} segments via FFmpeg Concat Demuxer...")
     concat_list_file = os.path.join(job_dir, "song_scenes_concat.txt")
@@ -2928,19 +2947,7 @@ def build_full_song_video(
             f.write(f"file '{os.path.abspath(sf)}'\n")
 
     temp_video_no_audio = os.path.join(job_dir, "temp_video_stitched.mp4")
-    concat_cmd = [
-        "ffmpeg", "-y",
-        "-f", "concat",
-        "-safe", "0",
-        "-i", concat_list_file,
-        "-c", "copy",
-        "-movflags", "+faststart",
-        temp_video_no_audio
-    ]
-    try:
-        subprocess.run(concat_cmd, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    except Exception as e_c:
-        print(f"⚠️ Notice: Stream copy concat failed ({e_c}), re-encoding with minimal RAM...")
+    if glsl_temps:
         re_cmd = [
             "ffmpeg", "-y",
             "-f", "concat",
@@ -2948,10 +2955,39 @@ def build_full_song_video(
             "-i", concat_list_file,
             "-c:v", "libx264",
             "-preset", "ultrafast",
+            "-crf", "24",
+            "-r", "20",
+            "-pix_fmt", "yuv420p",
             "-threads", "1",
+            "-movflags", "+faststart",
             temp_video_no_audio
         ]
         subprocess.run(re_cmd, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    else:
+        concat_cmd = [
+            "ffmpeg", "-y",
+            "-f", "concat",
+            "-safe", "0",
+            "-i", concat_list_file,
+            "-c", "copy",
+            "-movflags", "+faststart",
+            temp_video_no_audio
+        ]
+        try:
+            subprocess.run(concat_cmd, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        except Exception as e_c:
+            print(f"⚠️ Notice: Stream copy concat failed ({e_c}), re-encoding with minimal RAM...")
+            re_cmd = [
+                "ffmpeg", "-y",
+                "-f", "concat",
+                "-safe", "0",
+                "-i", concat_list_file,
+                "-c:v", "libx264",
+                "-preset", "ultrafast",
+                "-threads", "1",
+                temp_video_no_audio
+            ]
+            subprocess.run(re_cmd, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
     release_system_memory()
 
@@ -3001,13 +3037,20 @@ def build_full_song_video(
         import shutil
         shutil.copy2(temp_video_no_audio, output_path)
 
+    if glsl_sfx_events and os.path.exists(output_path):
+        try:
+            from glsl_transitions import overlay_glitch_sfx_events_on_video
+            overlay_glitch_sfx_events_on_video(output_path, glsl_sfx_events)
+        except Exception as e_ov_s:
+            print(f"⚠️ [Song Engine Glitch SFX Notice]: {e_ov_s}")
+
     # 7. Clean up intermediate segment files to free disk space immediately
     try:
         if os.path.exists(concat_list_file):
             os.remove(concat_list_file)
         if os.path.exists(temp_video_no_audio):
             os.remove(temp_video_no_audio)
-        for sf in rendered_scene_files:
+        for sf in orig_scene_files + rendered_scene_files + glsl_temps:
             if os.path.exists(sf):
                 os.remove(sf)
     except Exception:

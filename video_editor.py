@@ -1956,17 +1956,40 @@ def merge_and_export(
         if not valid_temp_files:
             raise RuntimeError("No valid scene video files generated for assembly!")
 
+        glsl_temps_cw = []
+        try:
+            from glsl_transitions import apply_glsl_transitions_to_segments
+            cw_texts = [
+                scene_list[idx].get('text', '') if idx < len(scene_list) else ''
+                for idx, tf in enumerate(temp_scene_files)
+                if os.path.exists(tf) and os.path.getsize(tf) > 500
+            ]
+            valid_temp_files, glsl_temps_cw, _ = apply_glsl_transitions_to_segments(
+                segment_paths=valid_temp_files,
+                scene_texts=cw_texts,
+                mode=mode,
+                target_size=target_size,
+                job_dir=job_dir,
+                fps=15,
+            )
+            temp_scene_files.extend(glsl_temps_cw)
+        except Exception as e_glsl_cw:
+            print(f"⚠️ [GLSL Transition Notice]: {e_glsl_cw}")
+
         list_path = os.path.abspath(os.path.join(job_dir, "concat_list.txt"))
         with open(list_path, "w", encoding="utf-8") as f:
             for tf in valid_temp_files:
                 f.write(f"file '{os.path.abspath(tf)}'\n")
 
         temp_merged = os.path.abspath(os.path.join(job_dir, "temp_merged_final.mp4"))
-        try:
-            subprocess.run(["ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i", list_path, "-c", "copy", temp_merged], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        except Exception as e_c_copy:
-            print(f"⚠️ Notice: FFmpeg concat copy mode failed ({e_c_copy}). Retrying with re-encode fallback...")
-            subprocess.run(["ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i", list_path, "-c:v", "libx264", "-preset", "ultrafast", "-threads", "1", "-c:a", "aac", temp_merged], check=True)
+        if glsl_temps_cw:
+            subprocess.run(["ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i", list_path, "-c:v", "libx264", "-preset", "ultrafast", "-crf", "24", "-r", "15", "-threads", "1", "-pix_fmt", "yuv420p", "-c:a", "aac", "-b:a", "128k", "-ar", "44100", "-ac", "2", temp_merged], check=True)
+        else:
+            try:
+                subprocess.run(["ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i", list_path, "-c", "copy", temp_merged], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            except Exception as e_c_copy:
+                print(f"⚠️ Notice: FFmpeg concat copy mode failed ({e_c_copy}). Retrying with re-encode fallback...")
+                subprocess.run(["ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i", list_path, "-c:v", "libx264", "-preset", "ultrafast", "-threads", "1", "-c:a", "aac", temp_merged], check=True)
 
         if bg_music and str(bg_music).lower() != "none":
             bg_music_file = bg_music if os.path.exists(bg_music) else (os.path.join(".", bg_music) if os.path.exists(os.path.join(".", bg_music)) else None)
@@ -2300,6 +2323,25 @@ def merge_and_export(
     valid_temp_files = [tf for tf in temp_scene_files if os.path.exists(tf) and os.path.getsize(tf) > 500]
     if not valid_temp_files:
         raise RuntimeError("No valid scene video files generated for assembly!")
+
+    try:
+        from glsl_transitions import apply_glsl_transitions_to_segments
+        valid_texts = [
+            scene_list[idx].get('text', '') if idx < len(scene_list) else ''
+            for idx, tf in enumerate(temp_scene_files)
+            if os.path.exists(tf) and os.path.getsize(tf) > 500
+        ]
+        valid_temp_files, glsl_temps, _ = apply_glsl_transitions_to_segments(
+            segment_paths=valid_temp_files,
+            scene_texts=valid_texts,
+            mode=mode,
+            target_size=target_size,
+            job_dir=job_dir,
+            fps=25,
+        )
+        temp_scene_files.extend(glsl_temps)
+    except Exception as e_glsl_main:
+        print(f"⚠️ [GLSL Transition Notice]: {e_glsl_main}")
 
     list_path = os.path.abspath(os.path.join(job_dir, "concat_list.txt"))
     with open(list_path, "w", encoding="utf-8") as f:
