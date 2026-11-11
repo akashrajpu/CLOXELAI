@@ -1146,6 +1146,7 @@ def render_scene_native_ffmpeg(
 
 
 _AE_SFX_BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+_AE_SFX_DIR = os.path.join(_AE_SFX_BASE_DIR, "sound_effects")
 _AE_SFX_SPLIT_RE = re.compile(r'[\s,.\-!?;:"\'()\[\]{}<>/\\|~`@#$%^&*_+=।॥]+')
 
 # Catalog of Mixkit & local SFX assets mapped directly by filename intent and script context.
@@ -1481,10 +1482,12 @@ AFTER_EFFECTS_SFX_CATALOG = [
 
 
 def _resolve_ae_sfx_path(filename: str):
-    """Resolve an SFX file path from repo root or current working directory."""
+    """Resolve an SFX file path primarily from the sound_effects/ folder."""
     if not filename:
         return None
     for candidate in (
+        os.path.join(_AE_SFX_DIR, filename),
+        os.path.abspath(os.path.join("sound_effects", filename)),
         os.path.join(_AE_SFX_BASE_DIR, filename),
         os.path.abspath(filename),
     ):

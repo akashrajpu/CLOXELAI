@@ -19,5 +19,6 @@ crop_actual_portrait.py
 !frontend/public/*.png
 !frontend/public/*.jpg
 !assets/emojis/*.png
+!sound_effects/*.mp3
 cloxel-load-balancer/
 scratch/
