@@ -5,6 +5,7 @@ import re
 import glob
 import math
 import random
+import shutil
 import subprocess
 import hashlib
 import unicodedata
@@ -52,7 +53,32 @@ import numpy as np
 # CINEMATIC ASSETS, 5+ FONTS PALETTE & MOOD DEFINITIONS
 # ---------------------------------------------------------------------------
 
-# Universal dual-language font pool: 100% verified to support English, Hinglish & Hindi Devanagari natively
+# Clean, verified BOLD fonts (Line 1 / Top line in every dual-font lyric render)
+SONG_BOLD_FONTS_POOL = [
+    "./fonts/Mukta-Bold.ttf",                   # Clean Heavy Modern Sans
+    "./fonts/roboto.ttf",                       # Thick Geometric Display
+    "./fonts/Modak-Regular.ttf",                # Chunky Bold Poster Display
+    "./fonts/RozhaOne-Regular.ttf",             # Bold Editorial Fashion Serif
+    "./fonts/CarbonBlock.ttf",                  # Bold Condensed Headline
+    "./fonts/YatraOne-Regular.ttf",             # Bold Retro Cinema Display
+    "./fonts/Montague.ttf"                      # Bold Classic Serif Display
+]
+
+# Clean, verified RANDOM/STYLISH solid fonts (Line 2 / Bottom line paired under the Bold line)
+SONG_RANDOM_FONTS_POOL = [
+    "./fonts/Kalam-Bold.ttf",                   # Organic Handwritten / Calligraphy
+    "./fonts/Ranga-Bold.ttf",                   # Expressive Italic Brush Script
+    "./fonts/anton.ttf",                        # Stylish Cursive Script
+    "./fonts/bebas.ttf",                        # Bold Italic Cursive Script
+    "./fonts/TiroDevanagariHindi-Regular.ttf",  # Poetic Literary Serif
+    "./fonts/Arial.ttf",                        # Crisp Modern Sans
+    "./fonts/CornFed.ttf",                      # Hand-lettered Display
+    "./fonts/planetbe.ttf",                     # Urban Pop Rounded Display
+    "./fonts/SF Funk Master.ttf",               # Funky Stylized Display
+    "./fonts/RozhaOne-Regular.ttf"              # High-Contrast Editorial Serif
+]
+
+# Universal dual-language font pool preserved for backward compatibility
 CINEMATIC_FONTS_POOL = [
     "./fonts/Mukta-Bold.ttf",                   # Modern Bold Sans-Serif
     "./fonts/Kalam-Bold.ttf",                   # Organic Handwritten / Calligraphy
@@ -62,20 +88,25 @@ CINEMATIC_FONTS_POOL = [
     "./fonts/TiroDevanagariHindi-Regular.ttf"   # Timeless Literary / Poetic Book Serif
 ]
 
-# Additional English/Hinglish-only fonts used ONLY when lyrics are confirmed pure Latin script
+# Additional English/Hinglish-only fonts
 LATIN_ONLY_FONTS_POOL = [
-    "./fonts/anton.ttf",                        # Ultra-Impact Poster Condensed
-    "./fonts/bebas.ttf",                        # Clean Headline Condensed
-    "./fonts/roboto.ttf",                       # Sleek Geometric Modern
-    "./fonts/Arial.ttf"                         # Universal Sans
+    "./fonts/anton.ttf",
+    "./fonts/bebas.ttf",
+    "./fonts/roboto.ttf",
+    "./fonts/Arial.ttf"
 ]
 
+_SONG_RNG = random.SystemRandom()
+
+# Strict Side & Bottom positions only (NEVER dead center over the video subject)
 TEXT_POSITIONS = [
-    "bottom_center",   # classic subtitle at y=76%, centered
-    "center",          # punchy emotional hook at y=48%, centered
-    "lower_left",      # modern reels margin at y=72%, left-aligned
-    "top_badge",       # aesthetic header at y=15%, centered
-    "bottom_floating"  # floating card at y=66%, centered
+    "bottom_center",   # Bottom strip centered horizontally at the bottom edge
+    "lower_left",      # Left side lower margin (compact width, keeps center empty)
+    "lower_right",     # Right side lower margin (compact width, keeps center empty)
+    "bottom_left",     # Bottom-left corner
+    "bottom_right",    # Bottom-right corner
+    "upper_left",      # Left side upper corner (compact width, keeps center empty)
+    "upper_right"      # Right side upper corner (compact width, keeps center empty)
 ]
 
 TEXT_COLORS = [
@@ -428,18 +459,295 @@ URDU_TO_DEVANAGARI = {
 }
 
 
+_NUKTA_ROMAN_MAP = {
+    'क': 'q', 'ख': 'kh', 'ग': 'gh', 'ज': 'z',
+    'ड': 'd', 'ढ': 'dh', 'फ': 'f', 'य': 'y', 'स': 's',
+}
+
+_DEVANAGARI_VOWELS = {
+    'अ': 'a', 'आ': 'aa', 'इ': 'i', 'ई': 'ee', 'उ': 'u', 'ऊ': 'oo',
+    'ऋ': 'ri', 'ए': 'e', 'ऐ': 'ai', 'ओ': 'o', 'औ': 'au',
+    'ऑ': 'o', 'ॲ': 'e', 'ऍ': 'e', 'ऒ': 'o', 'ऎ': 'e',
+}
+
+_DEVANAGARI_CONSONANTS = {
+    'क': 'k', 'ख': 'kh', 'ग': 'g', 'घ': 'gh', 'ङ': 'ng',
+    'च': 'ch', 'छ': 'chh', 'ज': 'j', 'झ': 'jh', 'ञ': 'ny',
+    'ट': 't', 'ठ': 'th', 'ड': 'd', 'ढ': 'dh', 'ण': 'n',
+    'त': 't', 'थ': 'th', 'द': 'd', 'ध': 'dh', 'न': 'n', 'ऩ': 'n',
+    'प': 'p', 'फ': 'ph', 'ब': 'b', 'भ': 'bh', 'म': 'm',
+    'य': 'y', 'र': 'r', 'ऱ': 'r', 'ल': 'l', 'ळ': 'l', 'ऴ': 'l', 'व': 'v',
+    'श': 'sh', 'ष': 'sh', 'स': 's', 'ह': 'h',
+    '\u0958': 'q', '\u0959': 'kh', '\u095a': 'gh', '\u095b': 'z',
+    '\u095c': 'd', '\u095d': 'dh', '\u095e': 'f', '\u095f': 'y',
+}
+
+_DEVANAGARI_MATRAS = {
+    'ा': 'aa', 'ि': 'i', 'ी': 'ee', 'ु': 'u', 'ू': 'oo',
+    'ृ': 'ri', 'ॄ': 'ri', 'ॅ': 'e', 'े': 'e', 'ै': 'ai',
+    'ॉ': 'o', 'ो': 'o', 'ौ': 'au', 'ॆ': 'e', 'ॊ': 'o',
+}
+
+_DEVANAGARI_DIGITS = str.maketrans('०१२३४५६७८९', '0123456789')
+_LABIAL_CONSONANTS = {'प', 'फ', 'ब', 'भ', 'म', 'फ़'}
+
+# Authentic Bollywood Hinglish spellings for common Hindi song/conversational words
+_HINGLISH_WORD_OVERRIDES = {
+    'मैं': 'main', 'में': 'mein', 'हूँ': 'hoon', 'हूं': 'hoon', 'है': 'hai', 'हैं': 'hain',
+    'था': 'tha', 'थी': 'thi', 'थे': 'the', 'थीं': 'thin', 'नहीं': 'nahin', 'नही': 'nahi',
+    'क्यों': 'kyon', 'क्यूँ': 'kyun', 'क्योंकि': 'kyonki', 'क्या': 'kya', 'कौन': 'kaun',
+    'कैसे': 'kaise', 'कैसा': 'kaisa', 'कैसी': 'kaisi', 'जैसे': 'jaise', 'जैसा': 'jaisa',
+    'ऐसे': 'aise', 'ऐसा': 'aisa', 'वैसे': 'waise', 'वैसा': 'waisa',
+    'यह': 'ye', 'ये': 'ye', 'वह': 'wo', 'वो': 'wo', 'और': 'aur', 'कोई': 'koi', 'कुछ': 'kuch',
+    'यहाँ': 'yahan', 'यहां': 'yahan', 'वहाँ': 'wahan', 'वहां': 'wahan',
+    'जहाँ': 'jahan', 'जहां': 'jahan', 'कहाँ': 'kahan', 'कहां': 'kahan',
+    'हमें': 'hamein', 'तुम्हें': 'tumhein', 'मुझे': 'mujhe', 'तुझे': 'tujhe',
+    'उसे': 'use', 'उन्हें': 'unhein', 'जिसे': 'jise', 'जिन्हें': 'jinhein',
+    'अपना': 'apna', 'अपनी': 'apni', 'अपने': 'apne',
+    'मेरा': 'mera', 'मेरी': 'meri', 'मेरे': 'mere',
+    'तेरा': 'tera', 'तेरी': 'teri', 'तेरे': 'tere',
+    'हमारा': 'hamara', 'हमारी': 'hamari', 'हमारे': 'hamare',
+    'तुम्हारा': 'tumhara', 'तुम्हारी': 'tumhari', 'तुम्हारे': 'tumhare',
+    'गया': 'gaya', 'गयी': 'gayi', 'गई': 'gayi', 'गये': 'gaye', 'गए': 'gaye',
+    'हुआ': 'hua', 'हुई': 'hui', 'हुए': 'hue', 'लिया': 'liya', 'दिया': 'diya', 'किया': 'kiya',
+    'रहा': 'raha', 'रही': 'rahi', 'रहे': 'rahe', 'चाहिए': 'chahiye',
+    'होगा': 'hoga', 'होगी': 'hogi', 'होंगे': 'honge', 'सकता': 'sakta', 'सकती': 'sakti', 'सकते': 'sakte',
+    'ज़िन्दगी': 'zindagi', 'जिंदगी': 'zindagi', 'ज़िंदगी': 'zindagi', 'ज़िन्दगानी': 'zindagani',
+    'मोहब्बत': 'mohabbat', 'इश्क़': 'ishq', 'इश्क़': 'ishq', 'इश्क': 'ishq', 'आशिक़ी': 'aashiqui',
+    'ख़ुशी': 'khushi', 'खुशी': 'khushi', 'ख़्वाब': 'khwaab', 'ख्वाब': 'khwaab',
+    'आँखें': 'aankhen', 'आंखें': 'aankhen', 'आँखों': 'aankhon', 'आंखों': 'aankhon',
+    'आँसू': 'aansu', 'आंसू': 'aansu', 'साँसें': 'saansen', 'सांसें': 'saansen',
+    'चाँद': 'chaand', 'चांद': 'chaand', 'चाँदनी': 'chaandni',
+    'आसमाँ': 'aasmaan', 'आसमान': 'aasmaan', 'प्यार': 'pyaar', 'दिल': 'dil',
+    'धड़कन': 'dhadkan', 'दुनिया': 'duniya', 'वक़्त': 'waqt', 'वक्त': 'waqt',
+    'तन्हाई': 'tanhai', 'जुदाई': 'judai', 'बेवफ़ा': 'bewafa', 'बेवफा': 'bewafa',
+    'सपना': 'sapna', 'सपने': 'sapne', 'बातें': 'baatein', 'यादें': 'yaadein',
+    'राहें': 'raahein', 'कहानी': 'kahani', 'दीवाना': 'deewana', 'दीवानी': 'deewani',
+    'मुस्कान': 'muskaan', 'मुस्कुरा': 'muskura', 'इंतज़ार': 'intezaar', 'इन्तज़ार': 'intezaar',
+    'चेहरा': 'chehra', 'नज़ारा': 'nazaara', 'साया': 'saaya', 'दोस्त': 'dost',
+    'हमसफ़र': 'humsafar', 'हमसफर': 'humsafar', 'हमदम': 'hamdam',
+    'मुसाफ़िर': 'musaafir', 'मुसाफिर': 'musaafir', 'आवारा': 'awaara',
+    'तारा': 'taara', 'तारे': 'taare', 'बारिश': 'baarish', 'मौसम': 'mausam',
+    'फ़िज़ा': 'fiza', 'सदा': 'sada', 'वफ़ा': 'wafa', 'वफा': 'wafa',
+    'सज़ा': 'saza', 'सजा': 'saza', 'दुआ': 'dua', 'ख़ुदा': 'khuda', 'खुदा': 'khuda',
+    'कृष्ण': 'Krishna', 'कृष्णा': 'Krishna', 'राधा': 'Radha', 'श्याम': 'Shyam',
+    'महादेव': 'Mahadev', 'भोले': 'Bhole', 'शंकर': 'Shankar', 'राम': 'Ram',
+    'हनुमान': 'Hanuman', 'माँ': 'Maa', 'मां': 'Maa', 'तुम': 'tum', 'हम': 'hum',
+    'जब': 'jab', 'तब': 'tab', 'अब': 'ab', 'कब': 'kab', 'सब': 'sab', 'साथ': 'saath',
+}
+
+
+def _devanagari_word_to_hinglish(word: str) -> str:
+    """Converts a single Devanagari word into natural phonetic Hinglish (Roman script)."""
+    if not word:
+        return ""
+    norm_w = unicodedata.normalize('NFC', word)
+    override_hit = _HINGLISH_WORD_OVERRIDES.get(norm_w) or _HINGLISH_WORD_OVERRIDES.get(norm_w.replace('\u093c', ''))
+    if override_hit:
+        return override_hit
+
+    # Tokenize into structured units: ('V', str), ('C', base_roman, matra_or_none, has_virama, nasal_char_or_none, visarga_bool, raw_cons)
+    units: List[Dict[str, Any]] = []
+    i = 0
+    n = len(norm_w)
+    while i < n:
+        ch = norm_w[i]
+        # Special conjunct ligatures
+        if i + 2 < n and norm_w[i+1] == '्':
+            tri = norm_w[i:i+3]
+            lig_map = {'क्ष': 'ksh', 'त्र': 'tr', 'ज्ञ': 'gy', 'श्र': 'shr'}
+            if tri in lig_map:
+                ch_roman = lig_map[tri]
+                i += 3
+                matra = None
+                has_virama = False
+                nasal = None
+                visarga = False
+                if i < n and norm_w[i] == '्':
+                    has_virama = True
+                    i += 1
+                elif i < n and norm_w[i] in _DEVANAGARI_MATRAS:
+                    matra = norm_w[i]
+                    i += 1
+                if i < n and norm_w[i] in ('ं', 'ँ'):
+                    nasal = norm_w[i]
+                    i += 1
+                if i < n and norm_w[i] == 'ः':
+                    visarga = True
+                    i += 1
+                units.append({
+                    'kind': 'C', 'base': ch_roman, 'matra': matra,
+                    'virama': has_virama, 'nasal': nasal, 'visarga': visarga, 'raw': tri
+                })
+                continue
+
+        if ch in _DEVANAGARI_VOWELS:
+            v_str = _DEVANAGARI_VOWELS[ch]
+            i += 1
+            nasal = None
+            visarga = False
+            if i < n and norm_w[i] in ('ं', 'ँ'):
+                nasal = norm_w[i]
+                i += 1
+            if i < n and norm_w[i] == 'ः':
+                visarga = True
+                i += 1
+            units.append({'kind': 'V', 'base': v_str, 'nasal': nasal, 'visarga': visarga, 'raw': ch})
+            continue
+
+        if ch in _DEVANAGARI_CONSONANTS:
+            c_roman = _DEVANAGARI_CONSONANTS[ch]
+            raw_c = ch
+            i += 1
+            if i < n and norm_w[i] == '\u093c':
+                c_roman = _NUKTA_ROMAN_MAP.get(raw_c, c_roman)
+                i += 1
+            matra = None
+            has_virama = False
+            nasal = None
+            visarga = False
+            if i < n and norm_w[i] == '्':
+                has_virama = True
+                i += 1
+            elif i < n and norm_w[i] in _DEVANAGARI_MATRAS:
+                matra = norm_w[i]
+                i += 1
+            if i < n and norm_w[i] in ('ं', 'ँ'):
+                nasal = norm_w[i]
+                i += 1
+            if i < n and norm_w[i] == 'ः':
+                visarga = True
+                i += 1
+            units.append({
+                'kind': 'C', 'base': c_roman, 'matra': matra,
+                'virama': has_virama, 'nasal': nasal, 'visarga': visarga, 'raw': raw_c
+            })
+            continue
+
+        # Fallback digits / punctuation inside span
+        if ch in '०१२३४५६७८९':
+            units.append({'kind': 'LIT', 'base': ch.translate(_DEVANAGARI_DIGITS), 'raw': ch})
+        elif ch in ('।', '॥'):
+            units.append({'kind': 'LIT', 'base': '.', 'raw': ch})
+        elif ch == 'ऽ':
+            units.append({'kind': 'LIT', 'base': "'", 'raw': ch})
+        i += 1
+
+    # Decide which bare consonants have explicit/retained schwa vs silent schwa
+    # Walk right-to-left using Hindi Ohala schwa-deletion heuristics
+    u_len = len(units)
+    keep_schwa = [False] * u_len
+    right_dropped = False
+    for idx in range(u_len - 1, -1, -1):
+        u = units[idx]
+        if u['kind'] != 'C' or u['matra'] or u['virama']:
+            right_dropped = False
+            continue
+        # Bare consonant without matra or virama:
+        if u['nasal'] or u['visarga']:
+            keep_schwa[idx] = True
+            right_dropped = False
+            continue
+        is_last = (idx == u_len - 1)
+        prev_u = units[idx - 1] if idx > 0 else None
+        prev_was_conjunct = bool(prev_u and prev_u['kind'] == 'C' and prev_u.get('virama'))
+        if is_last:
+            if u_len == 1 or prev_was_conjunct:
+                keep_schwa[idx] = True
+                right_dropped = False
+            else:
+                keep_schwa[idx] = False
+                right_dropped = True
+        elif idx == 0 or prev_was_conjunct:
+            keep_schwa[idx] = True
+            right_dropped = False
+        elif right_dropped:
+            # Never drop two adjacent schwas in a row
+            keep_schwa[idx] = True
+            right_dropped = False
+        else:
+            # Drop medial schwa if preceded by a vowel-bearing syllable and followed by a consonant+vowel syllable
+            nxt_u = units[idx + 1]
+            prev_has_vowel = bool(
+                prev_u and (prev_u['kind'] == 'V' or prev_u.get('matra') or keep_schwa[idx - 1])
+            )
+            nxt_has_vowel = bool(nxt_u['kind'] == 'C' and (nxt_u.get('matra') or keep_schwa[idx + 1]))
+            if nxt_u['kind'] == 'C' and nxt_u.get('virama'):
+                # Before a consonant cluster (e.g. mohabbat): keep schwa
+                keep_schwa[idx] = True
+                right_dropped = False
+            elif prev_has_vowel and nxt_has_vowel and not (prev_u and prev_u.get('nasal')):
+                keep_schwa[idx] = False
+                right_dropped = True
+            else:
+                keep_schwa[idx] = True
+                right_dropped = False
+
+    out_parts: List[str] = []
+    for idx, u in enumerate(units):
+        if u['kind'] == 'LIT':
+            out_parts.append(u['base'])
+            continue
+        if u['kind'] == 'V':
+            v_txt = u['base']
+            out_parts.append(v_txt)
+        else:
+            c_base = u['base']
+            # Natural Hinglish 'व' pronunciation: 'v' before front vowels (i/e), 'w' elsewhere
+            if u.get('raw') == 'व' and u['matra'] in ('ा', 'ो', 'ौ', 'ु', 'ू', None) and not u['virama']:
+                c_base = 'w'
+            out_parts.append(c_base)
+            if not u['virama']:
+                if u['matra']:
+                    m_ch = u['matra']
+                    is_word_end = (idx == u_len - 1) and not u['nasal']
+                    if m_ch == 'ा' and is_word_end:
+                        out_parts.append('a')
+                    elif m_ch == 'ी' and is_word_end:
+                        out_parts.append('i')
+                    elif m_ch == 'ू' and is_word_end:
+                        out_parts.append('u')
+                    else:
+                        out_parts.append(_DEVANAGARI_MATRAS[m_ch])
+                elif keep_schwa[idx]:
+                    out_parts.append('a')
+
+        if u.get('nasal'):
+            nxt_raw = units[idx + 1].get('raw', '') if idx + 1 < u_len else ''
+            if nxt_raw in _LABIAL_CONSONANTS:
+                out_parts.append('m')
+            else:
+                out_parts.append('n')
+        if u.get('visarga'):
+            out_parts.append('h')
+
+    return "".join(out_parts)
+
+
+def devanagari_to_hinglish(text: str) -> str:
+    """
+    Transliterates all Devanagari text runs cleanly into natural Roman Hinglish script,
+    ensuring zero Devanagari characters remain while preserving English words verbatim.
+    """
+    if not text:
+        return ""
+    text = text.replace('।', '. ').replace('॥', '. ').translate(_DEVANAGARI_DIGITS)
+    return re.sub(r'[\u0900-\u097F]+', lambda m: _devanagari_word_to_hinglish(m.group(0)), text)
+
+
 def sanitize_lyrics_text(text: str) -> str:
     """
-    Bulletproof Lyrics Sanitizer:
-    1. Transliterates Gurmukhi (Punjabi) & Urdu to native Devanagari Hindi so fonts render 100% cleanly.
-    2. Strips raw emojis and unmapped Unicode symbols that trigger tofu [X] boxes.
-    3. Normalizes smart typographic punctuation to standard ASCII.
+    Bulletproof Lyrics Sanitizer (Hinglish & English Only):
+    1. Converts Gurmukhi (Punjabi) & Urdu to Devanagari pivot, then transliterates ALL Devanagari Hindi -> Hinglish.
+    2. Guarantees zero Hindi Devanagari/Gurmukhi/Urdu script ever remains in rendered lyrics.
+    3. Strips raw emojis and unmapped Unicode symbols that trigger tofu [X] boxes.
+    4. Normalizes smart typographic punctuation to standard ASCII.
     """
     if not text:
         return ""
     text = unicodedata.normalize('NFC', text)
 
-    # 1. Transliterate Gurmukhi / Punjabi to Devanagari Hindi (handling gemination addak 'ੱ')
+    # 1. Transliterate Gurmukhi / Punjabi -> Devanagari pivot
     if any(0x0A00 <= ord(c) <= 0x0A7F for c in text):
         out = []
         i = 0
@@ -457,22 +765,29 @@ def sanitize_lyrics_text(text: str) -> str:
             i += 1
         text = ''.join(out)
 
-    # 2. Transliterate Urdu / Arabic to Devanagari Hindi
+    # 2. Transliterate Urdu / Arabic -> Devanagari pivot
     if any(0x0600 <= ord(c) <= 0x06FF for c in text):
         text = ''.join(URDU_TO_DEVANAGARI.get(c, c) for c in text)
 
-    # 3. Clean typographic quotes, dashes, and smart punctuation
+    # 3. Transliterate ALL Hindi Devanagari -> Hinglish (Roman script ONLY, never Hindi script)
+    if any(0x0900 <= ord(c) <= 0x097F for c in text):
+        text = devanagari_to_hinglish(text)
+
+    # 4. Clean typographic quotes, dashes, and smart punctuation
     text = text.replace('‘', "'").replace('’', "'").replace('“', '"').replace('”', '"')
     text = text.replace('—', '-').replace('–', '-').replace('…', '...')
 
-    # 4. Strip emojis in high surrogates and supplementary private ranges
+    # 5. Strip emojis in high surrogates and supplementary private ranges
     text = re.sub(r'[\U00010000-\U0010ffff]', '', text)
     text = re.sub(r'[\uD800-\uDFFF]', '', text)
     text = re.sub(r'[\u2600-\u27BF\u2300-\u23FF\u2B50\u200D\uFE0F]', '', text)
 
-    # 5. Allow alphanumeric, Hindi Devanagari (\u0900-\u097F), and standard punctuation only
-    text = re.sub(r'[^\w\s\.,\'"!\?\-—\u0900-\u097F]', '', text)
-    return " ".join(text.split()).strip()
+    # 6. Keep clean Hinglish/English Latin letters, digits, whitespace, and ASCII punctuation ONLY
+    text = re.sub(r"[^A-Za-z0-9\s\.,'\"\!\?\-:]", '', text)
+    cleaned = " ".join(text.split()).strip()
+    if cleaned and cleaned[0].islower():
+        cleaned = cleaned[0].upper() + cleaned[1:]
+    return cleaned
 
 
 def apply_cinematic_photo_filter(im: Image.Image, filter_name: str) -> Image.Image:
@@ -696,7 +1011,7 @@ def transcribe_audio_vocal_lyrics(
 
                     if text:
                         clean_line = sanitize_lyrics_text(text)
-                        noise_tokens = {'इह', 'उह', 'आह', 'hm', 'hmm', 'ah', 'oh', 'uh', 'ha', 'hah'}
+                        noise_tokens = {'ih', 'uh', 'ah', 'hm', 'hmm', 'oh', 'ha', 'hah', 'uhh', 'aah', 'eeh'}
                         words = clean_line.split()
                         if clean_line and (len(words) > 1 or (len(words) == 1 and clean_line.lower() not in noise_tokens and len(clean_line) > 2)):
                             seg_start = round(cur, 2)
@@ -749,8 +1064,8 @@ def fetch_song_synced_lyrics(
     norm_s = normalize_singer_name(clean_s)
     active_s = norm_s or clean_s
 
-    display_title = clean_t or "Official Soundtrack"
-    display_artist = active_s or "Special"
+    display_title = sanitize_lyrics_text(clean_t) or clean_t or "Official Soundtrack"
+    display_artist = sanitize_lyrics_text(active_s) or active_s or "Special"
 
     import urllib.request, urllib.parse, ssl, json
     ctx = ssl._create_unverified_context() if hasattr(ssl, '_create_unverified_context') else None
@@ -778,7 +1093,10 @@ def fetch_song_synced_lyrics(
     embedded_lyrics = auto_extract_audio_embedded_lyrics(audio_path) if audio_path else None
 
     # Step 2: If fallback lyrics not already provided, query JioSaavn lyrics API
-    official_lyrics: List[str] = [l for l in (embedded_lyrics or fallback_lyrics or []) if len(l.strip()) > 2]
+    official_lyrics: List[str] = [
+        sanitize_lyrics_text(l) for l in (embedded_lyrics or fallback_lyrics or []) if len(l.strip()) > 2
+    ]
+    official_lyrics = [l for l in official_lyrics if len(l.strip()) > 1]
     if not official_lyrics and song_id:
         try:
             l_url = f"https://www.jiosaavn.com/api.php?__call=lyrics.getLyrics&lyrics_id={song_id}&_format=json&_marker=0&ctx=web6dot0"
@@ -789,9 +1107,12 @@ def fetch_song_synced_lyrics(
                 if raw_lyr:
                     c_lyr = re.sub(r'<br\s*/?>', '\n', raw_lyr)
                     c_lyr = re.sub(r'<.*?>', '', c_lyr)
-                    official_lyrics = [l.strip() for l in c_lyr.splitlines() if len(l.strip()) > 2]
+                    official_lyrics = [
+                        sl for sl in (sanitize_lyrics_text(l) for l in c_lyr.splitlines() if len(l.strip()) > 2)
+                        if len(sl.strip()) > 1
+                    ]
                     if official_lyrics:
-                        print(f"🎤 [Song Engine] Retrieved {len(official_lyrics)} official lyrics lines from Music CDN for '{clean_t}'!")
+                        print(f"🎤 [Song Engine] Retrieved {len(official_lyrics)} official Hinglish/English lyrics lines from Music CDN for '{clean_t}'!")
         except Exception as e_jio:
             print(f"⚠️ JioSaavn lyrics check note: {e_jio}")
 
@@ -851,7 +1172,8 @@ def fetch_song_synced_lyrics(
                 sec = int(m.group(1)) * 60 + float(m.group(2))
                 txt = sanitize_lyrics_text(m.group(3))
                 if txt and not any(tag in txt.lower() for tag in ['lyrics by', 'produced by', 'composed by', 'music:', 'singer:']):
-                    if not all(c in 'हं ह ah hm hmm ha hah .! ' for c in txt.lower()):
+                    stripped_noise = re.sub(r'[\.\!\?\s]+', '', txt.lower())
+                    if stripped_noise and stripped_noise not in {'ah', 'aah', 'hm', 'hmm', 'ha', 'hah', 'oh', 'ooh', 'uh', 'uhh', 'ih'}:
                         lines.append((round(sec, 2), txt))
 
     result = []
@@ -933,13 +1255,148 @@ def fetch_song_synced_lyrics(
         # Step 6: If song is purely instrumental or speech recognition detected zero vocals:
         if not result:
             intro_t = max(0.0, detected_audio_intro)
+            safe_title = sanitize_lyrics_text(display_title) or "Instrumental Soundtrack"
+            safe_artist = sanitize_lyrics_text(display_artist) or "Official Audio"
             result = [
-                {"start": intro_t, "end": min(float(target_duration), intro_t + 4.5), "text": f"🎶 {display_title}"},
-                {"start": min(float(target_duration), intro_t + 4.6), "end": min(float(target_duration), intro_t + 8.5), "text": f"🎙️ {display_artist}"}
+                {"start": intro_t, "end": min(float(target_duration), intro_t + 4.5), "text": f"{safe_title} - {safe_artist}"},
+                {"start": min(float(target_duration), intro_t + 4.6), "end": min(float(target_duration), intro_t + 8.5), "text": f"{safe_artist} - Studio Mix"}
             ]
-            print(f"🎵 [Song Engine] Clean track display mode: Showing authentic song title/artist badge ({display_title} • {display_artist}). Zero hardcoded lyrics used.")
+            print(f"🎵 [Song Engine] Clean track display mode: Showing authentic song title/artist badge ({safe_title} - {safe_artist}). Zero hardcoded lyrics used.")
 
     return result, audio_start_offset
+
+
+_ALLOWED_SIDE_POSITIONS = {"lower_left", "lower_right", "upper_left", "upper_right"}
+_ALLOWED_BOTTOM_POSITIONS = {"bottom_center", "bottom_left", "bottom_right"}
+_ALLOWED_SONG_POSITIONS = _ALLOWED_SIDE_POSITIONS | _ALLOWED_BOTTOM_POSITIONS
+
+
+def _normalize_song_position(pos_type: str, seed_text: str = "") -> str:
+    """
+    Guarantees song lyrics NEVER appear in the center of the video.
+    Maps legacy/center position names strictly to Side or Bottom positions.
+    """
+    p = str(pos_type or "").strip().lower()
+    if p in _ALLOWED_SONG_POSITIONS:
+        return p
+    if p == "top_badge":
+        h_idx = int(hashlib.md5(seed_text.encode("utf-8", errors="ignore")).hexdigest(), 16) % 2
+        return "upper_left" if h_idx == 0 else "upper_right"
+    if p in ("bottom_floating", "center", "middle", "mid", ""):
+        return "bottom_center"
+    return "bottom_center"
+
+
+def split_lyric_into_two_lines(full_text: str) -> Tuple[str, str]:
+    """
+    Splits a lyric line into two balanced halves so every display pairs:
+    Line 1 (Top): Bold font
+    Line 2 (Bottom): Random stylish font
+    """
+    clean = " ".join(str(full_text or "").split()).strip()
+    if not clean:
+        return "", ""
+    # Prefer explicit divider if present (e.g. "Title - Artist")
+    if " - " in clean:
+        left, right = clean.split(" - ", 1)
+        if left.strip() and right.strip():
+            return left.strip(), right.strip()
+
+    words = clean.split()
+    if len(words) < 2:
+        return clean, ""
+
+    best_k = 1
+    best_diff = 10**9
+    for k in range(1, len(words)):
+        top_part = " ".join(words[:k])
+        bot_part = " ".join(words[k:])
+        diff = abs(len(top_part) - len(bot_part))
+        # Slight preference for top line >= bottom line on near-ties
+        if len(top_part) < len(bot_part):
+            diff += 0.5
+        if diff < best_diff:
+            best_diff = diff
+            best_k = k
+
+    return " ".join(words[:best_k]), " ".join(words[best_k:])
+
+
+def _load_safe_font(
+    font_path: str,
+    font_size: int,
+    sample_text: str,
+    fallback_pool: List[str]
+) -> Tuple[Any, str]:
+    """Loads TrueType font with glyph verification to avoid missing-glyph boxes."""
+    candidates = []
+    if font_path:
+        candidates.append(font_path)
+    candidates.extend([fp for fp in fallback_pool if fp != font_path])
+    for fb in ("./fonts/Mukta-Bold.ttf", "./fonts/Kalam-Bold.ttf", "./fonts/Arial.ttf"):
+        if fb not in candidates:
+            candidates.append(fb)
+
+    chosen_path = font_path or "./fonts/Mukta-Bold.ttf"
+    loaded_font = None
+    probe = sample_text or "Tum"
+    for cand in candidates:
+        if not os.path.exists(cand):
+            continue
+        if font_supports_text(cand, probe):
+            try:
+                loaded_font = ImageFont.truetype(cand, font_size)
+                chosen_path = cand
+                break
+            except Exception:
+                continue
+    if loaded_font is None:
+        for cand in candidates:
+            if os.path.exists(cand):
+                try:
+                    loaded_font = ImageFont.truetype(cand, font_size)
+                    chosen_path = cand
+                    break
+                except Exception:
+                    continue
+    if loaded_font is None:
+        loaded_font = ImageFont.load_default()
+    return loaded_font, chosen_path
+
+
+def _measure_text_w(draw: ImageDraw.ImageDraw, text: str, font: Any, font_size: int) -> int:
+    if not text:
+        return 0
+    try:
+        bbox = draw.textbbox((0, 0), text, font=font)
+        return max(1, int(bbox[2] - bbox[0]))
+    except Exception:
+        return max(1, len(text) * int(font_size * 0.55))
+
+
+def _wrap_words_by_pixel_width(
+    draw: ImageDraw.ImageDraw,
+    text: str,
+    font: Any,
+    font_size: int,
+    max_width_px: int
+) -> List[str]:
+    """Wraps text accurately by measured pixel width so side blocks never cross center."""
+    words = text.split()
+    if not words:
+        return []
+    lines: List[str] = []
+    curr: List[str] = []
+    for w in words:
+        trial = " ".join(curr + [w])
+        if curr and _measure_text_w(draw, trial, font, font_size) > max_width_px:
+            lines.append(" ".join(curr))
+            curr = [w]
+        else:
+            curr.append(w)
+    if curr:
+        lines.append(" ".join(curr))
+    return lines
 
 
 def render_typewriter_lyrics_on_frame(
@@ -950,131 +1407,193 @@ def render_typewriter_lyrics_on_frame(
     th: int
 ) -> Image.Image:
     """
-    Renders styled typewriter lyrics subtitle directly onto the video frame.
-    Multi-font, dynamic locations, typewriter progressive animation, frosted glass pill.
+    Renders dual-font Hinglish/English typewriter lyrics strictly on video Sides or Bottom:
+    - Zero Devanagari Hindi text (sanitized to Hinglish/English).
+    - Zero center-screen placement (strictly Side margins or Bottom band).
+    - Paired 2-font display per lyric: Top part in Bold font + Bottom part in Random stylish font.
     """
-    full_text = line_info.get("text", "")
+    raw_text = line_info.get("text", "")
+    if not raw_text:
+        return im_frame
+
+    # Ensure zero Hindi/Devanagari/Gurmukhi/Urdu characters ever render
+    if any(ord(c) > 127 for c in raw_text):
+        full_text = sanitize_lyrics_text(raw_text)
+    else:
+        full_text = " ".join(raw_text.split()).strip()
     if not full_text:
         return im_frame
 
-    line_dur = max(0.5, line_info.get("end", 4.0) - line_info.get("start", 0.0))
-    # Snappy typewriter progression:
-    # Reveals full text briskly within 0.8s - 1.0s so words appear immediately in sync with vocals!
-    typing_speed_dur = min(1.0, max(0.5, line_dur * 0.28))
-    type_p = min(1.0, max(0.0, local_t / typing_speed_dur))
-    chars_count = max(1, int(len(full_text) * type_p))
-    display_text = full_text[:chars_count]
-    if type_p < 1.0 and (int(local_t * 6) % 2 == 0):
-        display_text += "|"
+    # Enforce Side or Bottom placement only (never dead center)
+    pos_type = _normalize_song_position(line_info.get("position", "bottom_center"), full_text)
+    is_left = pos_type.endswith("_left")
+    is_right = pos_type.endswith("_right")
+    is_side_band = pos_type in _ALLOWED_SIDE_POSITIONS or is_left or is_right
 
-    # Font sizing & loading with automatic glyph safety check
-    font_path = line_info.get("font_path", "./fonts/Mukta-Bold.ttf")
-    pos_type = line_info.get("position", "bottom_center")
     fill_color = line_info.get("color", (253, 224, 71, 255))
+    sec_color = line_info.get("secondary_color")
+    if not sec_color:
+        sec_color = (255, 255, 255, 255) if tuple(fill_color[:3]) != (255, 255, 255) else (253, 224, 71, 255)
     bg_style = line_info.get("bg_style", "none")
     emoji_name = line_info.get("emoji_name")
-    
-    font_size = max(26, int(tw * 0.046))
-    if pos_type == "center":
-        font_size = max(30, int(tw * 0.054))
-    elif pos_type == "top_badge":
-        font_size = max(24, int(tw * 0.040))
 
-    # Automatic glyph validation: ensure font supports the text, otherwise fallback to Mukta-Bold
-    if not font_supports_text(font_path, display_text):
-        font_path = "./fonts/Mukta-Bold.ttf"
+    # Split lyric text cleanly into Line 1 (Bold) + Line 2 (Random font)
+    if line_info.get("top_text"):
+        top_full = sanitize_lyrics_text(line_info["top_text"]) if any(ord(c) > 127 for c in line_info["top_text"]) else line_info["top_text"].strip()
+        bottom_full = sanitize_lyrics_text(line_info.get("bottom_text", "")) if any(ord(c) > 127 for c in line_info.get("bottom_text", "")) else line_info.get("bottom_text", "").strip()
+    else:
+        top_full, bottom_full = split_lyric_into_two_lines(full_text)
 
-    try:
-        loaded_font = ImageFont.truetype(font_path, font_size)
-    except Exception:
-        try:
-            loaded_font = ImageFont.truetype("./fonts/Mukta-Bold.ttf", font_size)
-        except Exception:
-            loaded_font = ImageFont.load_default()
+    # Select Font 1 (Bold) and Font 2 (Random contrasting font, deterministic fallback if unprovided)
+    bold_pool = [f for f in SONG_BOLD_FONTS_POOL if os.path.exists(f)] or ["./fonts/Mukta-Bold.ttf"]
+    rand_pool = [f for f in SONG_RANDOM_FONTS_POOL if os.path.exists(f)] or ["./fonts/Kalam-Bold.ttf", "./fonts/Arial.ttf"]
+    seed_int = int(hashlib.md5(full_text.encode("utf-8", errors="ignore")).hexdigest(), 16)
 
-    # Bulletproof Tofu Box Prevention: Strip any character that would produce .notdef in loaded_font
-    notdef_mask = bytes(loaded_font.getmask('\uFFFF'))
-    if len(notdef_mask) > 0:
-        display_text = "".join(c for c in display_text if c.isspace() or ord(c) < 32 or c == '|' or bytes(loaded_font.getmask(c)) != notdef_mask)
-    if not display_text.strip():
-        display_text = full_text
+    req_bold = line_info.get("bold_font_path") or line_info.get("font_path") or ""
+    if req_bold not in bold_pool:
+        req_bold = bold_pool[seed_int % len(bold_pool)]
 
-    # Load high-definition expression emoji icon
-    emoji_size = max(22, int(font_size * 0.92))
-    emoji_img = get_cached_emoji(emoji_name, emoji_size) if emoji_name else None
-    emoji_spacing = max(10, int(font_size * 0.28))
-
-    # Wrap text cleanly if long
-    max_chars = 26 if tw < th else 46
-    words = display_text.split()
-    wrapped_lines = []
-    current_line = []
-    current_len = 0
-    for w in words:
-        if current_len + len(w) + 1 > max_chars:
-            wrapped_lines.append(" ".join(current_line))
-            current_line = [w]
-            current_len = len(w)
+    req_rand = line_info.get("secondary_font_path") or ""
+    if not req_rand or req_rand == req_bold or not os.path.exists(req_rand):
+        # If caller explicitly passed a stylized font in font_path, honor it as the bottom random font
+        caller_fp = line_info.get("font_path", "")
+        if caller_fp and caller_fp in rand_pool and caller_fp != req_bold:
+            req_rand = caller_fp
         else:
-            current_line.append(w)
-            current_len += len(w) + 1
-    if current_line:
-        wrapped_lines.append(" ".join(current_line))
-    if not wrapped_lines:
-        wrapped_lines = [display_text]
+            avail_rand = [f for f in rand_pool if f != req_bold] or rand_pool
+            req_rand = avail_rand[(seed_int // 7) % len(avail_rand)]
+
+    # Aspect-safe sizes: Side blocks stay compact inside <= 43% width so center stays 100% open
+    min_dim = min(tw, th)
+    if is_side_band:
+        bold_size = max(18, int(round(min_dim * 0.044)))
+        rand_size = max(15, int(round(bold_size * 0.86)))
+        max_content_w = max(110, int(tw * 0.43))
+    else:
+        bold_size = max(21, int(round(min_dim * 0.055)))
+        rand_size = max(18, int(round(bold_size * 0.88)))
+        max_content_w = max(150, int(tw * 0.84))
+
+    bold_font, _ = _load_safe_font(req_bold, bold_size, top_full or full_text, bold_pool)
+    rand_font, _ = _load_safe_font(req_rand, rand_size, bottom_full or full_text, [f for f in rand_pool if f != req_bold] or rand_pool)
+
+    # Strip any remaining unsupported glyphs safely
+    def _strip_notdef(txt: str, fnt: Any) -> str:
+        nd = bytes(fnt.getmask('\uFFFF'))
+        if not nd:
+            return txt
+        cleaned = "".join(c for c in txt if c.isspace() or ord(c) < 32 or bytes(fnt.getmask(c)) != nd)
+        return cleaned.strip() or txt
+
+    top_full = _strip_notdef(top_full, bold_font)
+    if bottom_full:
+        bottom_full = _strip_notdef(bottom_full, rand_font)
 
     draw = ImageDraw.Draw(im_frame)
-    line_height = int(font_size * 1.35)
-    total_h = len(wrapped_lines) * line_height
 
-    max_line_w = 0
-    line_widths = []
-    for lt in wrapped_lines:
-        try:
-            bbox = draw.textbbox((0, 0), lt, font=loaded_font)
-            lw = bbox[2] - bbox[0]
-        except Exception:
-            lw = len(lt) * int(font_size * 0.55)
-        line_widths.append(lw)
-        if lw > max_line_w:
-            max_line_w = lw
+    # Wrap full strings by measured pixel width FIRST so words never jump during typewriter reveal
+    top_wrapped_full = _wrap_words_by_pixel_width(draw, top_full, bold_font, bold_size, max_content_w) or [top_full]
+    bottom_wrapped_full = _wrap_words_by_pixel_width(draw, bottom_full, rand_font, rand_size, max_content_w) if bottom_full else []
 
-    # Account for expression emoji attached to the last line
-    if emoji_img and line_widths:
-        last_cluster_w = line_widths[-1] + emoji_spacing + emoji_size
-        if last_cluster_w > max_line_w:
-            max_line_w = last_cluster_w
+    # Stepwise typewriter reveal across Top (Bold) -> Bottom (Random)
+    line_dur = max(0.5, line_info.get("end", 4.0) - line_info.get("start", 0.0))
+    typing_speed_dur = min(1.0, max(0.5, line_dur * 0.28))
+    type_p = min(1.0, max(0.0, local_t / typing_speed_dur))
 
-    pad_x = 22
-    pad_y = 10
-    pill_w = max_line_w + (pad_x * 2)
-    pill_h = total_h + (pad_y * 2)
+    top_total_chars = sum(len(l) for l in top_wrapped_full)
+    bot_total_chars = sum(len(l) for l in bottom_wrapped_full)
+    total_chars = max(1, top_total_chars + bot_total_chars)
+    chars_budget = max(1, int(round(total_chars * type_p)))
+    show_cursor = (type_p < 1.0 and (int(local_t * 6) % 2 == 0))
 
-    if pos_type == "center":
-        x_start = (tw - pill_w) // 2
-        y_start = (th - pill_h) // 2
-    elif pos_type == "lower_left":
-        x_start = max(24, int(tw * 0.06))
-        y_start = int(th * 0.72)
-    elif pos_type == "top_badge":
-        x_start = (tw - pill_w) // 2
-        y_start = int(th * 0.15)
-    elif pos_type == "bottom_floating":
-        x_start = (tw - pill_w) // 2
-        y_start = int(th * 0.65)
-    else:  # "bottom_center"
-        x_start = (tw - pill_w) // 2
-        y_start = int(th * 0.76)
+    visible_top: List[str] = []
+    remaining = chars_budget
+    for idx_l, fl in enumerate(top_wrapped_full):
+        if remaining <= 0:
+            break
+        if remaining >= len(fl):
+            part = fl
+            remaining -= len(fl)
+            is_active_tail = (remaining == 0 and (idx_l == len(top_wrapped_full) - 1) and not bottom_wrapped_full)
+            if show_cursor and is_active_tail:
+                part += "|"
+            visible_top.append(part)
+        else:
+            part = fl[:remaining] + ("|" if show_cursor else "")
+            remaining = 0
+            visible_top.append(part)
 
-    # Dynamic subtitle background based on bg_style ("none", "pill", "neon_line", "glass_card")
-    # Allows background box to randomly disappear ("gayb") as requested by user
+    visible_bottom: List[str] = []
+    if bottom_wrapped_full and chars_budget > top_total_chars:
+        b_rem = chars_budget - top_total_chars
+        for idx_l, fl in enumerate(bottom_wrapped_full):
+            if b_rem <= 0:
+                break
+            if b_rem >= len(fl):
+                part = fl
+                b_rem -= len(fl)
+                if show_cursor and (b_rem == 0) and (idx_l == len(bottom_wrapped_full) - 1) and type_p < 1.0:
+                    part += "|"
+                visible_bottom.append(part)
+            else:
+                part = fl[:b_rem] + ("|" if show_cursor else "")
+                b_rem = 0
+                visible_bottom.append(part)
+
+    # Expression emoji icon aligned with the final line
+    emoji_ref_sz = rand_size if bottom_wrapped_full else bold_size
+    emoji_size = max(18, int(emoji_ref_sz * 0.94))
+    emoji_img = get_cached_emoji(emoji_name, emoji_size) if emoji_name else None
+    emoji_spacing = max(8, int(emoji_ref_sz * 0.25))
+
+    # Measure FULL cluster geometry for rock-solid zero-jitter anchoring at side or bottom
+    top_line_h = int(bold_size * 1.28)
+    bot_line_h = int(rand_size * 1.30)
+    tier_gap = max(4, int(bold_size * 0.14)) if bottom_wrapped_full else 0
+
+    full_top_widths = [_measure_text_w(draw, l, bold_font, bold_size) for l in top_wrapped_full]
+    full_bot_widths = [_measure_text_w(draw, l, rand_font, rand_size) for l in bottom_wrapped_full]
+
+    max_line_w = max(full_top_widths + full_bot_widths + [1])
+    if emoji_img:
+        last_full_w = (full_bot_widths[-1] if full_bot_widths else full_top_widths[-1])
+        max_line_w = max(max_line_w, last_full_w + emoji_spacing + emoji_size)
+
+    total_h = (len(top_wrapped_full) * top_line_h) + (
+        (tier_gap + len(bottom_wrapped_full) * bot_line_h) if bottom_wrapped_full else 0
+    )
+
+    pad_x = max(12, int(bold_size * 0.48))
+    pad_y = max(8, int(bold_size * 0.26))
+    pill_w = min(tw - 16, max_line_w + (pad_x * 2))
+    pill_h = min(th - 16, total_h + (pad_y * 2))
+
+    margin_x = max(14, int(tw * 0.04))
+    margin_y = max(14, int(th * 0.045))
+
+    if is_left:
+        x_start = margin_x
+    elif is_right:
+        x_start = max(margin_x, tw - margin_x - pill_w)
+    else:  # bottom_center
+        x_start = max(8, (tw - pill_w) // 2)
+
+    if pos_type in _ALLOWED_BOTTOM_POSITIONS:
+        # Strictly anchored near the bottom edge, never climbing into center
+        y_start = max(int(th * 0.70), min(th - margin_y - pill_h, th - pill_h - 8))
+    elif pos_type in ("lower_left", "lower_right"):
+        y_start = min(th - margin_y - pill_h, max(int(th * 0.67), int(th * 0.72)))
+    else:  # upper_left / upper_right
+        y_start = max(12, int(th * 0.045))
+
+    # Background style ("none", "pill", "neon_line", "glass_card")
     if bg_style == "pill":
         draw.rounded_rectangle(
             [x_start, y_start, x_start + pill_w, y_start + pill_h],
             radius=14,
-            fill=(12, 14, 24, 210)
+            fill=(12, 14, 24, 205)
         )
-        accent_border = (fill_color[0], fill_color[1], fill_color[2], 140)
+        accent_border = (fill_color[0], fill_color[1], fill_color[2], 145)
         draw.rounded_rectangle(
             [x_start, y_start, x_start + pill_w, y_start + pill_h],
             radius=14,
@@ -1088,56 +1607,75 @@ def render_typewriter_lyrics_on_frame(
             fill=(15, 18, 30, 130)
         )
     elif bg_style == "neon_line":
-        # Sleek glowing underline bar without any dark background box
         underline_y = y_start + pill_h - 2
         draw.line(
             [(x_start + pad_x, underline_y), (x_start + pill_w - pad_x, underline_y)],
             fill=fill_color,
             width=3
         )
-    # If bg_style == "none", NO background box or line is drawn (pure floating text!)
 
-    # Render lines with drop shadow + stroke + attached expression emoji
-    for i, lt in enumerate(wrapped_lines):
-        lw = line_widths[i]
-        is_last_line = (i == len(wrapped_lines) - 1)
+    def _compute_line_x(lw_px: int, include_emoji: bool) -> int:
+        eff_w = lw_px + (emoji_spacing + emoji_size if include_emoji else 0)
+        if is_left:
+            return x_start + pad_x
+        if is_right:
+            return x_start + pad_x + max(0, max_line_w - eff_w)
+        return x_start + pad_x + max(0, (max_line_w - eff_w) // 2)
 
-        if is_last_line and emoji_img:
-            # Center the cluster of text + emoji together
-            cluster_w = lw + emoji_spacing + emoji_size
-            line_x = x_start + pad_x + (max_line_w - cluster_w) // 2
-        else:
-            line_x = x_start + pad_x + (max_line_w - lw) // 2
+    shadow_off = 3 if bg_style in ("none", "neon_line") else 2
+    cur_y = y_start + pad_y
 
-        line_y = y_start + pad_y + (i * line_height)
+    # Tier 1: Top lines in BOLD font
+    bold_stroke = max(1, int(round(bold_size * 0.065)))
+    for i, lt in enumerate(visible_top):
+        lw = _measure_text_w(draw, lt, bold_font, bold_size)
+        attach_emoji = bool(emoji_img and not bottom_wrapped_full and i == len(visible_top) - 1)
+        lx = _compute_line_x(lw, attach_emoji)
+        ly = cur_y + (i * top_line_h)
 
-        # Deep drop shadow
-        shadow_offset = 3 if bg_style in ["none", "neon_line"] else 2
+        draw.text((lx + shadow_off, ly + shadow_off), lt, font=bold_font, fill=(0, 0, 0, 235))
         draw.text(
-            (line_x + shadow_offset, line_y + shadow_offset),
+            (lx, ly),
             lt,
-            font=loaded_font,
-            fill=(0, 0, 0, 240)
-        )
-        # Bold readable stroke + vibrant fill
-        stroke_w = max(2, int(font_size * (0.10 if bg_style in ["none", "neon_line"] else 0.08)))
-        draw.text(
-            (line_x, line_y),
-            lt,
-            font=loaded_font,
+            font=bold_font,
             fill=fill_color,
-            stroke_width=stroke_w,
+            stroke_width=bold_stroke,
             stroke_fill=(12, 14, 24, 240)
         )
-
-        # Draw expression emoji beside the text on the final line
-        if is_last_line and emoji_img:
-            em_x = line_x + lw + emoji_spacing
-            em_y = line_y + (line_height - emoji_size) // 2 - 2
+        if attach_emoji and emoji_img:
+            em_x = min(tw - emoji_size - 4, lx + lw + emoji_spacing)
+            em_y = ly + (top_line_h - emoji_size) // 2 - 2
             try:
                 im_frame.paste(emoji_img, (em_x, em_y), emoji_img)
             except Exception:
                 pass
+
+    # Tier 2: Bottom lines right underneath in RANDOM stylish font
+    if visible_bottom:
+        bot_start_y = y_start + pad_y + (len(top_wrapped_full) * top_line_h) + tier_gap
+        rand_stroke = max(1, int(round(rand_size * 0.055)))
+        for j, lt in enumerate(visible_bottom):
+            lw = _measure_text_w(draw, lt, rand_font, rand_size)
+            attach_emoji = bool(emoji_img and j == len(visible_bottom) - 1)
+            lx = _compute_line_x(lw, attach_emoji)
+            ly = bot_start_y + (j * bot_line_h)
+
+            draw.text((lx + shadow_off, ly + shadow_off), lt, font=rand_font, fill=(0, 0, 0, 235))
+            draw.text(
+                (lx, ly),
+                lt,
+                font=rand_font,
+                fill=sec_color,
+                stroke_width=rand_stroke,
+                stroke_fill=(12, 14, 24, 240)
+            )
+            if attach_emoji and emoji_img:
+                em_x = min(tw - emoji_size - 4, lx + lw + emoji_spacing)
+                em_y = ly + (bot_line_h - emoji_size) // 2 - 2
+                try:
+                    im_frame.paste(emoji_img, (em_x, em_y), emoji_img)
+                except Exception:
+                    pass
 
     return im_frame
 
@@ -1924,7 +2462,10 @@ def download_youtube_song_audio(
                         if raw_lyr:
                             c_lyr = re.sub(r'<br\s*/?>', '\n', raw_lyr)
                             c_lyr = re.sub(r'<.*?>', '', c_lyr)
-                            jio_lyrics_lines = [l.strip() for l in c_lyr.splitlines() if len(l.strip()) > 2]
+                            jio_lyrics_lines = [
+                                sl for sl in (sanitize_lyrics_text(l) for l in c_lyr.splitlines() if len(l.strip()) > 2)
+                                if len(sl.strip()) > 1
+                            ]
                             if jio_lyrics_lines:
                                 print(f"🎤 [Song Engine] Retrieved {len(jio_lyrics_lines)} official lyrics lines from Music CDN for '{chosen_title}'!")
                 except Exception as e_lyr:
@@ -2491,7 +3032,10 @@ def build_full_song_video(
                     et = round(min(float(target_duration), st + singing_dur), 2)
                 all_lyrics.append({"start": st, "end": et, "text": txt})
         else:
-            custom_raw = [sanitize_lyrics_text(l) for l in user_explicit_lyrics.splitlines() if len(l.strip()) > 1]
+            custom_raw = [
+                sl for sl in (sanitize_lyrics_text(l) for l in user_explicit_lyrics.splitlines() if len(l.strip()) > 1)
+                if len(sl.strip()) > 1
+            ]
             detected_intro = auto_detect_audio_vocal_intro(master_audio_path, 30.0) if master_audio_path else 0.0
             if detected_intro > 2.0:
                 intro_silence = round(detected_intro, 2)
@@ -2513,9 +3057,11 @@ def build_full_song_video(
     elif audio_res.get('is_instrumental_fallback'):
         print(f"🎵 [Song Engine] Instrumental track active: Keeping screen clean without mismatched text.")
         intro_t = 6.0
+        safe_title = sanitize_lyrics_text(exact_song_title) or "Instrumental Soundtrack"
+        safe_singer = sanitize_lyrics_text(exact_singer) or "Official Audio"
         all_lyrics = [
-            {"start": intro_t, "end": min(float(target_duration), intro_t + 4.5), "text": f"🎶 {exact_song_title}"},
-            {"start": min(float(target_duration), intro_t + 4.6), "end": min(float(target_duration), intro_t + 8.5), "text": f"🎙️ {exact_singer}"}
+            {"start": intro_t, "end": min(float(target_duration), intro_t + 4.5), "text": f"{safe_title} - {safe_singer}"},
+            {"start": min(float(target_duration), intro_t + 4.6), "end": min(float(target_duration), intro_t + 8.5), "text": f"{safe_singer} - Studio Mix"}
         ]
         audio_start_offset = 0.0
     else:
@@ -2530,45 +3076,59 @@ def build_full_song_video(
             song_mood=song_mood
         )
 
-    # Determine if lyrics contain Devanagari Hindi characters
-    has_devanagari = any(
-        any(0x0900 <= ord(c) <= 0x097F for c in lyr.get("text", ""))
-        for lyr in all_lyrics
-    )
+    # Guarantee 100% Hinglish/English lyrics ONLY (zero Hindi Devanagari / Gurmukhi / Urdu scripts)
+    sanitized_lyrics = []
+    for lyr in all_lyrics:
+        clean_txt = sanitize_lyrics_text(lyr.get("text", ""))
+        if clean_txt:
+            lyr["text"] = clean_txt
+            sanitized_lyrics.append(lyr)
+    all_lyrics = sanitized_lyrics
 
-    # Build safe font pool: if pure English/Hinglish, include universal + bold display latin fonts
-    font_candidates = [f for f in CINEMATIC_FONTS_POOL if os.path.exists(f)]
-    if not has_devanagari:
-        font_candidates += [f for f in LATIN_ONLY_FONTS_POOL if os.path.exists(f)]
-    if not font_candidates:
-        font_candidates = ["./fonts/Mukta-Bold.ttf"]
+    # Build paired dual-font pools: Top Line = BOLD font, Bottom Line = RANDOM contrasting stylish font
+    bold_candidates = [f for f in SONG_BOLD_FONTS_POOL if os.path.exists(f)] or ["./fonts/Mukta-Bold.ttf"]
+    random_candidates = [f for f in SONG_RANDOM_FONTS_POOL if os.path.exists(f)] or ["./fonts/Kalam-Bold.ttf", "./fonts/Arial.ttf"]
+    side_bottom_positions = [p for p in TEXT_POSITIONS if p in _ALLOWED_SONG_POSITIONS] or ["bottom_center", "lower_left", "lower_right"]
 
-    # Assign rotating safe fonts, dynamic positions, accent colors, randomized background styles, and expression emojis
+    prev_bold = None
+    prev_rand = None
+    prev_pos = None
     for idx, lyr in enumerate(all_lyrics):
-        line_txt = lyr.get("text", "")
-        line_has_hindi = any(0x0900 <= ord(c) <= 0x097F for c in line_txt)
-        if line_has_hindi:
-            # Strictly select from fonts verified to render Hindi Devanagari natively
-            hindi_pool = [f for f in CINEMATIC_FONTS_POOL if os.path.exists(f) and font_supports_text(f, line_txt)]
-            chosen_font = hindi_pool[idx % len(hindi_pool)] if hindi_pool else "./fonts/Mukta-Bold.ttf"
-        else:
-            chosen_font = font_candidates[idx % len(font_candidates)]
-            if not font_supports_text(chosen_font, line_txt):
-                for fallback_f in CINEMATIC_FONTS_POOL:
-                    if font_supports_text(fallback_f, line_txt):
-                        chosen_font = fallback_f
-                        break
-                else:
-                    chosen_font = "./fonts/Mukta-Bold.ttf"
+        line_txt = lyr["text"]
+        top_part, bottom_part = split_lyric_into_two_lines(line_txt)
 
-        lyr["font_path"] = chosen_font
-        lyr["position"] = TEXT_POSITIONS[idx % len(TEXT_POSITIONS)]
-        lyr["color"] = TEXT_COLORS[idx % len(TEXT_COLORS)]
+        valid_bold = [f for f in bold_candidates if font_supports_text(f, line_txt)] or bold_candidates
+        avail_bold = [f for f in valid_bold if f != prev_bold] or valid_bold
+        chosen_bold = _SONG_RNG.choice(avail_bold)
+        prev_bold = chosen_bold
+
+        valid_rand = [f for f in random_candidates if f != chosen_bold and font_supports_text(f, line_txt)]
+        if not valid_rand:
+            valid_rand = [f for f in random_candidates if f != chosen_bold] or random_candidates
+        avail_rand = [f for f in valid_rand if f != prev_rand] or valid_rand
+        chosen_rand = _SONG_RNG.choice(avail_rand)
+        prev_rand = chosen_rand
+
+        avail_pos = [p for p in side_bottom_positions if p != prev_pos] or side_bottom_positions
+        chosen_pos = _SONG_RNG.choice(avail_pos)
+        prev_pos = chosen_pos
+
+        primary_col = TEXT_COLORS[idx % len(TEXT_COLORS)]
+        secondary_col = (255, 255, 255, 255) if tuple(primary_col[:3]) != (255, 255, 255) else (253, 224, 71, 255)
+
+        lyr["font_path"] = chosen_bold
+        lyr["bold_font_path"] = chosen_bold
+        lyr["secondary_font_path"] = chosen_rand
+        lyr["top_text"] = top_part
+        lyr["bottom_text"] = bottom_part
+        lyr["position"] = chosen_pos
+        lyr["color"] = primary_col
+        lyr["secondary_color"] = secondary_col
         lyr["bg_style"] = TEXT_BG_STYLES[idx % len(TEXT_BG_STYLES)]
         lyr["emoji_name"] = detect_expression_emoji(line_txt, song_mood, idx)
 
     bg_none_count = sum(1 for lyr in all_lyrics if lyr.get("bg_style") == "none")
-    print(f"📝 [Song Engine] Prepared {len(all_lyrics)} synced typewriter lyrics lines with expression emojis across {len(font_candidates)} rotating fonts ({bg_none_count} clean floating lines without background box).")
+    print(f"📝 [Song Engine] Prepared {len(all_lyrics)} Hinglish/English dual-font lyrics (Bold + Random pairs) strictly at Side/Bottom positions ({bg_none_count} floating lines).")
 
     # 3. Reduced Background Visual Segments (Only 2 to 5 photos total!)
     num_segments = max(2, min(8, int(math.ceil(target_duration / 10.0))))
@@ -3034,7 +3594,6 @@ def build_full_song_video(
             ]
             subprocess.run(fallback_mux, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     else:
-        import shutil
         shutil.copy2(temp_video_no_audio, output_path)
 
     if glsl_sfx_events and os.path.exists(output_path):
