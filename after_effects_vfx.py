@@ -9,8 +9,10 @@ without Halo/Holes and composites overlays onto scene clips at matched script cu
 """
 
 import os
+import random
 import re
 import subprocess
+from difflib import SequenceMatcher
 from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
@@ -19,6 +21,57 @@ from PIL import Image, ImageFilter
 _VFX_BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 _VFX_DIR = os.path.join(_VFX_BASE_DIR, "vfx_overlays")
 _VFX_SPLIT_RE = re.compile(r'[\s,.\-!?;:"\'()\[\]{}<>/\\|~`@#$%^&*_+=।॥]+')
+_VFX_RNG = random.SystemRandom()
+
+HELLO_VFX_FILES: Tuple[str, ...] = (
+    "hello.mp4",
+    "hello2.mp4",
+    "hello3.mp4",
+    "hello4.mp4",
+    "hello5.mp4",
+    "hello6.mp4",
+    "hello7.mp4",
+    "hello8.mp4",
+)
+
+# Generic greeting cues intentionally pool across ALL 8 hello*.mp4 effects randomly.
+_HELLO_GREETING_CUES = frozenset({
+    "hello", "hi", "hey", "welcome", "greetings", "greet", "everyone",
+    "friends", "guys", "dost", "dosto", "bhaiyo", "namaste", "namaskar",
+    "swagat", "intro", "meet",
+    "हेलो", "नमस्ते", "नमस्कार", "स्वागत", "दोस्तों", "भाइयों", "मित्रों",
+})
+
+# Common grammar/filler/neutral words excluded from partial/fuzzy matching so neutral sentences stay clean.
+_VFX_STOPWORDS = frozenset({
+    "hai", "hain", "tha", "the", "thi", "mein", "main", "me", "aur", "par",
+    "se", "ko", "ka", "ki", "ke", "ne", "yeh", "woh", "yah", "yha", "wha",
+    "kya", "jab", "tab", "ab", "ek", "do", "bhi", "toh", "gya", "gaya",
+    "gayi", "raha", "rahi", "rha", "rhe", "wala", "wali", "wale", "hota",
+    "hoti", "hote", "nahi", "nhi", "kar", "karo", "kiya", "diya", "liya",
+    "hua", "hui", "hue", "liye", "kuch", "bahut", "sab", "aaj", "kal",
+    "baat", "tarah", "jaise", "jese", "uska", "uski", "unke", "hum", "aap",
+    "tum", "mera", "meri", "mere", "apna", "apni", "apne", "badal", "badalna",
+    "badlaav", "badle", "naya", "nayi", "naye", "bada", "badi", "bade",
+    "beta", "beti", "jana", "jaana", "fir", "phir", "rakhe", "rakha", "rakhi",
+    "samay", "waqt", "paisa", "dhandha", "parso", "sabhi", "yahi", "wahi",
+    "kahan", "jahan", "chota", "choti", "chote", "insaan", "shehar",
+    "parivar", "yaar", "kaam", "raat", "shaam", "subah", "bahar", "andar",
+    "upar", "niche", "peeche", "aage", "ghar", "nikalta", "nikal", "nikla",
+    "laga", "lagi", "lage", "lagta", "lagti", "lagte", "bharat", "maana",
+    "mana", "batao", "bataya", "batate", "jaante", "jante", "mausam",
+    "suhavna", "nadi", "beh", "rehta", "chalta", "chalti", "rakhta", "khulne",
+    "this", "that", "these", "those", "there", "here", "with", "from", "into",
+    "about", "after", "before", "have", "has", "had", "will", "would", "could",
+    "should", "they", "them", "their", "what", "when", "where", "which",
+    "while", "chapter", "history", "monument", "explains", "person", "people",
+    "place", "thing", "change", "changed", "changing", "story", "stories",
+    "work", "working", "night", "morning", "great", "best", "first", "second",
+    "last", "very", "most", "another", "every", "both", "mobile", "phone",
+    "present", "future", "world", "india", "life", "system", "is", "are",
+    "was", "were", "been", "for", "and", "not", "but", "you", "your", "his",
+    "her", "she", "its", "our", "all", "can", "part", "same", "came",
+})
 
 
 def is_ultra_after_effects(mode: str, category: str) -> bool:
@@ -92,11 +145,11 @@ AFTER_EFFECTS_VFX_CATALOG: List[Dict[str, Any]] = [
         "max_dur": 5.80,
         "weight": 4.8,
         "keywords": [
-            "shopping", "shop", "buy", "purchase", "store", "market", "mall",
+            "shopping", "shoping", "shop", "buy", "purchase", "store", "market", "mall",
             "sale", "discount", "deal", "price", "order", "product", "ecommerce",
             "amazon", "flipkart", "cart", "bag", "retail", "grocery", "online",
             "spend", "spending", "customer", "buyer",
-            "kharid", "kharidna", "kharidari", "bazaar", "dukaan", "sasta", "mahanga",
+            "kharid", "khrid", "kharidna", "kharidari", "bazaar", "dukaan", "sasta", "mahanga",
             "शॉपिंग", "खरीद", "बाजार", "दुकान", "कीमत", "ऑफर", "डिस्काउंट", "सेल",
         ],
     },
@@ -182,7 +235,7 @@ AFTER_EFFECTS_VFX_CATALOG: List[Dict[str, Any]] = [
         "max_dur": 2.15,
         "weight": 4.4,
         "keywords": [
-            "paint", "painting", "brush", "art", "artist", "draw", "drawing",
+            "paint", "pent", "penting", "painting", "brush", "art", "artist", "draw", "drawing",
             "sketch", "design", "creative", "color", "colors", "canvas", "ink",
             "stroke", "artwork", "illustrate",
             "rang", "kala", "chitra", "tasveer", "banao",
@@ -362,10 +415,11 @@ AFTER_EFFECTS_VFX_CATALOG: List[Dict[str, Any]] = [
         "opacity": 0.95,
         "weight": 5.4,
         "keywords": [
-            "jail", "prison", "thana", "police station", "lockup", "behind bars",
+            "jail", "jailer", "jailor", "jailed", "jel", "prison", "prisoner", "thana",
+            "police station", "lockup", "behind bars",
             "arrest", "arrested", "imprisoned", "convict", "criminal", "guilty",
-            "verdict", "sentence", "custody", "crime", "culprit",
-            "qaid", "qaidi", "hiraasat", "saza", "mukadma", "jailkhana", "giraftar",
+            "verdict", "sentence", "custody", "crime", "culprit", "court", "kachehri",
+            "qaid", "qaidi", "kaid", "kaidi", "hiraasat", "saza", "mukadma", "jailkhana", "giraftar",
             "जेल", "थाना", "क़ैद", "कैदी", "हिरासत", "सज़ा", "गिरफ़्तार", "अरेस्ट",
             "लॉकअप", "अदालत", "मुजरिम", "अपराधी",
         ],
@@ -382,10 +436,10 @@ AFTER_EFFECTS_VFX_CATALOG: List[Dict[str, Any]] = [
         "opacity": 0.95,
         "weight": 5.2,
         "keywords": [
-            "police", "cop", "cops", "patrol", "siren", "chase", "chasing",
-            "pursuit", "drift", "car chase", "mafia", "gangster", "escape",
+            "police", "pulis", "policewala", "policeman", "cop", "cops", "patrol", "siren",
+            "chase", "chasing", "pursuit", "drift", "car chase", "mafia", "gangster", "escape",
             "flee", "robbery", "heist", "highway", "smuggler", "encounter",
-            "sipahi", "daroga", "picha", "bhaga", "chori", "dakaiti", "chor",
+            "sipahi", "daroga", "thanedar", "picha", "bhaga", "chori", "dakaiti", "chor", "dakait",
             "पुलिस", "सिपाही", "दरोगा", "चोर", "डकैती", "पीछा", "माफिया", "गैंगस्टर", "सायरन",
         ],
     },
@@ -402,8 +456,8 @@ AFTER_EFFECTS_VFX_CATALOG: List[Dict[str, Any]] = [
         "max_dur": 4.35,
         "weight": 5.3,
         "keywords": [
-            "leak", "leaked", "document", "documents", "file", "files", "folder",
-            "gallery", "data", "hack", "hacked", "hacker", "password", "privacy",
+            "leak", "leaked", "leek", "document", "documents", "file", "files", "folder",
+            "gallery", "data", "hack", "hacked", "hacker", "haker", "password", "privacy",
             "expose", "exposed", "scandal", "database", "classified", "confidential",
             "passport", "backup", "dossier", "secret file",
             "khulasa", "parda", "faash", "dastavez",
@@ -444,7 +498,7 @@ AFTER_EFFECTS_VFX_CATALOG: List[Dict[str, Any]] = [
         "opacity": 0.96,
         "weight": 5.2,
         "keywords": [
-            "nuclear", "atomic", "atom", "bomb", "explosion", "explode", "blast",
+            "nuclear", "atomic", "atom", "bomb", "bamb", "explosion", "explode", "blast",
             "mushroom cloud", "hiroshima", "nagasaki", "warhead", "apocalypse",
             "radiation", "detonate",
             "parmanu", "visphot", "vishphot", "bam", "dhamaka",
@@ -628,13 +682,27 @@ def _vfx_tokenize(text: str) -> List[str]:
     return [t for t in _VFX_SPLIT_RE.split(str(text).lower()) if t]
 
 
-def _vfx_keyword_hit(tokens: List[str], joined_text: str, kw: str) -> bool:
-    """Whole-token + phrase matcher preventing substring false positives (e.g. 'hi' inside 'which')."""
+def _vfx_keyword_score(tokens: List[str], joined_text: str, kw: str) -> float:
+    """
+    Return keyword match confidence in `[0.0, 1.0]` (`>= 0.70` means valid trigger).
+    Supports exact tokens, stems/compounds (e.g. `jailer`, `jai`), and ~70%+ fuzzy
+    spelling matches while blocking stopwords & suffix-only traps (`monument`/`document`).
+    """
     if not tokens or not kw:
-        return False
+        return 0.0
     kw_clean = kw.strip().lower()
+    if not kw_clean:
+        return 0.0
+
     if " " in kw_clean:
-        return f" {kw_clean} " in joined_text
+        if f" {kw_clean} " in joined_text:
+            return 1.0
+        parts = [p for p in kw_clean.split() if p]
+        if len(parts) >= 2:
+            scores = [_vfx_keyword_score(tokens, joined_text, p) for p in parts]
+            if all(s >= 0.75 for s in scores):
+                return sum(scores) / float(len(scores))
+        return 0.0
 
     is_ascii = kw_clean.isascii()
     valid = {kw_clean}
@@ -642,16 +710,67 @@ def _vfx_keyword_hit(tokens: List[str], joined_text: str, kw: str) -> bool:
         if len(kw_clean) >= 3:
             valid.add(kw_clean + "s")
         if len(kw_clean) >= 4:
-            valid.update((kw_clean + "es", kw_clean + "ed", kw_clean + "ing", kw_clean + "ly"))
+            valid.update((
+                kw_clean + "es",
+                kw_clean + "ed",
+                kw_clean + "ing",
+                kw_clean + "ly",
+                kw_clean + "er",
+                kw_clean + "ers",
+            ))
 
+    best_sim = 0.0
     for tok in tokens:
-        if is_ascii:
-            if tok in valid:
-                return True
-        else:
-            if tok == kw_clean or (len(kw_clean) >= 3 and tok.startswith(kw_clean)):
-                return True
-    return False
+        if is_ascii and tok in valid:
+            return 1.0
+        if (not is_ascii) and (tok == kw_clean or (len(kw_clean) >= 3 and tok.startswith(kw_clean))):
+            return 1.0
+
+        # 70%+ partial prefix / stem or high-precision typo match (never on stopwords or ultra-short words)
+        if tok in _VFX_STOPWORDS or kw_clean in _VFX_STOPWORDS:
+            continue
+        if is_ascii and tok.isascii():
+            if len(kw_clean) >= 4 and tok.startswith(kw_clean):
+                return 1.0
+            # 1) Leading stem/truncation covering >= 70% of keyword (e.g. "jai" -> "jail" 0.75, "polic" -> "police" 0.83)
+            if len(tok) >= 3 and len(kw_clean) >= 4 and kw_clean.startswith(tok):
+                prefix_ratio = len(tok) / float(len(kw_clean))
+                if prefix_ratio >= 0.70:
+                    best_sim = max(best_sim, prefix_ratio)
+                    continue
+            # 2) Long-word typo/omitted-letter tolerance (e.g. "shoping" -> "shopping", "qution" -> "question", "haker" -> "hacker")
+            if len(tok) >= 5 and len(kw_clean) >= 6 and tok[0] == kw_clean[0]:
+                if abs(len(tok) - len(kw_clean)) <= 3:
+                    ratio = SequenceMatcher(None, tok, kw_clean).ratio()
+                    if ratio >= 0.80:
+                        best_sim = max(best_sim, ratio)
+        elif (not is_ascii) and (not tok.isascii()):
+            if len(tok) >= 3 and len(kw_clean) >= 3 and tok[0] == kw_clean[0]:
+                ratio = SequenceMatcher(None, tok, kw_clean).ratio()
+                if ratio >= 0.75:
+                    best_sim = max(best_sim, ratio)
+
+    return best_sim if best_sim >= 0.70 else 0.0
+
+
+def _vfx_keyword_hit(tokens: List[str], joined_text: str, kw: str) -> bool:
+    """Return True when `_vfx_keyword_score` clears the 70% threshold."""
+    return _vfx_keyword_score(tokens, joined_text, kw) >= 0.70
+
+
+def _pick_random_hello(used_set: set, last_file: Optional[str] = None) -> Optional[Dict[str, Any]]:
+    """Randomly pick one of the 8 `hello*.mp4` VFX clips across videos."""
+    all_hellos = [
+        e for e in AFTER_EFFECTS_VFX_CATALOG
+        if e["file"] in HELLO_VFX_FILES and resolve_vfx_path(e["file"])
+    ]
+    if not all_hellos:
+        return None
+    unused = [e for e in all_hellos if e["file"] not in used_set]
+    if unused:
+        return _VFX_RNG.choice(unused)
+    non_last = [e for e in all_hellos if e["file"] != last_file]
+    return _VFX_RNG.choice(non_last or all_hellos)
 
 
 def select_after_effects_vfx(
@@ -663,8 +782,8 @@ def select_after_effects_vfx(
     used_vfx: Optional[List[str]] = None,
 ) -> Optional[Dict[str, Any]]:
     """
-    Choose the best VFX overlay from `vfx_overlays/` strictly matching the scene script.
-    Returns `None` if no VFX strongly fits the scene ("jab unki jrurt ho tab").
+    Choose the best VFX overlay from `vfx_overlays/` matching the scene script (>= 70% keyword similarity).
+    Ensures one of the 8 `hello*.mp4` effects is picked randomly per multi-scene video.
     """
     if float(clip_duration or 0.0) < 1.6:
         return None
@@ -681,10 +800,14 @@ def select_after_effects_vfx(
 
     last_file = used_vfx[-1] if used_vfx else None
     used_set = set(used_vfx)
+    has_used_hello = any(f in used_set for f in HELLO_VFX_FILES)
 
     best_entry = None
-    best_score = 0.0
+    best_rank_score = -999.0
+    best_raw_score = 0.0
     best_reason = ""
+    best_has_theme = False
+    best_is_weak_q = False
 
     for entry in AFTER_EFFECTS_VFX_CATALOG:
         fname = entry["file"]
@@ -692,51 +815,88 @@ def select_after_effects_vfx(
         if not resolved:
             continue
 
-        score = 0.0
+        raw_score = 0.0
         matched_kws: List[str] = []
+        matched_non_greeting = False
 
         for kw in entry["keywords"]:
-            if kw not in matched_kws and _vfx_keyword_hit(tokens, joined_text, kw):
+            if kw in matched_kws:
+                continue
+            sim = _vfx_keyword_score(tokens, joined_text, kw)
+            if sim >= 0.70:
                 matched_kws.append(kw)
-                score += float(entry["weight"])
-            elif kw_tokens and kw not in matched_kws and _vfx_keyword_hit(kw_tokens, joined_kw, kw):
-                matched_kws.append(f"kw:{kw}")
-                score += float(entry["weight"]) * 0.65
+                raw_score += float(entry["weight"]) * sim
+                if kw.strip().lower() not in _HELLO_GREETING_CUES:
+                    matched_non_greeting = True
+                continue
+            if kw_tokens:
+                kw_sim = _vfx_keyword_score(kw_tokens, joined_kw, kw)
+                if kw_sim >= 0.70:
+                    matched_kws.append(f"kw:{kw}")
+                    raw_score += float(entry["weight"]) * 0.80 * kw_sim
+                    if kw.strip().lower() not in _HELLO_GREETING_CUES:
+                        matched_non_greeting = True
 
-        # Direct '?' punctuation boost for question VFX when paired with inquisitive wording or trailing question mark
+        # Direct '?' punctuation boost for question VFX
+        q_only = False
         if "?" in raw_text and fname in ("qutiion_efect.mp4", "qution_mark_effect.mp4"):
             if raw_text.endswith("?"):
-                score += 2.2
+                q_only = (raw_score <= 0.0)
+                raw_score += 2.6
                 if not matched_kws:
                     matched_kws.append("?")
 
-        if score <= 0.0:
+        if raw_score < 2.5:
             continue
 
-        # Scene 0 opening hello preference ONLY if greeting was actually matched or opening line invites audience
-        if scene_idx == 0 and fname.startswith("hello"):
-            score += 0.3
-
-        # Prefer variety: penalize repeating previous scene's VFX or reusing a VFX in same video
+        # Never repeat the exact same VFX on back-to-back scenes
         if fname == last_file:
-            score -= 6.5
-        elif fname in used_set:
-            score -= 2.2
+            continue
 
-        if score > best_score:
-            best_score = score
+        rank_score = raw_score - (2.0 if fname in used_set else 0.0)
+        if scene_idx == 0 and fname in HELLO_VFX_FILES:
+            rank_score += 0.3
+
+        is_weak_q = (
+            fname in ("qutiion_efect.mp4", "qution_mark_effect.mp4")
+            and (q_only or raw_score < 6.0)
+        )
+
+        if rank_score > best_rank_score:
+            best_rank_score = rank_score
+            best_raw_score = raw_score
             best_entry = entry
             best_reason = matched_kws[0] if matched_kws else "script_match"
+            best_has_theme = matched_non_greeting
+            best_is_weak_q = is_weak_q
 
-    # Strict relevance threshold: do NOT plaster unrelated VFX over neutral scenes
-    if best_entry is None or best_score < 3.0:
+    # Generic greeting hit (without a specific character theme like vampire/lion/sailor) rotates across ALL 8 hello effects
+    if best_entry is not None and best_entry["file"] in HELLO_VFX_FILES and not best_has_theme:
+        picked = _pick_random_hello(used_set, last_file)
+        if picked:
+            best_entry = picked
+
+    # Every multi-scene video picks a random hello effect from the 8-clip pool (preferring Scene 0 intro)
+    if total_scenes >= 2 and not has_used_hello:
+        should_inject_hello = (
+            (scene_idx == 0 and (best_entry is None or best_is_weak_q))
+            or (scene_idx > 0 and best_entry is None)
+        )
+        if should_inject_hello:
+            picked = _pick_random_hello(used_set, last_file)
+            if picked:
+                best_entry = picked
+                best_raw_score = float(picked["weight"])
+                best_reason = "video_intro_hello" if scene_idx == 0 else "video_random_hello"
+
+    if best_entry is None or best_raw_score < 2.5:
         return None
 
     return {
         **best_entry,
         "path": resolve_vfx_path(best_entry["file"]),
         "reason": best_reason,
-        "score": round(best_score, 2),
+        "score": round(best_raw_score, 2),
     }
 
 

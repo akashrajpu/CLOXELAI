@@ -321,9 +321,10 @@ def create_dynamic_animated_text(
             else:
                 color = highlight_color if is_active else "#FFFFFF"
 
-            shadow_offset = max(2, int(w_font.size * 0.05))
+            shadow_offset = max(2, int(w_font.size * 0.06))
+            stroke_w = max(2, int(w_font.size * 0.05))
             draw.text((current_x + shadow_offset, y_text + shadow_offset), w, font=w_font, fill=(0, 0, 0, 240))
-            draw.text((current_x, y_text), w, font=w_font, fill=color)
+            draw.text((current_x, y_text), w, font=w_font, fill=color, stroke_width=stroke_w, stroke_fill=(0, 0, 0, 240))
 
             current_x += word_w + curr_space_w
             
@@ -424,16 +425,16 @@ def generate_ink_brush_mask(size: tuple) -> Image.Image:
     margin_h = int(h * 0.04)
     draw.rectangle([margin_w, margin_h, w - margin_w, h - margin_h], fill=255)
     
-    random.seed(42)
+    torn_rng = random.Random(42)
     for x in range(margin_w, w - margin_w, 8):
-        jitter_top = random.randint(-18, 25)
-        jitter_bot = random.randint(-18, 25)
+        jitter_top = torn_rng.randint(-18, 25)
+        jitter_bot = torn_rng.randint(-18, 25)
         draw.line([(x, margin_h + jitter_top), (x, margin_h)], fill=255, width=6)
         draw.line([(x, h - margin_h), (x, h - margin_h + jitter_bot)], fill=255, width=6)
         
     for y in range(margin_h, h - margin_h, 8):
-        jitter_left = random.randint(-18, 25)
-        jitter_right = random.randint(-18, 25)
+        jitter_left = torn_rng.randint(-18, 25)
+        jitter_right = torn_rng.randint(-18, 25)
         draw.line([(margin_w + jitter_left, y), (margin_w, y)], fill=255, width=6)
         draw.line([(w - margin_w, y), (w - margin_w + jitter_right, y)], fill=255, width=6)
         
@@ -583,16 +584,16 @@ def create_parchment_subtitle_box(text: str, size: tuple, font_size: int = 180) 
     torn_mask = Image.new("L", (box_w, box_h), 255)
     t_draw = ImageDraw.Draw(torn_mask)
     
-    random.seed(101)
+    parch_rng = random.Random(101)
     for x in range(0, box_w, 6):
-        jitter_t = random.randint(0, 14)
-        jitter_b = random.randint(0, 14)
+        jitter_t = parch_rng.randint(0, 14)
+        jitter_b = parch_rng.randint(0, 14)
         t_draw.line([(x, 0), (x, jitter_t)], fill=0, width=4)
         t_draw.line([(x, box_h - jitter_b), (x, box_h)], fill=0, width=4)
         
     for y in range(0, box_h, 6):
-        jitter_l = random.randint(0, 14)
-        jitter_r = random.randint(0, 14)
+        jitter_l = parch_rng.randint(0, 14)
+        jitter_r = parch_rng.randint(0, 14)
         t_draw.line([(0, y), (jitter_l, y)], fill=0, width=4)
         t_draw.line([(box_w - jitter_r, y), (box_w, y)], fill=0, width=4)
         
@@ -1009,22 +1010,23 @@ def render_scene_native_ffmpeg(
                 if box_y + box_h > int(h * 0.90):
                     box_y = int(h * 0.90) - box_h
                 
-                draw.rounded_rectangle(
-                    [(box_x, box_y), (box_x + box_w, box_y + box_h)],
-                    radius=12,
-                    fill=(10, 6, 24, 215),
-                    outline=(255, 215, 0, 230),
-                    width=2
-                )
-                
+                # Pure floating script words with zero background box ("bg mt lgao kewal word liikho")
+                stroke_w = max(1, int(round(fs * 0.055)))
                 curr_y = box_y + pad_y
                 for line_metrics, lw_total in rendered_lines:
                     line_start_x = box_x + (box_w - lw_total) // 2
                     curr_x = line_start_x
                     for cw, ww, sw, is_active in line_metrics:
                         col = resolved_highlight if is_active else "#FFFFFF"
-                        draw.text((curr_x + 2, curr_y + 2), cw, font=active_font, fill=(0, 0, 0, 230))
-                        draw.text((curr_x, curr_y), cw, font=active_font, fill=col)
+                        draw.text((curr_x + 3, curr_y + 3), cw, font=active_font, fill=(0, 0, 0, 240))
+                        draw.text(
+                            (curr_x, curr_y),
+                            cw,
+                            font=active_font,
+                            fill=col,
+                            stroke_width=stroke_w,
+                            stroke_fill=(0, 0, 0, 240),
+                        )
                         curr_x += ww + sw
                     curr_y += line_height
                     
@@ -2045,7 +2047,7 @@ def merge_and_export(
         elif is_after_effects_cat:
             cat_style = "clean"
         elif any(k in cat_lower for k in ["random", "all"]):
-            cat_style = random.choice(["history", "cartoon", "clean"])
+            cat_style = random.choice(["cartoon", "clean"])
         else:
             cat_style = "clean"
 
