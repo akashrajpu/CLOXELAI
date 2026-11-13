@@ -119,12 +119,7 @@ TEXT_COLORS = [
 ]
 
 TEXT_BG_STYLES = [
-    "none",         # Clean floating typography, zero background box (as requested)
-    "pill",         # Frosted glass dark rounded pill with accent border
-    "none",         # Clean floating typography (frequent no-box variation)
-    "neon_line",    # Sleek glowing accent underline bar, no background box
-    "glass_card",   # Ultra-translucent subtle glass card
-    "none",         # Clean floating typography
+    "none",         # Clean floating typography, zero background box ("bg mt lgao kewal word liikho")
 ]
 
 
@@ -1586,34 +1581,8 @@ def render_typewriter_lyrics_on_frame(
     else:  # upper_left / upper_right
         y_start = max(12, int(th * 0.045))
 
-    # Background style ("none", "pill", "neon_line", "glass_card")
-    if bg_style == "pill":
-        draw.rounded_rectangle(
-            [x_start, y_start, x_start + pill_w, y_start + pill_h],
-            radius=14,
-            fill=(12, 14, 24, 205)
-        )
-        accent_border = (fill_color[0], fill_color[1], fill_color[2], 145)
-        draw.rounded_rectangle(
-            [x_start, y_start, x_start + pill_w, y_start + pill_h],
-            radius=14,
-            outline=accent_border,
-            width=2
-        )
-    elif bg_style == "glass_card":
-        draw.rounded_rectangle(
-            [x_start, y_start, x_start + pill_w, y_start + pill_h],
-            radius=12,
-            fill=(15, 18, 30, 130)
-        )
-    elif bg_style == "neon_line":
-        underline_y = y_start + pill_h - 2
-        draw.line(
-            [(x_start + pad_x, underline_y), (x_start + pill_w - pad_x, underline_y)],
-            fill=fill_color,
-            width=3
-        )
-
+    # Pure floating script words with zero background box ("bg mt lgao kewal word liikho")
+    # All background boxes/cards/pills permanently disabled per user request
     def _compute_line_x(lw_px: int, include_emoji: bool) -> int:
         eff_w = lw_px + (emoji_spacing + emoji_size if include_emoji else 0)
         if is_left:
@@ -1622,7 +1591,7 @@ def render_typewriter_lyrics_on_frame(
             return x_start + pad_x + max(0, max_line_w - eff_w)
         return x_start + pad_x + max(0, (max_line_w - eff_w) // 2)
 
-    shadow_off = 3 if bg_style in ("none", "neon_line") else 2
+    shadow_off = 3
     cur_y = y_start + pad_y
 
     # Tier 1: Top lines in BOLD font

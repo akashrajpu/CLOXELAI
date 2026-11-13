@@ -56,6 +56,10 @@ def release_system_memory():
     """
     gc.collect()
     try:
+        os.sync()
+    except Exception:
+        pass
+    try:
         import ctypes
         ctypes.CDLL('libc.so.6').malloc_trim(0)
     except Exception:
@@ -233,16 +237,7 @@ def create_dynamic_animated_text(
             
         active_font = load_font(user_font_size)
 
-        if is_ultra_mode and category_style in ["history", "ancient"]:
-            chunk_str = " ".join(chunk_words)
-            parchment_img = create_parchment_subtitle_box(chunk_str, size, font_size=user_font_size)
-            px = (size[0] - parchment_img.width) // 2
-            py = size[1] - parchment_img.height - int(size[1] * 0.06)
-            img.paste(parchment_img, (px, py), mask=parchment_img)
-            cache['t'] = t
-            cache['img'] = img
-            return img
-
+        # Clean floating typography with zero background box ("bg mt lgao kewal word liikho")
         scene_theme_color = highlight_color if (highlight_color and highlight_color != "random") else "#FFD700"
 
         line_total_w = 0
@@ -917,127 +912,109 @@ def render_scene_native_ffmpeg(
             c_start = c_idx * chunk_dur
             c_end = (c_idx + 1) * chunk_dur
             
-            if category_style in ["history", "ancient"] and not has_devanagari:
-                chunk_str = " ".join(c_words)
-                try:
-                    parchment_img = create_parchment_subtitle_box(chunk_str, (w, h), font_size=base_fs)
-                    sub_canvas = Image.new("RGBA", (w, h), (0, 0, 0, 0))
-                    px = (w - parchment_img.width) // 2
-                    py = h - parchment_img.height - int(h * 0.06)
-                    sub_canvas.paste(parchment_img, (px, py), mask=parchment_img)
-                    sub_path = os.path.abspath(os.path.join(job_dir, f"tmp_sub_{state_counter}_{random.randint(100, 999)}.png"))
-                    sub_canvas.save(sub_path, "PNG")
-                    try: sub_canvas.close()
-                    except Exception: pass
-                    del sub_canvas
-                    sub_overlay_files.append((sub_path, c_start, c_end))
-                    state_counter += 1
-                except Exception as e_p:
-                    category_style = "clean"
-                    
-            if category_style not in ["history", "ancient"] or has_devanagari:
-                sub_canvas = Image.new("RGBA", (w, h), (0, 0, 0, 0))
-                draw = ImageDraw.Draw(sub_canvas)
+            # Pure floating script words with zero background box ("bg mt lgao kewal word liikho")
+            sub_canvas = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+            draw = ImageDraw.Draw(sub_canvas)
                 
-                max_box_w = int(w * 0.88)
-                pad_x = min(22, max(12, int(w * 0.04)))
-                pad_y = 10
-                max_text_w = max_box_w - pad_x * 2
+            max_box_w = int(w * 0.88)
+            pad_x = min(22, max(12, int(w * 0.04)))
+            pad_y = 10
+            max_text_w = max_box_w - pad_x * 2
 
-                fs = base_fs
+            fs = base_fs
+            active_font = get_font(font_path, fs, has_devanagari)
+            
+            # Dynamic shrink
+            tot_w = 0
+            while fs > 18:
                 active_font = get_font(font_path, fs, has_devanagari)
+                tot_w = sum(draw.textbbox((0, 0), cw, font=active_font)[2] - draw.textbbox((0, 0), cw, font=active_font)[0] for cw in c_words)
+                sp_w = draw.textbbox((0, 0), " ", font=active_font)[2] - draw.textbbox((0, 0), " ", font=active_font)[0]
+                tot_w += sp_w * max(0, len(c_words) - 1)
+                if tot_w <= max_text_w:
+                    break
+                fs -= 2
                 
-                # Dynamic shrink
-                tot_w = 0
-                while fs > 18:
+            lines = []
+            if tot_w <= max_text_w:
+                lines = [c_words]
+            else:
+                mid = max(1, (len(c_words) + 1) // 2)
+                lines = [c_words[:mid], c_words[mid:]]
+                fs = min(30, base_fs)
+                while fs > 16:
                     active_font = get_font(font_path, fs, has_devanagari)
-                    tot_w = sum(draw.textbbox((0, 0), cw, font=active_font)[2] - draw.textbbox((0, 0), cw, font=active_font)[0] for cw in c_words)
-                    sp_w = draw.textbbox((0, 0), " ", font=active_font)[2] - draw.textbbox((0, 0), " ", font=active_font)[0]
-                    tot_w += sp_w * max(0, len(c_words) - 1)
-                    if tot_w <= max_text_w:
+                    max_lw = 0
+                    for lw in lines:
+                        lw_w = sum(draw.textbbox((0, 0), cw, font=active_font)[2] - draw.textbbox((0, 0), cw, font=active_font)[0] for cw in lw)
+                        sp_w = draw.textbbox((0, 0), " ", font=active_font)[2] - draw.textbbox((0, 0), " ", font=active_font)[0]
+                        lw_w += sp_w * max(0, len(lw) - 1)
+                        if lw_w > max_lw:
+                            max_lw = lw_w
+                    if max_lw <= max_text_w:
                         break
                     fs -= 2
-                    
-                lines = []
-                if tot_w <= max_text_w:
-                    lines = [c_words]
-                else:
-                    mid = max(1, (len(c_words) + 1) // 2)
-                    lines = [c_words[:mid], c_words[mid:]]
-                    fs = min(30, base_fs)
-                    while fs > 16:
-                        active_font = get_font(font_path, fs, has_devanagari)
-                        max_lw = 0
-                        for lw in lines:
-                            lw_w = sum(draw.textbbox((0, 0), cw, font=active_font)[2] - draw.textbbox((0, 0), cw, font=active_font)[0] for cw in lw)
-                            sp_w = draw.textbbox((0, 0), " ", font=active_font)[2] - draw.textbbox((0, 0), " ", font=active_font)[0]
-                            lw_w += sp_w * max(0, len(lw) - 1)
-                            if lw_w > max_lw:
-                                max_lw = lw_w
-                        if max_lw <= max_text_w:
-                            break
-                        fs -= 2
 
-                rendered_lines = []
-                max_line_w = 0
-                first_word_done = False
-                for line_words in lines:
-                    line_metrics = []
-                    lw_total = 0
-                    for cw in line_words:
-                        wb = draw.textbbox((0, 0), cw, font=active_font)
-                        ww = wb[2] - wb[0]
-                        sb = draw.textbbox((0, 0), " ", font=active_font)
-                        sw = sb[2] - sb[0]
-                        is_active = (not first_word_done)
-                        first_word_done = True
-                        line_metrics.append((cw, ww, sw, is_active))
-                        lw_total += ww + sw
-                    if line_metrics:
-                        lw_total -= line_metrics[-1][2]
-                    rendered_lines.append((line_metrics, lw_total))
-                    if lw_total > max_line_w:
-                        max_line_w = lw_total
+            rendered_lines = []
+            max_line_w = 0
+            first_word_done = False
+            for line_words in lines:
+                line_metrics = []
+                lw_total = 0
+                for cw in line_words:
+                    wb = draw.textbbox((0, 0), cw, font=active_font)
+                    ww = wb[2] - wb[0]
+                    sb = draw.textbbox((0, 0), " ", font=active_font)
+                    sw = sb[2] - sb[0]
+                    is_active = (not first_word_done)
+                    first_word_done = True
+                    line_metrics.append((cw, ww, sw, is_active))
+                    lw_total += ww + sw
+                if line_metrics:
+                    lw_total -= line_metrics[-1][2]
+                rendered_lines.append((line_metrics, lw_total))
+                if lw_total > max_line_w:
+                    max_line_w = lw_total
 
-                box_w = min(max_box_w, max_line_w + pad_x * 2)
-                line_height = int(fs * 1.25)
-                box_h = (len(rendered_lines) * line_height) + pad_y * 2
+            box_w = min(max_box_w, max_line_w + pad_x * 2)
+            line_height = int(fs * 1.25)
+            box_h = (len(rendered_lines) * line_height) + pad_y * 2
+            
+            margin = int(w * 0.05)
+            box_x = (w - box_w) // 2
+            box_x = max(margin, min(box_x, w - box_w - margin))
+            box_y = int(h * 0.74)
+            if box_y + box_h > int(h * 0.90):
+                box_y = int(h * 0.90) - box_h
+            
+            # Pure floating script words with zero background box ("bg mt lgao kewal word liikho")
+            stroke_w = max(1, int(round(fs * 0.055)))
+            curr_y = box_y + pad_y
+            for line_metrics, lw_total in rendered_lines:
+                line_start_x = box_x + (box_w - lw_total) // 2
+                curr_x = line_start_x
+                for cw, ww, sw, is_active in line_metrics:
+                    col = resolved_highlight if is_active else "#FFFFFF"
+                    draw.text((curr_x + 3, curr_y + 3), cw, font=active_font, fill=(0, 0, 0, 240))
+                    draw.text(
+                        (curr_x, curr_y),
+                        cw,
+                        font=active_font,
+                        fill=col,
+                        stroke_width=stroke_w,
+                        stroke_fill=(0, 0, 0, 240),
+                    )
+                    curr_x += ww + sw
+                curr_y += line_height
                 
-                margin = int(w * 0.05)
-                box_x = (w - box_w) // 2
-                box_x = max(margin, min(box_x, w - box_w - margin))
-                box_y = int(h * 0.74)
-                if box_y + box_h > int(h * 0.90):
-                    box_y = int(h * 0.90) - box_h
-                
-                # Pure floating script words with zero background box ("bg mt lgao kewal word liikho")
-                stroke_w = max(1, int(round(fs * 0.055)))
-                curr_y = box_y + pad_y
-                for line_metrics, lw_total in rendered_lines:
-                    line_start_x = box_x + (box_w - lw_total) // 2
-                    curr_x = line_start_x
-                    for cw, ww, sw, is_active in line_metrics:
-                        col = resolved_highlight if is_active else "#FFFFFF"
-                        draw.text((curr_x + 3, curr_y + 3), cw, font=active_font, fill=(0, 0, 0, 240))
-                        draw.text(
-                            (curr_x, curr_y),
-                            cw,
-                            font=active_font,
-                            fill=col,
-                            stroke_width=stroke_w,
-                            stroke_fill=(0, 0, 0, 240),
-                        )
-                        curr_x += ww + sw
-                    curr_y += line_height
-                    
-                sub_path = os.path.abspath(os.path.join(job_dir, f"tmp_sub_{state_counter}_{random.randint(100, 999)}.png"))
-                sub_canvas.save(sub_path, "PNG")
-                try: sub_canvas.close()
-                except Exception: pass
-                del sub_canvas
-                del draw
-                sub_overlay_files.append((sub_path, c_start, c_end))
-                state_counter += 1
+            sub_path = os.path.abspath(os.path.join(job_dir, f"tmp_sub_{state_counter}_{random.randint(100, 999)}.png"))
+            sub_canvas.save(sub_path, "PNG")
+            try: sub_canvas.close()
+            except Exception: pass
+            del sub_canvas
+            del draw
+            sub_overlay_files.append((sub_path, c_start, c_end))
+            state_counter += 1
 
     input_args = []
     fallback_created = None

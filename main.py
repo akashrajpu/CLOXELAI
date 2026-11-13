@@ -28,6 +28,10 @@ def release_system_memory():
     """
     gc.collect()
     try:
+        os.sync()
+    except Exception:
+        pass
+    try:
         import ctypes
         ctypes.CDLL('libc.so.6').malloc_trim(0)
     except Exception:
@@ -104,8 +108,8 @@ if MONGO_URI:
     try:
         mongo_client = MongoClient(
             MONGO_URI,
-            maxPoolSize=100,
-            minPoolSize=10,
+            maxPoolSize=25,
+            minPoolSize=2,
             maxIdleTimeMS=60000,
             waitQueueTimeoutMS=10000,
             serverSelectionTimeoutMS=5000,
@@ -179,8 +183,8 @@ def ensure_db_alive():
             try:
                 mongo_client = MongoClient(
                     MONGO_URI,
-                    maxPoolSize=100,
-                    minPoolSize=10,
+                    maxPoolSize=25,
+                    minPoolSize=2,
                     maxIdleTimeMS=60000,
                     waitQueueTimeoutMS=10000,
                     serverSelectionTimeoutMS=5000,
@@ -2113,6 +2117,7 @@ def full_process(req: VideoRequest, job_id: str):
         if req.video_type == "short":
             target_limit_duration = min(target_limit_duration, 58.0)
         for i, sc in enumerate(scenes_data):
+            release_system_memory()
             if jobs.get(job_id, {}).get("status") == "cancelled":
                 print(f"🛑 [WORKFLOW CANCELLED] User cancelled Job ID {job_id} at Scene {i+1}. Stopping immediately...")
                 return
@@ -2222,13 +2227,6 @@ def full_process(req: VideoRequest, job_id: str):
                         vid_files = fetch_pinterest_videos_via_gallery_dl(vid_term, limit=1, output_dir=job_dir, used_media_ids=used_media_ids, orientation=orientation)
                         if vid_files and os.path.exists(vid_files[0]):
                             v_paths.append(vid_files[0])
-                        else:
-                            # Fallback 1 on Pinterest: shorter video search
-                            fb_vid = f"{clean_t} cinematic animation video".strip()
-                            print(f"🔄 [Ultra After Effects Scene {i+1}] Fallback searching Pinterest {orientation.upper()} Video: '{fb_vid}'...")
-                            vid_files = fetch_pinterest_videos_via_gallery_dl(fb_vid, limit=1, output_dir=job_dir, used_media_ids=used_media_ids, orientation=orientation)
-                            if vid_files and os.path.exists(vid_files[0]):
-                                v_paths.append(vid_files[0])
                                 
                     # If Pinterest video was not found for narrative, fall back to Pinterest photo with 'cinematic animation photo' (STRICTLY PINTEREST ONLY)
                     if not v_paths or not os.path.exists(v_paths[0]) or os.path.getsize(v_paths[0]) < 1000:
@@ -2366,23 +2364,15 @@ def full_process(req: VideoRequest, job_id: str):
                 current_size = os.path.getsize(v_paths[0])
                 current_hash = get_media_fingerprint(v_paths[0])
                 current_name = os.path.basename(v_paths[0])
-                is_duplicate = False
+                is_duplicate = bool(
+                    (current_hash and current_hash in used_media_ids) or
+                    (f"size_{current_size}" in used_media_ids) or
+                    (current_name in used_media_ids)
+                )
 
-                for prev_sc in taiyaar_scenes:
-                    prev_v_list = prev_sc.get("video", [])
-                    for prev_item in (prev_v_list if isinstance(prev_v_list, list) else [prev_v_list]):
-                        if prev_item and os.path.exists(prev_item):
-                            p_size = os.path.getsize(prev_item)
-                            p_hash = get_media_fingerprint(prev_item)
-                            if ((p_hash and current_hash and p_hash == current_hash) or
-                                (p_size > 0 and p_size == current_size)):
-                                is_duplicate = True
-                                break
-                    if is_duplicate:
-                        break
-                            
                 if is_duplicate:
                     print(f"⚠️ [main.py Guard] Scene {i+1} got duplicate asset (hash {current_hash[:8] if current_hash else 'none'}, size {current_size})! Re-fetching guaranteed unique media...")
+                    old_dup_path = v_paths[0]
                     clean_guard_kw = " ".join([w for w in re.findall(r'[a-zA-Z0-9]+', scene_kw) if len(w) > 1]) if scene_kw else ""
                     if is_after_effects_req:
                         alt_query = f"{clean_guard_kw or main_topic} cinematic animation video scene {i+1}"
@@ -2405,6 +2395,13 @@ def full_process(req: VideoRequest, job_id: str):
                             topic=main_topic,
                             used_media_ids=used_media_ids
                         )
+
+                    # Remove the rejected duplicate file from disk to save precious disk & cache space
+                    if old_dup_path and os.path.exists(old_dup_path) and (not v_paths or old_dup_path != v_paths[0]):
+                        try:
+                            os.remove(old_dup_path)
+                        except Exception:
+                            pass
 
                 # Register chosen asset(s) in used_media_ids so subsequent scenes NEVER duplicate them
                 for p_item in (v_paths if isinstance(v_paths, list) else [v_paths]):

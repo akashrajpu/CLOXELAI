@@ -12,6 +12,24 @@ import subprocess
 import requests
 import re
 import hashlib
+import gc
+
+def release_system_memory():
+    """
+    Forces Python Garbage Collection, flushes OS dirty page buffers (os.sync),
+    and forces Linux C-heap memory reclamation (malloc_trim).
+    Prevents Render 512MB RAM Out-Of-Memory (OOM) crashes.
+    """
+    gc.collect()
+    try:
+        os.sync()
+    except Exception:
+        pass
+    try:
+        import ctypes
+        ctypes.CDLL('libc.so.6').malloc_trim(0)
+    except Exception:
+        pass
 
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
@@ -59,7 +77,7 @@ def get_gallery_dl_cmd():
     return None
 
 def get_video_dimensions(filepath: str) -> tuple:
-    """Fast video width and height extraction using ffprobe with moviepy fallback."""
+    """Fast video width and height extraction using lightweight ffprobe."""
     if not filepath or not os.path.exists(filepath):
         return None, None
     try:
@@ -67,25 +85,13 @@ def get_video_dimensions(filepath: str) -> tuple:
             "ffprobe", "-v", "error",
             "-select_streams", "v:0",
             "-show_entries", "stream=width,height",
-            "-of", "json",
+            "-of", "csv=p=0:s=x",
             filepath
         ]
         res = subprocess.run(cmd, capture_output=True, text=True, timeout=4)
-        if res.returncode == 0 and res.stdout:
-            import json
-            data = json.loads(res.stdout)
-            streams = data.get("streams", [])
-            if streams and "width" in streams[0] and "height" in streams[0]:
-                return int(streams[0]["width"]), int(streams[0]["height"])
-    except Exception:
-        pass
-
-    try:
-        from moviepy.editor import VideoFileClip
-        clip = VideoFileClip(filepath)
-        w, h = clip.size
-        clip.close()
-        return int(w), int(h)
+        if res.returncode == 0 and res.stdout and "x" in res.stdout:
+            parts = res.stdout.strip().split("x")
+            return int(parts[0]), int(parts[1])
     except Exception:
         pass
 
@@ -197,13 +203,15 @@ def fetch_pinterest_photos_via_gallery_dl(query: str, limit: int = 3, output_dir
 
     if gallery_cmd:
         try:
-            scan_range = max(3, min(limit + 3, 5))
+            scan_range = max(1, min(limit + 1, 3))
             cmd = gallery_cmd + [
                 "--directory", dl_work_dir,
                 "--range", f"1-{scan_range}",
+                "--filesize-max", "5M",
+                "--no-part",
                 pinterest_url
             ]
-            subprocess.run(cmd, capture_output=True, text=True, timeout=40)
+            subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=40)
 
             found_raw = []
             for root, _, files in os.walk(dl_work_dir):
@@ -233,7 +241,7 @@ def fetch_pinterest_photos_via_gallery_dl(query: str, limit: int = 3, output_dir
 
                 ext = os.path.splitext(raw_p)[1].lower() or ".jpg"
                 final_p = os.path.join(output_dir, f"pin_asset_{timestamp_prefix}_{len(downloaded_files)+1}{ext}")
-                shutil.copy2(raw_p, final_p)
+                shutil.move(raw_p, final_p)
                 downloaded_files.append(final_p)
 
                 used_media_ids.add(raw_name)
@@ -243,6 +251,7 @@ def fetch_pinterest_photos_via_gallery_dl(query: str, limit: int = 3, output_dir
 
             # Cleanup isolated cache
             shutil.rmtree(dl_work_dir, ignore_errors=True)
+            release_system_memory()
 
             if downloaded_files:
                 print(f"✅ [Pinterest gallery-dl] Successfully fetched {len(downloaded_files)} {orientation.upper()} photos for '{query}'.")
@@ -250,9 +259,11 @@ def fetch_pinterest_photos_via_gallery_dl(query: str, limit: int = 3, output_dir
 
         except Exception as e:
             shutil.rmtree(dl_work_dir, ignore_errors=True)
+            release_system_memory()
             print(f"⚠️ [Pinterest gallery-dl warning]: {e}. Trying direct web scraper fallback...")
     else:
         shutil.rmtree(dl_work_dir, ignore_errors=True)
+        release_system_memory()
         print("ℹ️ [Pinterest gallery-dl] CLI executable not found, using web scraper fallbacks...")
 
     # Fallback 1: Direct Pinterest Scraper
@@ -469,14 +480,16 @@ def fetch_pinterest_videos_via_gallery_dl(query: str, limit: int = 1, output_dir
     os.makedirs(dl_work_dir, exist_ok=True)
 
     if gallery_cmd:
-        scan_range = max(2, min(limit + 2, 4))
+        scan_range = max(1, min(limit + 1, 2))
         cmd = gallery_cmd + [
             "--directory", dl_work_dir,
             "--range", f"1-{scan_range}",
+            "--filesize-max", "18M",
+            "--no-part",
             pinterest_url
         ]
         try:
-            subprocess.run(cmd, capture_output=True, text=True, timeout=45)
+            subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=45)
         except subprocess.TimeoutExpired:
             print(f"⚠️ [Pinterest Video] gallery-dl scan reached 45s threshold for '{search_query}', checking downloaded files...")
         except Exception as e:
@@ -511,7 +524,7 @@ def fetch_pinterest_videos_via_gallery_dl(query: str, limit: int = 1, output_dir
 
                 ext = os.path.splitext(raw_p)[1].lower() or ".mp4"
                 final_p = os.path.join(output_dir, f"pin_vid_{timestamp_prefix}_{len(downloaded_videos)+1}{ext}")
-                shutil.copy2(raw_p, final_p)
+                shutil.move(raw_p, final_p)
                 downloaded_videos.append(final_p)
 
                 used_media_ids.add(raw_name)
@@ -531,11 +544,13 @@ def fetch_pinterest_videos_via_gallery_dl(query: str, limit: int = 1, output_dir
                 alt_url = f"https://in.pinterest.com/search/pins/?q={urllib.parse.quote(alt_search)}"
                 cmd_alt = gallery_cmd + [
                     "--directory", dl_work_dir,
-                    "--range", f"1-{scan_range + 3}",
+                    "--range", f"1-{scan_range + 1}",
+                    "--filesize-max", "18M",
+                    "--no-part",
                     alt_url
                 ]
                 try:
-                    subprocess.run(cmd_alt, capture_output=True, text=True, timeout=30)
+                    subprocess.run(cmd_alt, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=30)
                     for root, _, files in os.walk(dl_work_dir):
                         for f in files:
                             full_p = os.path.join(root, f)
@@ -550,7 +565,7 @@ def fetch_pinterest_videos_via_gallery_dl(query: str, limit: int = 1, output_dir
                                     f"size_{s}" not in used_media_ids):
                                     ext = os.path.splitext(full_p)[1].lower() or ".mp4"
                                     final_p = os.path.join(output_dir, f"pin_vid_{timestamp_prefix}_alt_{len(downloaded_videos)+1}{ext}")
-                                    shutil.copy2(full_p, final_p)
+                                    shutil.move(full_p, final_p)
                                     downloaded_videos.append(final_p)
                                     used_media_ids.add(r_name)
                                     if p_id: used_media_ids.add(p_id)
@@ -565,6 +580,7 @@ def fetch_pinterest_videos_via_gallery_dl(query: str, limit: int = 1, output_dir
             print(f"⚠️ [Pinterest Video salvage warning]: {e_salvage}")
         finally:
             shutil.rmtree(dl_work_dir, ignore_errors=True)
+            release_system_memory()
 
         if downloaded_videos:
             print(f"✅ [Pinterest Video gallery-dl] Successfully fetched {len(downloaded_videos)} unique {orientation.upper()} video(s) for '{search_query}'.")
