@@ -113,8 +113,8 @@ AFTER_EFFECTS_VFX_CATALOG: List[Dict[str, Any]] = [
         "weight": 4.6,
         "keywords": [
             "spark", "sparks", "sparkle", "fireworks", "firework", "diwali",
-            "cracker", "crackers", "rocket", "welding", "blaze", "festival",
-            "victory sparks", "roshni", "chingari", "patakha", "aag",
+            "cracker", "crackers", "welding", "blaze", "festival",
+            "victory sparks", "roshni", "chingari", "patakha",
             "चिंगारी", "पटाखा", "दिवाली", "रोशनी", "आतिशबाजी",
         ],
     },
@@ -127,11 +127,11 @@ AFTER_EFFECTS_VFX_CATALOG: List[Dict[str, Any]] = [
         "opacity": 0.92,
         "weight": 4.3,
         "keywords": [
-            "paper", "papers", "page", "pages", "exam", "newspaper", "news",
-            "office", "contract", "notes", "bill", "wind", "storm", "chaos",
+            "paper", "papers", "page", "pages", "exam", "newspaper",
+            "office", "contract", "notes", "bill",
             "library", "archive", "courtroom", "files flying",
-            "kaagaz", "panna", "kitaab", "tufan", "hawa", "patra", "akhbar",
-            "कागज", "पन्ना", "किताब", "अखबार", "नोट", "तूफान", "हवा",
+            "kaagaz", "panna", "kitaab", "patra", "akhbar",
+            "कागज", "पन्ना", "किताब", "अखबार", "नोट",
         ],
     },
     {
@@ -146,9 +146,9 @@ AFTER_EFFECTS_VFX_CATALOG: List[Dict[str, Any]] = [
         "weight": 4.8,
         "keywords": [
             "shopping", "shoping", "shop", "buy", "purchase", "store", "market", "mall",
-            "sale", "discount", "deal", "price", "order", "product", "ecommerce",
-            "amazon", "flipkart", "cart", "bag", "retail", "grocery", "online",
-            "spend", "spending", "customer", "buyer",
+            "sale", "discount", "deal", "price", "order", "ecommerce",
+            "amazon", "flipkart", "cart", "bag", "retail", "grocery",
+            "spending", "customer", "buyer",
             "kharid", "khrid", "kharidna", "kharidari", "bazaar", "dukaan", "sasta", "mahanga",
             "शॉपिंग", "खरीद", "बाजार", "दुकान", "कीमत", "ऑफर", "डिस्काउंट", "सेल",
         ],
@@ -200,11 +200,10 @@ AFTER_EFFECTS_VFX_CATALOG: List[Dict[str, Any]] = [
         "max_dur": 5.60,
         "weight": 4.3,
         "keywords": [
-            "question", "why", "how", "doubt", "mystery", "reason", "fact",
-            "research", "problem", "solution", "think", "ponder", "investigation",
-            "evidence", "curious", "explain why", "why did", "how did", "what is", "secret",
-            "sawaal", "sawal", "kyu", "kyon", "kaise", "akhir", "socho", "rahasya",
-            "सवाल", "क्यों", "कैसे", "आखिर", "सोचो", "रहस्य", "सबूत",
+            "question", "qution", "doubt", "investigation", "evidence",
+            "explain why", "why did", "how did", "what is",
+            "sawaal", "sawal", "saboot",
+            "सवाल", "सबूत",
         ],
     },
     {
@@ -219,10 +218,9 @@ AFTER_EFFECTS_VFX_CATALOG: List[Dict[str, Any]] = [
         "weight": 4.3,
         "keywords": [
             "confused", "confusion", "puzzle", "puzzled", "wonder", "unbelievable",
-            "really", "seriously", "strange", "weird", "baffled", "shocked",
-            "why", "how", "what happened", "doubt", "question",
-            "hairan", "pareshan", "samajh", "kya hua", "sach mein", "kyon",
-            "हैरान", "परेशान", "समझ", "क्या हुआ", "सच", "आश्चर्य", "अजीब",
+            "strange", "weird", "baffled", "what happened",
+            "hairan", "pareshan", "kya hua", "ajeeb",
+            "हैरान", "परेशान", "क्या हुआ", "आश्चर्य", "अजीब",
         ],
     },
     {
@@ -236,9 +234,8 @@ AFTER_EFFECTS_VFX_CATALOG: List[Dict[str, Any]] = [
         "weight": 4.4,
         "keywords": [
             "paint", "pent", "penting", "painting", "brush", "art", "artist", "draw", "drawing",
-            "sketch", "design", "creative", "color", "colors", "canvas", "ink",
-            "stroke", "artwork", "illustrate",
-            "rang", "kala", "chitra", "tasveer", "banao",
+            "sketch", "creative", "canvas", "ink", "artwork", "illustrate",
+            "rangon", "rang biranga", "kala", "chitra", "tasveer",
             "पेंट", "रंग", "कला", "चित्र", "तस्वीर", "ड्राइंग", "ब्रश",
         ],
     },
@@ -300,7 +297,7 @@ AFTER_EFFECTS_VFX_CATALOG: List[Dict[str, Any]] = [
         "keywords": [
             "lion", "tiger", "jungle", "forest", "animal", "animals", "wildlife",
             "safari", "nature", "beast", "roar", "wild", "predator",
-            "sher", "janwar", "jangal", "van",
+            "sher", "janwar", "jangal",
             "शेर", "जंगल", "जानवर", "वन", "शिकार", "प्रकृति",
         ],
     },
@@ -653,8 +650,8 @@ AFTER_EFFECTS_VFX_CATALOG: List[Dict[str, Any]] = [
         "weight": 4.5,
         "keywords": [
             "film", "camera", "movie", "cinema", "retro", "vintage", "flashback",
-            "memory", "memories", "past", "nostalgia", "ancient", "decade",
-            "century", "puraana", "yaad", "yaadein", "beeta",
+            "memory", "memories", "nostalgia",
+            "puraana", "yaad", "yaadein", "beeta",
             "याद", "यादें", "पुराना", "अतीत", "सिनेमा", "फ़िल्म",
         ],
     },
@@ -818,6 +815,7 @@ def select_after_effects_vfx(
         raw_score = 0.0
         matched_kws: List[str] = []
         matched_non_greeting = False
+        matched_in_script = False
 
         for kw in entry["keywords"]:
             if kw in matched_kws:
@@ -825,6 +823,7 @@ def select_after_effects_vfx(
             sim = _vfx_keyword_score(tokens, joined_text, kw)
             if sim >= 0.70:
                 matched_kws.append(kw)
+                matched_in_script = True
                 raw_score += float(entry["weight"]) * sim
                 if kw.strip().lower() not in _HELLO_GREETING_CUES:
                     matched_non_greeting = True
@@ -833,7 +832,7 @@ def select_after_effects_vfx(
                 kw_sim = _vfx_keyword_score(kw_tokens, joined_kw, kw)
                 if kw_sim >= 0.70:
                     matched_kws.append(f"kw:{kw}")
-                    raw_score += float(entry["weight"]) * 0.80 * kw_sim
+                    raw_score += float(entry["weight"]) * 0.45 * kw_sim
                     if kw.strip().lower() not in _HELLO_GREETING_CUES:
                         matched_non_greeting = True
 
@@ -842,9 +841,14 @@ def select_after_effects_vfx(
         if "?" in raw_text and fname in ("qutiion_efect.mp4", "qution_mark_effect.mp4"):
             if raw_text.endswith("?"):
                 q_only = (raw_score <= 0.0)
+                matched_in_script = True
                 raw_score += 2.6
                 if not matched_kws:
                     matched_kws.append("?")
+
+        # Only trigger VFX when spoken script itself supports it (never blind visual_prompt guesses alone)
+        if not matched_in_script and raw_score < 6.0:
+            continue
 
         if raw_score < 2.5:
             continue
@@ -876,11 +880,10 @@ def select_after_effects_vfx(
         if picked:
             best_entry = picked
 
-    # Every multi-scene video picks a random hello effect from the 8-clip pool (preferring Scene 0 intro)
+    # Pick a random hello intro cleanly on Scene 0 (never hijack unrelated middle scenes)
     if total_scenes >= 2 and not has_used_hello:
         should_inject_hello = (
-            (scene_idx == 0 and (best_entry is None or best_is_weak_q))
-            or (scene_idx > 0 and best_entry is None)
+            scene_idx == 0 and (best_entry is None or best_is_weak_q)
         )
         if should_inject_hello:
             picked = _pick_random_hello(used_set, last_file)

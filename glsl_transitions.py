@@ -54,6 +54,31 @@ GLITCH_TRANSITION_SFX = [
     "mixkit-small-electric-glitch-2595.wav",
 ]
 
+# Script cues that actually justify a digital/glitch transition + glitch SFX in Ultra mode.
+# Calm, historical, emotional, celebratory, or informative boundaries default to warm `light_color` shaders (zero glitch audio).
+_GLITCH_BOUNDARY_CUES = frozenset({
+    "glitch", "glich", "hack", "hacker", "hacked", "cyber", "virus", "malware",
+    "matrix", "simulation", "cctv", "signal", "static", "offline", "disconnected",
+    "corrupt", "bug", "error", "crash", "system", "digital", "algorithm", "ai",
+    "electric", "electricity", "voltage", "circuit", "spark", "zap", "thunder",
+    "explosion", "explode", "blast", "bomb", "nuclear", "shock", "shocking",
+    "warning", "alarm", "danger", "emergency", "horror", "scary", "ghost", "haunted",
+    "jhatka", "dhamaka", "visfot", "khatra", "bijli", "bhoot", "darawna",
+    "हैक", "ग्लिच", "वायरस", "सिग्नल", "त्रुटि", "झटका", "धमाका", "विस्फोट",
+    "खतरा", "डरावना", "भूत", "बिजली", "साइबर", "मैट्रिक्स",
+})
+
+_LIGHT_COLOR_BOUNDARY_CUES = frozenset({
+    "love", "romantic", "heart", "dream", "peace", "nature", "morning", "sunrise",
+    "happy", "victory", "win", "celebration", "gift", "history", "ancient",
+    "king", "queen", "emperor", "empire", "flashback", "memory", "memories",
+    "warm", "flower", "garden", "festival", "diwali", "song", "music",
+    "pyar", "dil", "sapna", "shanti", "subah", "khushi", "jeet", "yaad", "yaadein",
+    "itihas", "raja", "maharaja", "samrat", "tohfa",
+    "प्यार", "दिल", "सपना", "शांति", "सुबह", "खुशी", "जीत", "याद", "यादें",
+    "इतिहास", "राजा", "महाराजा", "सम्राट", "तोहफा",
+})
+
 # Multi-word & single-word pause / tense / transition triggers (Devanagari, Hinglish, English)
 _SCRIPT_PAUSE_PHRASES = (
     # User-specified Hindi / Hinglish tense & state-change markers + variants
@@ -280,11 +305,23 @@ def score_script_transition_boundary(outgoing_text: str, incoming_text: str = ""
     return round(score, 2), best_reason
 
 
+def _boundary_prefers_glitch(outgoing_text: str, incoming_text: str = "") -> bool:
+    """Return True only when the script around a boundary calls for glitch energy rather than clean light/color glow."""
+    combined = f"{outgoing_text or ''} {incoming_text or ''}".lower()
+    tokens = [t for t in _GLSL_SPLIT_RE.split(combined) if t]
+    if not tokens:
+        return False
+    glitch_hits = sum(1 for t in tokens if t in _GLITCH_BOUNDARY_CUES)
+    light_hits = sum(1 for t in tokens if t in _LIGHT_COLOR_BOUNDARY_CUES)
+    return glitch_hits > 0 and glitch_hits >= light_hits
+
+
 def plan_glsl_transitions(
     scene_texts: List[str],
     scene_durations: List[float],
     mode: str = "ultra",
     rng_seed: Optional[int] = None,
+    existing_glitch_count: int = 0,
 ) -> Dict[int, Dict[str, Any]]:
     """
     Select sparse, script-driven GLSL transitions for boundaries `i -> i+1`.
@@ -341,10 +378,26 @@ def plan_glsl_transitions(
     last_shader = None
     is_ultra = str(mode or "").strip().lower() == "ultra"
 
+    glitch_pool = [p for p in pool if p[1] == "glitch"]
+    light_pool = [p for p in pool if p[1] == "light_color"]
+    # Keep glitch transitions + glitch SFX sparse per video (never spam glitch across every cut)
+    base_glitch_cap = 1 if num_cuts <= 6 else 2
+    glitch_budget = max(0, base_glitch_cap - max(0, int(existing_glitch_count or 0)))
+
     for b_idx in chosen_indices:
-        choices = [p for p in pool if p[0] != last_shader] or pool
+        if is_ultra and light_pool:
+            out_txt = scene_texts[b_idx] if b_idx < len(scene_texts) else ""
+            in_txt = scene_texts[b_idx + 1] if (b_idx + 1) < len(scene_texts) else ""
+            allow_glitch = glitch_pool and glitch_budget > 0 and _boundary_prefers_glitch(out_txt, in_txt)
+            active_pool = glitch_pool if allow_glitch else light_pool
+        else:
+            active_pool = pool
+
+        choices = [p for p in active_pool if p[0] != last_shader] or active_pool
         fname, cat = rng.choice(choices)
         last_shader = fname
+        if is_ultra and cat == "glitch":
+            glitch_budget = max(0, glitch_budget - 1)
         meta = parse_glsl_shader_meta(fname)
         if not meta or not meta.get("has_transition_fn"):
             continue
@@ -1162,7 +1215,7 @@ def _render_bridge_clip(
                 f"[3:a]aresample=44100,aformat=channel_layouts=stereo,"
                 f"atrim=0:{trans_dur:.3f},asetpts=PTS-STARTPTS,"
                 f"afade=t=in:st=0:d=0.02,afade=t=out:st={fade_st:.3f}:d={fade_len:.3f},"
-                f"volume=0.36[asfx];"
+                f"volume=0.28[asfx];"
                 f"[abase][asfx]amix=inputs=2:duration=first:dropout_transition=0:normalize=0,"
                 f"alimiter=limit=0.96:level=disabled[aout]"
             )
@@ -1265,6 +1318,7 @@ def apply_glsl_transitions_to_segments(
     target_size: Tuple[int, int],
     job_dir: str,
     fps: int = 25,
+    existing_glitch_count: int = 0,
 ) -> Tuple[List[str], List[str], List[Dict[str, Any]]]:
     """
     Insert script-driven GLSL shader transitions cleanly between qualifying segments.
@@ -1284,7 +1338,12 @@ def apply_glsl_transitions_to_segments(
         durations.append(d)
         audio_flags.append(has_a)
 
-    plans = plan_glsl_transitions(scene_texts, durations, mode=mode)
+    plans = plan_glsl_transitions(
+        scene_texts,
+        durations,
+        mode=mode,
+        existing_glitch_count=existing_glitch_count,
+    )
     if not plans:
         return segment_paths, [], []
 
@@ -1414,7 +1473,7 @@ def overlay_glitch_sfx_events_on_video(video_path: str, sfx_events: List[Dict[st
             f"[{idx}:a]aresample=44100,aformat=channel_layouts=stereo,"
             f"atrim=0:0.65,asetpts=PTS-STARTPTS,"
             f"afade=t=in:st=0:d=0.02,afade=t=out:st=0.45:d=0.20,"
-            f"volume=0.35,adelay={delay_ms}|{delay_ms}[{lbl}]"
+            f"volume=0.28,adelay={delay_ms}|{delay_ms}[{lbl}]"
         )
         mix_labels.append(f"[{lbl}]")
 

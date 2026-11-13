@@ -1151,20 +1151,27 @@ _AE_SFX_BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 _AE_SFX_DIR = os.path.join(_AE_SFX_BASE_DIR, "sound_effects")
 _AE_SFX_SPLIT_RE = re.compile(r'[\s,.\-!?;:"\'()\[\]{}<>/\\|~`@#$%^&*_+=।॥]+')
 
+_GLITCH_SFX_FILES = frozenset({
+    "mixkit-intro-text-glitch-2950.wav",
+    "mixkit-cinematic-glitch-trailer-1021.wav",
+    "mixkit-glitch-static-1457.wav",
+    "mixkit-small-electric-glitch-2595.wav",
+    "mixkit-glitch-roar-1033.wav",
+})
+
 # Catalog of Mixkit & local SFX assets mapped directly by filename intent and script context.
 # Used EXCLUSIVELY when mode == "ultra" and category is After Effects / VFX / Motion Graphics.
 AFTER_EFFECTS_SFX_CATALOG = [
     {
         "file": "mixkit-intro-text-glitch-2950.wav",
         "kind": "intro",
-        "volume": 0.34,
-        "weight": 4.0,
+        "volume": 0.28,
+        "weight": 3.8,
         "max_clip_dur": 8.0,
         "keywords": [
-            "title", "glitch", "breaking", "cyber", "hack", "secret", "mystery",
-            "dark", "shocking", "truth", "exposed", "hidden", "ai", "technology",
-            "matrix", "digital", "rahasya", "sach", "khulasa", "gupt", "tech",
-            "रहस्य", "खुलासा", "गुप्त", "सच", "टेक्नोलॉजी",
+            "glitch", "glich", "cyber", "hack", "hacker", "hacked", "ai",
+            "technology", "tech", "matrix", "digital", "virus", "malware",
+            "coding", "algorithm", "सिस्टम", "साइबर", "हैक", "ग्लिच", "टेक्नोलॉजी",
         ],
     },
     {
@@ -1247,14 +1254,12 @@ AFTER_EFFECTS_SFX_CATALOG = [
     {
         "file": "mixkit-glitch-roar-1033.wav",
         "kind": "event",
-        "volume": 0.34,
+        "volume": 0.28,
         "weight": 4.5,
         "keywords": [
             "roar", "monster", "beast", "dragon", "dinosaur", "lion", "tiger",
-            "demon", "devil", "ghost", "horror", "terrifying", "nightmare",
-            "predator", "scary", "haunted", "creature", "rage", "angry", "evil",
-            "dahad", "sher", "rakshas", "bhoot", "shaitan", "darawna", "bhayanak",
-            "दहाड़", "शेर", "राक्षस", "भूत", "शैतान", "डरावना", "भयानक", "खूंखार",
+            "demon", "devil", "predator", "creature", "giant beast",
+            "dahad", "sher", "rakshas", "दहाड़", "शेर", "राक्षस", "खूंखार",
         ],
     },
     {
@@ -1362,37 +1367,35 @@ AFTER_EFFECTS_SFX_CATALOG = [
     {
         "file": "mixkit-small-electric-glitch-2595.wav",
         "kind": "event",
-        "volume": 0.38,
+        "volume": 0.30,
         "weight": 4.2,
         "keywords": [
             "electric", "electricity", "voltage", "spark", "circuit", "short circuit",
-            "wire", "battery", "charge", "zap", "current", "neuron", "pulse",
-            "energy", "power grid", "magnet", "bijli", "jhatka", "tar",
-            "बिजली", "करंट", "झटका", "चिंगारी", "सर्किट", "ऊर्जा",
+            "wire", "zap", "current", "power grid", "bijli", "jhatka", "taar",
+            "बिजली", "करंट", "झटका", "चिंगारी", "सर्किट",
         ],
     },
     {
         "file": "mixkit-cinematic-glitch-trailer-1021.wav",
         "kind": "event",
-        "volume": 0.38,
+        "volume": 0.28,
         "weight": 3.8,
         "keywords": [
-            "glitch", "hack", "hacker", "matrix", "illusion", "fake", "corrupt",
-            "virus", "bug", "simulation", "conspiracy", "shadow", "trap",
-            "plot twist", "control", "brainwash", "dhoka", "jaal", "mayajaal", "bharam",
-            "धोखा", "भ्रम", "माया", "साजिश", "वायरस", "हैक", "जाल",
+            "glitch", "glich", "hack", "hacker", "hacked", "matrix", "corrupt",
+            "virus", "malware", "bug", "simulation", "cyber", "cyberattack",
+            "वायरस", "हैक", "ग्लिच", "मैट्रिक्स", "सिमुलेशन",
         ],
     },
     {
         "file": "mixkit-glitch-static-1457.wav",
         "kind": "event",
-        "volume": 0.34,
+        "volume": 0.28,
         "weight": 4.2,
         "keywords": [
-            "static", "signal", "offline", "disconnected", "error", "crash",
-            "freeze", "froze", "television", "tv", "cctv", "footage", "radio",
-            "transmission", "broken", "interference", "distortion", "lost connection",
-            "kharab", "band", "सिग्नल", "टीवी", "कैमरा", "फ़ुटेज", "त्रुटि", "खराब",
+            "static", "signal", "offline", "disconnected",
+            "television", "tv", "cctv", "footage", "radio",
+            "transmission", "interference", "distortion", "lost connection",
+            "no signal", "सिग्नल", "टीवी", "कैमरा", "फ़ुटेज",
         ],
     },
     {
@@ -1542,6 +1545,13 @@ def _ae_find_keyword_hit(tokens: list, joined_text: str, kw: str):
     return False, -1
 
 
+_AE_TRANSITION_SHIFT_CUES = frozenset({
+    "however", "meanwhile", "suddenly", "finally", "instead", "later", "next",
+    "lekin", "magar", "tabhi", "achanak", "phir", "fir", "halanki", "agle",
+    "लेकिन", "मगर", "तभी", "अचानक", "फिर", "हालांकि",
+})
+
+
 def select_after_effects_sfx(
     scene_text: str,
     scene_keyword: str = "",
@@ -1552,7 +1562,8 @@ def select_after_effects_sfx(
 ):
     """
     Selects the best matching Mixkit/local SFX for an Ultra After Effects scene
-    using the SFX filename's intended role and multi-lingual script analysis.
+    strictly from the spoken script intent, capping/spacing glitch SFX so glitch
+    audio never fires indiscriminately across scenes.
     """
     used_sfx = used_sfx or []
     tokens = _ae_tokenize(scene_text)
@@ -1563,14 +1574,24 @@ def select_after_effects_sfx(
     last_file = used_sfx[-1] if used_sfx else None
     used_set = set(used_sfx)
 
+    # Strictly budget & cool-down glitch SFX across a video so glitch audio never floods every scene
+    glitch_used_count = sum(1 for f in used_sfx if f in _GLITCH_SFX_FILES)
+    max_glitch_sfx = 1 if total_scenes <= 8 else 2
+    glitch_recently_used = any(f in _GLITCH_SFX_FILES for f in used_sfx[-2:])
+    glitch_blocked = (glitch_used_count >= max_glitch_sfx) or glitch_recently_used
+
     best_entry = None
     best_score = -1.0
     best_hit_idx = 0
     best_matched_kw = ""
 
-    # Scene 0 cues for tech/mystery cyber glitch intro vs grand cinematic intro
-    tech_mystery_cues = {"ai", "tech", "technology", "cyber", "hack", "glitch", "secret", "mystery", "dark", "rahasya", "gupt", "रहस्य", "गुप्त", "सच"}
-    tech_intro_bias = any(t in tech_mystery_cues for t in (tokens + kw_tokens))
+    # Scene 0 cyber/tech glitch intro ONLY triggers on explicit spoken tech/hack/glitch cues
+    tech_intro_cues = {
+        "ai", "tech", "technology", "cyber", "hack", "hacker", "hacked",
+        "glitch", "glich", "matrix", "digital", "virus", "malware", "code",
+        "ग्लिच", "हैक", "साइबर", "टेक्नोलॉजी",
+    }
+    tech_intro_bias = (not glitch_blocked) and any(t in tech_intro_cues for t in tokens)
 
     for entry in AFTER_EFFECTS_SFX_CATALOG:
         fname = entry["file"]
@@ -1578,58 +1599,60 @@ def select_after_effects_sfx(
         if not resolved:
             continue
 
-        # Reserve intro SFX primarily for Scene 0 unless explicitly matched in script
+        is_glitch_sfx = fname in _GLITCH_SFX_FILES
+        if is_glitch_sfx and glitch_blocked:
+            continue
+
+        # Reserve intro SFX strictly for Scene 0 opening hook
         is_intro_file = fname in ("mixkit-intro-transition-1146.wav", "mixkit-intro-text-glitch-2950.wav")
         if is_intro_file and scene_idx > 0:
-            explicit_intro_hits = 0
-            for kw in entry["keywords"][:4]:
-                m, _ = _ae_find_keyword_hit(tokens, joined_text, kw)
-                if m:
-                    explicit_intro_hits += 1
-            if explicit_intro_hits == 0:
-                continue
+            continue
 
         score = 0.0
         first_idx = len(tokens)
         matched_kw = ""
         matched_kws = set()
+        spoken_hits = 0
 
         for kw in entry["keywords"]:
             hit, idx = _ae_find_keyword_hit(tokens, joined_text, kw)
             if hit:
                 matched_kws.add(kw)
+                spoken_hits += 1
                 score += entry["weight"]
                 if idx < first_idx:
                     first_idx = idx
                     matched_kw = kw
-            elif kw_tokens:
+            elif kw_tokens and (not is_glitch_sfx):
+                # Never allow AI visual prompts alone to fire glitch SFX; minor tie-breaker weight for non-glitch SFX
                 kw_hit, _ = _ae_find_keyword_hit(kw_tokens, joined_kw, kw)
                 if kw_hit and kw not in matched_kws:
                     matched_kws.add(kw)
-                    score += entry["weight"] * 0.6
+                    score += entry["weight"] * 0.40
                     if not matched_kw:
                         matched_kw = f"[kw:{kw}]"
 
-        # Scene 0 opening hook affinity (matching intro filenames directly)
+        # Scene 0 opening hook affinity (clean intro default; glitch intro strictly for spoken cyber/tech)
         if scene_idx == 0:
-            if fname == "mixkit-intro-text-glitch-2950.wav":
-                score += 4.2 if tech_intro_bias else 2.0
+            if fname == "mixkit-intro-text-glitch-2950.wav" and tech_intro_bias:
+                score += 4.5
                 if not matched_kw:
                     matched_kw = "scene0_intro_glitch"
                     first_idx = 0
             elif fname == "mixkit-intro-transition-1146.wav":
-                score += 2.2 if tech_intro_bias else 4.2
+                score += 1.6 if tech_intro_bias else 4.2
                 if not matched_kw:
                     matched_kw = "scene0_intro"
                     first_idx = 0
 
         # Climax finishing boost for orchestral hit on final scene
         if scene_idx > 0 and total_scenes >= 3 and scene_idx == total_scenes - 1:
-            if fname == "mixkit-epic-orchestra-transition-2290.wav":
+            if fname == "mixkit-epic-orchestra-transition-2290.wav" and spoken_hits > 0:
                 score += 2.0
-                if not matched_kw:
-                    matched_kw = "final_climax"
-                    first_idx = 0
+
+        # Ignore single weak visual-prompt-only guesses when script itself had zero match
+        if spoken_hits == 0 and score < 3.0 and not (scene_idx == 0 and is_intro_file):
+            continue
 
         if score <= 0.0:
             continue
@@ -1638,7 +1661,7 @@ def select_after_effects_sfx(
         if fname == last_file:
             score -= 5.0
         elif fname in used_set:
-            score -= 1.5
+            score -= 2.0
 
         if score > best_score:
             best_score = score
@@ -1646,44 +1669,46 @@ def select_after_effects_sfx(
             best_hit_idx = first_idx if first_idx < len(tokens) else 0
             best_matched_kw = matched_kw
 
-    # Clean After Effects cut transitions when no specific SFX matched strongly
-    if best_entry is None or best_score < 1.0:
-        short_transitions = [
-            "mixkit-cinematic-whoosh-fast-transition-1492.wav",
-            "mixkit-fast-small-sweep-transition-166.wav",
-            "mixkit-air-zoom-vacuum-2608.wav",
-        ]
-        if clip_duration >= 2.2:
-            short_transitions.append("mixkit-air-woosh-1489.wav")
-
+    # Thoughtful fallback: intro for Scene 0, clean non-glitch swoosh ONLY when middle script has a shift cue
+    if best_entry is None or best_score < 2.0:
         if scene_idx == 0:
-            preferred_order = [
-                "mixkit-intro-text-glitch-2950.wav" if tech_intro_bias else "mixkit-intro-transition-1146.wav",
-                "mixkit-intro-transition-1146.wav",
-            ]
+            preferred_order = (
+                ["mixkit-intro-text-glitch-2950.wav", "mixkit-intro-transition-1146.wav"]
+                if tech_intro_bias
+                else ["mixkit-intro-transition-1146.wav"]
+            )
+            chosen_fname = next((c for c in preferred_order if _resolve_ae_sfx_path(c)), None)
+            if not chosen_fname:
+                return None
+            best_entry = next((e for e in AFTER_EFFECTS_SFX_CATALOG if e["file"] == chosen_fname), None)
+            if not best_entry:
+                return None
+            best_hit_idx = 0
+            best_matched_kw = "scene0_intro_glitch" if chosen_fname == "mixkit-intro-text-glitch-2950.wav" else "scene0_intro"
         else:
+            raw_s = str(scene_text or "").strip()
+            has_shift_cue = any(t in _AE_TRANSITION_SHIFT_CUES for t in tokens) or raw_s.endswith(("!", "...", "…"))
+            if not has_shift_cue:
+                return None
+
+            short_transitions = [
+                "mixkit-cinematic-whoosh-fast-transition-1492.wav",
+                "mixkit-fast-small-sweep-transition-166.wav",
+                "mixkit-air-zoom-vacuum-2608.wav",
+            ]
+            if clip_duration >= 2.2:
+                short_transitions.append("mixkit-air-woosh-1489.wav")
+
             rot = scene_idx % len(short_transitions)
             preferred_order = short_transitions[rot:] + short_transitions[:rot]
-
-        chosen_fname = None
-        for cand in preferred_order:
-            if cand != last_file and _resolve_ae_sfx_path(cand):
-                chosen_fname = cand
-                break
-        if not chosen_fname:
-            for cand in preferred_order:
-                if _resolve_ae_sfx_path(cand):
-                    chosen_fname = cand
-                    break
-
-        if not chosen_fname:
-            return None
-
-        best_entry = next((e for e in AFTER_EFFECTS_SFX_CATALOG if e["file"] == chosen_fname), None)
-        if not best_entry:
-            return None
-        best_hit_idx = 0
-        best_matched_kw = "scene_transition"
+            chosen_fname = next((c for c in preferred_order if c != last_file and _resolve_ae_sfx_path(c)), None)
+            if not chosen_fname:
+                return None
+            best_entry = next((e for e in AFTER_EFFECTS_SFX_CATALOG if e["file"] == chosen_fname), None)
+            if not best_entry:
+                return None
+            best_hit_idx = 0
+            best_matched_kw = "script_shift_transition"
 
     resolved_path = _resolve_ae_sfx_path(best_entry["file"])
     if not resolved_path:
@@ -1787,6 +1812,40 @@ def mix_sfx_into_scene_audio(voice_audio_path: str, sfx_info: dict, clip_duratio
 
     return voice_audio_path
 
+def _choose_script_motion(scene_text: str, scene_idx: int, motions: list, last_motion: str = None) -> str:
+    """Choose camera motion thoughtfully from script energy/tone, avoiding consecutive repeats."""
+    if not motions:
+        return "zoom_in"
+    tokens = set(_ae_tokenize(scene_text))
+    action_cues = {
+        "fast", "quick", "chase", "explosion", "explode", "blast", "fight", "war",
+        "battle", "attack", "crash", "shock", "fire", "lightning", "drift", "rocket",
+        "tez", "dhamaka", "hamla", "ladai", "yudh", "aag", "jhatka",
+        "तेज", "धमाका", "हमला", "लड़ाई", "युद्ध", "आग", "झटका",
+    }
+    focus_cues = {
+        "secret", "mystery", "focus", "inside", "look", "truth", "question", "why",
+        "rahasya", "sach", "sawaal", "andar", "dekho", "रहस्य", "सच", "सवाल", "देखो",
+    }
+    wide_cues = {
+        "world", "empire", "kingdom", "city", "mountain", "ocean", "history", "ancient",
+        "past", "years", "duniya", "samrajya", "itihas", "samundar", "पुरानी", "इतिहास", "दुनिया",
+    }
+    if tokens & action_cues:
+        preferred = [m for m in ("diagonal_fast", "spiral_zoom", "zoom_in") if m in motions]
+    elif tokens & focus_cues:
+        preferred = [m for m in ("zoom_in", "spiral_zoom") if m in motions]
+    elif tokens & wide_cues:
+        preferred = [m for m in ("zoom_out", "pan_right", "pan_left") if m in motions]
+    else:
+        preferred = [m for m in ("pan_right", "pan_left", "zoom_in", "zoom_out") if m in motions]
+
+    candidates = [m for m in (preferred or motions) if m != last_motion]
+    if not candidates:
+        candidates = [m for m in motions if m != last_motion] or motions
+    return candidates[scene_idx % len(candidates)]
+
+
 def merge_and_export(
     scene_list: list,
     output_name: str,
@@ -1811,6 +1870,7 @@ def merge_and_export(
     temp_scene_files = []
     used_sfx_history = []
     used_vfx_history = []
+    last_motion_choice = None
     job_dir = os.path.dirname(output_name) if os.path.dirname(output_name) else "."
 
     cat_lower = str(category).lower()
@@ -2207,7 +2267,8 @@ def merge_and_export(
                 if not rendered_successfully:
                     filter_choice = random.choice(filters)
                     side_pos = "left" if i % 2 == 0 else "right"
-                    motion_choice = random.choice(motions)
+                    motion_choice = _choose_script_motion(clip_text_segment, i, motions, last_motion=last_motion_choice)
+                    last_motion_choice = motion_choice
                     filter_str = "None (Original Raw Colors)" if filter_choice == "none" else filter_choice
                     print(f"✨ Scene {i+1}: Generating Ultra Motion Clip (Filter: {filter_str}, Motion: {motion_choice.upper()}, Cutout: {show_cutout}, Side: {side_pos.upper()})...")
                     try:
@@ -2359,6 +2420,7 @@ def merge_and_export(
             target_size=target_size,
             job_dir=job_dir,
             fps=25,
+            existing_glitch_count=sum(1 for f in used_sfx_history if f in _GLITCH_SFX_FILES),
         )
         temp_scene_files.extend(glsl_temps)
     except Exception as e_glsl_main:
