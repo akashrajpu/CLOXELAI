@@ -1,14 +1,3 @@
-"""
-===============================================================================
-    GEMINI AI AUTOMATIC MULTI-SCENE SCRIPT PARSER ENGINE (INSTANT SOCKET FAILSAFE)
-===============================================================================
-Description : Uses Google Gemini AI API with 0.5s ultra-fast socket pre-check.
-              If Gemini API is online, calls Gemini AI. If offline/sandboxed,
-              instantly (0.01s) falls back to local NLP action parser!
-
-Author      : Antigravity AI Engine
-===============================================================================
-"""
 
 import os
 import re
