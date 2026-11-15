@@ -5,7 +5,7 @@ config.env
 .env
 frontend/node_modules/
 .DS_Store
-
+#hello
 # Scratch and test files
 test_*.py
 debug_*.py
