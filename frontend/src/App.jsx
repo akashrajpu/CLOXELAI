@@ -1214,7 +1214,7 @@ function App() {
           short_color: autoSchedule.short_color || 'yellow',
           short_duration: autoSchedule.short_duration || 20,
           short_time: autoSchedule.short_time || '10:00',
-          short_language: (autoSchedule.short_voice || 'hi-IN-MadhurNeural').startsWith('en') ? 'en' : 'hi',
+          short_language: ((autoSchedule.short_voice || '').startsWith('hi') || (autoSchedule.short_voice || '').includes('hf_') || (autoSchedule.short_voice || '').includes('hm_')) ? 'hi' : (((autoSchedule.short_voice || '').startsWith('en') || (autoSchedule.short_voice || '').includes('kokoro')) ? 'en' : 'hi'),
 
           long_auto_topic: autoSchedule.long_auto_topic !== false,
           long_topic: autoSchedule.long_topic || 'Space Exploration, AI Technology',
@@ -1224,7 +1224,7 @@ function App() {
           long_color: autoSchedule.long_color || 'yellow',
           long_duration: autoSchedule.long_duration || 60,
           long_time: autoSchedule.long_time || '18:00',
-          long_language: (autoSchedule.long_voice || 'hi-IN-MadhurNeural').startsWith('en') ? 'en' : 'hi',
+          long_language: ((autoSchedule.long_voice || '').startsWith('hi') || (autoSchedule.long_voice || '').includes('hf_') || (autoSchedule.long_voice || '').includes('hm_')) ? 'hi' : (((autoSchedule.long_voice || '').startsWith('en') || (autoSchedule.long_voice || '').includes('kokoro')) ? 'en' : 'hi'),
 
           ultra_enabled: autoSchedule.ultra_enabled || false,
           ultra_auto_topic: autoSchedule.ultra_auto_topic !== false,
@@ -1236,7 +1236,7 @@ function App() {
           ultra_color: autoSchedule.ultra_color || 'yellow',
           ultra_duration: autoSchedule.ultra_duration || 60,
           ultra_time: autoSchedule.ultra_time || '21:00',
-          ultra_language: (autoSchedule.ultra_voice || 'hi-IN-MadhurNeural').startsWith('en') ? 'en' : 'hi'
+          ultra_language: ((autoSchedule.ultra_voice || '').startsWith('hi') || (autoSchedule.ultra_voice || '').includes('hf_') || (autoSchedule.ultra_voice || '').includes('hm_')) ? 'hi' : (((autoSchedule.ultra_voice || '').startsWith('en') || (autoSchedule.ultra_voice || '').includes('kokoro')) ? 'en' : 'hi')
         })
       });
       if (res.ok) {
@@ -2763,12 +2763,14 @@ function App() {
               options={[
                 { value: 'hi-IN-MadhurNeural', label: <span style={{display: 'flex', alignItems: 'center', gap: '6px'}}><User size={16} /> Male (Hindi)</span> },
                 { value: 'hi-IN-SwaraNeural', label: <span style={{display: 'flex', alignItems: 'center', gap: '6px'}}><User size={16} /> Female (Hindi)</span> },
+                { value: 'kokoro-hf_alpha', label: <span style={{display: 'flex', alignItems: 'center', gap: '6px'}}><Sparkles size={16} color="#f43f5e" /> Kokoro Hindi (Alpha, Female HQ)</span> },
+                { value: 'kokoro-hm_omega', label: <span style={{display: 'flex', alignItems: 'center', gap: '6px'}}><Sparkles size={16} color="#0284c7" /> Kokoro Hindi (Omega, Male HQ)</span> },
                 { value: 'en-US-GuyNeural', label: <span style={{display: 'flex', alignItems: 'center', gap: '6px'}}><User size={16} /> Male (English)</span> },
                 { value: 'en-US-JennyNeural', label: <span style={{display: 'flex', alignItems: 'center', gap: '6px'}}><User size={16} /> Female (English)</span> },
-                { value: 'kokoro-af_heart', label: <span style={{display: 'flex', alignItems: 'center', gap: '6px'}}><Sparkles size={16} color="#ec4899" /> Kokoro (Heart, HQ)</span> },
-                { value: 'kokoro-am_adam', label: <span style={{display: 'flex', alignItems: 'center', gap: '6px'}}><Sparkles size={16} color="#3b82f6" /> Kokoro (Adam, HQ)</span> },
-                { value: 'kokoro-bf_emma', label: <span style={{display: 'flex', alignItems: 'center', gap: '6px'}}><Sparkles size={16} color="#a855f7" /> Kokoro (Emma, HQ)</span> },
-                { value: 'kokoro-bm_george', label: <span style={{display: 'flex', alignItems: 'center', gap: '6px'}}><Sparkles size={16} color="#10b981" /> Kokoro (George, HQ)</span> }
+                { value: 'kokoro-af_heart', label: <span style={{display: 'flex', alignItems: 'center', gap: '6px'}}><Sparkles size={16} color="#ec4899" /> Kokoro English (Heart, HQ)</span> },
+                { value: 'kokoro-am_adam', label: <span style={{display: 'flex', alignItems: 'center', gap: '6px'}}><Sparkles size={16} color="#3b82f6" /> Kokoro English (Adam, HQ)</span> },
+                { value: 'kokoro-bf_emma', label: <span style={{display: 'flex', alignItems: 'center', gap: '6px'}}><Sparkles size={16} color="#a855f7" /> Kokoro British (Emma, HQ)</span> },
+                { value: 'kokoro-bm_george', label: <span style={{display: 'flex', alignItems: 'center', gap: '6px'}}><Sparkles size={16} color="#10b981" /> Kokoro British (George, HQ)</span> }
               ]}
             />
           </div>
@@ -3617,29 +3619,38 @@ function App() {
                       <select value={autoSchedule.short_voice || 'hi-IN-MadhurNeural'} onChange={(e) => setAutoSchedule({ ...autoSchedule, short_voice: e.target.value })} style={{ width: '100%', padding: '8px', background: '#1e1738', border: '1px solid rgba(255,255,255,0.15)', color: '#fff', borderRadius: '8px' }}>
                         <option value="hi-IN-MadhurNeural">Madhur (Male, Hindi)</option>
                         <option value="hi-IN-SwaraNeural">Swara (Female, Hindi)</option>
+                        <option value="kokoro-hf_alpha">Kokoro Hindi Alpha (Female, Neural HQ)</option>
+                        <option value="kokoro-hm_omega">Kokoro Hindi Omega (Male, Neural HQ)</option>
                         <option value="en-US-GuyNeural">Guy (Male, English)</option>
                         <option value="en-US-JennyNeural">Jenny (Female, English)</option>
-                        <option value="kokoro-af_heart">Kokoro Heart (Female, Neural HQ)</option>
-                        <option value="kokoro-am_adam">Kokoro Adam (Male, Neural HQ)</option>
-                        <option value="kokoro-bf_emma">Kokoro Emma (British Female, Neural HQ)</option>
-                        <option value="kokoro-bm_george">Kokoro George (British Male, Neural HQ)</option>
+                        <option value="kokoro-af_heart">Kokoro English Heart (Female, Neural HQ)</option>
+                        <option value="kokoro-am_adam">Kokoro English Adam (Male, Neural HQ)</option>
+                        <option value="kokoro-bf_emma">Kokoro British Emma (Female, Neural HQ)</option>
+                        <option value="kokoro-bm_george">Kokoro British George (Male, Neural HQ)</option>
                       </select>
                     </div>
 
                     <div>
-                      <label style={{ color: '#cbd5e1', display: 'block', marginBottom: '4px' }}>Font Family ({(autoSchedule.short_voice || '').startsWith('hi') ? 'Hindi' : 'English'}):</label>
-                      <select value={autoSchedule.short_font || ((autoSchedule.short_voice || '').startsWith('hi') ? 'Ams Aaditya.ttf' : 'Arial.ttf')} onChange={(e) => setAutoSchedule({ ...autoSchedule, short_font: e.target.value })} style={{ width: '100%', padding: '8px', background: '#1e1738', border: '1px solid rgba(255,255,255,0.15)', color: '#fff', borderRadius: '8px' }}>
-                        {fontList.filter(f => {
-                          const isH = f.toLowerCase().startsWith("ams ") || f.toLowerCase().includes("devanagari");
-                          return (autoSchedule.short_voice || '').startsWith('hi') ? isH : !isH;
-                        }).map((f, i) => {
-                          const isHindi = f.toLowerCase().startsWith("ams ") || f.toLowerCase().includes("devanagari") || f.toLowerCase().includes("yatra") || f.toLowerCase().includes("rozha") || f.toLowerCase().includes("kalam") || f.toLowerCase().includes("mukta") || f.toLowerCase().includes("modak") || f.toLowerCase().includes("ranga") || f.toLowerCase().includes("tiro");
-                          const fontClean = f.replace(/\.[^/.]+$/, "");
-                          return (
-                            <option key={i} value={f}>{isHindi ? `${fontClean} (Hindi)` : fontClean}</option>
-                          );
-                        })}
-                      </select>
+                      {(() => {
+                        const isShortH = (autoSchedule.short_voice || '').startsWith('hi') || (autoSchedule.short_voice || '').includes('hf_') || (autoSchedule.short_voice || '').includes('hm_');
+                        return (
+                          <>
+                            <label style={{ color: '#cbd5e1', display: 'block', marginBottom: '4px' }}>Font Family ({isShortH ? 'Hindi' : 'English'}):</label>
+                            <select value={autoSchedule.short_font || (isShortH ? 'Ams Aaditya.ttf' : 'Arial.ttf')} onChange={(e) => setAutoSchedule({ ...autoSchedule, short_font: e.target.value })} style={{ width: '100%', padding: '8px', background: '#1e1738', border: '1px solid rgba(255,255,255,0.15)', color: '#fff', borderRadius: '8px' }}>
+                              {fontList.filter(f => {
+                                const isH = f.toLowerCase().startsWith("ams ") || f.toLowerCase().includes("devanagari");
+                                return isShortH ? isH : !isH;
+                              }).map((f, i) => {
+                                const isHindi = f.toLowerCase().startsWith("ams ") || f.toLowerCase().includes("devanagari") || f.toLowerCase().includes("yatra") || f.toLowerCase().includes("rozha") || f.toLowerCase().includes("kalam") || f.toLowerCase().includes("mukta") || f.toLowerCase().includes("modak") || f.toLowerCase().includes("ranga") || f.toLowerCase().includes("tiro");
+                                const fontClean = f.replace(/\.[^/.]+$/, "");
+                                return (
+                                  <option key={i} value={f}>{isHindi ? `${fontClean} (Hindi)` : fontClean}</option>
+                                );
+                              })}
+                            </select>
+                          </>
+                        );
+                      })()}
                     </div>
 
                     <div>
@@ -3713,29 +3724,38 @@ function App() {
                       <select value={autoSchedule.long_voice || 'hi-IN-MadhurNeural'} onChange={(e) => setAutoSchedule({ ...autoSchedule, long_voice: e.target.value })} style={{ width: '100%', padding: '8px', background: '#1e1738', border: '1px solid rgba(255,255,255,0.15)', color: '#fff', borderRadius: '8px' }}>
                         <option value="hi-IN-MadhurNeural">Madhur (Male, Hindi)</option>
                         <option value="hi-IN-SwaraNeural">Swara (Female, Hindi)</option>
+                        <option value="kokoro-hf_alpha">Kokoro Hindi Alpha (Female, Neural HQ)</option>
+                        <option value="kokoro-hm_omega">Kokoro Hindi Omega (Male, Neural HQ)</option>
                         <option value="en-US-GuyNeural">Guy (Male, English)</option>
                         <option value="en-US-JennyNeural">Jenny (Female, English)</option>
-                        <option value="kokoro-af_heart">Kokoro Heart (Female, Neural HQ)</option>
-                        <option value="kokoro-am_adam">Kokoro Adam (Male, Neural HQ)</option>
-                        <option value="kokoro-bf_emma">Kokoro Emma (British Female, Neural HQ)</option>
-                        <option value="kokoro-bm_george">Kokoro George (British Male, Neural HQ)</option>
+                        <option value="kokoro-af_heart">Kokoro English Heart (Female, Neural HQ)</option>
+                        <option value="kokoro-am_adam">Kokoro English Adam (Male, Neural HQ)</option>
+                        <option value="kokoro-bf_emma">Kokoro British Emma (Female, Neural HQ)</option>
+                        <option value="kokoro-bm_george">Kokoro British George (Male, Neural HQ)</option>
                       </select>
                     </div>
 
                     <div>
-                      <label style={{ color: '#cbd5e1', display: 'block', marginBottom: '4px' }}>Font Family ({(autoSchedule.long_voice || '').startsWith('hi') ? 'Hindi' : 'English'}):</label>
-                      <select value={autoSchedule.long_font || ((autoSchedule.long_voice || '').startsWith('hi') ? 'Ams Aaditya.ttf' : 'Arial.ttf')} onChange={(e) => setAutoSchedule({ ...autoSchedule, long_font: e.target.value })} style={{ width: '100%', padding: '8px', background: '#1e1738', border: '1px solid rgba(255,255,255,0.15)', color: '#fff', borderRadius: '8px' }}>
-                        {fontList.filter(f => {
-                          const isH = f.toLowerCase().startsWith("ams ") || f.toLowerCase().includes("devanagari");
-                          return (autoSchedule.long_voice || '').startsWith('hi') ? isH : !isH;
-                        }).map((f, i) => {
-                          const isHindi = f.toLowerCase().startsWith("ams ") || f.toLowerCase().includes("devanagari") || f.toLowerCase().includes("yatra") || f.toLowerCase().includes("rozha") || f.toLowerCase().includes("kalam") || f.toLowerCase().includes("mukta") || f.toLowerCase().includes("modak") || f.toLowerCase().includes("ranga") || f.toLowerCase().includes("tiro");
-                          const fontClean = f.replace(/\.[^/.]+$/, "");
-                          return (
-                            <option key={i} value={f}>{isHindi ? `${fontClean} (Hindi)` : fontClean}</option>
-                          );
-                        })}
-                      </select>
+                      {(() => {
+                        const isLongH = (autoSchedule.long_voice || '').startsWith('hi') || (autoSchedule.long_voice || '').includes('hf_') || (autoSchedule.long_voice || '').includes('hm_');
+                        return (
+                          <>
+                            <label style={{ color: '#cbd5e1', display: 'block', marginBottom: '4px' }}>Font Family ({isLongH ? 'Hindi' : 'English'}):</label>
+                            <select value={autoSchedule.long_font || (isLongH ? 'Ams Aaditya.ttf' : 'Arial.ttf')} onChange={(e) => setAutoSchedule({ ...autoSchedule, long_font: e.target.value })} style={{ width: '100%', padding: '8px', background: '#1e1738', border: '1px solid rgba(255,255,255,0.15)', color: '#fff', borderRadius: '8px' }}>
+                              {fontList.filter(f => {
+                                const isH = f.toLowerCase().startsWith("ams ") || f.toLowerCase().includes("devanagari");
+                                return isLongH ? isH : !isH;
+                              }).map((f, i) => {
+                                const isHindi = f.toLowerCase().startsWith("ams ") || f.toLowerCase().includes("devanagari") || f.toLowerCase().includes("yatra") || f.toLowerCase().includes("rozha") || f.toLowerCase().includes("kalam") || f.toLowerCase().includes("mukta") || f.toLowerCase().includes("modak") || f.toLowerCase().includes("ranga") || f.toLowerCase().includes("tiro");
+                                const fontClean = f.replace(/\.[^/.]+$/, "");
+                                return (
+                                  <option key={i} value={f}>{isHindi ? `${fontClean} (Hindi)` : fontClean}</option>
+                                );
+                              })}
+                            </select>
+                          </>
+                        );
+                      })()}
                     </div>
 
                     <div>
@@ -3845,12 +3865,14 @@ function App() {
                           <select value={autoSchedule.ultra_voice || 'hi-IN-MadhurNeural'} onChange={(e) => setAutoSchedule({ ...autoSchedule, ultra_voice: e.target.value })} style={{ width: '100%', padding: '8px', background: '#1e1738', border: '1px solid rgba(255,255,255,0.15)', color: '#fff', borderRadius: '8px' }}>
                             <option value="hi-IN-MadhurNeural">Madhur (Male, Hindi)</option>
                             <option value="hi-IN-SwaraNeural">Swara (Female, Hindi)</option>
+                            <option value="kokoro-hf_alpha">Kokoro Hindi Alpha (Female, Neural HQ)</option>
+                            <option value="kokoro-hm_omega">Kokoro Hindi Omega (Male, Neural HQ)</option>
                             <option value="en-US-GuyNeural">Guy (Male, English)</option>
                             <option value="en-US-JennyNeural">Jenny (Female, English)</option>
-                            <option value="kokoro-af_heart">Kokoro Heart (Female, Neural HQ)</option>
-                            <option value="kokoro-am_adam">Kokoro Adam (Male, Neural HQ)</option>
-                            <option value="kokoro-bf_emma">Kokoro Emma (British Female, Neural HQ)</option>
-                            <option value="kokoro-bm_george">Kokoro George (British Male, Neural HQ)</option>
+                            <option value="kokoro-af_heart">Kokoro English Heart (Female, Neural HQ)</option>
+                            <option value="kokoro-am_adam">Kokoro English Adam (Male, Neural HQ)</option>
+                            <option value="kokoro-bf_emma">Kokoro British Emma (Female, Neural HQ)</option>
+                            <option value="kokoro-bm_george">Kokoro British George (Male, Neural HQ)</option>
                           </select>
                         </div>
 
@@ -3890,19 +3912,26 @@ function App() {
                             return (
                               <>
                                 <div>
-                                  <label style={{ color: '#cbd5e1', display: 'block', marginBottom: '4px' }}>Font Family ({(autoSchedule.ultra_voice || '').startsWith('hi') ? 'Hindi' : 'English'}):</label>
-                                  <select value={autoSchedule.ultra_font || ((autoSchedule.ultra_voice || '').startsWith('hi') ? 'Ams Aaditya.ttf' : 'Arial.ttf')} onChange={(e) => setAutoSchedule({ ...autoSchedule, ultra_font: e.target.value })} style={{ width: '100%', padding: '8px', background: '#1e1738', border: '1px solid rgba(255,255,255,0.15)', color: '#fff', borderRadius: '8px' }}>
-                                    {(fontList && fontList.length > 0 ? fontList : ['Arial.ttf']).filter(f => {
-                                      const isH = f.toLowerCase().startsWith("ams ") || f.toLowerCase().includes("devanagari");
-                                      return (autoSchedule.ultra_voice || '').startsWith('hi') ? isH : !isH;
-                                    }).map((font, i) => {
-                                      const isHindi = font.toLowerCase().startsWith("ams ") || font.toLowerCase().includes("devanagari");
-                                      const fontClean = font.replace(/\.[^/.]+$/, "");
-                                      return (
-                                        <option key={i} value={font}>{isHindi ? `${fontClean} (Hindi)` : fontClean}</option>
-                                      );
-                                    })}
-                                  </select>
+                                  {(() => {
+                                    const isUltraH = (autoSchedule.ultra_voice || '').startsWith('hi') || (autoSchedule.ultra_voice || '').includes('hf_') || (autoSchedule.ultra_voice || '').includes('hm_');
+                                    return (
+                                      <>
+                                        <label style={{ color: '#cbd5e1', display: 'block', marginBottom: '4px' }}>Font Family ({isUltraH ? 'Hindi' : 'English'}):</label>
+                                        <select value={autoSchedule.ultra_font || (isUltraH ? 'Ams Aaditya.ttf' : 'Arial.ttf')} onChange={(e) => setAutoSchedule({ ...autoSchedule, ultra_font: e.target.value })} style={{ width: '100%', padding: '8px', background: '#1e1738', border: '1px solid rgba(255,255,255,0.15)', color: '#fff', borderRadius: '8px' }}>
+                                          {(fontList && fontList.length > 0 ? fontList : ['Arial.ttf']).filter(f => {
+                                            const isH = f.toLowerCase().startsWith("ams ") || f.toLowerCase().includes("devanagari");
+                                            return isUltraH ? isH : !isH;
+                                          }).map((font, i) => {
+                                            const isHindi = font.toLowerCase().startsWith("ams ") || font.toLowerCase().includes("devanagari");
+                                            const fontClean = font.replace(/\.[^/.]+$/, "");
+                                            return (
+                                              <option key={i} value={font}>{isHindi ? `${fontClean} (Hindi)` : fontClean}</option>
+                                            );
+                                          })}
+                                        </select>
+                                      </>
+                                    );
+                                  })()}
                                 </div>
 
                                 <div>

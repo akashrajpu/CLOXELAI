@@ -61,6 +61,12 @@ KOKORO_VOICES = {
     "bm_daniel": "bm_daniel",
     "bm_fable": "bm_fable",
     "bm_lewis": "bm_lewis",
+    # Hindi Female
+    "hf_alpha": "hf_alpha",
+    "hf_beta": "hf_beta",
+    # Hindi Male
+    "hm_omega": "hm_omega",
+    "hm_psi": "hm_psi",
 }
 
 
@@ -73,13 +79,18 @@ def is_kokoro_voice(voice_id: str) -> bool:
 
 
 def extract_kokoro_voice_name(voice_id: str) -> str:
-    """Extract standard voice identifier for Kokoro (e.g. 'af_heart', 'am_adam')."""
+    """Extract standard voice identifier for Kokoro (e.g. 'hf_alpha', 'hm_omega', 'af_heart', 'am_adam')."""
     if not voice_id:
         return "af_heart"
     v = str(voice_id).strip().lower()
     for name in KOKORO_VOICES:
         if name in v:
             return name
+    # Detect Hindi Kokoro requests
+    if any(h in v for h in ["hindi", "india", "hind", "hf", "hm"]):
+        if any(m in v for m in ["male", "man", "boy", "guy", "omega", "psi"]):
+            return "hm_omega"
+        return "hf_alpha"
     # Default female or male based on hints
     if any(m in v for m in ["male", "man", "adam", "boy", "guy"]):
         return "am_adam"
@@ -126,8 +137,14 @@ def generate_kokoro_audio(text: str, output_path: str, voice_name: str = "af_hea
     # 2. Local KPipeline (if kokoro and weights are installed locally)
     if _HAS_KOKORO_LOCAL:
         try:
-            lang_code = "b" if voice_name.startswith("b") else "a"
-            if _kokoro_local_pipeline is None:
+            has_devanagari = any('\u0900' <= char <= '\u097F' for char in text)
+            if voice_name.startswith("h") or has_devanagari:
+                lang_code = "h"
+            elif voice_name.startswith("b"):
+                lang_code = "b"
+            else:
+                lang_code = "a"
+            if _kokoro_local_pipeline is None or getattr(_kokoro_local_pipeline, "lang_code", "") != lang_code:
                 _kokoro_local_pipeline = KPipeline(lang_code=lang_code)
             generator = _kokoro_local_pipeline(text, voice=voice_name, speed=1.0)
             audio_segments = []
@@ -222,8 +239,9 @@ def make_audio(text, output_path, voice_id='hi-IN-MadhurNeural'):
         # If Kokoro synthesis is unavailable or timed out, intelligently fall back to matched EdgeTTS
         print(f"⚠️ Kokoro TTS service unavailable. Seamlessly activating high-fidelity EdgeTTS neural fallback...")
         has_devanagari = any('\u0900' <= char <= '\u097F' for char in text)
-        is_female = kokoro_voice_name.startswith(("af_", "bf_"))
-        if has_devanagari:
+        is_female = kokoro_voice_name.startswith(("af_", "bf_", "hf_"))
+        is_hindi = kokoro_voice_name.startswith("h") or has_devanagari
+        if is_hindi:
             voice_id = "hi-IN-SwaraNeural" if is_female else "hi-IN-MadhurNeural"
         else:
             voice_id = "en-US-JennyNeural" if is_female else "en-US-GuyNeural"

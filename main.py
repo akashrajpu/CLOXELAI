@@ -1111,8 +1111,9 @@ def process_single_user_schedule(user: dict, now_ist: datetime, today_str: str):
                         raw_topic = fresh_sched.get(f"{kind}_topic") or default_topic
                         topic = get_daily_unique_subtopic(raw_topic, today_str, internal_id, category)
                         voice = fresh_sched.get(f"{kind}_voice") or "hi-IN-MadhurNeural"
-                        is_eng_voice = voice and (str(voice).lower().startswith("en") or "kokoro" in str(voice).lower())
-                        language = "en" if is_eng_voice else (fresh_sched.get(f"{kind}_language") or "hi")
+                        is_hindi_kokoro = voice and any(k in str(voice).lower() for k in ["hf_", "hm_", "hindi", "india", "alpha", "omega", "beta", "psi"])
+                        is_eng_voice = voice and (str(voice).lower().startswith("en") or ("kokoro" in str(voice).lower() and not is_hindi_kokoro))
+                        language = "hi" if is_hindi_kokoro else ("en" if is_eng_voice else (fresh_sched.get(f"{kind}_language") or "hi"))
                         font = fresh_sched.get(f"{kind}_font") or "Arial.ttf"
                         color = fresh_sched.get(f"{kind}_color") or "yellow"
                         aspect_ratio = "9:16" if kind == "short" else ("16:9" if kind == "long" else (fresh_sched.get("ultra_aspect_ratio") or "16:9"))
@@ -1256,8 +1257,9 @@ def process_single_user_schedule(user: dict, now_ist: datetime, today_str: str):
                     topic = get_daily_unique_subtopic(raw_topic, today_str, internal_id, category)
                     final_title = topic
                     voice = fresh_sched.get(f"{kind}_voice") or "hi-IN-MadhurNeural"
-                    is_eng_voice = voice and (str(voice).lower().startswith("en") or "kokoro" in str(voice).lower())
-                    language = "en" if is_eng_voice else (fresh_sched.get(f"{kind}_language") or "hi")
+                    is_hindi_kokoro = voice and any(k in str(voice).lower() for k in ["hf_", "hm_", "hindi", "india", "alpha", "omega", "beta", "psi"])
+                    is_eng_voice = voice and (str(voice).lower().startswith("en") or ("kokoro" in str(voice).lower() and not is_hindi_kokoro))
+                    language = "hi" if is_hindi_kokoro else ("en" if is_eng_voice else (fresh_sched.get(f"{kind}_language") or "hi"))
                     font = fresh_sched.get(f"{kind}_font") or "Arial.ttf"
                     color = fresh_sched.get(f"{kind}_color") or "yellow"
                     aspect_ratio = "9:16" if kind == "short" else ("16:9" if kind == "long" else (fresh_sched.get("ultra_aspect_ratio") or "16:9"))
