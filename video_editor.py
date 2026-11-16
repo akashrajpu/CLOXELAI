@@ -903,6 +903,8 @@ def render_scene_native_ffmpeg(
         base_fs = max(18, min(base_fs, 36))
         
         resolved_highlight = random.choice(COLOR_PALETTES) if (not highlight_color or highlight_color == "random") else highlight_color
+        measure_img = Image.new("RGBA", (1, 1))
+        draw_measure = ImageDraw.Draw(measure_img)
         
         state_counter = 0
         for c_idx in range(total_chunks):
@@ -911,11 +913,7 @@ def render_scene_native_ffmpeg(
                 continue
             c_start = c_idx * chunk_dur
             c_end = (c_idx + 1) * chunk_dur
-            
-            # Pure floating script words with zero background box ("bg mt lgao kewal word liikho")
-            sub_canvas = Image.new("RGBA", (w, h), (0, 0, 0, 0))
-            draw = ImageDraw.Draw(sub_canvas)
-                
+
             max_box_w = int(w * 0.88)
             pad_x = min(22, max(12, int(w * 0.04)))
             pad_y = 10
@@ -928,8 +926,8 @@ def render_scene_native_ffmpeg(
             tot_w = 0
             while fs > 18:
                 active_font = get_font(font_path, fs, has_devanagari)
-                tot_w = sum(draw.textbbox((0, 0), cw, font=active_font)[2] - draw.textbbox((0, 0), cw, font=active_font)[0] for cw in c_words)
-                sp_w = draw.textbbox((0, 0), " ", font=active_font)[2] - draw.textbbox((0, 0), " ", font=active_font)[0]
+                tot_w = sum(draw_measure.textbbox((0, 0), cw, font=active_font)[2] - draw_measure.textbbox((0, 0), cw, font=active_font)[0] for cw in c_words)
+                sp_w = draw_measure.textbbox((0, 0), " ", font=active_font)[2] - draw_measure.textbbox((0, 0), " ", font=active_font)[0]
                 tot_w += sp_w * max(0, len(c_words) - 1)
                 if tot_w <= max_text_w:
                     break
@@ -946,8 +944,8 @@ def render_scene_native_ffmpeg(
                     active_font = get_font(font_path, fs, has_devanagari)
                     max_lw = 0
                     for lw in lines:
-                        lw_w = sum(draw.textbbox((0, 0), cw, font=active_font)[2] - draw.textbbox((0, 0), cw, font=active_font)[0] for cw in lw)
-                        sp_w = draw.textbbox((0, 0), " ", font=active_font)[2] - draw.textbbox((0, 0), " ", font=active_font)[0]
+                        lw_w = sum(draw_measure.textbbox((0, 0), cw, font=active_font)[2] - draw_measure.textbbox((0, 0), cw, font=active_font)[0] for cw in lw)
+                        sp_w = draw_measure.textbbox((0, 0), " ", font=active_font)[2] - draw_measure.textbbox((0, 0), " ", font=active_font)[0]
                         lw_w += sp_w * max(0, len(lw) - 1)
                         if lw_w > max_lw:
                             max_lw = lw_w
@@ -962,9 +960,9 @@ def render_scene_native_ffmpeg(
                 line_metrics = []
                 lw_total = 0
                 for cw in line_words:
-                    wb = draw.textbbox((0, 0), cw, font=active_font)
+                    wb = draw_measure.textbbox((0, 0), cw, font=active_font)
                     ww = wb[2] - wb[0]
-                    sb = draw.textbbox((0, 0), " ", font=active_font)
+                    sb = draw_measure.textbbox((0, 0), " ", font=active_font)
                     sw = sb[2] - sb[0]
                     is_active = (not first_word_done)
                     first_word_done = True
@@ -975,7 +973,7 @@ def render_scene_native_ffmpeg(
                 rendered_lines.append((line_metrics, lw_total))
                 if lw_total > max_line_w:
                     max_line_w = lw_total
-
+            
             box_w = min(max_box_w, max_line_w + pad_x * 2)
             line_height = int(fs * 1.25)
             box_h = (len(rendered_lines) * line_height) + pad_y * 2
@@ -986,12 +984,14 @@ def render_scene_native_ffmpeg(
             box_y = int(h * 0.74)
             if box_y + box_h > int(h * 0.90):
                 box_y = int(h * 0.90) - box_h
-            
-            # Pure floating script words with zero background box ("bg mt lgao kewal word liikho")
+
+            # Tightly-cropped floating script words (box_w x box_h) to save 95% FFmpeg overlay RAM
+            sub_canvas = Image.new("RGBA", (box_w, box_h), (0, 0, 0, 0))
+            draw = ImageDraw.Draw(sub_canvas)
             stroke_w = max(1, int(round(fs * 0.055)))
-            curr_y = box_y + pad_y
+            curr_y = pad_y
             for line_metrics, lw_total in rendered_lines:
-                line_start_x = box_x + (box_w - lw_total) // 2
+                line_start_x = (box_w - lw_total) // 2
                 curr_x = line_start_x
                 for cw, ww, sw, is_active in line_metrics:
                     col = resolved_highlight if is_active else "#FFFFFF"
@@ -1013,7 +1013,7 @@ def render_scene_native_ffmpeg(
             except Exception: pass
             del sub_canvas
             del draw
-            sub_overlay_files.append((sub_path, c_start, c_end))
+            sub_overlay_files.append((sub_path, c_start, c_end, box_x, box_y))
             state_counter += 1
 
     input_args = []
@@ -1038,8 +1038,8 @@ def render_scene_native_ffmpeg(
         input_args.extend(["-i", os.path.abspath(audio_path)])
         audio_input_idx = 2
         
-        for sub_path, _, _ in sub_overlay_files:
-            input_args.extend(["-i", sub_path])
+        for sub_item in sub_overlay_files:
+            input_args.extend(["-i", sub_item[0]])
             
         filter_parts = [
             f"[0:v]scale={w}:{h}:force_original_aspect_ratio=increase,crop={w}:{h},setsar=1,fps=25,trim=duration={half_dur:.2f}[v0]",
@@ -1062,16 +1062,16 @@ def render_scene_native_ffmpeg(
         input_args.extend(["-i", os.path.abspath(audio_path)])
         audio_input_idx = 1
         
-        for sub_path, _, _ in sub_overlay_files:
-            input_args.extend(["-i", sub_path])
+        for sub_item in sub_overlay_files:
+            input_args.extend(["-i", sub_item[0]])
             
-        filter_parts = [f"[0:v]scale={w}:{h}:force_original_aspect_ratio=increase,crop={w}:{h},setsar=1[vbg]"]
+        filter_parts = [f"[0:v]fps=25,scale={w}:{h}:force_original_aspect_ratio=increase,crop={w}:{h},setsar=1[vbg]"]
         
     last_v = "vbg"
-    for idx, (_, t_s, t_e) in enumerate(sub_overlay_files):
+    for idx, (_, t_s, t_e, bx, by) in enumerate(sub_overlay_files):
         next_v = f"vsub{idx}" if idx < len(sub_overlay_files) - 1 else "outv"
         sub_input_idx = idx + (audio_input_idx + 1)
-        filter_parts.append(f"[{last_v}][{sub_input_idx}:v]overlay=0:0:enable='between(t,{t_s:.2f},{t_e:.2f})'[{next_v}]")
+        filter_parts.append(f"[{last_v}][{sub_input_idx}:v]overlay={bx}:{by}:enable='between(t,{t_s:.2f},{t_e:.2f})'[{next_v}]")
         last_v = next_v
         
     if not sub_overlay_files:
@@ -1091,7 +1091,7 @@ def render_scene_native_ffmpeg(
         "-r", "25",
         "-g", "50",
         "-threads", "1",
-        "-max_muxing_queue_size", "1024",
+        "-max_muxing_queue_size", "128",
         "-pix_fmt", "yuv420p",
         "-c:a", "aac",
         "-b:a", "128k",
@@ -1112,7 +1112,8 @@ def render_scene_native_ffmpeg(
         print(f"⚠️ Native FFmpeg render exception: {e_run}")
         success = False
     finally:
-        for sub_path, _, _ in sub_overlay_files:
+        for sub_item in sub_overlay_files:
+            sub_path = sub_item[0]
             if os.path.exists(sub_path):
                 try: os.remove(sub_path)
                 except Exception: pass
@@ -2241,7 +2242,7 @@ def merge_and_export(
                         print(f"⚠️ Ultra After Effects real video render notice: {e_ae_render}")
                         rendered_successfully = False
 
-                if not rendered_successfully:
+                if not rendered_successfully and not is_bg_video:
                     filter_choice = random.choice(filters)
                     side_pos = "left" if i % 2 == 0 else "right"
                     motion_choice = _choose_script_motion(clip_text_segment, i, motions, last_motion=last_motion_choice)

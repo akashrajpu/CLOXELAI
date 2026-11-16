@@ -17,6 +17,20 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 from PIL import Image, ImageFilter
+import gc
+
+def release_system_memory():
+    """Forces Python GC, OS dirty sync, and Linux C-heap reclamation (malloc_trim)."""
+    gc.collect()
+    try:
+        os.sync()
+    except Exception:
+        pass
+    try:
+        import ctypes
+        ctypes.CDLL('libc.so.6').malloc_trim(0)
+    except Exception:
+        pass
 
 _VFX_BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 _VFX_DIR = os.path.join(_VFX_BASE_DIR, "vfx_overlays")
@@ -1397,7 +1411,7 @@ def apply_after_effects_vfx_overlay(
             "-filter_complex", fg_chain,
             "-map", "[outv]", "-map", "0:a?",
             "-c:v", "libx264", "-preset", "ultrafast", "-crf", "24",
-            "-pix_fmt", "yuv420p", "-threads", "1", "-c:a", "copy",
+            "-pix_fmt", "yuv420p", "-threads", "1", "-max_muxing_queue_size", "128", "-c:a", "copy",
             "-t", f"{safe_dur:.3f}",
             tmp_out,
         ]

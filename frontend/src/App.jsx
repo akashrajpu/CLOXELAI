@@ -2764,7 +2764,11 @@ function App() {
                 { value: 'hi-IN-MadhurNeural', label: <span style={{display: 'flex', alignItems: 'center', gap: '6px'}}><User size={16} /> Male (Hindi)</span> },
                 { value: 'hi-IN-SwaraNeural', label: <span style={{display: 'flex', alignItems: 'center', gap: '6px'}}><User size={16} /> Female (Hindi)</span> },
                 { value: 'en-US-GuyNeural', label: <span style={{display: 'flex', alignItems: 'center', gap: '6px'}}><User size={16} /> Male (English)</span> },
-                { value: 'en-US-JennyNeural', label: <span style={{display: 'flex', alignItems: 'center', gap: '6px'}}><User size={16} /> Female (English)</span> }
+                { value: 'en-US-JennyNeural', label: <span style={{display: 'flex', alignItems: 'center', gap: '6px'}}><User size={16} /> Female (English)</span> },
+                { value: 'kokoro-af_heart', label: <span style={{display: 'flex', alignItems: 'center', gap: '6px'}}><Sparkles size={16} color="#ec4899" /> Kokoro (Heart, HQ)</span> },
+                { value: 'kokoro-am_adam', label: <span style={{display: 'flex', alignItems: 'center', gap: '6px'}}><Sparkles size={16} color="#3b82f6" /> Kokoro (Adam, HQ)</span> },
+                { value: 'kokoro-bf_emma', label: <span style={{display: 'flex', alignItems: 'center', gap: '6px'}}><Sparkles size={16} color="#a855f7" /> Kokoro (Emma, HQ)</span> },
+                { value: 'kokoro-bm_george', label: <span style={{display: 'flex', alignItems: 'center', gap: '6px'}}><Sparkles size={16} color="#10b981" /> Kokoro (George, HQ)</span> }
               ]}
             />
           </div>
@@ -3615,6 +3619,10 @@ function App() {
                         <option value="hi-IN-SwaraNeural">Swara (Female, Hindi)</option>
                         <option value="en-US-GuyNeural">Guy (Male, English)</option>
                         <option value="en-US-JennyNeural">Jenny (Female, English)</option>
+                        <option value="kokoro-af_heart">Kokoro Heart (Female, Neural HQ)</option>
+                        <option value="kokoro-am_adam">Kokoro Adam (Male, Neural HQ)</option>
+                        <option value="kokoro-bf_emma">Kokoro Emma (British Female, Neural HQ)</option>
+                        <option value="kokoro-bm_george">Kokoro George (British Male, Neural HQ)</option>
                       </select>
                     </div>
 
@@ -3707,6 +3715,10 @@ function App() {
                         <option value="hi-IN-SwaraNeural">Swara (Female, Hindi)</option>
                         <option value="en-US-GuyNeural">Guy (Male, English)</option>
                         <option value="en-US-JennyNeural">Jenny (Female, English)</option>
+                        <option value="kokoro-af_heart">Kokoro Heart (Female, Neural HQ)</option>
+                        <option value="kokoro-am_adam">Kokoro Adam (Male, Neural HQ)</option>
+                        <option value="kokoro-bf_emma">Kokoro Emma (British Female, Neural HQ)</option>
+                        <option value="kokoro-bm_george">Kokoro George (British Male, Neural HQ)</option>
                       </select>
                     </div>
 
@@ -3835,6 +3847,10 @@ function App() {
                             <option value="hi-IN-SwaraNeural">Swara (Female, Hindi)</option>
                             <option value="en-US-GuyNeural">Guy (Male, English)</option>
                             <option value="en-US-JennyNeural">Jenny (Female, English)</option>
+                            <option value="kokoro-af_heart">Kokoro Heart (Female, Neural HQ)</option>
+                            <option value="kokoro-am_adam">Kokoro Adam (Male, Neural HQ)</option>
+                            <option value="kokoro-bf_emma">Kokoro Emma (British Female, Neural HQ)</option>
+                            <option value="kokoro-bm_george">Kokoro George (British Male, Neural HQ)</option>
                           </select>
                         </div>
 

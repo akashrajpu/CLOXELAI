@@ -136,7 +136,7 @@ if MONGO_URI:
             rendering_jobs.create_index("job_id", unique=True, background=True)
             payment_orders_collection.create_index("order_id", unique=True, background=True)
             payment_orders_collection.create_index([("internal_id", pymongo.ASCENDING), ("created_at", pymongo.DESCENDING)], background=True)
-            print("🚀 Ultra-High Speed Production MongoDB Indexes & Pool Verified (maxPoolSize=100)!")
+            print("🚀 Ultra-High Speed Production MongoDB Indexes & Pool Verified (maxPoolSize=25)!")
         except Exception as idx_err:
             print(f"Index creation notice: {idx_err}")
 
@@ -1073,8 +1073,8 @@ def process_single_user_schedule(user: dict, now_ist: datetime, today_str: str):
 
             if 5 < mins_until <= 60:
                 global active_manual_jobs_count
-                if active_manual_jobs_count > 0:
-                    print(f"⏸️ [AUTO STAGING] User manual video generation is active! Skipping background staging to protect 512MB RAM...")
+                if active_manual_jobs_count > 0 or video_pipeline_lock.locked():
+                    print(f"⏸️ [AUTO STAGING] User video generation is active! Skipping background staging to protect 512MB RAM...")
                     return
                 has_valid_staged = bool(staged_item.get("cloudinary_url")) or (staged_item.get("file") and os.path.exists(staged_item.get("file", "")))
                 if not has_valid_staged:
@@ -1111,7 +1111,7 @@ def process_single_user_schedule(user: dict, now_ist: datetime, today_str: str):
                         raw_topic = fresh_sched.get(f"{kind}_topic") or default_topic
                         topic = get_daily_unique_subtopic(raw_topic, today_str, internal_id, category)
                         voice = fresh_sched.get(f"{kind}_voice") or "hi-IN-MadhurNeural"
-                        is_eng_voice = voice and str(voice).lower().startswith("en")
+                        is_eng_voice = voice and (str(voice).lower().startswith("en") or "kokoro" in str(voice).lower())
                         language = "en" if is_eng_voice else (fresh_sched.get(f"{kind}_language") or "hi")
                         font = fresh_sched.get(f"{kind}_font") or "Arial.ttf"
                         color = fresh_sched.get(f"{kind}_color") or "yellow"
@@ -1247,13 +1247,16 @@ def process_single_user_schedule(user: dict, now_ist: datetime, today_str: str):
                         )
 
                 if not upload_success:
+                    if active_manual_jobs_count > 0 or video_pipeline_lock.locked():
+                        print(f"⏸️ [AUTO UPLOAD] Video generation is active! Postponing on-the-fly rendering to protect 512MB RAM...")
+                        return
                     print(f"🎨 Pre-rendered video not available. Generating fast cartoon video on-the-fly for {kind.upper()}...")
                     category = fresh_sched.get(f"{kind}_category") or ("Cartoon & Animation" if kind == "ultra" else "Random")
                     raw_topic = fresh_sched.get(f"{kind}_topic") or default_topic
                     topic = get_daily_unique_subtopic(raw_topic, today_str, internal_id, category)
                     final_title = topic
                     voice = fresh_sched.get(f"{kind}_voice") or "hi-IN-MadhurNeural"
-                    is_eng_voice = voice and str(voice).lower().startswith("en")
+                    is_eng_voice = voice and (str(voice).lower().startswith("en") or "kokoro" in str(voice).lower())
                     language = "en" if is_eng_voice else (fresh_sched.get(f"{kind}_language") or "hi")
                     font = fresh_sched.get(f"{kind}_font") or "Arial.ttf"
                     color = fresh_sched.get(f"{kind}_color") or "yellow"
@@ -1384,7 +1387,7 @@ def check_and_run_auto_schedules():
         return
 
     global active_manual_jobs_count
-    if active_manual_jobs_count > 0:
+    if active_manual_jobs_count > 0 or video_pipeline_lock.locked():
         return
 
     now_utc = datetime.utcnow()
