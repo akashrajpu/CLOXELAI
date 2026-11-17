@@ -203,7 +203,7 @@ def fetch_pinterest_photos_via_gallery_dl(query: str, limit: int = 3, output_dir
 
     if gallery_cmd:
         try:
-            scan_range = max(1, min(limit + 1, 3))
+            scan_range = max(6, limit * 4)
             cmd = gallery_cmd + [
                 "--directory", dl_work_dir,
                 "--range", f"1-{scan_range}",
@@ -480,7 +480,7 @@ def fetch_pinterest_videos_via_gallery_dl(query: str, limit: int = 1, output_dir
     os.makedirs(dl_work_dir, exist_ok=True)
 
     if gallery_cmd:
-        scan_range = max(1, min(limit + 1, 2))
+        scan_range = max(5, limit * 4)
         cmd = gallery_cmd + [
             "--directory", dl_work_dir,
             "--range", f"1-{scan_range}",

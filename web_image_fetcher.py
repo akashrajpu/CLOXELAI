@@ -204,7 +204,61 @@ CONCEPT_MAP = {
     "car": "luxury supercar vehicle dynamic motion",
     "शहर": "modern metropolis skyline illuminated night",
     "shahar": "modern metropolis skyline illuminated night",
-    "city": "modern metropolis skyline illuminated night"
+    "city": "modern metropolis skyline illuminated night",
+    
+    # Motivation, Life, Success, Time & Philosophy
+    "जिंदगी": "life journey destiny human path",
+    "ज़िंदगी": "life journey destiny human path",
+    "zindagi": "life journey destiny human path",
+    "life": "life journey destiny human path",
+    "समय": "time clock hourglass passing ticking",
+    "samay": "time clock hourglass passing ticking",
+    "time": "time clock hourglass passing ticking",
+    "वक्त": "time clock ticking passing destiny",
+    "waqt": "time clock ticking passing destiny",
+    "इंसान": "human solitary person thinking silhouette",
+    "insan": "human solitary person thinking silhouette",
+    "आदमी": "human solitary person thinking silhouette",
+    "सफल": "success summit mountain victory triumph champion",
+    "सफलता": "success summit mountain victory triumph champion",
+    "safalta": "success summit mountain victory triumph champion",
+    "success": "success summit mountain victory triumph champion",
+    "कामयाबी": "success triumph victory achievement celebration",
+    "kamyabi": "success triumph victory achievement celebration",
+    "अमीर": "wealth luxury gold rich lifestyle mansion",
+    "ameer": "wealth luxury gold rich lifestyle mansion",
+    "rich": "wealth luxury gold rich lifestyle mansion",
+    "गरीब": "humble struggle rain solitary road",
+    "gareeb": "humble struggle rain solitary road",
+    "poor": "humble struggle rain solitary road",
+    "फर्क": "decision crossroads choice two paths balance",
+    "fark": "decision crossroads choice two paths balance",
+    "मेहनत": "hardwork dedication gym focus sweat",
+    "mehnat": "hardwork dedication gym focus sweat",
+    "संघर्ष": "struggle uphill climb perseverance endurance",
+    "sangharsh": "struggle uphill climb perseverance endurance",
+    "सपना": "dream ambition stars galaxy visionary",
+    "सपने": "dream ambition stars galaxy visionary",
+    "sapna": "dream ambition stars galaxy visionary",
+    "sapne": "dream ambition stars galaxy visionary",
+    "dream": "dream ambition stars galaxy visionary",
+    "लक्ष्य": "target focus goal arrow archery",
+    "lakshya": "target focus goal arrow archery",
+    "goal": "target focus goal arrow archery",
+    "हार": "defeat failure rising comeback perseverance",
+    "haar": "defeat failure rising comeback perseverance",
+    "जीत": "victory triumphant winner trophy glory",
+    "jeet": "victory triumphant winner trophy glory",
+    "सोच": "mind thoughts brain neural deep thinking",
+    "soch": "mind thoughts brain neural deep thinking",
+    "डर": "dark storm lightning fear courage overcoming",
+    "dar": "dark storm lightning fear courage overcoming",
+    "घंटे": "clock ticking 24 hours sunrise sunset",
+    "ghante": "clock ticking 24 hours sunrise sunset",
+    "दिन": "bright daylight morning sunrise horizon",
+    "din": "bright daylight morning sunrise horizon",
+    "रात": "dark starry night moonlight shadow",
+    "raat": "dark starry night moonlight shadow"
 }
 
 def clean_topic_title(topic: str) -> str:
@@ -278,7 +332,17 @@ def extract_rich_scene_visual_keywords(topic: str, scene_text: str, scene_kw: st
         elif any(k in t_low or k in cat_lower for k in ["space", "universe", "galaxy", "cosmos", "science"]):
             visual_parts = ["deep", "outer", "space", "nebula", "galaxy", "stars"]
         elif any(k in t_low or k in cat_lower for k in ["after effect", "after iffect", "after effects", "vfx", "motion graphic"]):
-            visual_parts = ["futuristic", "cinematic", "vfx", "neon", "cyberpunk", "epic", "dynamic"]
+            ae_angles = [
+                ["futuristic", "neon", "cyberpunk", "hologram", "cinematic"],
+                ["motion", "abstract", "particles", "glow", "artistic"],
+                ["epic", "energy", "burst", "quantum", "sci-fi"],
+                ["dynamic", "speed", "light", "tunnel", "hyperdrive"],
+                ["dark", "techno", "glitch", "digital", "matrix"],
+                ["golden", "luxury", "streak", "plexus", "nebula"],
+                ["surreal", "fluid", "smoke", "waves", "atmospheric"],
+                ["geometric", "laser", "prism", "cyber", "vortex"]
+            ]
+            visual_parts = ae_angles[scene_idx % len(ae_angles)]
         elif any(k in t_low or k in cat_lower for k in ["cartoon", "anime", "animation", "comic"]):
             visual_parts = ["vibrant", "3d", "animated", "colorful", "cartoon", "adventure"]
         else:

@@ -2123,6 +2123,7 @@ def full_process(req: VideoRequest, job_id: str):
             target_limit_duration = min(target_limit_duration, 58.0)
         for i, sc in enumerate(scenes_data):
             release_system_memory()
+            prior_scene_assets = set(used_media_ids)
             if jobs.get(job_id, {}).get("status") == "cancelled":
                 print(f"🛑 [WORKFLOW CANCELLED] User cancelled Job ID {job_id} at Scene {i+1}. Stopping immediately...")
                 return
@@ -2207,6 +2208,9 @@ def full_process(req: VideoRequest, job_id: str):
                             
                         clean_t = " ".join([w for w in (req.topic or main_topic).split() if w.lower() not in ["ancient", "historical", "deep", "outer"]][:3]) or main_topic
                         clean_p = " ".join([w for w in (photo_visual_phrase or scene_kw).split() if w.lower() not in [x.lower() for x in clean_t.split()]][:3])
+                        scene_angle_mods = ["neon cyberpunk", "abstract particles", "quantum burst", "light tunnel", "techno glitch", "luxury plexus", "fluid smoke", "laser vortex"]
+                        if not clean_p or clean_p.strip() == clean_t.strip():
+                            clean_p = scene_angle_mods[i % len(scene_angle_mods)]
                         photo_term = f"{clean_t} {clean_p} cinematic animation photo".strip()
                         print(f"📸 [Ultra After Effects Scene {i+1}] Short Line detected ({len(words)} words)! Fetching Pinterest {orientation.upper()} Photo: '{photo_term}' (Pinterest Only)...")
                         p_files = fetch_pinterest_photos_via_gallery_dl(photo_term, limit=1, output_dir=job_dir, used_media_ids=used_media_ids, orientation=orientation)
@@ -2227,6 +2231,9 @@ def full_process(req: VideoRequest, job_id: str):
                             
                         clean_t = " ".join([w for w in (req.topic or main_topic).split() if w.lower() not in ["ancient", "historical", "deep", "outer"]][:3]) or main_topic
                         clean_p = " ".join([w for w in scene_visual_phrase.split() if w.lower() not in [x.lower() for x in clean_t.split()]][:3])
+                        scene_angle_mods = ["neon cyberpunk", "abstract particles", "quantum burst", "light tunnel", "techno glitch", "luxury plexus", "fluid smoke", "laser vortex"]
+                        if not clean_p or clean_p.strip() == clean_t.strip():
+                            clean_p = scene_angle_mods[i % len(scene_angle_mods)]
                         vid_term = f"{clean_t} {clean_p} cinematic animation video".strip()
                         print(f"🎬 [Ultra After Effects Scene {i+1}] Narrative Video Line detected ({len(words)} words)! Fetching Pinterest {orientation.upper()} Video: '{vid_term}' (Pinterest Only)...")
                         vid_files = fetch_pinterest_videos_via_gallery_dl(vid_term, limit=1, output_dir=job_dir, used_media_ids=used_media_ids, orientation=orientation)
@@ -2364,30 +2371,30 @@ def full_process(req: VideoRequest, job_id: str):
                     used_media_ids=used_media_ids
                 )
             
-            # Double Safety Net: Ensure scene video/photo is NEVER identical in content hash, size, or name to ANY previous scene
+            # Double Safety Net: Ensure scene video/photo is NEVER identical in content hash, size, or name to ANY PREVIOUS scene
             if v_paths and os.path.exists(v_paths[0]):
                 current_size = os.path.getsize(v_paths[0])
                 current_hash = get_media_fingerprint(v_paths[0])
                 current_name = os.path.basename(v_paths[0])
                 is_duplicate = bool(
-                    (current_hash and current_hash in used_media_ids) or
-                    (f"size_{current_size}" in used_media_ids) or
-                    (current_name in used_media_ids)
+                    (current_hash and current_hash in prior_scene_assets) or
+                    (f"size_{current_size}" in prior_scene_assets) or
+                    (current_name in prior_scene_assets)
                 )
 
                 if is_duplicate:
-                    print(f"⚠️ [main.py Guard] Scene {i+1} got duplicate asset (hash {current_hash[:8] if current_hash else 'none'}, size {current_size})! Re-fetching guaranteed unique media...")
+                    print(f"⚠️ [main.py Guard] Scene {i+1} got duplicate asset from previous scene (hash {current_hash[:8] if current_hash else 'none'}, size {current_size})! Re-fetching guaranteed unique media...")
                     old_dup_path = v_paths[0]
                     clean_guard_kw = " ".join([w for w in re.findall(r'[a-zA-Z0-9]+', scene_kw) if len(w) > 1]) if scene_kw else ""
                     if is_after_effects_req:
-                        alt_query = f"{clean_guard_kw or main_topic} cinematic animation video scene {i+1}"
+                        alt_query = f"{clean_guard_kw or main_topic} cinematic animation video scene {i+1} angle {i+1}"
                         new_v = fetch_pinterest_videos_via_gallery_dl(alt_query, limit=1, output_dir=job_dir, used_media_ids=used_media_ids, orientation=orientation)
-                        if new_v and os.path.exists(new_v[0]) and get_media_fingerprint(new_v[0]) != current_hash:
+                        if new_v and os.path.exists(new_v[0]) and get_media_fingerprint(new_v[0]) not in prior_scene_assets:
                             v_paths = new_v
                         else:
-                            alt_p_query = f"{clean_guard_kw or main_topic} cinematic animation photo scene {i+1}"
+                            alt_p_query = f"{clean_guard_kw or main_topic} cinematic animation photo scene {i+1} angle {i+1}"
                             new_p = fetch_pinterest_photos_via_gallery_dl(alt_p_query, limit=1, output_dir=job_dir, used_media_ids=used_media_ids, orientation=orientation)
-                            if new_p and os.path.exists(new_p[0]) and get_media_fingerprint(new_p[0]) != current_hash:
+                            if new_p and os.path.exists(new_p[0]) and get_media_fingerprint(new_p[0]) not in prior_scene_assets:
                                 v_paths = new_p
                     else:
                         alt_query = f"{clean_guard_kw or main_topic} cinematic different angle {i+1}"
