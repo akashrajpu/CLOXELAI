@@ -2768,7 +2768,9 @@ function App() {
                 { value: 'en-US-GuyNeural', label: <span style={{display: 'flex', alignItems: 'center', gap: '6px'}}><User size={16} /> Male (English)</span> },
                 { value: 'en-US-JennyNeural', label: <span style={{display: 'flex', alignItems: 'center', gap: '6px'}}><User size={16} /> Female (English)</span> },
                 { value: 'kokoro-af_heart', label: <span style={{display: 'flex', alignItems: 'center', gap: '6px'}}><Sparkles size={16} color="#ec4899" /> Kokoro English (Heart, HQ)</span> },
+                { value: 'kokoro-af_bella', label: <span style={{display: 'flex', alignItems: 'center', gap: '6px'}}><Sparkles size={16} color="#f472b6" /> Kokoro English (Bella, Ultra HQ)</span> },
                 { value: 'kokoro-am_adam', label: <span style={{display: 'flex', alignItems: 'center', gap: '6px'}}><Sparkles size={16} color="#3b82f6" /> Kokoro English (Adam, HQ)</span> },
+                { value: 'kokoro-am_michael', label: <span style={{display: 'flex', alignItems: 'center', gap: '6px'}}><Sparkles size={16} color="#60a5fa" /> Kokoro English (Michael, Natural)</span> },
                 { value: 'kokoro-bf_emma', label: <span style={{display: 'flex', alignItems: 'center', gap: '6px'}}><Sparkles size={16} color="#a855f7" /> Kokoro British (Emma, HQ)</span> },
                 { value: 'kokoro-bm_george', label: <span style={{display: 'flex', alignItems: 'center', gap: '6px'}}><Sparkles size={16} color="#10b981" /> Kokoro British (George, HQ)</span> }
               ]}
@@ -3624,7 +3626,9 @@ function App() {
                         <option value="en-US-GuyNeural">Guy (Male, English)</option>
                         <option value="en-US-JennyNeural">Jenny (Female, English)</option>
                         <option value="kokoro-af_heart">Kokoro English Heart (Female, Neural HQ)</option>
+                        <option value="kokoro-af_bella">Kokoro English Bella (Female, Ultra HQ)</option>
                         <option value="kokoro-am_adam">Kokoro English Adam (Male, Neural HQ)</option>
+                        <option value="kokoro-am_michael">Kokoro English Michael (Male, Natural)</option>
                         <option value="kokoro-bf_emma">Kokoro British Emma (Female, Neural HQ)</option>
                         <option value="kokoro-bm_george">Kokoro British George (Male, Neural HQ)</option>
                       </select>
@@ -3729,7 +3733,9 @@ function App() {
                         <option value="en-US-GuyNeural">Guy (Male, English)</option>
                         <option value="en-US-JennyNeural">Jenny (Female, English)</option>
                         <option value="kokoro-af_heart">Kokoro English Heart (Female, Neural HQ)</option>
+                        <option value="kokoro-af_bella">Kokoro English Bella (Female, Ultra HQ)</option>
                         <option value="kokoro-am_adam">Kokoro English Adam (Male, Neural HQ)</option>
+                        <option value="kokoro-am_michael">Kokoro English Michael (Male, Natural)</option>
                         <option value="kokoro-bf_emma">Kokoro British Emma (Female, Neural HQ)</option>
                         <option value="kokoro-bm_george">Kokoro British George (Male, Neural HQ)</option>
                       </select>
@@ -3870,7 +3876,9 @@ function App() {
                             <option value="en-US-GuyNeural">Guy (Male, English)</option>
                             <option value="en-US-JennyNeural">Jenny (Female, English)</option>
                             <option value="kokoro-af_heart">Kokoro English Heart (Female, Neural HQ)</option>
+                            <option value="kokoro-af_bella">Kokoro English Bella (Female, Ultra HQ)</option>
                             <option value="kokoro-am_adam">Kokoro English Adam (Male, Neural HQ)</option>
+                            <option value="kokoro-am_michael">Kokoro English Michael (Male, Natural)</option>
                             <option value="kokoro-bf_emma">Kokoro British Emma (Female, Neural HQ)</option>
                             <option value="kokoro-bm_george">Kokoro British George (Male, Neural HQ)</option>
                           </select>

@@ -188,21 +188,39 @@ def generate_kokoro_audio(text: str, output_path: str, voice_name: str = "af_hea
         except Exception as e_onnx:
             print(f"⚠️ [Kokoro ONNX Notice]: {e_onnx}")
 
-    # 4. Hugging Face Space endpoint (hexgrad/Kokoro-TTS)
+    # 4. Hugging Face Space endpoint (Kokoro Native Neural Engine)
     try:
         try:
             from gradio_client import Client
-            client = Client("hexgrad/Kokoro-TTS")
-            if 4 in client.endpoints:
-                client.endpoints[4].is_valid = True
-                pred_res = client.predict(text, voice_name, 1.0, False, fn_index=4)
+            has_devanagari = any('\u0900' <= char <= '\u097F' for char in text)
+            is_hindi = voice_name.startswith("h") or has_devanagari
+
+            if is_hindi:
+                # Dedicated Native Kokoro Hindi Space (hf_alpha, hf_beta, hm_omega, hm_psi)
+                valid_hindi_voices = ['hf_alpha', 'hf_beta', 'hm_omega', 'hm_psi']
+                target_voice = voice_name if voice_name in valid_hindi_voices else ('hf_alpha' if 'f' in voice_name or 'swara' in voice_name else 'hm_omega')
+                client = Client("leonelhs/kokoro-tts-hindi")
+                pred_res = client.predict(text=text, voice=target_voice, speed=1.0, api_name="/predict")
                 wav_file = pred_res[0] if isinstance(pred_res, (list, tuple)) else pred_res
                 if wav_file and os.path.exists(wav_file) and os.path.getsize(wav_file) > 1000:
                     cmd = ["ffmpeg", "-y", "-i", wav_file, "-q:a", "2", "-acodec", "libmp3lame", output_path]
                     subprocess.run(cmd, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
                     if os.path.exists(output_path) and os.path.getsize(output_path) > 1000:
-                        print(f"✅ [Kokoro Gradio Engine] Audio saved: {output_path} ({os.path.getsize(output_path)} bytes)")
+                        print(f"✅ [Kokoro Hindi Gradio Engine] Audio saved: {output_path} ({os.path.getsize(output_path)} bytes)")
                         return True
+            else:
+                # Official hexgrad Kokoro-TTS Space (American & British English)
+                client = Client("hexgrad/Kokoro-TTS")
+                if 4 in client.endpoints:
+                    client.endpoints[4].is_valid = True
+                    pred_res = client.predict(text, voice_name, 1.0, False, fn_index=4)
+                    wav_file = pred_res[0] if isinstance(pred_res, (list, tuple)) else pred_res
+                    if wav_file and os.path.exists(wav_file) and os.path.getsize(wav_file) > 1000:
+                        cmd = ["ffmpeg", "-y", "-i", wav_file, "-q:a", "2", "-acodec", "libmp3lame", output_path]
+                        subprocess.run(cmd, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                        if os.path.exists(output_path) and os.path.getsize(output_path) > 1000:
+                            print(f"✅ [Kokoro Gradio Engine] Audio saved: {output_path} ({os.path.getsize(output_path)} bytes)")
+                            return True
         except Exception as e_gc:
             print(f"⚠️ [Kokoro Gradio Client Notice]: {e_gc}")
 
