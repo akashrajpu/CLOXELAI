@@ -1540,7 +1540,6 @@ def find_user_in_db(identifier: str) -> dict:
     if raw_digits:
         phone_variants.add(raw_digits)
 
-    import re
     identifier_regex = re.compile(f"^{re.escape(raw_identifier.lower())}$", re.IGNORECASE)
 
     or_conditions = [
@@ -1634,7 +1633,6 @@ def check_duplicate_user(email: str, phone: str):
     if phone:
         phone_variants.add(str(phone).strip())
 
-    import re
     email_h = hash_identifier(clean_email) if clean_email else None
     email_regex = re.compile(f"^{re.escape(clean_email)}$", re.IGNORECASE) if clean_email else None
 
@@ -2124,6 +2122,9 @@ def full_process(req: VideoRequest, job_id: str):
         for i, sc in enumerate(scenes_data):
             release_system_memory()
             prior_scene_assets = set(used_media_ids)
+            scene_kw = (sc.get("keyword") or "").strip()
+            scene_text = (sc.get("text") or "").strip()
+            main_topic = (req.topic or "").strip()
             if jobs.get(job_id, {}).get("status") == "cancelled":
                 print(f"🛑 [WORKFLOW CANCELLED] User cancelled Job ID {job_id} at Scene {i+1}. Stopping immediately...")
                 return
@@ -2155,7 +2156,6 @@ def full_process(req: VideoRequest, job_id: str):
                     words = scene_text.split()
                     
                     # 1. Detect contrasting punchline in the line (e.g. "modi dictator ya real hero", "sach ya jhooth", "hero ya villain")
-                    import re
                     contrast_patterns = [
                         r'\s+(?:ya\s+phir|ya\s+fir|ya)\s+',
                         r'\s+or\s+',
@@ -2306,7 +2306,6 @@ def full_process(req: VideoRequest, job_id: str):
                 scene_text = (sc.get("text") or "").strip()
                 main_topic = (req.topic or "").strip()
                 
-                import re
                 if req.video_type == "short":
                     # SHORT VIDEO: Use scene's dedicated video search keyword + topic context (e.g. "surgeon operating room" + "doctor" = "surgeon operating room doctor")
                     # Clean English alphanumeric words only (strictly eliminates Hindi Devanagari words like 'पर', 'तब')
@@ -2386,6 +2385,8 @@ def full_process(req: VideoRequest, job_id: str):
                     print(f"⚠️ [main.py Guard] Scene {i+1} got duplicate asset from previous scene (hash {current_hash[:8] if current_hash else 'none'}, size {current_size})! Re-fetching guaranteed unique media...")
                     old_dup_path = v_paths[0]
                     clean_guard_kw = " ".join([w for w in re.findall(r'[a-zA-Z0-9]+', scene_kw) if len(w) > 1]) if scene_kw else ""
+                    if not clean_guard_kw and main_topic:
+                        clean_guard_kw = " ".join([w for w in re.findall(r'[a-zA-Z0-9]+', main_topic) if len(w) > 1 and w.lower() not in ["and", "the", "for", "with", "from", "about", "hindi", "english"]])
                     if is_after_effects_req:
                         alt_query = f"{clean_guard_kw or main_topic} cinematic animation video scene {i+1} angle {i+1}"
                         new_v = fetch_pinterest_videos_via_gallery_dl(alt_query, limit=1, output_dir=job_dir, used_media_ids=used_media_ids, orientation=orientation)
@@ -5088,9 +5089,6 @@ def generate_dynamic_procedural_script(topic: str, duration: int, video_type: st
     }
 
 def generate_ai_script_core(topic: str, duration: int, video_type: str = "short", language: str = "hi", tone: str = "viral", category: str = "Random"):
-    import random
-    import urllib.parse
-    import re
     topic = resolve_random_topic(topic, category)
     scene_duration = 10 if duration <= 60 else (12 if duration <= 180 else 15)
     scene_count = max(1, round(duration / scene_duration))
