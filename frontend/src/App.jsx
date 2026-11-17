@@ -2763,16 +2763,16 @@ function App() {
               options={[
                 { value: 'hi-IN-MadhurNeural', label: <span style={{display: 'flex', alignItems: 'center', gap: '6px'}}><User size={16} /> Male (Hindi)</span> },
                 { value: 'hi-IN-SwaraNeural', label: <span style={{display: 'flex', alignItems: 'center', gap: '6px'}}><User size={16} /> Female (Hindi)</span> },
-                { value: 'kokoro-hf_alpha', label: <span style={{display: 'flex', alignItems: 'center', gap: '6px'}}><Sparkles size={16} color="#f43f5e" /> Kokoro Hindi (Alpha, Female HQ)</span> },
-                { value: 'kokoro-hm_omega', label: <span style={{display: 'flex', alignItems: 'center', gap: '6px'}}><Sparkles size={16} color="#0284c7" /> Kokoro Hindi (Omega, Male HQ)</span> },
+                { value: 'kokoro-hf_alpha', label: <span style={{display: 'flex', alignItems: 'center', gap: '6px'}}><Sparkles size={16} color="#f43f5e" /> Kokoro Hindi Female (Alpha HQ)</span> },
+                { value: 'kokoro-hm_omega', label: <span style={{display: 'flex', alignItems: 'center', gap: '6px'}}><Sparkles size={16} color="#0284c7" /> Kokoro Hindi Male (Omega HQ)</span> },
                 { value: 'en-US-GuyNeural', label: <span style={{display: 'flex', alignItems: 'center', gap: '6px'}}><User size={16} /> Male (English)</span> },
                 { value: 'en-US-JennyNeural', label: <span style={{display: 'flex', alignItems: 'center', gap: '6px'}}><User size={16} /> Female (English)</span> },
-                { value: 'kokoro-af_heart', label: <span style={{display: 'flex', alignItems: 'center', gap: '6px'}}><Sparkles size={16} color="#ec4899" /> Kokoro English (Heart, HQ)</span> },
-                { value: 'kokoro-af_bella', label: <span style={{display: 'flex', alignItems: 'center', gap: '6px'}}><Sparkles size={16} color="#f472b6" /> Kokoro English (Bella, Ultra HQ)</span> },
-                { value: 'kokoro-am_adam', label: <span style={{display: 'flex', alignItems: 'center', gap: '6px'}}><Sparkles size={16} color="#3b82f6" /> Kokoro English (Adam, HQ)</span> },
-                { value: 'kokoro-am_michael', label: <span style={{display: 'flex', alignItems: 'center', gap: '6px'}}><Sparkles size={16} color="#60a5fa" /> Kokoro English (Michael, Natural)</span> },
-                { value: 'kokoro-bf_emma', label: <span style={{display: 'flex', alignItems: 'center', gap: '6px'}}><Sparkles size={16} color="#a855f7" /> Kokoro British (Emma, HQ)</span> },
-                { value: 'kokoro-bm_george', label: <span style={{display: 'flex', alignItems: 'center', gap: '6px'}}><Sparkles size={16} color="#10b981" /> Kokoro British (George, HQ)</span> }
+                { value: 'kokoro-af_heart', label: <span style={{display: 'flex', alignItems: 'center', gap: '6px'}}><Sparkles size={16} color="#ec4899" /> Kokoro English Female (Heart HQ)</span> },
+                { value: 'kokoro-af_bella', label: <span style={{display: 'flex', alignItems: 'center', gap: '6px'}}><Sparkles size={16} color="#f472b6" /> Kokoro English Female (Bella Ultra HQ)</span> },
+                { value: 'kokoro-am_adam', label: <span style={{display: 'flex', alignItems: 'center', gap: '6px'}}><Sparkles size={16} color="#3b82f6" /> Kokoro English Male (Adam HQ)</span> },
+                { value: 'kokoro-am_michael', label: <span style={{display: 'flex', alignItems: 'center', gap: '6px'}}><Sparkles size={16} color="#60a5fa" /> Kokoro English Male (Michael Natural)</span> },
+                { value: 'kokoro-bf_emma', label: <span style={{display: 'flex', alignItems: 'center', gap: '6px'}}><Sparkles size={16} color="#a855f7" /> Kokoro British Female (Emma HQ)</span> },
+                { value: 'kokoro-bm_george', label: <span style={{display: 'flex', alignItems: 'center', gap: '6px'}}><Sparkles size={16} color="#10b981" /> Kokoro British Male (George HQ)</span> }
               ]}
             />
           </div>
@@ -3621,16 +3621,16 @@ function App() {
                       <select value={autoSchedule.short_voice || 'hi-IN-MadhurNeural'} onChange={(e) => setAutoSchedule({ ...autoSchedule, short_voice: e.target.value })} style={{ width: '100%', padding: '8px', background: '#1e1738', border: '1px solid rgba(255,255,255,0.15)', color: '#fff', borderRadius: '8px' }}>
                         <option value="hi-IN-MadhurNeural">Madhur (Male, Hindi)</option>
                         <option value="hi-IN-SwaraNeural">Swara (Female, Hindi)</option>
-                        <option value="kokoro-hf_alpha">Kokoro Hindi Alpha (Female, Neural HQ)</option>
-                        <option value="kokoro-hm_omega">Kokoro Hindi Omega (Male, Neural HQ)</option>
+                        <option value="kokoro-hf_alpha">Kokoro Hindi Female (Alpha HQ)</option>
+                        <option value="kokoro-hm_omega">Kokoro Hindi Male (Omega HQ)</option>
                         <option value="en-US-GuyNeural">Guy (Male, English)</option>
                         <option value="en-US-JennyNeural">Jenny (Female, English)</option>
-                        <option value="kokoro-af_heart">Kokoro English Heart (Female, Neural HQ)</option>
-                        <option value="kokoro-af_bella">Kokoro English Bella (Female, Ultra HQ)</option>
-                        <option value="kokoro-am_adam">Kokoro English Adam (Male, Neural HQ)</option>
-                        <option value="kokoro-am_michael">Kokoro English Michael (Male, Natural)</option>
-                        <option value="kokoro-bf_emma">Kokoro British Emma (Female, Neural HQ)</option>
-                        <option value="kokoro-bm_george">Kokoro British George (Male, Neural HQ)</option>
+                        <option value="kokoro-af_heart">Kokoro English Female (Heart HQ)</option>
+                        <option value="kokoro-af_bella">Kokoro English Female (Bella Ultra HQ)</option>
+                        <option value="kokoro-am_adam">Kokoro English Male (Adam HQ)</option>
+                        <option value="kokoro-am_michael">Kokoro English Male (Michael Natural)</option>
+                        <option value="kokoro-bf_emma">Kokoro British Female (Emma HQ)</option>
+                        <option value="kokoro-bm_george">Kokoro British Male (George HQ)</option>
                       </select>
                     </div>
 
@@ -3728,16 +3728,16 @@ function App() {
                       <select value={autoSchedule.long_voice || 'hi-IN-MadhurNeural'} onChange={(e) => setAutoSchedule({ ...autoSchedule, long_voice: e.target.value })} style={{ width: '100%', padding: '8px', background: '#1e1738', border: '1px solid rgba(255,255,255,0.15)', color: '#fff', borderRadius: '8px' }}>
                         <option value="hi-IN-MadhurNeural">Madhur (Male, Hindi)</option>
                         <option value="hi-IN-SwaraNeural">Swara (Female, Hindi)</option>
-                        <option value="kokoro-hf_alpha">Kokoro Hindi Alpha (Female, Neural HQ)</option>
-                        <option value="kokoro-hm_omega">Kokoro Hindi Omega (Male, Neural HQ)</option>
+                        <option value="kokoro-hf_alpha">Kokoro Hindi Female (Alpha HQ)</option>
+                        <option value="kokoro-hm_omega">Kokoro Hindi Male (Omega HQ)</option>
                         <option value="en-US-GuyNeural">Guy (Male, English)</option>
                         <option value="en-US-JennyNeural">Jenny (Female, English)</option>
-                        <option value="kokoro-af_heart">Kokoro English Heart (Female, Neural HQ)</option>
-                        <option value="kokoro-af_bella">Kokoro English Bella (Female, Ultra HQ)</option>
-                        <option value="kokoro-am_adam">Kokoro English Adam (Male, Neural HQ)</option>
-                        <option value="kokoro-am_michael">Kokoro English Michael (Male, Natural)</option>
-                        <option value="kokoro-bf_emma">Kokoro British Emma (Female, Neural HQ)</option>
-                        <option value="kokoro-bm_george">Kokoro British George (Male, Neural HQ)</option>
+                        <option value="kokoro-af_heart">Kokoro English Female (Heart HQ)</option>
+                        <option value="kokoro-af_bella">Kokoro English Female (Bella Ultra HQ)</option>
+                        <option value="kokoro-am_adam">Kokoro English Male (Adam HQ)</option>
+                        <option value="kokoro-am_michael">Kokoro English Male (Michael Natural)</option>
+                        <option value="kokoro-bf_emma">Kokoro British Female (Emma HQ)</option>
+                        <option value="kokoro-bm_george">Kokoro British Male (George HQ)</option>
                       </select>
                     </div>
 
@@ -3871,16 +3871,16 @@ function App() {
                           <select value={autoSchedule.ultra_voice || 'hi-IN-MadhurNeural'} onChange={(e) => setAutoSchedule({ ...autoSchedule, ultra_voice: e.target.value })} style={{ width: '100%', padding: '8px', background: '#1e1738', border: '1px solid rgba(255,255,255,0.15)', color: '#fff', borderRadius: '8px' }}>
                             <option value="hi-IN-MadhurNeural">Madhur (Male, Hindi)</option>
                             <option value="hi-IN-SwaraNeural">Swara (Female, Hindi)</option>
-                            <option value="kokoro-hf_alpha">Kokoro Hindi Alpha (Female, Neural HQ)</option>
-                            <option value="kokoro-hm_omega">Kokoro Hindi Omega (Male, Neural HQ)</option>
+                            <option value="kokoro-hf_alpha">Kokoro Hindi Female (Alpha HQ)</option>
+                            <option value="kokoro-hm_omega">Kokoro Hindi Male (Omega HQ)</option>
                             <option value="en-US-GuyNeural">Guy (Male, English)</option>
                             <option value="en-US-JennyNeural">Jenny (Female, English)</option>
-                            <option value="kokoro-af_heart">Kokoro English Heart (Female, Neural HQ)</option>
-                            <option value="kokoro-af_bella">Kokoro English Bella (Female, Ultra HQ)</option>
-                            <option value="kokoro-am_adam">Kokoro English Adam (Male, Neural HQ)</option>
-                            <option value="kokoro-am_michael">Kokoro English Michael (Male, Natural)</option>
-                            <option value="kokoro-bf_emma">Kokoro British Emma (Female, Neural HQ)</option>
-                            <option value="kokoro-bm_george">Kokoro British George (Male, Neural HQ)</option>
+                            <option value="kokoro-af_heart">Kokoro English Female (Heart HQ)</option>
+                            <option value="kokoro-af_bella">Kokoro English Female (Bella Ultra HQ)</option>
+                            <option value="kokoro-am_adam">Kokoro English Male (Adam HQ)</option>
+                            <option value="kokoro-am_michael">Kokoro English Male (Michael Natural)</option>
+                            <option value="kokoro-bf_emma">Kokoro British Female (Emma HQ)</option>
+                            <option value="kokoro-bm_george">Kokoro British Male (George HQ)</option>
                           </select>
                         </div>
 

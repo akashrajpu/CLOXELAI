@@ -2550,7 +2550,8 @@ def render_video_with_smart_fallback(user_id: str, topic: str, category: str, vo
     """
     import uuid
     if not language:
-        language = "hi" if (voice_id and "hi-" in str(voice_id).lower()) else "hi"
+        is_hindi = voice_id and any(k in str(voice_id).lower() for k in ["hi-", "hf_", "hm_", "hindi", "india"])
+        language = "hi" if is_hindi else ("en" if (voice_id and (str(voice_id).lower().startswith("en") or "kokoro" in str(voice_id).lower())) else "hi")
 
     if video_type == "short":
         aspect_ratio = "9:16"
@@ -2627,7 +2628,7 @@ def render_video_with_smart_fallback(user_id: str, topic: str, category: str, vo
 
     print(f"🚨 [SMART RETRY ENGINE EXHAUSTED] Custom attempts failed. Initiating Ultimate Bulletproof Fallback...")
     try:
-        is_hindi_voice = (language and any(h in str(language).lower() for h in ["hi", "hindi", "hin"])) or (voice_id and "hi-" in str(voice_id).lower())
+        is_hindi_voice = (language and any(h in str(language).lower() for h in ["hi", "hindi", "hin"])) or (voice_id and any(k in str(voice_id).lower() for k in ["hi-", "hf_", "hm_", "hindi", "india"]))
         fallback_script = (
             "विज्ञान और ब्रह्मांड के रहस्य हमेशा से इंसानों को हैरान करते आए हैं।" if is_hindi_voice
             else "Space exploration brings incredible technology and futuristic discoveries to humanity every day."
@@ -5313,7 +5314,11 @@ async def generate_script(req: ScriptRequest):
             detail="Demo quota exhausted! You have used your 2 free demo videos & scripts. Please upgrade your plan to continue generating AI scripts & videos."
         )
 
-    req_lang = req.language or ("hi" if (req.voice and "hi-" in str(req.voice).lower()) else "hi")
+    if req.language:
+        req_lang = req.language
+    else:
+        is_hindi = req.voice and any(k in str(req.voice).lower() for k in ["hi-", "hf_", "hm_", "hindi", "india"])
+        req_lang = "hi" if is_hindi else ("en" if (req.voice and (str(req.voice).lower().startswith("en") or "kokoro" in str(req.voice).lower())) else "hi")
     res = generate_ai_script_core(
         topic=req.topic, 
         duration=req.duration_seconds, 
