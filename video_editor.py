@@ -19,6 +19,7 @@ import warnings
 import numpy as np
 import textwrap
 import subprocess
+from typing import Any, Dict, List, Optional, Tuple
 try:
     from gemini_animator import generate_gemini_cartoon_animation
 except Exception:
