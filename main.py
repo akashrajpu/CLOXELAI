@@ -1855,6 +1855,7 @@ class VideoRequest(BaseModel):
     song_lyrics: Optional[str] = None
     uploaded_audio_path: Optional[str] = None
     song_mood: Optional[str] = "romantic"
+    phonk_visualizer_style: Optional[str] = "primary"
 
 class ScriptRequest(BaseModel):
     topic: str

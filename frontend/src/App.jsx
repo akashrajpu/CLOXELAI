@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import Auth from './Auth';
 import YouTubeIntegration from './YouTubeIntegration';
 import { Smartphone, Monitor, Zap, Film, Settings, Sparkles, Clock, Palette, Mic, Music, Layout, Hash, Dices, Clapperboard, MonitorPlay, User, Sun, Scroll, Circle, Ban, Rocket, Box, Square, Tv, Compass, Upload } from 'lucide-react';
+import { PHONK_VISUALIZER_CATEGORIES, PHONK_VISUALIZER_PRESETS } from './phonkVisualizers';
 
 const API_BASE = window.location.hostname === 'localhost' ? 'http://localhost:8000' : '';
 
@@ -498,6 +499,9 @@ function App() {
   const [songVisualMode, setSongVisualMode] = useState('motion'); // 'motion' | 'video'
   const [songLyrics, setSongLyrics] = useState('');
   const [songMood, setSongMood] = useState('romantic'); // 'romantic' | 'sad' | 'party' | 'lofi' | 'acoustic' | 'devotional' | 'phonk'
+  const [phonkVisualizerStyle, setPhonkVisualizerStyle] = useState('primary');
+  const [phonkVisCategory, setPhonkVisCategory] = useState('all');
+  const [phonkVisSearch, setPhonkVisSearch] = useState('');
   const isSongVideoMode = (videoType === 'ultra') && (
     category === '🎵 Song Video' || 
     (category || '').toLowerCase().includes('song video')
@@ -1486,6 +1490,7 @@ function App() {
           song_visual_mode: songVisualMode,
           song_lyrics: isSongVideoMode ? (songLyrics || '') : '',
           song_mood: songMood,
+          phonk_visualizer_style: phonkVisualizerStyle,
           uploaded_audio_path: uploadedAudioPath
         })
       });
@@ -2294,6 +2299,179 @@ function App() {
                     : '💡 Is category ke anusaar background photos ka mood aur cinematic color filters (Teal & Orange, Moody Noir, Golden Glow, etc.) auto-apply honge!'}
                 </span>
               </div>
+
+              {/* Phonk / Funk Beat Visualizer Overlay Slider & 100+ FX Selector (Visible ONLY when Phonk is selected) */}
+              {songMood === 'phonk' && (
+                <div style={{
+                  marginBottom: '1.2rem',
+                  background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.9) 0%, rgba(24, 15, 45, 0.9) 100%)',
+                  padding: '16px',
+                  borderRadius: '16px',
+                  border: '1.5px solid rgba(0, 242, 254, 0.4)',
+                  boxShadow: '0 0 25px rgba(0, 242, 254, 0.15)'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px', flexWrap: 'wrap', gap: '8px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ fontSize: '1.1rem' }}>⚡</span>
+                      <div>
+                        <div style={{ fontSize: '0.92rem', fontWeight: '900', color: '#00f2fe', letterSpacing: '0.3px' }}>
+                          Phonk Beat Visualizer Overlay (100+ Designs)
+                        </div>
+                        <div style={{ fontSize: '0.72rem', color: '#94a3b8' }}>
+                          Canvas FX background photo ya looped video ke upar beats ke saath pump & bounce karega!
+                        </div>
+                      </div>
+                    </div>
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      background: 'rgba(0, 242, 254, 0.1)',
+                      border: '1px solid rgba(0, 242, 254, 0.35)',
+                      padding: '4px 10px',
+                      borderRadius: '20px'
+                    }}>
+                      <span style={{ fontSize: '0.7rem', color: '#cbd5e1', fontWeight: '600' }}>Active:</span>
+                      <span style={{ fontSize: '0.74rem', color: '#00f2fe', fontWeight: '800' }}>
+                        {(PHONK_VISUALIZER_PRESETS.find(p => p.id === phonkVisualizerStyle) || {}).name || '🌟 Primary'}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Filter Categories Horizontal Scroll Bar */}
+                  <div style={{
+                    display: 'flex',
+                    gap: '6px',
+                    overflowX: 'auto',
+                    paddingBottom: '8px',
+                    marginBottom: '10px',
+                    scrollbarWidth: 'thin'
+                  }}>
+                    {PHONK_VISUALIZER_CATEGORIES.map(cat => (
+                      <button
+                        key={cat.id}
+                        type="button"
+                        onClick={() => setPhonkVisCategory(cat.id)}
+                        style={{
+                          whiteSpace: 'nowrap',
+                          padding: '5px 11px',
+                          borderRadius: '16px',
+                          border: phonkVisCategory === cat.id ? '1px solid #00f2fe' : '1px solid rgba(255,255,255,0.08)',
+                          background: phonkVisCategory === cat.id ? 'linear-gradient(135deg, rgba(0, 242, 254, 0.3) 0%, rgba(168, 85, 247, 0.3) 100%)' : 'rgba(15, 23, 42, 0.6)',
+                          color: phonkVisCategory === cat.id ? '#fff' : '#94a3b8',
+                          fontSize: '0.72rem',
+                          fontWeight: phonkVisCategory === cat.id ? '800' : '600',
+                          cursor: 'pointer',
+                          transition: 'all 0.15s ease'
+                        }}
+                      >
+                        {cat.label}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Quick Search */}
+                  <div style={{ marginBottom: '10px' }}>
+                    <input
+                      type="text"
+                      placeholder="🔍 Search 100+ Visualizer FX (e.g. 3D grid, radial, shockwave, tachometer, laser, redline)..."
+                      value={phonkVisSearch}
+                      onChange={e => setPhonkVisSearch(e.target.value)}
+                      style={{
+                        width: '100%',
+                        padding: '8px 12px',
+                        background: 'rgba(15, 23, 42, 0.7)',
+                        border: '1px solid rgba(255, 255, 255, 0.1)',
+                        borderRadius: '10px',
+                        color: '#f8fafc',
+                        fontSize: '0.78rem',
+                        outline: 'none',
+                        boxSizing: 'border-box'
+                      }}
+                    />
+                  </div>
+
+                  {/* Visualizer Presets Horizontal Slider Deck */}
+                  <div style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))',
+                    gap: '8px',
+                    maxHeight: '260px',
+                    overflowY: 'auto',
+                    paddingRight: '4px',
+                    scrollbarWidth: 'thin'
+                  }}>
+                    {PHONK_VISUALIZER_PRESETS
+                      .filter(p => {
+                        if (phonkVisCategory !== 'all') {
+                          if (phonkVisCategory === 'featured') {
+                            if (p.id !== 'primary' && p.id !== 'random') return false;
+                          } else if (p.family !== phonkVisCategory) {
+                            return false;
+                          }
+                        }
+                        if (phonkVisSearch.trim()) {
+                          const q = phonkVisSearch.toLowerCase().trim();
+                          return p.name.toLowerCase().includes(q) || p.desc.toLowerCase().includes(q);
+                        }
+                        return true;
+                      })
+                      .map(p => {
+                        const isSelected = phonkVisualizerStyle === p.id;
+                        const cardCol = p.col || '#00f2fe';
+                        return (
+                          <div
+                            key={p.id}
+                            onClick={() => setPhonkVisualizerStyle(p.id)}
+                            style={{
+                              padding: '10px 10px',
+                              borderRadius: '12px',
+                              border: isSelected ? `2px solid ${cardCol}` : '1px solid rgba(255,255,255,0.08)',
+                              background: isSelected
+                                ? `linear-gradient(135deg, ${cardCol}33 0%, rgba(168, 85, 247, 0.25) 100%)`
+                                : 'rgba(15, 23, 42, 0.65)',
+                              color: isSelected ? '#fff' : '#cbd5e1',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              flexDirection: 'column',
+                              justifyContent: 'space-between',
+                              boxShadow: isSelected ? `0 0 14px ${cardCol}44` : 'none',
+                              transition: 'all 0.15s ease',
+                              minHeight: '68px'
+                            }}
+                          >
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '4px', marginBottom: '4px' }}>
+                              <div style={{ fontSize: '0.8rem', fontWeight: isSelected ? '800' : '700', color: isSelected ? '#fff' : '#e2e8f0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                {p.name}
+                              </div>
+                              {p.tag && (
+                                <span style={{
+                                  fontSize: '0.58rem',
+                                  fontWeight: '900',
+                                  padding: '2px 5px',
+                                  borderRadius: '6px',
+                                  background: p.id === 'primary' ? 'rgba(0, 242, 254, 0.3)' : 'rgba(236, 72, 153, 0.3)',
+                                  color: p.id === 'primary' ? '#00f2fe' : '#f472b6',
+                                  letterSpacing: '0.5px'
+                                }}>
+                                  {p.tag}
+                                </span>
+                              )}
+                            </div>
+                            <div style={{ fontSize: '0.66rem', color: isSelected ? '#e2e8f0' : '#64748b', lineHeight: '1.25' }}>
+                              {p.desc}
+                            </div>
+                          </div>
+                        );
+                      })}
+                  </div>
+
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '10px', fontSize: '0.72rem', color: '#94a3b8' }}>
+                    <span>💡 <b>Background Visual:</b> User ki select ki gayi photo ya video 100% visible rahegi, visualizer FX upar dynamically bounce karega.</span>
+                    <span style={{ color: '#00f2fe', fontWeight: 'bold' }}>116 Total FX Loaded</span>
+                  </div>
+                </div>
+              )}
 
               {/* Step 3: Video Duration & Dynamic Scenes */}
               <div style={{ marginBottom: '1.2rem', background: 'rgba(15, 23, 42, 0.5)', padding: '14px', borderRadius: '14px', border: '1px solid rgba(255,255,255,0.08)' }}>
