@@ -1170,11 +1170,9 @@ AFTER_EFFECTS_SFX_CATALOG = [
         "volume": 0.42,
         "weight": 4.0,
         "keywords": [
-            "page", "book", "chapter", "read", "reading", "diary", "journal",
-            "notebook", "manuscript", "document", "letter", "note", "archive",
-            "story", "ancient", "history", "rule", "lesson", "record", "paper",
-            "kitaab", "kitab", "panna", "panne", "kahani", "itihas", "itihaas", "patra",
-            "किताब", "पन्ना", "पन्ने", "कहानी", "इतिहास", "डायरी", "चिट्ठी", "दस्तावेज", "नियम",
+            "page turn", "turn page", "turn the page", "book page", "diary entry",
+            "notebook page", "panna palta", "panne palte", "kitab ka panna",
+            "पन्ना पलटना", "पन्ने पलटना", "किताब का पन्ना",
         ],
     },
     {
@@ -1209,11 +1207,8 @@ AFTER_EFFECTS_SFX_CATALOG = [
         "volume": 0.25,
         "weight": 3.5,
         "keywords": [
-            "clock", "tick", "tock", "hour", "hours", "years", "decade", "decades",
-            "century", "centuries", "wait", "waiting", "patience", "timeline",
-            "aging", "eternity", "slowly", "every day", "time passed", "ghadi",
-            "samay", "waqt", "saal", "sadi", "intezar",
-            "घड़ी", "समय", "वक्त", "साल", "सदी", "इंतज़ार", "इंतजार",
+            "clock", "tick tock", "ticking", "clock ticking", "clock timer", "timer tick",
+            "ghadi ki sui", "tik tik", "घड़ी की टिक टिक", "टिक टिक", "टिक-टिक",
         ],
     },
     {
@@ -1283,11 +1278,9 @@ AFTER_EFFECTS_SFX_CATALOG = [
         "volume": 0.28,
         "weight": 4.0,
         "keywords": [
-            "footstep", "footsteps", "walk", "walking", "grass", "jungle",
-            "trail", "path", "journey", "hike", "sneak", "follow", "following",
-            "chase", "escape", "woods", "explore", "stepped", "kadam", "chalna",
-            "chalne", "rasta", "junglee", "safar", "yatra", "picha",
-            "कदम", "चलना", "रास्ता", "जंगल", "सफर", "यात्रा", "पीछा", "घास",
+            "footstep", "footsteps", "sneak", "creeping", "footsteps grass",
+            "running steps", "kadam ki aahat", "kadmon ki aawaz",
+            "पदचाप", "कदमों की आहट", "कदमों की आवाज",
         ],
     },
     {
@@ -1309,11 +1302,9 @@ AFTER_EFFECTS_SFX_CATALOG = [
         "volume": 0.35,
         "weight": 4.5,
         "keywords": [
-            "rocket", "space", "astronaut", "nasa", "isro", "moon", "mars",
-            "planet", "galaxy", "universe", "orbit", "launch", "blast off", "jet",
-            "supersonic", "airplane", "flight", "fly", "flying", "skyrocket", "soar",
-            "antariksh", "chand", "mangal", "grah", "brahmand", "udaan",
-            "रॉकेट", "अंतरिक्ष", "चाँद", "मंगल", "ग्रह", "ब्रह्मांड", "उड़ान", "आकाश",
+            "rocket", "rocket launch", "launch", "blast off", "lift off", "missile",
+            "astronaut launch", "jet speed", "supersonic flight",
+            "rocket udaan", "misaail", "रॉकेट", "मिसाइल", "रॉकेट लॉन्च",
         ],
     },
     {
@@ -1421,10 +1412,8 @@ AFTER_EFFECTS_SFX_CATALOG = [
         "volume": 0.38,
         "weight": 3.5,
         "keywords": [
-            "zoom", "closer", "deep dive", "vacuum", "black hole", "gravity",
-            "absorb", "disappear", "vanish", "suck", "focus", "detail", "micro",
-            "inside", "center", "secret inside", "andar", "gahrai", "gayab", "dhyaan",
-            "अंदर", "गहराई", "गायब", "ध्यान", "ब्लैक होल", "फोकस",
+            "vacuum", "black hole singularity", "suck in", "gravity pull",
+            "gayab ho gaya", "गायब हो गया", "ब्लैक होल खिंचाव",
         ],
     },
     {
@@ -1433,9 +1422,8 @@ AFTER_EFFECTS_SFX_CATALOG = [
         "volume": 0.35,
         "weight": 2.4,
         "keywords": [
-            "wind", "breeze", "air", "breath", "breathe", "atmosphere", "sky",
-            "float", "drift", "shift", "change", "meanwhile", "transform",
-            "hawa", "saans", "badlav", "agla", "हवा", "सांस", "बदलाव", "आसमान",
+            "strong wind", "heavy breeze", "gust of wind", "tezz hawa", "andhi",
+            "हवा का झोंका", "आंधी",
         ],
     },
     {
@@ -1444,10 +1432,8 @@ AFTER_EFFECTS_SFX_CATALOG = [
         "volume": 0.38,
         "weight": 2.2,
         "keywords": [
-            "fast", "quick", "quickly", "rapid", "instant", "speed", "suddenly",
-            "however", "but wait", "switch", "flash", "next", "reason", "fact",
-            "tez", "tezi", "turant", "fatafat", "achanak", "lekin",
-            "तेज", "तुरंत", "फटाफट", "अचानक", "लेकिन",
+            "lightning fast", "supersonic speed", "blink of an eye", "palak jhapakte",
+            "पलक झपकते ही", "अति तीव्र",
         ],
     },
     {
@@ -1456,9 +1442,8 @@ AFTER_EFFECTS_SFX_CATALOG = [
         "volume": 0.38,
         "weight": 2.0,
         "keywords": [
-            "point", "tip", "hack", "trick", "step", "method", "first", "second",
-            "third", "also", "look", "check", "number", "baat", "tarika", "dekho",
-            "पहला", "दूसरा", "तीसरा", "तरीका", "देखो",
+            "life hack", "pro tip", "pro trick", "step 1", "step 2", "step 3",
+            "kamaal ka tarika", "नंबर 1 ट्रिक",
         ],
     },
 ]
@@ -1537,17 +1522,27 @@ def select_after_effects_sfx(
     total_scenes: int = 1,
     clip_duration: float = 5.0,
     used_sfx: list = None,
+    last_sfx_scene_idx: Optional[int] = None,
 ):
     """
     Selects the best matching Mixkit/local SFX for an Ultra After Effects scene
-    strictly from the spoken script intent, capping/spacing glitch SFX so glitch
-    audio never fires indiscriminately across scenes.
+    strictly from the spoken script intent.
+    Never fires randomly, never fires transition whooshes on sentence punctuation (! or ...),
+    and enforces a strict video-level budget and at least 2 scenes cooldown spacing.
     """
     used_sfx = used_sfx or []
+    # Budget: max 2 SFX for <= 5 scenes, max 3 for 6-9 scenes, max 4 for 10+ scenes
+    max_sfx_budget = 2 if total_scenes <= 5 else (3 if total_scenes <= 9 else 4)
+    if len(used_sfx) >= max_sfx_budget:
+        return None
+
     tokens = _ae_tokenize(scene_text)
     joined_text = f" {' '.join(tokens)} " if tokens else ""
-    kw_tokens = _ae_tokenize(scene_keyword)
-    joined_kw = f" {' '.join(kw_tokens)} " if kw_tokens else ""
+    if not tokens:
+        return None
+
+    # Cooldown spacing: require at least 2 scenes gap between SFX
+    has_recent_sfx = (last_sfx_scene_idx is not None and last_sfx_scene_idx >= 0 and (scene_idx - last_sfx_scene_idx < 2))
 
     last_file = used_sfx[-1] if used_sfx else None
     used_set = set(used_sfx)
@@ -1601,39 +1596,19 @@ def select_after_effects_sfx(
                 if idx < first_idx:
                     first_idx = idx
                     matched_kw = kw
-            elif kw_tokens and (not is_glitch_sfx):
-                # Never allow AI visual prompts alone to fire glitch SFX; minor tie-breaker weight for non-glitch SFX
-                kw_hit, _ = _ae_find_keyword_hit(kw_tokens, joined_kw, kw)
-                if kw_hit and kw not in matched_kws:
-                    matched_kws.add(kw)
-                    score += entry["weight"] * 0.40
-                    if not matched_kw:
-                        matched_kw = f"[kw:{kw}]"
 
-        # Scene 0 opening hook affinity (clean intro default; glitch intro strictly for spoken cyber/tech)
-        if scene_idx == 0:
-            if fname == "mixkit-intro-text-glitch-2950.wav" and tech_intro_bias:
-                score += 4.5
-                if not matched_kw:
-                    matched_kw = "scene0_intro_glitch"
-                    first_idx = 0
-            elif fname == "mixkit-intro-transition-1146.wav":
-                score += 1.6 if tech_intro_bias else 4.2
-                if not matched_kw:
-                    matched_kw = "scene0_intro"
-                    first_idx = 0
+        # SFX must be driven strictly by spoken narrative hits (never AI visual prompts)
+        if spoken_hits == 0 or score < 3.8:
+            continue
+
+        # If a recent SFX played within 2 scenes, only allow rare high-intensity punctual event SFX (score >= 5.0)
+        if has_recent_sfx and score < 5.0:
+            continue
 
         # Climax finishing boost for orchestral hit on final scene
         if scene_idx > 0 and total_scenes >= 3 and scene_idx == total_scenes - 1:
             if fname == "mixkit-epic-orchestra-transition-2290.wav" and spoken_hits > 0:
                 score += 2.0
-
-        # Ignore single weak visual-prompt-only guesses when script itself had zero match
-        if spoken_hits == 0 and score < 3.0 and not (scene_idx == 0 and is_intro_file):
-            continue
-
-        if score <= 0.0:
-            continue
 
         # Penalize back-to-back or repeated SFX to keep edits dynamic
         if fname == last_file:
@@ -1647,46 +1622,54 @@ def select_after_effects_sfx(
             best_hit_idx = first_idx if first_idx < len(tokens) else 0
             best_matched_kw = matched_kw
 
-    # Thoughtful fallback: intro for Scene 0, clean non-glitch swoosh ONLY when middle script has a shift cue
-    if best_entry is None or best_score < 2.0:
-        if scene_idx == 0:
-            preferred_order = (
-                ["mixkit-intro-text-glitch-2950.wav", "mixkit-intro-transition-1146.wav"]
-                if tech_intro_bias
-                else ["mixkit-intro-transition-1146.wav"]
-            )
-            chosen_fname = next((c for c in preferred_order if _resolve_ae_sfx_path(c)), None)
-            if not chosen_fname:
-                return None
-            best_entry = next((e for e in AFTER_EFFECTS_SFX_CATALOG if e["file"] == chosen_fname), None)
-            if not best_entry:
-                return None
-            best_hit_idx = 0
-            best_matched_kw = "scene0_intro_glitch" if chosen_fname == "mixkit-intro-text-glitch-2950.wav" else "scene0_intro"
+    # Scene 0 Opening Hook SFX: ONLY if spoken script contains an explicit intro/greeting cue or tech cue
+    if scene_idx == 0 and best_entry is None:
+        spoken_intro_cues = {
+            "hello", "hi", "hey", "welcome", "greetings", "namaste", "namaskar",
+            "swagat", "dosto", "friends", "aaj", "today", "shuru", "start",
+            "did you know", "kya aap jante",
+            "नमस्ते", "नमस्कार", "स्वागत", "दोस्तों", "आज", "शुरू",
+        }
+        has_spoken_intro = any(t in spoken_intro_cues for t in tokens) or ("kya" in tokens and "socha" in tokens)
+        if tech_intro_bias:
+            chosen_fname = "mixkit-intro-text-glitch-2950.wav"
+        elif has_spoken_intro:
+            chosen_fname = "mixkit-intro-transition-1146.wav"
         else:
-            raw_s = str(scene_text or "").strip()
-            has_shift_cue = any(t in _AE_TRANSITION_SHIFT_CUES for t in tokens) or raw_s.endswith(("!", "...", "…"))
-            if not has_shift_cue:
-                return None
+            chosen_fname = None
 
-            short_transitions = [
-                "mixkit-cinematic-whoosh-fast-transition-1492.wav",
-                "mixkit-fast-small-sweep-transition-166.wav",
-                "mixkit-air-zoom-vacuum-2608.wav",
-            ]
-            if clip_duration >= 2.2:
-                short_transitions.append("mixkit-air-woosh-1489.wav")
-
-            rot = scene_idx % len(short_transitions)
-            preferred_order = short_transitions[rot:] + short_transitions[:rot]
-            chosen_fname = next((c for c in preferred_order if c != last_file and _resolve_ae_sfx_path(c)), None)
-            if not chosen_fname:
-                return None
+        if chosen_fname and _resolve_ae_sfx_path(chosen_fname):
             best_entry = next((e for e in AFTER_EFFECTS_SFX_CATALOG if e["file"] == chosen_fname), None)
-            if not best_entry:
-                return None
-            best_hit_idx = 0
-            best_matched_kw = "script_shift_transition"
+            if best_entry:
+                best_hit_idx = 0
+                best_matched_kw = "scene0_tech_intro" if tech_intro_bias else "scene0_spoken_intro"
+                best_score = float(best_entry["weight"])
+
+    # Fallback transition swoosh: ONLY on genuine narrative shift cue words when cooldown cleared (NEVER punctuation!)
+    if best_entry is None or best_score < 3.5:
+        if scene_idx > 0 and not has_recent_sfx:
+            has_shift_cue = any(t in _AE_TRANSITION_SHIFT_CUES for t in tokens)
+            if has_shift_cue:
+                short_transitions = [
+                    "mixkit-cinematic-whoosh-fast-transition-1492.wav",
+                    "mixkit-fast-small-sweep-transition-166.wav",
+                    "mixkit-air-zoom-vacuum-2608.wav",
+                ]
+                if clip_duration >= 2.2:
+                    short_transitions.append("mixkit-air-woosh-1489.wav")
+
+                rot = scene_idx % len(short_transitions)
+                preferred_order = short_transitions[rot:] + short_transitions[:rot]
+                chosen_fname = next((c for c in preferred_order if c != last_file and _resolve_ae_sfx_path(c)), None)
+                if chosen_fname:
+                    best_entry = next((e for e in AFTER_EFFECTS_SFX_CATALOG if e["file"] == chosen_fname), None)
+                    if best_entry:
+                        best_hit_idx = 0
+                        best_matched_kw = "script_shift_transition"
+                        best_score = float(best_entry["weight"])
+
+    if best_entry is None or best_score < 3.5:
+        return None
 
     resolved_path = _resolve_ae_sfx_path(best_entry["file"])
     if not resolved_path:
@@ -1848,6 +1831,8 @@ def merge_and_export(
     temp_scene_files = []
     used_sfx_history = []
     used_vfx_history = []
+    last_sfx_scene_idx = -999
+    last_vfx_scene_idx = -999
     last_motion_choice = None
     job_dir = os.path.dirname(output_name) if os.path.dirname(output_name) else "."
 
@@ -2100,6 +2085,7 @@ def merge_and_export(
                 total_scenes=len(scene_list),
                 clip_duration=clip_duration,
                 used_sfx=used_sfx_history,
+                last_sfx_scene_idx=last_sfx_scene_idx,
             )
             if sfx_choice:
                 sfx_out_wav = os.path.join(job_dir, f"temp_sfx_mixed_{i}.wav")
@@ -2108,6 +2094,7 @@ def merge_and_export(
                     audio_path = mixed_res
                     current_sfx_mixed_path = mixed_res
                     used_sfx_history.append(sfx_choice["file"])
+                    last_sfx_scene_idx = i
                     print(f"🔊 [Ultra After Effects SFX] Scene {i+1}/{len(scene_list)}: Applied '{sfx_choice['file']}' (kind={sfx_choice['kind']}, onset={sfx_choice['onset_sec']}s, trigger={sfx_choice['reason']})")
 
         scene_output = os.path.join(job_dir, f"temp_rendered_scene_{i}.mp4")
@@ -2365,9 +2352,11 @@ def merge_and_export(
                     total_scenes=len(scene_list),
                     clip_duration=clip_duration,
                     used_vfx=used_vfx_history,
+                    last_vfx_scene_idx=last_vfx_scene_idx,
                 )
                 if vfx_choice and apply_after_effects_vfx_overlay(scene_output, vfx_choice, clip_duration, target_size, job_dir=job_dir):
                     used_vfx_history.append(vfx_choice["file"])
+                    last_vfx_scene_idx = i
                     print(f"✨ [Ultra After Effects VFX] Scene {i+1}/{len(scene_list)}: Overlaid '{vfx_choice['file']}' (mode={vfx_choice['key_mode']}, trigger={vfx_choice['reason']})")
             except Exception as e_vfx:
                 print(f"⚠️ Ultra After Effects VFX overlay notice: {e_vfx}")

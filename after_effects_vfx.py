@@ -68,6 +68,7 @@ _VFX_STOPWORDS = frozenset({
     "tum", "mera", "meri", "mere", "apna", "apni", "apne", "badal", "badalna",
     "badlaav", "badle", "naya", "nayi", "naye", "bada", "badi", "bade",
     "beta", "beti", "jana", "jaana", "fir", "phir", "rakhe", "rakha", "rakhi",
+    "sakta", "sakti", "sakte", "sakna", "सकता", "सकती", "सकते", "सकना",
     "samay", "waqt", "paisa", "dhandha", "parso", "sabhi", "yahi", "wahi",
     "kahan", "jahan", "chota", "choti", "chote", "insaan", "shehar",
     "parivar", "yaar", "kaam", "raat", "shaam", "subah", "bahar", "andar",
@@ -127,9 +128,9 @@ AFTER_EFFECTS_VFX_CATALOG: List[Dict[str, Any]] = [
         "weight": 4.6,
         "keywords": [
             "spark", "sparks", "sparkle", "fireworks", "firework", "diwali",
-            "cracker", "crackers", "welding", "blaze", "festival",
-            "victory sparks", "roshni", "chingari", "patakha",
-            "चिंगारी", "पटाखा", "दिवाली", "रोशनी", "आतिशबाजी",
+            "cracker", "crackers", "welding", "blaze", "victory sparks",
+            "chingari", "patakha", "aag ki chingari",
+            "चिंगारी", "पटाखा", "दिवाली", "आतिशबाजी",
         ],
     },
     {
@@ -141,11 +142,9 @@ AFTER_EFFECTS_VFX_CATALOG: List[Dict[str, Any]] = [
         "opacity": 0.92,
         "weight": 4.3,
         "keywords": [
-            "paper", "papers", "page", "pages", "exam", "newspaper",
-            "office", "contract", "notes", "bill",
-            "library", "archive", "courtroom", "files flying",
-            "kaagaz", "panna", "kitaab", "patra", "akhbar",
-            "कागज", "पन्ना", "किताब", "अखबार", "नोट",
+            "papers flying", "flying papers", "whirling paper", "paper flutter",
+            "document storm", "exam papers", "documents flying", "files flying",
+            "kaagaz udna", "udte kaagaz", "कागजात उड़ना", "कागज उड़ते",
         ],
     },
     {
@@ -196,11 +195,10 @@ AFTER_EFFECTS_VFX_CATALOG: List[Dict[str, Any]] = [
         "max_dur": 5.20,
         "weight": 4.8,
         "keywords": [
-            "gym", "workout", "exercise", "fitness", "muscle", "strength",
-            "strong", "dumbbell", "weight", "weights", "training", "bodybuilding",
-            "health", "healthy", "stamina", "diet", "protein", "athlete", "pushup",
-            "kasrat", "vyayam", "sehat", "mazboot", "taqat", "body",
-            "जिम", "कसरत", "व्यायाम", "ताकत", "सेहत", "मजबूत", "बॉडी", "वर्कआउट",
+            "gym", "workout", "exercise", "fitness", "muscle", "dumbbell", "weights",
+            "bodybuilding", "biceps", "athlete", "pushup", "bench press",
+            "kasrat", "vyayam", "dand baithak",
+            "जिम", "कसरत", "व्यायाम", "बॉडीबिल्डिंग", "वर्कआउट",
         ],
     },
     {
@@ -212,12 +210,11 @@ AFTER_EFFECTS_VFX_CATALOG: List[Dict[str, Any]] = [
         "height_frac_land": 0.44,
         "height_frac_vert": 0.30,
         "max_dur": 5.60,
-        "weight": 4.3,
+        "weight": 4.5,
         "keywords": [
-            "question", "qution", "doubt", "investigation", "evidence",
-            "explain why", "why did", "how did", "what is",
-            "sawaal", "sawal", "saboot",
-            "सवाल", "सबूत",
+            "question mark", "unsolved question", "puzzling question", "doubt",
+            "investigation question", "sawaal", "sawal", "sandeh", "bada sawaal",
+            "सवाल", "बड़ा सवाल", "संदेह",
         ],
     },
     {
@@ -229,12 +226,11 @@ AFTER_EFFECTS_VFX_CATALOG: List[Dict[str, Any]] = [
         "height_frac_land": 0.42,
         "height_frac_vert": 0.28,
         "max_dur": 5.40,
-        "weight": 4.3,
+        "weight": 4.5,
         "keywords": [
-            "confused", "confusion", "puzzle", "puzzled", "wonder", "unbelievable",
-            "strange", "weird", "baffled", "what happened",
-            "hairan", "pareshan", "kya hua", "ajeeb",
-            "हैरान", "परेशान", "क्या हुआ", "आश्चर्य", "अजीब",
+            "confused", "confusion", "unsolved mystery", "baffling mystery", "puzzled",
+            "hairan", "pareshan", "rahasya", "ajeeb rahasya", "anokha rahasya",
+            "हैरान", "परेशान", "रहस्य", "अजीब रहस्य", "कन्फ्यूजन",
         ],
     },
     {
@@ -678,10 +674,9 @@ AFTER_EFFECTS_VFX_CATALOG: List[Dict[str, Any]] = [
         "opacity": 0.68,
         "weight": 4.5,
         "keywords": [
-            "ink", "darkness", "shadow", "dark", "horror", "ghost", "haunted",
-            "curse", "evil", "devil", "black", "diary", "written", "inkblot",
-            "syahi", "kala", "andhera", "bhoot", "shraap", "shaitaan",
-            "स्याही", "काला", "अंधेरा", "भूत", "डरावना", "ख़ौफ़", "डायरी",
+            "ink", "ink drip", "inkblot", "curse", "cursed", "dark magic", "evil curse",
+            "shadows spreading", "syahi", "shraap", "shaitani", "kaali shakti",
+            "स्याही", "श्राप", "काली शक्ति", "अभिशाप",
         ],
     },
 ]
@@ -791,39 +786,57 @@ def select_after_effects_vfx(
     total_scenes: int = 1,
     clip_duration: float = 5.0,
     used_vfx: Optional[List[str]] = None,
+    last_vfx_scene_idx: Optional[int] = None,
 ) -> Optional[Dict[str, Any]]:
     """
-    Choose the best VFX overlay from `vfx_overlays/` matching the scene script (>= 70% keyword similarity).
-    Ensures one of the 8 `hello*.mp4` effects is picked randomly per multi-scene video.
+    Choose the best VFX overlay from `vfx_overlays/` matching the scene script strictly.
+    Animations trigger ONLY when the spoken script narration explicitly justifies it
+    (semantic keyword hit in spoken narration >= 75% similarity, score >= 4.2).
+    Never fires randomly, never forces hello on Scene 0 unless greeting words are spoken,
+    and enforces a strict video-level budget (max 1 for short videos, max 2 for 7+ scenes)
+    with at least 2 scenes cooldown spacing between overlays.
     """
     if float(clip_duration or 0.0) < 1.6:
         return None
 
     used_vfx = used_vfx or []
+    # Strict video budget: max 1 VFX overlay for <= 6 scenes, max 2 for 7+ scenes
+    max_vfx_budget = 1 if total_scenes <= 6 else 2
+    if len(used_vfx) >= max_vfx_budget:
+        return None
+
+    # Cooldown spacing: require at least 2 scenes gap between overlays
+    if last_vfx_scene_idx is not None and last_vfx_scene_idx >= 0:
+        if scene_idx - last_vfx_scene_idx < 3:
+            return None
+
     tokens = _vfx_tokenize(scene_text)
     joined_text = f" {' '.join(tokens)} " if tokens else ""
-    kw_tokens = _vfx_tokenize(scene_keyword)
-    joined_kw = f" {' '.join(kw_tokens)} " if kw_tokens else ""
-    raw_text = str(scene_text or "").strip()
-
-    if not tokens and not kw_tokens:
+    if not tokens:
         return None
 
     last_file = used_vfx[-1] if used_vfx else None
     used_set = set(used_vfx)
-    has_used_hello = any(f in used_set for f in HELLO_VFX_FILES)
+    has_spoken_greeting = any(t in _HELLO_GREETING_CUES for t in tokens)
 
     best_entry = None
     best_rank_score = -999.0
     best_raw_score = 0.0
     best_reason = ""
     best_has_theme = False
-    best_is_weak_q = False
 
     for entry in AFTER_EFFECTS_VFX_CATALOG:
         fname = entry["file"]
         resolved = resolve_vfx_path(fname)
         if not resolved:
+            continue
+
+        # Cartoon greeting characters ONLY trigger if narration explicitly contains a greeting cue
+        if fname in HELLO_VFX_FILES and not has_spoken_greeting:
+            continue
+
+        # Never repeat the exact same VFX on back-to-back scenes
+        if fname == last_file:
             continue
 
         raw_score = 0.0
@@ -835,50 +848,18 @@ def select_after_effects_vfx(
             if kw in matched_kws:
                 continue
             sim = _vfx_keyword_score(tokens, joined_text, kw)
-            if sim >= 0.70:
+            if sim >= 0.75:
                 matched_kws.append(kw)
                 matched_in_script = True
                 raw_score += float(entry["weight"]) * sim
                 if kw.strip().lower() not in _HELLO_GREETING_CUES:
                     matched_non_greeting = True
-                continue
-            if kw_tokens:
-                kw_sim = _vfx_keyword_score(kw_tokens, joined_kw, kw)
-                if kw_sim >= 0.70:
-                    matched_kws.append(f"kw:{kw}")
-                    raw_score += float(entry["weight"]) * 0.45 * kw_sim
-                    if kw.strip().lower() not in _HELLO_GREETING_CUES:
-                        matched_non_greeting = True
 
-        # Direct '?' punctuation boost for question VFX
-        q_only = False
-        if "?" in raw_text and fname in ("qutiion_efect.mp4", "qution_mark_effect.mp4"):
-            if raw_text.endswith("?"):
-                q_only = (raw_score <= 0.0)
-                matched_in_script = True
-                raw_score += 2.6
-                if not matched_kws:
-                    matched_kws.append("?")
-
-        # Only trigger VFX when spoken script itself supports it (never blind visual_prompt guesses alone)
-        if not matched_in_script and raw_score < 6.0:
+        # Only trigger VFX when spoken script narration itself clears the strict threshold
+        if not matched_in_script or raw_score < 4.2:
             continue
 
-        if raw_score < 2.5:
-            continue
-
-        # Never repeat the exact same VFX on back-to-back scenes
-        if fname == last_file:
-            continue
-
-        rank_score = raw_score - (2.0 if fname in used_set else 0.0)
-        if scene_idx == 0 and fname in HELLO_VFX_FILES:
-            rank_score += 0.3
-
-        is_weak_q = (
-            fname in ("qutiion_efect.mp4", "qution_mark_effect.mp4")
-            and (q_only or raw_score < 6.0)
-        )
+        rank_score = raw_score - (2.5 if fname in used_set else 0.0)
 
         if rank_score > best_rank_score:
             best_rank_score = rank_score
@@ -886,27 +867,14 @@ def select_after_effects_vfx(
             best_entry = entry
             best_reason = matched_kws[0] if matched_kws else "script_match"
             best_has_theme = matched_non_greeting
-            best_is_weak_q = is_weak_q
 
-    # Generic greeting hit (without a specific character theme like vampire/lion/sailor) rotates across ALL 8 hello effects
+    # If a generic greeting hit occurred without a specific character theme, rotate cleanly across hello effects
     if best_entry is not None and best_entry["file"] in HELLO_VFX_FILES and not best_has_theme:
         picked = _pick_random_hello(used_set, last_file)
         if picked:
             best_entry = picked
 
-    # Pick a random hello intro cleanly on Scene 0 (never hijack unrelated middle scenes)
-    if total_scenes >= 2 and not has_used_hello:
-        should_inject_hello = (
-            scene_idx == 0 and (best_entry is None or best_is_weak_q)
-        )
-        if should_inject_hello:
-            picked = _pick_random_hello(used_set, last_file)
-            if picked:
-                best_entry = picked
-                best_raw_score = float(picked["weight"])
-                best_reason = "video_intro_hello" if scene_idx == 0 else "video_random_hello"
-
-    if best_entry is None or best_raw_score < 2.5:
+    if best_entry is None or best_raw_score < 4.2:
         return None
 
     return {
