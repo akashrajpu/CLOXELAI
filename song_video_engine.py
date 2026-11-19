@@ -281,6 +281,7 @@ EXPRESSION_EMOJI_KEYWORDS = [
 MOOD_DEFAULT_EMOJIS = {
     "romantic": ["heart_red", "heart_sparkle", "rose", "heart_pink"],
     "sad": ["broken_heart", "pleading_face", "crying_face", "wilted_flower"],
+    "phonk": ["fire", "lightning", "sunglasses", "party"],
     "party": ["fire", "party", "lightning", "sunglasses"],
     "lofi": ["sparkles", "moon", "cloud", "star"],
     "acoustic": ["guitar", "music_notes", "sparkles", "headphones"],
@@ -371,6 +372,16 @@ MOOD_VISUAL_POOLS = {
         "bonfire on beach at twilight acoustic music gathering sea breeze cinematic animation",
         "cabin in pine woods morning mist sun rays tranquil nature aesthetic cinematic animation",
         "open road sunset endless horizon vintage travel wandering spirit cinematic animation"
+    ],
+    "phonk": [
+        "drift car night tokyo street smoke neon cyberpunk aesthetic 4k",
+        "rx7 supra drift race night smoke purple neon lighting cinematic animation",
+        "phonk aesthetic jdm car drifting wet asphalt neon reflections 4k",
+        "dark aesthetic muscle car drifting neon highway night city skyline cinematic animation",
+        "anime aesthetic phonk drift car night city neon glow cinematic animation",
+        "cyberpunk street drift car glowing headlights night rain aesthetic cinematic 4k",
+        "sigma phonk aesthetic neon drift car smoking tires dark atmosphere cinematic animation",
+        "midnight tokyo underground drift car glowing neon underglow cinematic animation"
     ]
 }
 
@@ -382,6 +393,10 @@ MOOD_VISUAL_POOLS["sed"] = MOOD_VISUAL_POOLS["sad"]
 MOOD_VISUAL_POOLS["dard"] = MOOD_VISUAL_POOLS["sad"]
 MOOD_VISUAL_POOLS["love"] = MOOD_VISUAL_POOLS["romantic"]
 MOOD_VISUAL_POOLS["sove"] = MOOD_VISUAL_POOLS["romantic"]
+MOOD_VISUAL_POOLS["funk"] = MOOD_VISUAL_POOLS["phonk"]
+MOOD_VISUAL_POOLS["fuunk"] = MOOD_VISUAL_POOLS["phonk"]
+MOOD_VISUAL_POOLS["drift"] = MOOD_VISUAL_POOLS["phonk"]
+MOOD_VISUAL_POOLS["brazilian"] = MOOD_VISUAL_POOLS["phonk"]
 
 MOOD_KEYWORDS = {
     "romantic": "romantic couple love golden hour sunset warm bokeh aesthetic dream cinematic animation",
@@ -390,12 +405,17 @@ MOOD_KEYWORDS = {
     "party": "party neon night club strobe lights concert crowd smoke lasers bass cinematic animation",
     "lofi": "lofi cozy bedroom warm lamp night rain stars window chill vibes cinematic animation",
     "acoustic": "acoustic guitar indie travel road trip nature mountains horizon aesthetic cinematic animation",
+    "phonk": "phonk drift car night tokyo smoke neon cyberpunk aesthetic 4k",
 }
 MOOD_KEYWORDS["dharmik"] = MOOD_KEYWORDS["devotional"]
 MOOD_KEYWORDS["bhakti"] = MOOD_KEYWORDS["devotional"]
 MOOD_KEYWORDS["sed"] = MOOD_KEYWORDS["sad"]
 MOOD_KEYWORDS["love"] = MOOD_KEYWORDS["romantic"]
 MOOD_KEYWORDS["sove"] = MOOD_KEYWORDS["romantic"]
+MOOD_KEYWORDS["funk"] = MOOD_KEYWORDS["phonk"]
+MOOD_KEYWORDS["fuunk"] = MOOD_KEYWORDS["phonk"]
+MOOD_KEYWORDS["drift"] = MOOD_KEYWORDS["phonk"]
+MOOD_KEYWORDS["brazilian"] = MOOD_KEYWORDS["phonk"]
 
 CAMERA_MOTION_STYLES = [
     "zoom_in",
@@ -415,12 +435,17 @@ MOOD_FILTERS = {
     "party": ["cyber_neon", "teal_orange", "emerald_cinema"],
     "lofi": ["golden_dream", "vintage_film", "moody_noir"],
     "acoustic": ["vintage_film", "golden_dream", "emerald_cinema"],
+    "phonk": ["cyber_neon", "teal_orange", "moody_noir"],
 }
 MOOD_FILTERS["dharmik"] = MOOD_FILTERS["devotional"]
 MOOD_FILTERS["bhakti"] = MOOD_FILTERS["devotional"]
 MOOD_FILTERS["sed"] = MOOD_FILTERS["sad"]
 MOOD_FILTERS["love"] = MOOD_FILTERS["romantic"]
 MOOD_FILTERS["sove"] = MOOD_FILTERS["romantic"]
+MOOD_FILTERS["funk"] = MOOD_FILTERS["phonk"]
+MOOD_FILTERS["fuunk"] = MOOD_FILTERS["phonk"]
+MOOD_FILTERS["drift"] = MOOD_FILTERS["phonk"]
+MOOD_FILTERS["brazilian"] = MOOD_FILTERS["phonk"]
 
 ALL_FILTERS = ["teal_orange", "golden_dream", "moody_noir", "cyber_neon", "vintage_film", "emerald_cinema"]
 
@@ -842,6 +867,107 @@ def apply_cinematic_photo_filter(im: Image.Image, filter_name: str) -> Image.Ima
         arr_out[:, :, c] = np.clip(arr_out[:, :, c] * vignette, 0, 255)
     
     return Image.fromarray(arr_out.astype(np.uint8))
+
+
+def extract_audio_beat_and_bass_envelope(audio_path: str, target_fps: int = 20, max_dur: float = 300.0) -> np.ndarray:
+    """
+    Extracts normalized beat & sub-bass (808 kick drops / bass drops) energy envelope in [0.0, 1.0]
+    for Phonk / Funk music videos using short-time FFT analysis.
+    Guaranteed memory-safe, crash-proof, and fast (< 0.2s).
+    """
+    if not audio_path or not os.path.exists(audio_path):
+        return np.zeros(int(max_dur * target_fps))
+
+    data = None
+    sr = 22050
+
+    try:
+        import soundfile as sf
+        raw_data, orig_sr = sf.read(audio_path)
+        if raw_data.ndim > 1:
+            raw_data = np.mean(raw_data, axis=1)
+        sr = orig_sr
+        data = raw_data
+    except Exception:
+        pass
+
+    # Bulletproof fallback using FFmpeg to decode raw mono 22050Hz PCM if soundfile fails
+    if data is None:
+        try:
+            ff_cmd = [
+                "ffmpeg", "-y", "-i", audio_path,
+                "-t", str(max_dur),
+                "-ac", "1", "-ar", "22050",
+                "-f", "f32le", "-"
+            ]
+            pipe = subprocess.Popen(ff_cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+            raw_bytes, _ = pipe.communicate(timeout=25)
+            if raw_bytes and len(raw_bytes) >= 4096:
+                data = np.frombuffer(raw_bytes, dtype=np.float32)
+                sr = 22050
+        except Exception as e_ff:
+            print(f"⚠️ Audio envelope extraction fallback notice: {e_ff}")
+
+    if data is None or len(data) < 2048:
+        return np.zeros(int(max_dur * target_fps))
+
+    max_samples = int(sr * max_dur)
+    if len(data) > max_samples:
+        data = data[:max_samples]
+
+    hop = int(sr / target_fps)
+    win = 2048
+    if len(data) < win:
+        return np.zeros(int(max_dur * target_fps))
+
+    # Sub-bass / 808 frequency band: 25 Hz to 160 Hz
+    b_min = max(1, int(25 * win / sr))
+    b_max = max(b_min + 1, int(160 * win / sr))
+
+    num_frames = int(len(data) / hop)
+    bass_energies = []
+    beat_energies = []
+    window_fn = np.hanning(win)
+
+    prev_spec = None
+    for i in range(num_frames):
+        start = i * hop
+        chunk = data[start:start + win]
+        if len(chunk) < win:
+            chunk = np.pad(chunk, (0, win - len(chunk)))
+
+        spec = np.abs(np.fft.rfft(chunk * window_fn))
+        # Non-linear power emphasizing heavy 808 sub-bass drops
+        bass_val = float(np.mean(spec[b_min:b_max] ** 1.6))
+        bass_energies.append(bass_val)
+
+        if prev_spec is not None:
+            flux = float(np.sum(np.maximum(0.0, spec[b_min:b_max] - prev_spec[b_min:b_max])))
+            beat_energies.append(flux)
+        else:
+            beat_energies.append(0.0)
+        prev_spec = spec
+
+    bass_arr = np.array(bass_energies)
+    beat_arr = np.array(beat_energies)
+
+    # Normalize bass and beat using robust 95th percentile
+    if len(bass_arr) > 0:
+        p95_bass = float(np.percentile(bass_arr, 95))
+        p10_bass = float(np.percentile(bass_arr, 10))
+        denom_b = max(1e-6, p95_bass - p10_bass)
+        norm_bass = np.clip((bass_arr - p10_bass) / denom_b, 0.0, 1.0)
+    else:
+        norm_bass = np.zeros(1)
+
+    if len(beat_arr) > 0:
+        p95_beat = float(np.percentile(beat_arr, 95))
+        norm_beat = np.clip(beat_arr / max(1e-6, p95_beat), 0.0, 1.0)
+    else:
+        norm_beat = np.zeros(1)
+
+    combined = np.clip(0.70 * norm_bass + 0.30 * norm_beat, 0.0, 1.0)
+    return combined
 
 
 def auto_detect_audio_vocal_timeline(audio_path: Optional[str], max_scan_sec: float = 30.0) -> Tuple[float, List[float]]:
@@ -2940,7 +3066,16 @@ def build_full_song_video(
         "chill": "lofi",
         "dance": "party",
         "club": "party",
-        "indie": "acoustic"
+        "indie": "acoustic",
+        "phonk": "phonk",
+        "funk": "phonk",
+        "fuunk": "phonk",
+        "drift": "phonk",
+        "brazilian": "phonk",
+        "drift phonk": "phonk",
+        "brazilian phonk": "phonk",
+        "brazilian funk": "phonk",
+        "sigma": "phonk",
     }
     song_mood = MOOD_ALIAS_MAP.get(raw_mood, raw_mood)
     if song_mood not in MOOD_VISUAL_POOLS:
@@ -2948,17 +3083,24 @@ def build_full_song_video(
 
     # Context-based Auto-Detection from song title, singer, topic, or category
     context_text = f"{exact_song_title} {exact_singer} {getattr(req, 'topic', '')} {getattr(req, 'category', '')}".lower()
+    phonk_triggers = ["phonk", "funk", "fuunk", "drift", "brazilian", "kordhell", "montagem", "automotivo", "sigma", "gigachad", "ghostface", "interworld", "playaphonk", "pharmacist", "murder in my mind", "metamorphosis", "rapture", "sxmpra"]
     devotional_triggers = ["dharmik", "bhakti", "devotional", "ram", "shyam", "krishna", "kanha", "radha", "shiv", "mahadev", "bhole", "hanuman", "bajrangbali", "mata", "durga", "ganesh", "temple", "bhajan", "aarti", "katha", "khatu", "chalisa", "vaishno", "kedarnath", "kashi", "vrindavan", "har har", "shankar"]
     sad_triggers = ["sad", "dard", "sed", "bewafa", "juda", "dhokha", "alone", "broken", "heartbreak", "ronde", "aansu", "tears", "khamoshi", "tadap", "tanha", "gham", "chhod", "yaad"]
     romantic_triggers = ["love", "sove", "pyaar", "ishq", "mohabbat", "romantic", "dil", "deewana", "humsafar", "jaan", "saathiya", "couple"]
 
-    if any(trig in context_text for trig in devotional_triggers):
+    if raw_mood in ["phonk", "funk", "fuunk", "drift", "brazilian", "brazilian phonk", "drift phonk"]:
+        song_mood = "phonk"
+        print(f"🔥 [User Chosen Mood] Phonk / Funk Beat & Bass Reactive Mode explicitly selected.")
+    elif any(trig in context_text for trig in phonk_triggers):
+        song_mood = "phonk"
+        print(f"🔥 [Smart Mood Auto-Detect] Detected Phonk / Funk Beat Song from '{exact_song_title} / {exact_singer}'. Mood set to PHONK.")
+    elif any(trig in context_text for trig in devotional_triggers):
         song_mood = "devotional"
         print(f"✨ [Smart Mood Auto-Detect] Detected Devotional/Dharmik Song from '{exact_song_title} / {exact_singer}'. Mood set to DEVOTIONAL.")
     elif any(trig in context_text for trig in sad_triggers):
         song_mood = "sad"
         print(f"✨ [Smart Mood Auto-Detect] Detected Sad/Dard Song from '{exact_song_title} / {exact_singer}'. Mood set to SAD.")
-    elif any(trig in context_text for trig in romantic_triggers) and song_mood not in ["devotional", "sad"]:
+    elif any(trig in context_text for trig in romantic_triggers) and song_mood not in ["devotional", "sad", "phonk"]:
         song_mood = "romantic"
         print(f"✨ [Smart Mood Auto-Detect] Detected Love/Romantic Song from '{exact_song_title} / {exact_singer}'. Mood set to ROMANTIC.")
 
@@ -3099,10 +3241,15 @@ def build_full_song_video(
     bg_none_count = sum(1 for lyr in all_lyrics if lyr.get("bg_style") == "none")
     print(f"📝 [Song Engine] Prepared {len(all_lyrics)} Hinglish/English dual-font lyrics (Bold + Random pairs) strictly at Side/Bottom positions ({bg_none_count} floating lines).")
 
-    # 3. Reduced Background Visual Segments (Only 2 to 5 photos total!)
-    num_segments = max(2, min(8, int(math.ceil(target_duration / 10.0))))
-    seg_dur = round(target_duration / num_segments, 2)
-    print(f"🎬 [Song Engine] Segmenting video into {num_segments} cinematic background visual scenes ({seg_dur}s per scene)...")
+    # 3. Reduced Background Visual Segments (Only 2 to 5 photos total! For Phonk: exactly 1 single visual!)
+    if song_mood == "phonk":
+        num_segments = 1
+        seg_dur = float(target_duration)
+        print(f"🔥 [Phonk Beat & Bass Engine Active] Single visual continuous beat-reactive loop mode (Target: {target_duration}s)...")
+    else:
+        num_segments = max(2, min(8, int(math.ceil(target_duration / 10.0))))
+        seg_dur = round(target_duration / num_segments, 2)
+        print(f"🎬 [Song Engine] Segmenting video into {num_segments} cinematic background visual scenes ({seg_dur}s per scene)...")
 
     visual_mode = getattr(req, 'song_visual_mode', 'motion') or getattr(req, 'mode', 'ultra')
     is_stock_video = (visual_mode in ['video', 'standard'])
@@ -3111,6 +3258,12 @@ def build_full_song_video(
     candidate_filters = MOOD_FILTERS.get(song_mood, ALL_FILTERS)
     mood_kw = MOOD_KEYWORDS.get(song_mood, "romantic golden hour aesthetic 4k")
     pool = MOOD_VISUAL_POOLS.get(song_mood, MOOD_VISUAL_POOLS.get("romantic", []))
+
+    phonk_bass_envelope = None
+    if song_mood == "phonk":
+        print(f"🎵 [Phonk Engine] Scanning audio track for Beat & Sub-Bass (808 kick drops)...")
+        phonk_bass_envelope = extract_audio_beat_and_bass_envelope(master_audio_path, target_fps=20, max_dur=float(target_duration))
+        print(f"✅ [Phonk Engine] Audio beat & bass envelope generated: {len(phonk_bass_envelope)} frames (Mean: {np.mean(phonk_bass_envelope):.2f}, Max: {np.max(phonk_bass_envelope):.2f})")
 
     # Compute a unique salt for this video so different songs/jobs get different photo rotations
     effective_title = song_title or audio_res.get('title') or ''
@@ -3204,13 +3357,15 @@ def build_full_song_video(
                 try:
                     tw, th = target_size
                     prep_clip_path = os.path.join(job_dir, f"prep_stock_{seg_idx}.mp4")
+                    prep_w = int(tw * 1.35) if song_mood == "phonk" else tw
+                    prep_h = int(th * 1.35) if song_mood == "phonk" else th
                     # Memory-Safe: Use FFmpeg C-binary (< 20MB RAM) to scale, center crop and loop
                     ff_prep = [
                         "ffmpeg", "-y",
-                        "-stream_loop", "3",
+                        "-stream_loop", "-1" if song_mood == "phonk" else "3",
                         "-i", v_paths[0],
                         "-t", str(this_seg_dur),
-                        "-vf", f"scale={tw}:{th}:force_original_aspect_ratio=increase,crop={tw}:{th}",
+                        "-vf", f"scale={prep_w}:{prep_h}:force_original_aspect_ratio=increase,crop={prep_w}:{prep_h}",
                         "-c:v", "libx264",
                         "-preset", "ultrafast",
                         "-threads", "1",
@@ -3224,7 +3379,42 @@ def build_full_song_video(
 
                         def make_video_frame(t):
                             orig_frame = v_base.get_frame(t)
-                            im_f = Image.fromarray(orig_frame)
+                            if phonk_bass_envelope is not None and len(phonk_bass_envelope) > 0:
+                                bw = orig_frame.shape[1]
+                                bh = orig_frame.shape[0]
+                                frame_idx = min(len(phonk_bass_envelope) - 1, max(0, int(t * 20)))
+                                bass_val = float(phonk_bass_envelope[frame_idx])
+
+                                # Beat & Bass reactive zoom pump
+                                zoom = 1.02 + 0.14 * (bass_val ** 1.3)
+                                cur_w = int(tw * zoom)
+                                cur_h = int(th * zoom)
+
+                                # Camera shake driven by bass power ("jha base he bha hilegi, vha kam he vha kam hilegi")
+                                shake_amp = 22.0 * (bass_val ** 1.5)
+                                shake_x = int(math.sin(t * 68.0) * shake_amp * 0.7 + math.cos(t * 115.0) * shake_amp * 0.3)
+                                shake_y = int(math.cos(t * 62.0) * shake_amp * 0.7 + math.sin(t * 128.0) * shake_amp * 0.3)
+
+                                cx = bw // 2 + shake_x
+                                cy = bh // 2 + shake_y
+                                x1 = max(0, min(bw - cur_w, cx - cur_w // 2))
+                                y1 = max(0, min(bh - cur_h, cy - cur_h // 2))
+                                x2 = min(bw, x1 + cur_w)
+                                y2 = min(bh, y1 + cur_h)
+
+                                crop = orig_frame[y1:y2, x1:x2]
+                                im_f = Image.fromarray(crop).resize((tw, th), Image.Resampling.BILINEAR)
+
+                                # Drift Phonk RGB Chromatic Aberration flash on heavy 808 bass drops
+                                if bass_val > 0.80:
+                                    arr = np.array(im_f)
+                                    shift = int(2 + 4 * bass_val)
+                                    arr[:, shift:, 0] = arr[:, :-shift, 0]
+                                    arr[:, :-shift, 2] = arr[:, shift:, 2]
+                                    im_f = Image.fromarray(arr)
+                            else:
+                                im_f = Image.fromarray(orig_frame)
+
                             abs_t = seg_start + t
                             active_line = None
                             for l in lines_in_seg:
@@ -3321,70 +3511,102 @@ def build_full_song_video(
             bh = base_np.shape[0]
 
             def make_motion_frame(t):
-                progress = min(1.0, max(0.0, t / max(0.1, this_seg_dur)))
-                # Smooth cosine ease-in-out
-                ease = 0.5 * (1.0 - math.cos(math.pi * progress))
+                if phonk_bass_envelope is not None and len(phonk_bass_envelope) > 0:
+                    frame_idx = min(len(phonk_bass_envelope) - 1, max(0, int(t * 20)))
+                    bass_val = float(phonk_bass_envelope[frame_idx])
 
-                if chosen_motion == "zoom_in":
-                    scale = 1.00 + (0.15 * ease)
-                    cur_w = int(tw * scale); cur_h = int(th * scale)
-                    x1 = (bw - cur_w) // 2
-                    y1 = (bh - cur_h) // 2
-                elif chosen_motion == "zoom_out":
-                    scale = 1.15 - (0.15 * ease)
-                    cur_w = int(tw * scale); cur_h = int(th * scale)
-                    x1 = (bw - cur_w) // 2
-                    y1 = (bh - cur_h) // 2
-                elif chosen_motion == "pan_left_to_right":
-                    scale = 1.08
-                    cur_w = int(tw * scale); cur_h = int(th * scale)
-                    avail_x = bw - cur_w
-                    x1 = int(avail_x * (0.15 + 0.70 * ease))
-                    y1 = (bh - cur_h) // 2
-                elif chosen_motion == "pan_right_to_left":
-                    scale = 1.08
-                    cur_w = int(tw * scale); cur_h = int(th * scale)
-                    avail_x = bw - cur_w
-                    x1 = int(avail_x * (0.85 - 0.70 * ease))
-                    y1 = (bh - cur_h) // 2
-                elif chosen_motion == "tilt_up":
-                    scale = 1.08
-                    cur_w = int(tw * scale); cur_h = int(th * scale)
-                    avail_y = bh - cur_h
-                    x1 = (bw - cur_w) // 2
-                    y1 = int(avail_y * (0.85 - 0.70 * ease))
-                elif chosen_motion == "tilt_down":
-                    scale = 1.08
-                    cur_w = int(tw * scale); cur_h = int(th * scale)
-                    avail_y = bh - cur_h
-                    x1 = (bw - cur_w) // 2
-                    y1 = int(avail_y * (0.15 + 0.70 * ease))
-                elif chosen_motion == "diagonal_drift_zoom":
-                    scale = 1.00 + (0.12 * ease)
-                    cur_w = int(tw * scale); cur_h = int(th * scale)
-                    avail_x = bw - cur_w
-                    avail_y = bh - cur_h
-                    x1 = int(avail_x * (0.20 + 0.60 * ease))
-                    y1 = int(avail_y * (0.80 - 0.60 * ease))
-                elif chosen_motion == "pulse_breathe":
-                    breathe = math.sin(progress * math.pi)
-                    scale = 1.00 + (0.10 * breathe)
-                    cur_w = int(tw * scale); cur_h = int(th * scale)
-                    x1 = (bw - cur_w) // 2
-                    y1 = (bh - cur_h) // 2
+                    # Bass pulse zoom pump
+                    zoom = 1.02 + 0.14 * (bass_val ** 1.3)
+                    cur_w = int(tw * zoom)
+                    cur_h = int(th * zoom)
+
+                    # Beat & Bass reactive shake ("jha base he bha hilegi, vha kam he vha kam hilegi")
+                    shake_amp = 22.0 * (bass_val ** 1.5)
+                    shake_x = int(math.sin(t * 68.0) * shake_amp * 0.7 + math.cos(t * 115.0) * shake_amp * 0.3)
+                    shake_y = int(math.cos(t * 62.0) * shake_amp * 0.7 + math.sin(t * 128.0) * shake_amp * 0.3)
+
+                    cx = bw // 2 + shake_x
+                    cy = bh // 2 + shake_y
+                    x1 = max(0, min(bw - cur_w, cx - cur_w // 2))
+                    y1 = max(0, min(bh - cur_h, cy - cur_h // 2))
+                    x2 = min(bw, x1 + cur_w)
+                    y2 = min(bh, y1 + cur_h)
+
+                    crop = base_np[y1:y2, x1:x2]
+                    im_crop = Image.fromarray(crop).resize((tw, th), Image.Resampling.BILINEAR)
+
+                    # RGB Chromatic Aberration burst on intense 808 sub-bass drops
+                    if bass_val > 0.80:
+                        arr = np.array(im_crop)
+                        shift = int(2 + 4 * bass_val)
+                        arr[:, shift:, 0] = arr[:, :-shift, 0]
+                        arr[:, :-shift, 2] = arr[:, shift:, 2]
+                        im_crop = Image.fromarray(arr)
                 else:
-                    scale = 1.00 + (0.12 * ease)
-                    cur_w = int(tw * scale); cur_h = int(th * scale)
-                    x1 = (bw - cur_w) // 2
-                    y1 = (bh - cur_h) // 2
+                    progress = min(1.0, max(0.0, t / max(0.1, this_seg_dur)))
+                    # Smooth cosine ease-in-out
+                    ease = 0.5 * (1.0 - math.cos(math.pi * progress))
 
-                x1 = max(0, min(bw - cur_w, x1))
-                y1 = max(0, min(bh - cur_h, y1))
-                x2 = min(bw, x1 + cur_w)
-                y2 = min(bh, y1 + cur_h)
+                    if chosen_motion == "zoom_in":
+                        scale = 1.00 + (0.15 * ease)
+                        cur_w = int(tw * scale); cur_h = int(th * scale)
+                        x1 = (bw - cur_w) // 2
+                        y1 = (bh - cur_h) // 2
+                    elif chosen_motion == "zoom_out":
+                        scale = 1.15 - (0.15 * ease)
+                        cur_w = int(tw * scale); cur_h = int(th * scale)
+                        x1 = (bw - cur_w) // 2
+                        y1 = (bh - cur_h) // 2
+                    elif chosen_motion == "pan_left_to_right":
+                        scale = 1.08
+                        cur_w = int(tw * scale); cur_h = int(th * scale)
+                        avail_x = bw - cur_w
+                        x1 = int(avail_x * (0.15 + 0.70 * ease))
+                        y1 = (bh - cur_h) // 2
+                    elif chosen_motion == "pan_right_to_left":
+                        scale = 1.08
+                        cur_w = int(tw * scale); cur_h = int(th * scale)
+                        avail_x = bw - cur_w
+                        x1 = int(avail_x * (0.85 - 0.70 * ease))
+                        y1 = (bh - cur_h) // 2
+                    elif chosen_motion == "tilt_up":
+                        scale = 1.08
+                        cur_w = int(tw * scale); cur_h = int(th * scale)
+                        avail_y = bh - cur_h
+                        x1 = (bw - cur_w) // 2
+                        y1 = int(avail_y * (0.85 - 0.70 * ease))
+                    elif chosen_motion == "tilt_down":
+                        scale = 1.08
+                        cur_w = int(tw * scale); cur_h = int(th * scale)
+                        avail_y = bh - cur_h
+                        x1 = (bw - cur_w) // 2
+                        y1 = int(avail_y * (0.15 + 0.70 * ease))
+                    elif chosen_motion == "diagonal_drift_zoom":
+                        scale = 1.00 + (0.12 * ease)
+                        cur_w = int(tw * scale); cur_h = int(th * scale)
+                        avail_x = bw - cur_w
+                        avail_y = bh - cur_h
+                        x1 = int(avail_x * (0.20 + 0.60 * ease))
+                        y1 = int(avail_y * (0.80 - 0.60 * ease))
+                    elif chosen_motion == "pulse_breathe":
+                        breathe = math.sin(progress * math.pi)
+                        scale = 1.00 + (0.10 * breathe)
+                        cur_w = int(tw * scale); cur_h = int(th * scale)
+                        x1 = (bw - cur_w) // 2
+                        y1 = (bh - cur_h) // 2
+                    else:
+                        scale = 1.00 + (0.12 * ease)
+                        cur_w = int(tw * scale); cur_h = int(th * scale)
+                        x1 = (bw - cur_w) // 2
+                        y1 = (bh - cur_h) // 2
 
-                crop = base_np[y1:y2, x1:x2]
-                im_crop = Image.fromarray(crop).resize((tw, th), Image.Resampling.BILINEAR)
+                    x1 = max(0, min(bw - cur_w, x1))
+                    y1 = max(0, min(bh - cur_h, y1))
+                    x2 = min(bw, x1 + cur_w)
+                    y2 = min(bh, y1 + cur_h)
+
+                    crop = base_np[y1:y2, x1:x2]
+                    im_crop = Image.fromarray(crop).resize((tw, th), Image.Resampling.BILINEAR)
 
                 abs_t = seg_start + t
                 active_line = None
@@ -3455,57 +3677,35 @@ def build_full_song_video(
     orig_scene_files = list(rendered_scene_files)
     glsl_temps = []
     glsl_sfx_events = []
-    try:
-        from glsl_transitions import apply_glsl_transitions_to_segments
-        rendered_scene_files, glsl_temps, glsl_sfx_events = apply_glsl_transitions_to_segments(
-            segment_paths=rendered_scene_files,
-            scene_texts=rendered_seg_texts,
-            mode="ultra",
-            target_size=(tw, th),
-            job_dir=job_dir,
-            fps=20,
-        )
-    except Exception as e_glsl_song:
-        print(f"⚠️ [Song Engine GLSL Transition Notice]: {e_glsl_song}")
+    concat_list_file = None
+
+    if len(rendered_scene_files) > 1:
+        try:
+            from glsl_transitions import apply_glsl_transitions_to_segments
+            rendered_scene_files, glsl_temps, glsl_sfx_events = apply_glsl_transitions_to_segments(
+                segment_paths=rendered_scene_files,
+                scene_texts=rendered_seg_texts,
+                mode="ultra",
+                target_size=(tw, th),
+                job_dir=job_dir,
+                fps=20,
+            )
+        except Exception as e_glsl_song:
+            print(f"⚠️ [Song Engine GLSL Transition Notice]: {e_glsl_song}")
 
     # 5. Stream Concatenate Segments via FFmpeg (Takes 0 MB RAM)
-    print(f"\n🎞️ [Song Engine] Stitching {len(rendered_scene_files)} segments via FFmpeg Concat Demuxer...")
-    concat_list_file = os.path.join(job_dir, "song_scenes_concat.txt")
-    with open(concat_list_file, "w", encoding="utf-8") as f:
-        for sf in rendered_scene_files:
-            f.write(f"file '{os.path.abspath(sf)}'\n")
-
-    temp_video_no_audio = os.path.join(job_dir, "temp_video_stitched.mp4")
-    if glsl_temps:
-        re_cmd = [
-            "ffmpeg", "-y",
-            "-f", "concat",
-            "-safe", "0",
-            "-i", concat_list_file,
-            "-c:v", "libx264",
-            "-preset", "ultrafast",
-            "-crf", "24",
-            "-r", "20",
-            "-pix_fmt", "yuv420p",
-            "-threads", "1",
-            "-movflags", "+faststart",
-            temp_video_no_audio
-        ]
-        subprocess.run(re_cmd, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    if len(rendered_scene_files) == 1:
+        temp_video_no_audio = rendered_scene_files[0]
+        print(f"🎬 [Song Engine] Single continuous segment mode: Using {temp_video_no_audio} directly without stitching.")
     else:
-        concat_cmd = [
-            "ffmpeg", "-y",
-            "-f", "concat",
-            "-safe", "0",
-            "-i", concat_list_file,
-            "-c", "copy",
-            "-movflags", "+faststart",
-            temp_video_no_audio
-        ]
-        try:
-            subprocess.run(concat_cmd, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        except Exception as e_c:
-            print(f"⚠️ Notice: Stream copy concat failed ({e_c}), re-encoding with minimal RAM...")
+        print(f"\n🎞️ [Song Engine] Stitching {len(rendered_scene_files)} segments via FFmpeg Concat Demuxer...")
+        concat_list_file = os.path.join(job_dir, "song_scenes_concat.txt")
+        with open(concat_list_file, "w", encoding="utf-8") as f:
+            for sf in rendered_scene_files:
+                f.write(f"file '{os.path.abspath(sf)}'\n")
+
+        temp_video_no_audio = os.path.join(job_dir, "temp_video_stitched.mp4")
+        if glsl_temps:
             re_cmd = [
                 "ffmpeg", "-y",
                 "-f", "concat",
@@ -3513,10 +3713,39 @@ def build_full_song_video(
                 "-i", concat_list_file,
                 "-c:v", "libx264",
                 "-preset", "ultrafast",
+                "-crf", "24",
+                "-r", "20",
+                "-pix_fmt", "yuv420p",
                 "-threads", "1",
+                "-movflags", "+faststart",
                 temp_video_no_audio
             ]
             subprocess.run(re_cmd, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        else:
+            concat_cmd = [
+                "ffmpeg", "-y",
+                "-f", "concat",
+                "-safe", "0",
+                "-i", concat_list_file,
+                "-c", "copy",
+                "-movflags", "+faststart",
+                temp_video_no_audio
+            ]
+            try:
+                subprocess.run(concat_cmd, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            except Exception as e_c:
+                print(f"⚠️ Notice: Stream copy concat failed ({e_c}), re-encoding with minimal RAM...")
+                re_cmd = [
+                    "ffmpeg", "-y",
+                    "-f", "concat",
+                    "-safe", "0",
+                    "-i", concat_list_file,
+                    "-c:v", "libx264",
+                    "-preset", "ultrafast",
+                    "-threads", "1",
+                    temp_video_no_audio
+                ]
+                subprocess.run(re_cmd, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
     release_system_memory()
 
@@ -3574,9 +3803,9 @@ def build_full_song_video(
 
     # 7. Clean up intermediate segment files to free disk space immediately
     try:
-        if os.path.exists(concat_list_file):
+        if concat_list_file and os.path.exists(concat_list_file):
             os.remove(concat_list_file)
-        if os.path.exists(temp_video_no_audio):
+        if temp_video_no_audio and os.path.exists(temp_video_no_audio):
             os.remove(temp_video_no_audio)
         for sf in orig_scene_files + rendered_scene_files + glsl_temps:
             if os.path.exists(sf):

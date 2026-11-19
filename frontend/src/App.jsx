@@ -497,7 +497,7 @@ function App() {
   const [isAudioUploading, setIsAudioUploading] = useState(false);
   const [songVisualMode, setSongVisualMode] = useState('motion'); // 'motion' | 'video'
   const [songLyrics, setSongLyrics] = useState('');
-  const [songMood, setSongMood] = useState('romantic'); // 'romantic' | 'sad' | 'party' | 'lofi' | 'acoustic' | 'devotional'
+  const [songMood, setSongMood] = useState('romantic'); // 'romantic' | 'sad' | 'party' | 'lofi' | 'acoustic' | 'devotional' | 'phonk'
   const isSongVideoMode = (videoType === 'ultra') && (
     category === '🎵 Song Video' || 
     (category || '').toLowerCase().includes('song video')
@@ -2263,6 +2263,7 @@ function App() {
                     { id: 'lofi', label: '🌙 Lo-Fi / Chill Vibes', desc: 'Cozy Room & Night Stars' },
                     { id: 'acoustic', label: '🎸 Acoustic / Indie', desc: 'Nature & Misty Road' },
                     { id: 'devotional', label: '💫 Devotional / Bhakti', desc: 'Golden Temple & Divine' },
+                    { id: 'phonk', label: '🔥 Phonk / Funk / Drift', desc: 'Beat & Bass Reactive Shake' },
                   ].map(m => (
                     <button
                       key={m.id}
@@ -2288,7 +2289,9 @@ function App() {
                   ))}
                 </div>
                 <span style={{ fontSize: '0.74rem', color: '#94a3b8', display: 'block', marginTop: '6px' }}>
-                  💡 Is category ke anusaar background photos ka mood aur cinematic color filters (Teal & Orange, Moody Noir, Golden Glow, etc.) auto-apply honge!
+                  {songMood === 'phonk'
+                    ? '🔥 Phonk / Funk Mode Active: 1 Single continuous visual (photo or looped video) with 808 Sub-Bass audio engine — bass ke hisab se camera shake aur beat zoom pump hoga!'
+                    : '💡 Is category ke anusaar background photos ka mood aur cinematic color filters (Teal & Orange, Moody Noir, Golden Glow, etc.) auto-apply honge!'}
                 </span>
               </div>
 
