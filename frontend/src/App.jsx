@@ -1553,7 +1553,7 @@ function App() {
           singer_name: singerName,
           song_title: songTitle,
           song_visual_mode: songVisualMode,
-          song_lyrics: isSongVideoMode ? (songLyrics || '') : '',
+          song_lyrics: isSongVideoMode ? ((songMood === 'phonk' || songVisualMode === 'beat') ? '' : (songLyrics || '')) : '',
           song_mood: songMood,
           phonk_visualizer_style: phonkVisualizerStyle,
           phonk_logo_image_path: phonkLogoPath || null,
@@ -2738,73 +2738,99 @@ function App() {
               )}
 
 
-              {/* Step 5: Typography & Multi-Font Style */}
-              <div style={{ marginBottom: '1.2rem', background: 'rgba(15, 23, 42, 0.5)', padding: '14px', borderRadius: '14px', border: '1px solid rgba(255,255,255,0.08)' }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-                  <label style={{ fontSize: '0.88rem', fontWeight: '800', color: '#e2e8f0', margin: 0 }}>
-                    5. Typography & Multi-Font Engine (5+ Fonts & Typewriter Printer)
-                  </label>
-                  <span style={{ fontSize: '0.74rem', color: '#38bdf8', fontWeight: 'bold' }}>
-                    🖨️ Typewriter Printer Animation Active
-                  </span>
-                </div>
-                <div className="responsive-grid-2" style={{ gap: '10px' }}>
-                  <div>
-                    <label style={{ fontSize: '0.78rem', color: '#cbd5e1', display: 'block', marginBottom: '4px' }}>Primary Font Vibe</label>
-                    <CustomSelect
-                      theme={theme}
-                      value={fontName}
-                      onChange={(val) => setFontName(val)}
-                      options={(fontList && fontList.length > 0 ? fontList : ['Arial.ttf']).map(font => {
-                        const isHindi = font.toLowerCase().startsWith('ams ') || font.toLowerCase().includes('devanagari');
-                        const clean = font.replace(/\.[^/.]+$/, '');
-                        return {
-                          value: font,
-                          label: isHindi ? `${clean} (Hindi / AMS)` : clean,
-                          fontFamily: clean
-                        };
-                      })}
-                    />
+              {/* Step 5 & 6: Typography & Song Lyrics (Active only in Standard / Motion Video Modes; Bypassed in Clean Beat Visualizer & Phonk) */}
+              {!(songMood === 'phonk' || songVisualMode === 'beat') ? (
+                <>
+                  {/* Step 5: Typography & Multi-Font Style */}
+                  <div style={{ marginBottom: '1.2rem', background: 'rgba(15, 23, 42, 0.5)', padding: '14px', borderRadius: '14px', border: '1px solid rgba(255,255,255,0.08)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                      <label style={{ fontSize: '0.88rem', fontWeight: '800', color: '#e2e8f0', margin: 0 }}>
+                        5. Typography & Multi-Font Engine (5+ Fonts & Typewriter Printer)
+                      </label>
+                      <span style={{ fontSize: '0.74rem', color: '#38bdf8', fontWeight: 'bold' }}>
+                        🖨️ Typewriter Printer Animation Active
+                      </span>
+                    </div>
+                    <div className="responsive-grid-2" style={{ gap: '10px' }}>
+                      <div>
+                        <label style={{ fontSize: '0.78rem', color: '#cbd5e1', display: 'block', marginBottom: '4px' }}>Primary Font Vibe</label>
+                        <CustomSelect
+                          theme={theme}
+                          value={fontName}
+                          onChange={(val) => setFontName(val)}
+                          options={(fontList && fontList.length > 0 ? fontList : ['Arial.ttf']).map(font => {
+                            const isHindi = font.toLowerCase().startsWith('ams ') || font.toLowerCase().includes('devanagari');
+                            const clean = font.replace(/\.[^/.]+$/, '');
+                            return {
+                              value: font,
+                              label: isHindi ? `${clean} (Hindi / AMS)` : clean,
+                              fontFamily: clean
+                            };
+                          })}
+                        />
+                      </div>
+                      <div>
+                        <label style={{ fontSize: '0.78rem', color: '#cbd5e1', display: 'block', marginBottom: '4px' }}>Primary Lyrics Accent Glow</label>
+                        <CustomSelect
+                          theme={theme}
+                          value={fontColor}
+                          onChange={(val) => setFontColor(val)}
+                          options={[
+                            { value: 'yellow', label: '🌟 Vibrant Neon Yellow' },
+                            { value: 'white', label: '🤍 Minimal Clean White' },
+                            { value: 'cyan', label: '💎 Cyberpunk Cyan Blue' },
+                            { value: 'pink', label: '🌸 Hot Pink Glow' },
+                            { value: 'gold', label: '👑 Luxury Royal Gold' }
+                          ]}
+                        />
+                      </div>
+                    </div>
+                    <span style={{ fontSize: '0.74rem', color: '#94a3b8', display: 'block', marginTop: '6px' }}>
+                      ✨ Ek hi video me automatically 5+ premium fonts (Mukta, Kalam, Yatra One, Devanagari, Rozha, Bebas) typewriter printer effect aur dynamic locations par chalenge!
+                    </span>
                   </div>
-                  <div>
-                    <label style={{ fontSize: '0.78rem', color: '#cbd5e1', display: 'block', marginBottom: '4px' }}>Primary Lyrics Accent Glow</label>
-                    <CustomSelect
-                      theme={theme}
-                      value={fontColor}
-                      onChange={(val) => setFontColor(val)}
-                      options={[
-                        { value: 'yellow', label: '🌟 Vibrant Neon Yellow' },
-                        { value: 'white', label: '🤍 Minimal Clean White' },
-                        { value: 'cyan', label: '💎 Cyberpunk Cyan Blue' },
-                        { value: 'pink', label: '🌸 Hot Pink Glow' },
-                        { value: 'gold', label: '👑 Luxury Royal Gold' }
-                      ]}
-                    />
-                  </div>
-                </div>
-                <span style={{ fontSize: '0.74rem', color: '#94a3b8', display: 'block', marginTop: '6px' }}>
-                  ✨ Ek hi video me automatically 5+ premium fonts (Mukta, Kalam, Yatra One, Devanagari, Rozha, Bebas) typewriter printer effect aur dynamic locations par chalenge!
-                </span>
-              </div>
 
-              {/* Step 6: Optional Song Lyrics Input */}
-              <div style={{ marginBottom: '1.4rem' }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
-                  <label style={{ fontSize: '0.85rem', fontWeight: '800', color: '#e2e8f0' }}>
-                    6. Song Lyrics / Hook Lines (Optional)
-                  </label>
-                  <span style={{ fontSize: '0.74rem', color: '#a855f7' }}>
-                    Khali chhodne par exact synced lyrics auto-detect ho kar type honge!
-                  </span>
+                  {/* Step 6: Optional Song Lyrics Input */}
+                  <div style={{ marginBottom: '1.4rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
+                      <label style={{ fontSize: '0.85rem', fontWeight: '800', color: '#e2e8f0' }}>
+                        6. Song Lyrics / Hook Lines (Optional)
+                      </label>
+                      <span style={{ fontSize: '0.74rem', color: '#a855f7' }}>
+                        Khali chhodne par exact synced lyrics auto-detect ho kar type honge!
+                      </span>
+                    </div>
+                    <textarea
+                      rows={4}
+                      value={songLyrics}
+                      onChange={(e) => setSongLyrics(e.target.value)}
+                      placeholder="Paste custom lyrics or hook lines here (1 line = 1 scene)... Or leave blank to auto-detect!"
+                      style={{ width: '100%', padding: '10px 14px', borderRadius: '12px', background: 'rgba(15, 23, 42, 0.8)', border: '1px solid rgba(255,255,255,0.12)', color: '#fff', fontSize: '0.85rem' }}
+                    />
+                  </div>
+                </>
+              ) : (
+                <div style={{
+                  marginBottom: '1.4rem',
+                  padding: '14px 18px',
+                  borderRadius: '14px',
+                  background: 'linear-gradient(135deg, rgba(168, 85, 247, 0.15) 0%, rgba(236, 72, 153, 0.1) 100%)',
+                  border: '1.5px solid rgba(168, 85, 247, 0.35)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '14px'
+                }}>
+                  <span style={{ fontSize: '1.6rem' }}>🎵</span>
+                  <div>
+                    <div style={{ fontSize: '0.92rem', fontWeight: '800', color: '#c084fc', marginBottom: '2px' }}>
+                      Clean Beat Visualizer Active (Zero Screen Lyrics Mode)
+                    </div>
+                    <div style={{ fontSize: '0.78rem', color: '#cbd5e1', lineHeight: '1.4' }}>
+                      {songMood === 'phonk' ? 'Phonk / Funk' : `${songMood.toUpperCase()} Simple Beat`} mode me video par koi lyrics text print nahi honge. Screen par Pinterest HD aesthetic background, center emblem logo aur dynamic audio beat reactor FX 100% clean aur cinematic rahenge!
+                    </div>
+                  </div>
                 </div>
-                <textarea
-                  rows={4}
-                  value={songLyrics}
-                  onChange={(e) => setSongLyrics(e.target.value)}
-                  placeholder="Paste custom lyrics or hook lines here (1 line = 1 scene)... Or leave blank to auto-detect!"
-                  style={{ width: '100%', padding: '10px 14px', borderRadius: '12px', background: 'rgba(15, 23, 42, 0.8)', border: '1px solid rgba(255,255,255,0.12)', color: '#fff', fontSize: '0.85rem' }}
-                />
-              </div>
+              )}
 
               {/* Studio Generate Video Action Button */}
               <div>

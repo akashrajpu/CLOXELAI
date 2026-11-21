@@ -12107,139 +12107,144 @@ def build_full_song_video(
     print(f"📊 Target Duration: {target_duration}s (Song Audio: {actual_song_dur:.1f}s) | Mood: {song_mood.upper()} | Size: {target_size}")
     print(f"==================================================")
 
-    # 2. Extract Exact Synced Lyrics & Style Attributes
-    has_custom_lyrics = bool(
-        user_explicit_lyrics
-        and len(user_explicit_lyrics) > 5
-        and not any(tag in user_explicit_lyrics.lower() for tag in ['chapter', 'scene 1', 'voiceover', 'title:'])
-    )
-
-    if has_custom_lyrics:
-        print(f"📝 [Song Engine] Using {len(user_explicit_lyrics.splitlines())} user-provided custom lyrics lines...")
-        # Check if user provided timestamps like [00:12.50]
-        custom_lines = []
-        for raw_l in user_explicit_lyrics.splitlines():
-            m = re.match(r'\[(\d+):(\d+\.?\d*)\]\s*(.*)', raw_l.strip())
-            if m:
-                sec = int(m.group(1)) * 60 + float(m.group(2))
-                txt = sanitize_lyrics_text(m.group(3))
-                if txt:
-                    custom_lines.append((round(sec, 2), txt))
-        
-        all_lyrics = []
-        if custom_lines:
-            for i, (st, txt) in enumerate(custom_lines):
-                if st >= target_duration:
-                    break
-                singing_dur = max(2.2, min(4.2, len(txt.split()) * 0.42 + 0.6))
-                if i + 1 < len(custom_lines):
-                    next_st = custom_lines[i+1][0]
-                    gap = next_st - st
-                    et = round(min(float(target_duration), st + min(singing_dur, max(1.8, gap - 0.8))), 2)
-                else:
-                    et = round(min(float(target_duration), st + singing_dur), 2)
-                all_lyrics.append({"start": st, "end": et, "text": txt})
-        else:
-            custom_raw = [
-                sl for sl in (sanitize_lyrics_text(l) for l in user_explicit_lyrics.splitlines() if len(l.strip()) > 1)
-                if len(sl.strip()) > 1
-            ]
-            detected_intro = auto_detect_audio_vocal_intro(master_audio_path, 30.0) if master_audio_path else 0.0
-            if detected_intro > 2.0:
-                intro_silence = round(detected_intro, 2)
-            elif target_duration <= 25:
-                intro_silence = 7.0
-            elif target_duration <= 45:
-                intro_silence = 10.5
-            else:
-                intro_silence = 12.0
-            rem_dur = max(5.0, target_duration - intro_silence)
-            n_cust = max(1, len(custom_raw))
-            slot = round(rem_dur / n_cust, 2)
-            for idx, txt in enumerate(custom_raw):
-                st = round(intro_silence + (idx * slot), 2)
-                vocal_dur = min(3.4, max(2.0, slot - 1.8))
-                et = round(min(float(target_duration), st + vocal_dur), 2)
-                all_lyrics.append({"start": st, "end": et, "text": txt})
-        audio_start_offset = 0.0
-    elif audio_res.get('is_instrumental_fallback'):
-        print(f"🎵 [Song Engine] Instrumental track active: Keeping screen clean without mismatched text.")
-        intro_t = 6.0
-        safe_title = sanitize_lyrics_text(exact_song_title) or "Instrumental Soundtrack"
-        safe_singer = sanitize_lyrics_text(exact_singer) or "Official Audio"
-        all_lyrics = [
-            {"start": intro_t, "end": min(float(target_duration), intro_t + 4.5), "text": f"{safe_title} - {safe_singer}"},
-            {"start": min(float(target_duration), intro_t + 4.6), "end": min(float(target_duration), intro_t + 8.5), "text": f"{safe_singer} - Studio Mix"}
-        ]
-        audio_start_offset = 0.0
-    else:
-        # Fetch authentic lyrics strictly bound to the downloaded song audio
-        all_lyrics, audio_start_offset = fetch_song_synced_lyrics(
-            song_title=exact_song_title,
-            singer_name=exact_singer,
-            target_duration=target_duration,
-            fallback_lyrics=audio_res.get('lyrics_lines'),
-            song_id=audio_res.get('song_id'),
-            audio_path=master_audio_path,
-            song_mood=song_mood
-        )
-
-    # Guarantee 100% Hinglish/English lyrics ONLY (zero Hindi Devanagari / Gurmukhi / Urdu scripts)
-    sanitized_lyrics = []
-    for lyr in all_lyrics:
-        clean_txt = sanitize_lyrics_text(lyr.get("text", ""))
-        if clean_txt:
-            lyr["text"] = clean_txt
-            sanitized_lyrics.append(lyr)
-    all_lyrics = sanitized_lyrics
-
-    # Build paired dual-font pools: Top Line = BOLD font, Bottom Line = RANDOM contrasting stylish font
-    bold_candidates = [f for f in SONG_BOLD_FONTS_POOL if os.path.exists(f)] or ["./fonts/Mukta-Bold.ttf"]
-    random_candidates = [f for f in SONG_RANDOM_FONTS_POOL if os.path.exists(f)] or ["./fonts/Kalam-Bold.ttf", "./fonts/Arial.ttf"]
-    side_bottom_positions = [p for p in TEXT_POSITIONS if p in _ALLOWED_SONG_POSITIONS] or ["bottom_center", "lower_left", "lower_right"]
-
-    prev_bold = None
-    prev_rand = None
-    prev_pos = None
-    for idx, lyr in enumerate(all_lyrics):
-        line_txt = lyr["text"]
-        top_part, bottom_part = split_lyric_into_two_lines(line_txt)
-
-        valid_bold = [f for f in bold_candidates if font_supports_text(f, line_txt)] or bold_candidates
-        avail_bold = [f for f in valid_bold if f != prev_bold] or valid_bold
-        chosen_bold = _SONG_RNG.choice(avail_bold)
-        prev_bold = chosen_bold
-
-        valid_rand = [f for f in random_candidates if f != chosen_bold and font_supports_text(f, line_txt)]
-        if not valid_rand:
-            valid_rand = [f for f in random_candidates if f != chosen_bold] or random_candidates
-        avail_rand = [f for f in valid_rand if f != prev_rand] or valid_rand
-        chosen_rand = _SONG_RNG.choice(avail_rand)
-        prev_rand = chosen_rand
-
-        avail_pos = [p for p in side_bottom_positions if p != prev_pos] or side_bottom_positions
-        chosen_pos = _SONG_RNG.choice(avail_pos)
-        prev_pos = chosen_pos
-
-        primary_col = TEXT_COLORS[idx % len(TEXT_COLORS)]
-        secondary_col = (255, 255, 255, 255) if tuple(primary_col[:3]) != (255, 255, 255) else (253, 224, 71, 255)
-
-        lyr["font_path"] = chosen_bold
-        lyr["bold_font_path"] = chosen_bold
-        lyr["secondary_font_path"] = chosen_rand
-        lyr["top_text"] = top_part
-        lyr["bottom_text"] = bottom_part
-        lyr["position"] = chosen_pos
-        lyr["color"] = primary_col
-        lyr["secondary_color"] = secondary_col
-        lyr["bg_style"] = TEXT_BG_STYLES[idx % len(TEXT_BG_STYLES)]
-        lyr["emoji_name"] = detect_expression_emoji(line_txt, song_mood, idx)
-
-    bg_none_count = sum(1 for lyr in all_lyrics if lyr.get("bg_style") == "none")
-    print(f"📝 [Song Engine] Prepared {len(all_lyrics)} Hinglish/English dual-font lyrics (Bold + Random pairs) strictly at Side/Bottom positions ({bg_none_count} floating lines).")
-
     visual_mode = getattr(req, 'song_visual_mode', 'motion') or getattr(req, 'mode', 'ultra')
     is_beat_visualizer = (visual_mode in ['beat', 'simple_beat']) or (song_mood == "phonk")
+
+    # 2. Extract Exact Synced Lyrics & Style Attributes (Clean Visualizer: Zero Lyrics Mode)
+    if is_beat_visualizer:
+        print(f"🎵 [Clean Beat Visualizer Active] Lyrics rendering strictly disabled for {song_mood.upper()} Beat Visualizer (Screen stays 100% clean, no lyrics printed).")
+        all_lyrics = []
+        audio_start_offset = 0.0
+    else:
+        has_custom_lyrics = bool(
+            user_explicit_lyrics
+            and len(user_explicit_lyrics) > 5
+            and not any(tag in user_explicit_lyrics.lower() for tag in ['chapter', 'scene 1', 'voiceover', 'title:'])
+        )
+
+        if has_custom_lyrics:
+            print(f"📝 [Song Engine] Using {len(user_explicit_lyrics.splitlines())} user-provided custom lyrics lines...")
+            # Check if user provided timestamps like [00:12.50]
+            custom_lines = []
+            for raw_l in user_explicit_lyrics.splitlines():
+                m = re.match(r'\[(\d+):(\d+\.?\d*)\]\s*(.*)', raw_l.strip())
+                if m:
+                    sec = int(m.group(1)) * 60 + float(m.group(2))
+                    txt = sanitize_lyrics_text(m.group(3))
+                    if txt:
+                        custom_lines.append((round(sec, 2), txt))
+            
+            all_lyrics = []
+            if custom_lines:
+                for i, (st, txt) in enumerate(custom_lines):
+                    if st >= target_duration:
+                        break
+                    singing_dur = max(2.2, min(4.2, len(txt.split()) * 0.42 + 0.6))
+                    if i + 1 < len(custom_lines):
+                        next_st = custom_lines[i+1][0]
+                        gap = next_st - st
+                        et = round(min(float(target_duration), st + min(singing_dur, max(1.8, gap - 0.8))), 2)
+                    else:
+                        et = round(min(float(target_duration), st + singing_dur), 2)
+                    all_lyrics.append({"start": st, "end": et, "text": txt})
+            else:
+                custom_raw = [
+                    sl for sl in (sanitize_lyrics_text(l) for l in user_explicit_lyrics.splitlines() if len(l.strip()) > 1)
+                    if len(sl.strip()) > 1
+                ]
+                detected_intro = auto_detect_audio_vocal_intro(master_audio_path, 30.0) if master_audio_path else 0.0
+                if detected_intro > 2.0:
+                    intro_silence = round(detected_intro, 2)
+                elif target_duration <= 25:
+                    intro_silence = 7.0
+                elif target_duration <= 45:
+                    intro_silence = 10.5
+                else:
+                    intro_silence = 12.0
+                rem_dur = max(5.0, target_duration - intro_silence)
+                n_cust = max(1, len(custom_raw))
+                slot = round(rem_dur / n_cust, 2)
+                for idx, txt in enumerate(custom_raw):
+                    st = round(intro_silence + (idx * slot), 2)
+                    vocal_dur = min(3.4, max(2.0, slot - 1.8))
+                    et = round(min(float(target_duration), st + vocal_dur), 2)
+                    all_lyrics.append({"start": st, "end": et, "text": txt})
+            audio_start_offset = 0.0
+        elif audio_res.get('is_instrumental_fallback'):
+            print(f"🎵 [Song Engine] Instrumental track active: Keeping screen clean without mismatched text.")
+            intro_t = 6.0
+            safe_title = sanitize_lyrics_text(exact_song_title) or "Instrumental Soundtrack"
+            safe_singer = sanitize_lyrics_text(exact_singer) or "Official Audio"
+            all_lyrics = [
+                {"start": intro_t, "end": min(float(target_duration), intro_t + 4.5), "text": f"{safe_title} - {safe_singer}"},
+                {"start": min(float(target_duration), intro_t + 4.6), "end": min(float(target_duration), intro_t + 8.5), "text": f"{safe_singer} - Studio Mix"}
+            ]
+            audio_start_offset = 0.0
+        else:
+            # Fetch authentic lyrics strictly bound to the downloaded song audio
+            all_lyrics, audio_start_offset = fetch_song_synced_lyrics(
+                song_title=exact_song_title,
+                singer_name=exact_singer,
+                target_duration=target_duration,
+                fallback_lyrics=audio_res.get('lyrics_lines'),
+                song_id=audio_res.get('song_id'),
+                audio_path=master_audio_path,
+                song_mood=song_mood
+            )
+
+        # Guarantee 100% Hinglish/English lyrics ONLY (zero Hindi Devanagari / Gurmukhi / Urdu scripts)
+        sanitized_lyrics = []
+        for lyr in all_lyrics:
+            clean_txt = sanitize_lyrics_text(lyr.get("text", ""))
+            if clean_txt:
+                lyr["text"] = clean_txt
+                sanitized_lyrics.append(lyr)
+        all_lyrics = sanitized_lyrics
+
+        # Build paired dual-font pools: Top Line = BOLD font, Bottom Line = RANDOM contrasting stylish font
+        bold_candidates = [f for f in SONG_BOLD_FONTS_POOL if os.path.exists(f)] or ["./fonts/Mukta-Bold.ttf"]
+        random_candidates = [f for f in SONG_RANDOM_FONTS_POOL if os.path.exists(f)] or ["./fonts/Kalam-Bold.ttf", "./fonts/Arial.ttf"]
+        side_bottom_positions = [p for p in TEXT_POSITIONS if p in _ALLOWED_SONG_POSITIONS] or ["bottom_center", "lower_left", "lower_right"]
+
+        prev_bold = None
+        prev_rand = None
+        prev_pos = None
+        for idx, lyr in enumerate(all_lyrics):
+            line_txt = lyr["text"]
+            top_part, bottom_part = split_lyric_into_two_lines(line_txt)
+
+            valid_bold = [f for f in bold_candidates if font_supports_text(f, line_txt)] or bold_candidates
+            avail_bold = [f for f in valid_bold if f != prev_bold] or valid_bold
+            chosen_bold = _SONG_RNG.choice(avail_bold)
+            prev_bold = chosen_bold
+
+            valid_rand = [f for f in random_candidates if f != chosen_bold and font_supports_text(f, line_txt)]
+            if not valid_rand:
+                valid_rand = [f for f in random_candidates if f != chosen_bold] or random_candidates
+            avail_rand = [f for f in valid_rand if f != prev_rand] or valid_rand
+            chosen_rand = _SONG_RNG.choice(avail_rand)
+            prev_rand = chosen_rand
+
+            avail_pos = [p for p in side_bottom_positions if p != prev_pos] or side_bottom_positions
+            chosen_pos = _SONG_RNG.choice(avail_pos)
+            prev_pos = chosen_pos
+
+            primary_col = TEXT_COLORS[idx % len(TEXT_COLORS)]
+            secondary_col = (255, 255, 255, 255) if tuple(primary_col[:3]) != (255, 255, 255) else (253, 224, 71, 255)
+
+            lyr["font_path"] = chosen_bold
+            lyr["bold_font_path"] = chosen_bold
+            lyr["secondary_font_path"] = chosen_rand
+            lyr["top_text"] = top_part
+            lyr["bottom_text"] = bottom_part
+            lyr["position"] = chosen_pos
+            lyr["color"] = primary_col
+            lyr["secondary_color"] = secondary_col
+            lyr["bg_style"] = TEXT_BG_STYLES[idx % len(TEXT_BG_STYLES)]
+            lyr["emoji_name"] = detect_expression_emoji(line_txt, song_mood, idx)
+
+        bg_none_count = sum(1 for lyr in all_lyrics if lyr.get("bg_style") == "none")
+        print(f"📝 [Song Engine] Prepared {len(all_lyrics)} Hinglish/English dual-font lyrics (Bold + Random pairs) strictly at Side/Bottom positions ({bg_none_count} floating lines).")
 
     # 3. Background Visual Segments (Simple Beat & Phonk: exactly 1 single continuous visual!)
     if is_beat_visualizer:
@@ -12539,13 +12544,14 @@ def build_full_song_video(
 
                             abs_t = seg_start + t
                             active_line = None
-                            for l in lines_in_seg:
-                                if l["start"] <= abs_t < l["end"]:
-                                    active_line = l
-                                    break
-                            if active_line:
-                                local_t = abs_t - active_line["start"]
-                                im_f = render_typewriter_lyrics_on_frame(im_f, active_line, local_t, tw, th)
+                            if not is_beat_visualizer:
+                                for l in lines_in_seg:
+                                    if l["start"] <= abs_t < l["end"]:
+                                        active_line = l
+                                        break
+                                if active_line:
+                                    local_t = abs_t - active_line["start"]
+                                    im_f = render_typewriter_lyrics_on_frame(im_f, active_line, local_t, tw, th)
                             frame_arr = np.array(im_f)
                             im_f.close()
                             return frame_arr
@@ -12767,13 +12773,14 @@ def build_full_song_video(
 
                 abs_t = seg_start + t
                 active_line = None
-                for l in lines_in_seg:
-                    if l["start"] <= abs_t < l["end"]:
-                        active_line = l
-                        break
-                if active_line:
-                    local_t = abs_t - active_line["start"]
-                    im_crop = render_typewriter_lyrics_on_frame(im_crop, active_line, local_t, tw, th)
+                if not is_beat_visualizer:
+                    for l in lines_in_seg:
+                        if l["start"] <= abs_t < l["end"]:
+                            active_line = l
+                            break
+                    if active_line:
+                        local_t = abs_t - active_line["start"]
+                        im_crop = render_typewriter_lyrics_on_frame(im_crop, active_line, local_t, tw, th)
 
                 frame_arr = np.array(im_crop)
                 im_crop.close()
