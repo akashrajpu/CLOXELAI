@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import Auth from './Auth';
 import YouTubeIntegration from './YouTubeIntegration';
 import { Smartphone, Monitor, Zap, Film, Settings, Sparkles, Clock, Palette, Mic, Music, Layout, Hash, Dices, Clapperboard, MonitorPlay, User, Sun, Scroll, Circle, Ban, Rocket, Box, Square, Tv, Compass, Upload, Activity } from 'lucide-react';
-import { PHONK_VISUALIZER_CATEGORIES, PHONK_VISUALIZER_PRESETS } from './phonkVisualizers';
+import { PHONK_VISUALIZER_CATEGORIES, PHONK_VISUALIZER_PRESETS, MOOD_VISUALIZER_INFO } from './phonkVisualizers';
 
 const API_BASE = window.location.hostname === 'localhost' ? 'http://localhost:8000' : '';
 
@@ -2343,23 +2343,12 @@ function App() {
                       type="button"
                       onClick={() => {
                         setSongMood(m.id);
-                        const moodDefaults = {
-                          romantic: 'romantic_heart',
-                          sad: 'sad_rain',
-                          devotional: 'devotional_chakra',
-                          lofi: 'lofi_vinyl',
-                          party: 'laser_strobe',
-                          phonk: 'trap_nation_trilobe',
-                          acoustic: 'oscilloscope_ribbon'
-                        };
                         if (m.id === 'phonk') {
                           setSongVisualMode('beat');
                           setGenerationMode('ultra');
-                          setPhonkVisualizerStyle('trap_nation_trilobe');
+                          setPhonkVisualizerStyle('phonk_auto');
                         } else if (songVisualMode === 'beat') {
-                          if (moodDefaults[m.id]) {
-                            setPhonkVisualizerStyle(moodDefaults[m.id]);
-                          }
+                          setPhonkVisualizerStyle(`${m.id}_auto`);
                         }
                       }}
                       style={{
@@ -2540,18 +2529,7 @@ function App() {
                       onClick={() => {
                         setSongVisualMode('beat');
                         setGenerationMode('ultra');
-                        const moodDefaults = {
-                          romantic: 'romantic_heart',
-                          sad: 'sad_rain',
-                          devotional: 'devotional_chakra',
-                          lofi: 'lofi_vinyl',
-                          party: 'laser_strobe',
-                          phonk: 'trap_nation_trilobe',
-                          acoustic: 'oscilloscope_ribbon'
-                        };
-                        if (moodDefaults[songMood]) {
-                          setPhonkVisualizerStyle(moodDefaults[songMood]);
-                        }
+                        setPhonkVisualizerStyle(`${songMood}_auto`);
                       }}
                       style={{
                         padding: '14px 16px',
@@ -2591,12 +2569,10 @@ function App() {
                       <span style={{ fontSize: '1.3rem' }}>{songVisualMode === 'beat' ? '🎵' : '⚡'}</span>
                       <div>
                         <div style={{ fontSize: '0.94rem', fontWeight: '900', color: songVisualMode === 'beat' ? '#c084fc' : '#00f2fe', letterSpacing: '0.3px' }}>
-                          {songVisualMode === 'beat' ? 'Audio Beat Reactor & Visualizer Studio (Unique Mood Cores)' : 'Phonk Beat Visualizer Studio (100% Unique FX)'}
+                          {(MOOD_VISUALIZER_INFO[songMood] || {}).title || '🎵 Audio Beat Reactor & Visualizer Studio'}
                         </div>
                         <div style={{ fontSize: '0.73rem', color: '#94a3b8' }}>
-                          {songVisualMode === 'beat'
-                            ? 'Center Emblem Logo + Mood audio-reactive FX (Love hearts, Sad rain, Bhakti chakra, Vinyl disc, Trap Nation) beat ke saath sync honge!'
-                            : 'Center Emblem Logo + 808 Sub-Bass audio engine: camera vibration, 808 zoom pump aur neon equalizer perimeter!'}
+                          {(MOOD_VISUALIZER_INFO[songMood] || {}).desc || 'Center Emblem Logo + Beat Reactor audio engine!'}
                         </div>
                       </div>
                     </div>
@@ -2611,7 +2587,7 @@ function App() {
                     }}>
                       <span style={{ fontSize: '0.7rem', color: '#cbd5e1', fontWeight: '600' }}>Active Style:</span>
                       <span style={{ fontSize: '0.74rem', color: '#c084fc', fontWeight: '800' }}>
-                        {(PHONK_VISUALIZER_PRESETS.find(p => p.id === phonkVisualizerStyle) || {}).name || '🌟 Primary'}
+                        {(PHONK_VISUALIZER_PRESETS.find(p => p.id === phonkVisualizerStyle) || {}).name || '🎲 Auto Mood Match'}
                       </span>
                     </div>
                   </div>
@@ -2632,47 +2608,41 @@ function App() {
                     <span style={{ fontSize: '1.25rem' }}>📌</span>
                     <div>
                       <span style={{ fontWeight: '800', color: '#c084fc' }}>Pinterest 4K HD Visuals Active:</span>{' '}
-                      Background visual aur center emblem logo Pinterest se song mood aur lyrics ke anusar automatically HD quality me fetch honge!
+                      Background visual aur center emblem logo Pinterest se <b>{songMood.toUpperCase()}</b> mood aur lyrics ke anusaar automatically Graphic Cartoon / Anime HD quality me fetch honge!
                     </div>
                   </div>
 
-                  {/* Filter Categories Horizontal Scroll Bar */}
-                  <div style={{
-                    display: 'flex',
-                    gap: '6px',
-                    overflowX: 'auto',
-                    paddingBottom: '8px',
-                    marginBottom: '10px',
-                    scrollbarWidth: 'thin'
-                  }}>
-                    {PHONK_VISUALIZER_CATEGORIES.map(cat => (
-                      <button
-                        key={cat.id}
-                        type="button"
-                        onClick={() => setPhonkVisCategory(cat.id)}
-                        style={{
-                          whiteSpace: 'nowrap',
-                          padding: '5px 11px',
-                          borderRadius: '16px',
-                          border: phonkVisCategory === cat.id ? '1px solid #c084fc' : '1px solid rgba(255,255,255,0.08)',
-                          background: phonkVisCategory === cat.id ? 'linear-gradient(135deg, rgba(168, 85, 247, 0.35) 0%, rgba(236, 72, 153, 0.35) 100%)' : 'rgba(15, 23, 42, 0.6)',
-                          color: phonkVisCategory === cat.id ? '#fff' : '#94a3b8',
-                          fontSize: '0.72rem',
-                          fontWeight: phonkVisCategory === cat.id ? '800' : '600',
-                          cursor: 'pointer',
-                          transition: 'all 0.15s ease'
-                        }}
-                      >
-                        {cat.label}
-                      </button>
-                    ))}
+                  {/* Category Status & Search Bar */}
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px', flexWrap: 'wrap', gap: '8px' }}>
+                    <div style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      padding: '6px 14px',
+                      borderRadius: '20px',
+                      background: 'linear-gradient(135deg, rgba(168, 85, 247, 0.25) 0%, rgba(236, 72, 153, 0.25) 100%)',
+                      border: '1.5px solid #c084fc',
+                      color: '#fff',
+                      fontSize: '0.78rem',
+                      fontWeight: '800'
+                    }}>
+                      <span>🎯 Filtered To:</span>
+                      <span style={{ color: '#f472b6', textTransform: 'uppercase' }}>{songMood} MOOD</span>
+                      <span style={{ fontSize: '0.7rem', color: '#cbd5e1', fontWeight: '600' }}>
+                        ({PHONK_VISUALIZER_PRESETS.filter(p => p.category === songMood).length} Unique Curated Styles)
+                      </span>
+                    </div>
+
+                    <div style={{ fontSize: '0.72rem', color: '#94a3b8' }}>
+                      🎲 <b>Auto Default:</b> Gaane ke hisaab se random unique core auto-pick hoga!
+                    </div>
                   </div>
 
                   {/* Quick Search */}
                   <div style={{ marginBottom: '10px' }}>
                     <input
                       type="text"
-                      placeholder="🔍 Search visualizer presets (e.g. heart, rain, chakra, vinyl, trap nation, reactor)..."
+                      placeholder={`🔍 Search ${songMood.toUpperCase()} presets (e.g. ${songMood === 'romantic' ? 'heart, rose, starlight' : songMood === 'sad' ? 'rain, tear, broken' : songMood === 'devotional' ? 'chakra, diya, bell' : songMood === 'lofi' ? 'vinyl, stars, cafe' : songMood === 'party' ? 'laser, shockwave, plasma' : songMood === 'acoustic' ? 'guitar, ember, dewdrop' : 'trap, drift, 808'})...`}
                       value={phonkVisSearch}
                       onChange={e => setPhonkVisSearch(e.target.value)}
                       style={{
@@ -2689,24 +2659,22 @@ function App() {
                     />
                   </div>
 
-                  {/* Visualizer Presets Horizontal Slider Deck (18 Curated Unique FX) */}
+                  {/* Visualizer Presets Grid (Mood-Exclusive Unique Curated FX) */}
                   <div style={{
                     display: 'grid',
-                    gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))',
+                    gridTemplateColumns: 'repeat(auto-fill, minmax(185px, 1fr))',
                     gap: '8px',
-                    maxHeight: '260px',
+                    maxHeight: '270px',
                     overflowY: 'auto',
                     paddingRight: '4px',
                     scrollbarWidth: 'thin'
                   }}>
                     {PHONK_VISUALIZER_PRESETS
+                      .filter(p => p.category === songMood)
                       .filter(p => {
-                        if (phonkVisCategory !== 'all') {
-                          if (p.category !== phonkVisCategory && p.family !== phonkVisCategory) return false;
-                        }
                         if (phonkVisSearch.trim()) {
                           const q = phonkVisSearch.toLowerCase().trim();
-                          return p.name.toLowerCase().includes(q) || p.desc.toLowerCase().includes(q);
+                          return p.name.toLowerCase().includes(q) || p.desc.toLowerCase().includes(q) || (p.tag && p.tag.toLowerCase().includes(q));
                         }
                         return true;
                       })
@@ -2731,7 +2699,7 @@ function App() {
                               justifyContent: 'space-between',
                               boxShadow: isSelected ? `0 0 14px ${cardCol}44` : 'none',
                               transition: 'all 0.15s ease',
-                              minHeight: '68px'
+                              minHeight: '70px'
                             }}
                           >
                             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '4px', marginBottom: '4px' }}>
@@ -2744,15 +2712,15 @@ function App() {
                                   fontWeight: '900',
                                   padding: '2px 5px',
                                   borderRadius: '6px',
-                                  background: p.id === 'primary' ? 'rgba(0, 242, 254, 0.3)' : 'rgba(236, 72, 153, 0.3)',
-                                  color: p.id === 'primary' ? '#00f2fe' : '#f472b6',
+                                  background: p.tag.includes('AUTO') ? 'rgba(168, 85, 247, 0.35)' : 'rgba(236, 72, 153, 0.3)',
+                                  color: p.tag.includes('AUTO') ? '#c084fc' : '#f472b6',
                                   letterSpacing: '0.5px'
                                 }}>
                                   {p.tag}
                                 </span>
                               )}
                             </div>
-                            <div style={{ fontSize: '0.66rem', color: isSelected ? '#e2e8f0' : '#64748b', lineHeight: '1.25' }}>
+                            <div style={{ fontSize: '0.66rem', color: isSelected ? '#e2e8f0' : '#94a3b8', lineHeight: '1.25' }}>
                               {p.desc}
                             </div>
                           </div>
@@ -2761,8 +2729,10 @@ function App() {
                   </div>
 
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '10px', fontSize: '0.72rem', color: '#94a3b8' }}>
-                    <span>💡 <b>Background Visual:</b> User ki select ki gayi photo ya video 100% visible rahegi, visualizer FX center emblem ke saath beats par react karega.</span>
-                    <span style={{ color: '#c084fc', fontWeight: 'bold' }}>18 Unique Curated FX (Zero Duplicates)</span>
+                    <span>💡 <b>Pinterest HD Visuals:</b> Background visual aur center emblem logo Pinterest se <b>{songMood.toUpperCase()}</b> mood ke Graphic Cartoon / Anime visuals automatically fetch honge.</span>
+                    <span style={{ color: '#c084fc', fontWeight: 'bold' }}>
+                      {PHONK_VISUALIZER_PRESETS.filter(p => p.category === songMood).length} Unique Curated FX (Zero Duplicates)
+                    </span>
                   </div>
                 </div>
               )}

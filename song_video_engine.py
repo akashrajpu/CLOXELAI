@@ -977,221 +977,1765 @@ def extract_audio_beat_and_bass_envelope(audio_path: str, target_fps: int = 20, 
 # ==============================================================================
 PHONK_VISUALIZER_PRESETS = [
     {
-        "id": "primary",
-        "name": "🌟 Primary (Classic Shake & Bass Pump)",
-        "family": "all",
-        "badge": "🌟",
-        "desc": "Original Tokyo drift camera shake + 808 zoom pump + chromatic flash",
-        "primary_col": (0, 242, 254),
-        "secondary_col": (168, 85, 247),
-        "accent_col": (255, 255, 255)
-    },
-    {
-        "id": "romantic_heart",
-        "name": "💖 Romantic Heart Pulse Core",
-        "family": "romantic_heart",
-        "badge": "💖",
-        "desc": "Center Circle Logo + Glowing Heartbeat Pulse + Radiating Floating Hearts on beats",
+        "id": "romantic_auto",
+        "name": "🎲 Auto Love Reactor (Random Shuffle)",
+        "category": "romantic",
+        "family": "romantic",
+        "badge": "🎲",
+        "desc": "Automatic selection: Love gaane ke rhythm ke anusaar random floating hearts & glow styles shuffle honge!",
+        "tag": "AUTO DEFAULT",
         "primary_col": (244, 63, 94),
         "secondary_col": (236, 72, 153),
         "accent_col": (255, 255, 255)
     },
     {
-        "id": "sad_rain",
-        "name": "💔 Melancholy Rain Drop Core",
-        "family": "sad_rain",
-        "badge": "💔",
-        "desc": "Center Circle Logo + Atmospheric Rain Streaks + Tear Ripples on Bass Drops",
+        "id": "romantic_heart",
+        "name": "💖 Romantic Heart Pulse Core",
+        "category": "romantic",
+        "family": "romantic",
+        "badge": "💖",
+        "desc": "Center Circle Logo + Glowing Heartbeat Pulse + Radiating Floating Hearts on bass drops.",
+        "tag": "HEART CORE",
+        "primary_col": (244, 63, 94),
+        "secondary_col": (236, 72, 153),
+        "accent_col": (255, 255, 255)
+    },
+    {
+        "id": "romantic_cupid_halo",
+        "name": "💘 Cupid's Arrow Halo Orbit",
+        "category": "romantic",
+        "family": "romantic",
+        "badge": "💘",
+        "desc": "Dual golden cupid arrows revolving around the center logo with sparkling stardust trail.",
+        "tag": "CUPID HALO",
+        "primary_col": (251, 113, 133),
+        "secondary_col": (236, 72, 153),
+        "accent_col": (255, 255, 255)
+    },
+    {
+        "id": "romantic_rose_burst",
+        "name": "🌹 Rose Petal Bloom Shockwave",
+        "category": "romantic",
+        "family": "romantic",
+        "badge": "🌹",
+        "desc": "Concentric rose petal petals opening outward on every heavy bass beat with soft pink aura.",
+        "tag": "ROSE BLOOM",
+        "primary_col": (225, 29, 72),
+        "secondary_col": (236, 72, 153),
+        "accent_col": (255, 255, 255)
+    },
+    {
+        "id": "romantic_dual_entangled",
+        "name": "💑 Dual Entangled Hearts Pulse",
+        "category": "romantic",
+        "family": "romantic",
+        "badge": "💑",
+        "desc": "Twin interlocking glowing cardioid hearts beating in syncopated rhythm with audio sub-bass.",
+        "tag": "TWIN HEARTS",
+        "primary_col": (236, 72, 153),
+        "secondary_col": (236, 72, 153),
+        "accent_col": (255, 255, 255)
+    },
+    {
+        "id": "romantic_starlight_lovers",
+        "name": "✨ Starlight Lovers Orbital Halo",
+        "category": "romantic",
+        "family": "romantic",
+        "badge": "✨",
+        "desc": "Gentle golden celestial constellation rings orbiting center emblem with warm twilight glow.",
+        "tag": "STARLIGHT",
+        "primary_col": (245, 158, 11),
+        "secondary_col": (236, 72, 153),
+        "accent_col": (255, 255, 255)
+    },
+    {
+        "id": "romantic_crimson_velvet",
+        "name": "🍷 Crimson Velvet Bass Echo",
+        "category": "romantic",
+        "family": "romantic",
+        "badge": "🍷",
+        "desc": "Deep crimson velvet wave rings echoing outwards like candlelit ripples on a romantic night.",
+        "tag": "VELVET WAVE",
+        "primary_col": (190, 18, 60),
+        "secondary_col": (236, 72, 153),
+        "accent_col": (255, 255, 255)
+    },
+    {
+        "id": "romantic_neon_ribbon",
+        "name": "🎀 Neon Ribbon Cardioid Wave",
+        "category": "romantic",
+        "family": "romantic",
+        "badge": "🎀",
+        "desc": "Silky smooth neon pink silk ribbons weaving in fluid mathematical figure-8 waves.",
+        "tag": "NEON RIBBON",
+        "primary_col": (244, 114, 182),
+        "secondary_col": (236, 72, 153),
+        "accent_col": (255, 255, 255)
+    },
+    {
+        "id": "romantic_sunset_kiss",
+        "name": "🌅 Sunset Kiss Golden Halo",
+        "category": "romantic",
+        "family": "romantic",
+        "badge": "🌅",
+        "desc": "Warm golden hour sunbeam rays and soft lens flares pulsating smoothly on vocal hooks.",
+        "tag": "SUNSET KISS",
+        "primary_col": (249, 115, 22),
+        "secondary_col": (236, 72, 153),
+        "accent_col": (255, 255, 255)
+    },
+    {
+        "id": "romantic_ruby_gem",
+        "name": "💎 Ruby Gem Heart Radiance",
+        "category": "romantic",
+        "family": "romantic",
+        "badge": "💎",
+        "desc": "Faceted 3D ruby heart geometry refracting crimson laser sparkles on kick drum hits.",
+        "tag": "RUBY GEM",
+        "primary_col": (225, 29, 72),
+        "secondary_col": (236, 72, 153),
+        "accent_col": (255, 255, 255)
+    },
+    {
+        "id": "romantic_sakura_drift",
+        "name": "🌸 Sakura Blossom Particle Drift",
+        "category": "romantic",
+        "family": "romantic",
+        "badge": "🌸",
+        "desc": "Delicate Japanese cherry blossom petals swirling upwards in a gentle romantic wind.",
+        "tag": "SAKURA",
+        "primary_col": (251, 207, 232),
+        "secondary_col": (236, 72, 153),
+        "accent_col": (255, 255, 255)
+    },
+    {
+        "id": "romantic_floating_fountain",
+        "name": "⛲ Floating Hearts Fountain",
+        "category": "romantic",
+        "family": "romantic",
+        "badge": "⛲",
+        "desc": "Continuous stream of miniature glowing neon hearts erupting from bottom to top of screen.",
+        "tag": "FOUNTAIN",
+        "primary_col": (236, 72, 153),
+        "secondary_col": (236, 72, 153),
+        "accent_col": (255, 255, 255)
+    },
+    {
+        "id": "romantic_pink_pulsar",
+        "name": "💓 Pink Neon Glow Pulsar",
+        "category": "romantic",
+        "family": "romantic",
+        "badge": "💓",
+        "desc": "High-contrast neon pink perimeter ring expanding with double-thump human heartbeat timing.",
+        "tag": "PULSAR",
+        "primary_col": (255, 45, 85),
+        "secondary_col": (236, 72, 153),
+        "accent_col": (255, 255, 255)
+    },
+    {
+        "id": "romantic_eternal_mobius",
+        "name": "♾️ Eternal Romance Möbius Ring",
+        "category": "romantic",
+        "family": "romantic",
+        "badge": "♾️",
+        "desc": "Twisted infinity loop glowing in gradient magenta, symbolizing endless romantic devotion.",
+        "tag": "INFINITY",
+        "primary_col": (217, 70, 239),
+        "secondary_col": (236, 72, 153),
+        "accent_col": (255, 255, 255)
+    },
+    {
+        "id": "romantic_velvet_shockwave",
+        "name": "💥 Velvet Heart Bass Drop",
+        "category": "romantic",
+        "family": "romantic",
+        "badge": "💥",
+        "desc": "Massive heart-shaped sonic blast wave bursting outwards when the romantic chorus drops.",
+        "tag": "BASS BURST",
+        "primary_col": (225, 29, 72),
+        "secondary_col": (236, 72, 153),
+        "accent_col": (255, 255, 255)
+    },
+    {
+        "id": "romantic_warm_embrace",
+        "name": "🫂 Warm Embrace Orbit",
+        "category": "romantic",
+        "family": "romantic",
+        "badge": "🫂",
+        "desc": "Two protective glowing golden-rose rings shielding the center logo with soothing warmth.",
+        "tag": "EMBRACE",
+        "primary_col": (251, 191, 36),
+        "secondary_col": (236, 72, 153),
+        "accent_col": (255, 255, 255)
+    },
+    {
+        "id": "romantic_shooting_star",
+        "name": "💫 Shooting Star Romance Orbit",
+        "category": "romantic",
+        "family": "romantic",
+        "badge": "💫",
+        "desc": "Twin celestial shooting stars tracing an infinity love path around the emblem logo.",
+        "tag": "SHOOTING STAR",
+        "primary_col": (251, 113, 133),
+        "secondary_col": (236, 72, 153),
+        "accent_col": (255, 255, 255)
+    },
+    {
+        "id": "romantic_twilight_fireflies",
+        "name": "🌟 Twilight Firefly Glow",
+        "category": "romantic",
+        "family": "romantic",
+        "badge": "🌟",
+        "desc": "Radiant glowing warm fireflies drifting upward on soft romantic melodies.",
+        "tag": "FIREFLIES",
+        "primary_col": (244, 63, 94),
+        "secondary_col": (236, 72, 153),
+        "accent_col": (255, 255, 255)
+    },
+    {
+        "id": "romantic_aurora_veil",
+        "name": "🌌 Aurora Borealis Love Veil",
+        "category": "romantic",
+        "family": "romantic",
+        "badge": "🌌",
+        "desc": "Shimmering magenta and emerald northern lights curtain undulating behind center portrait.",
+        "tag": "AURORA",
+        "primary_col": (236, 72, 153),
+        "secondary_col": (236, 72, 153),
+        "accent_col": (255, 255, 255)
+    },
+    {
+        "id": "romantic_golden_constellation",
+        "name": "🌠 Lovers Constellation Star Map",
+        "category": "romantic",
+        "family": "romantic",
+        "badge": "🌠",
+        "desc": "Astrological heart constellation connecting glowing star nodes with golden lines.",
+        "tag": "CONSTELLATION",
+        "primary_col": (251, 191, 36),
+        "secondary_col": (236, 72, 153),
+        "accent_col": (255, 255, 255)
+    },
+    {
+        "id": "romantic_lotus_pond",
+        "name": "🪷 Floating Water Lily Bloom",
+        "category": "romantic",
+        "family": "romantic",
+        "badge": "🪷",
+        "desc": "Pink water lilies blossoming outward with serene concentric pond ripples on beats.",
+        "tag": "WATER LILY",
+        "primary_col": (253, 164, 175),
+        "secondary_col": (236, 72, 153),
+        "accent_col": (255, 255, 255)
+    },
+    {
+        "id": "romantic_crystal_chandelier",
+        "name": "🔮 Crystal Prism Love Chandelier",
+        "category": "romantic",
+        "family": "romantic",
+        "badge": "🔮",
+        "desc": "Sparkling chandelier light refracts faceted rainbow heart glimmers on bass drops.",
+        "tag": "CRYSTAL PRISM",
+        "primary_col": (244, 114, 182),
+        "secondary_col": (236, 72, 153),
+        "accent_col": (255, 255, 255)
+    },
+    {
+        "id": "sad_auto",
+        "name": "🎲 Auto Sad Reactor (Random Shuffle)",
+        "category": "sad",
+        "family": "sad",
+        "badge": "🎲",
+        "desc": "Automatic selection: Dard bhare gaane ke liye atmospheric rain & broken glass randomly match honge!",
+        "tag": "AUTO DEFAULT",
         "primary_col": (56, 189, 248),
         "secondary_col": (100, 116, 139),
         "accent_col": (255, 255, 255)
     },
     {
+        "id": "sad_rain",
+        "name": "💔 Melancholy Rain Drop Core",
+        "category": "sad",
+        "family": "sad",
+        "badge": "💔",
+        "desc": "Center Circle Logo + Atmospheric Rain Streaks + Tear Ripples on Bass Drops.",
+        "tag": "RAIN CORE",
+        "primary_col": (56, 189, 248),
+        "secondary_col": (100, 116, 139),
+        "accent_col": (255, 255, 255)
+    },
+    {
+        "id": "sad_broken_heart",
+        "name": "💔 Shattered Heart Glass Shards",
+        "category": "sad",
+        "family": "sad",
+        "badge": "💔",
+        "desc": "Center heart shape fracturing into sharp crystalline shards on emotional vocal peaks.",
+        "tag": "BROKEN GLASS",
+        "primary_col": (148, 163, 184),
+        "secondary_col": (100, 116, 139),
+        "accent_col": (255, 255, 255)
+    },
+    {
+        "id": "sad_tear_stream",
+        "name": "💧 Midnight Tear Drops Stream",
+        "category": "sad",
+        "family": "sad",
+        "badge": "💧",
+        "desc": "Slowly falling luminous blue tear streaks creating circular water ripples on bass impacts.",
+        "tag": "TEARS",
+        "primary_col": (96, 165, 250),
+        "secondary_col": (100, 116, 139),
+        "accent_col": (255, 255, 255)
+    },
+    {
+        "id": "sad_rainy_window",
+        "name": "🪟 Rainy Window Pane Droplets",
+        "category": "sad",
+        "family": "sad",
+        "badge": "🪟",
+        "desc": "Cinematic rain droplets racing down glass with realistic refraction and moody streetlamp glow.",
+        "tag": "WINDOW RAIN",
+        "primary_col": (2, 132, 199),
+        "secondary_col": (100, 116, 139),
+        "accent_col": (255, 255, 255)
+    },
+    {
+        "id": "sad_lonely_fog",
+        "name": "🌫️ Lonely Cold Fog Dispersion",
+        "category": "sad",
+        "family": "sad",
+        "badge": "🌫️",
+        "desc": "Dense cold mist and drifting fog clouds pulsing slowly around the solitary center avatar.",
+        "tag": "FOG MIST",
+        "primary_col": (100, 116, 139),
+        "secondary_col": (100, 116, 139),
+        "accent_col": (255, 255, 255)
+    },
+    {
+        "id": "sad_ice_shards",
+        "name": "🧊 Frozen Tears Ice Shard Pulse",
+        "category": "sad",
+        "family": "sad",
+        "badge": "🧊",
+        "desc": "Sharp cyan frost crystals forming and cracking outward on heavy melancholy drum beats.",
+        "tag": "FROST ICE",
+        "primary_col": (34, 211, 238),
+        "secondary_col": (100, 116, 139),
+        "accent_col": (255, 255, 255)
+    },
+    {
+        "id": "sad_solitary_ripple",
+        "name": "🌊 Solitary Lake Bass Ripple",
+        "category": "sad",
+        "family": "sad",
+        "badge": "🌊",
+        "desc": "Deep indigo water ripples expanding across a desolate midnight lake surface.",
+        "tag": "WATER RIPPLE",
+        "primary_col": (59, 130, 246),
+        "secondary_col": (100, 116, 139),
+        "accent_col": (255, 255, 255)
+    },
+    {
+        "id": "sad_noir_shadow",
+        "name": "🖤 Noir Shadow Drizzle Pulse",
+        "category": "sad",
+        "family": "sad",
+        "badge": "🖤",
+        "desc": "High-contrast monochrome black & white vignette with sharp diagonal rain streaks.",
+        "tag": "NOIR MONO",
+        "primary_col": (226, 232, 240),
+        "secondary_col": (100, 116, 139),
+        "accent_col": (255, 255, 255)
+    },
+    {
+        "id": "sad_withered_petal",
+        "name": "🥀 Withered Black Rose Drift",
+        "category": "sad",
+        "family": "sad",
+        "badge": "🥀",
+        "desc": "Dried dark rose petals falling in slow-motion, symbolizing lost love and memories.",
+        "tag": "WITHERED",
+        "primary_col": (159, 18, 57),
+        "secondary_col": (100, 116, 139),
+        "accent_col": (255, 255, 255)
+    },
+    {
+        "id": "sad_heavy_downpour",
+        "name": "⛈️ Heavy Downpour Thunder Pulse",
+        "category": "sad",
+        "family": "sad",
+        "badge": "⛈️",
+        "desc": "Violent torrential rain streaks with brief subtle lightning flashes on thunderous sub-bass drops.",
+        "tag": "DOWNPOUR",
+        "primary_col": (14, 165, 233),
+        "secondary_col": (100, 116, 139),
+        "accent_col": (255, 255, 255)
+    },
+    {
+        "id": "sad_gray_halo",
+        "name": "🌪️ Distant Memory Gray Horizon",
+        "category": "sad",
+        "family": "sad",
+        "badge": "🌪️",
+        "desc": "Somber ash-gray frequency ring slowly dissipating into the dark atmospheric background.",
+        "tag": "GRAY HORIZON",
+        "primary_col": (71, 85, 105),
+        "secondary_col": (100, 116, 139),
+        "accent_col": (255, 255, 255)
+    },
+    {
+        "id": "sad_bleeding_ink",
+        "name": "🖋️ Bleeding Indigo Ink Vignette",
+        "category": "sad",
+        "family": "sad",
+        "badge": "🖋️",
+        "desc": "Dark blue watercolor ink stains blooming organically around the center emblem on bass notes.",
+        "tag": "INK BLEED",
+        "primary_col": (67, 56, 202),
+        "secondary_col": (100, 116, 139),
+        "accent_col": (255, 255, 255)
+    },
+    {
+        "id": "sad_somber_echo",
+        "name": "🔕 Somber Silence Sonic Echo",
+        "category": "sad",
+        "family": "sad",
+        "badge": "🔕",
+        "desc": "Minimalist thin cyan perimeter line vibrating gently with sub-bass like a faint heartbeat monitor.",
+        "tag": "MINIMAL ECHO",
+        "primary_col": (56, 189, 248),
+        "secondary_col": (100, 116, 139),
+        "accent_col": (255, 255, 255)
+    },
+    {
+        "id": "sad_abandoned_lighthouse",
+        "name": "🗼 Distant Foggy Lighthouse",
+        "category": "sad",
+        "family": "sad",
+        "badge": "🗼",
+        "desc": "Faint sweeping beacon cutting through dense ocean fog and somber rain.",
+        "tag": "LIGHTHOUSE",
+        "primary_col": (100, 116, 139),
+        "secondary_col": (100, 116, 139),
+        "accent_col": (255, 255, 255)
+    },
+    {
+        "id": "sad_echoing_piano_chords",
+        "name": "🎹 Echoing Broken Piano Waveform",
+        "category": "sad",
+        "family": "sad",
+        "badge": "🎹",
+        "desc": "Minor chord harmonic sound waves disintegrating into rain drops.",
+        "tag": "PIANO WAVE",
+        "primary_col": (148, 163, 184),
+        "secondary_col": (100, 116, 139),
+        "accent_col": (255, 255, 255)
+    },
+    {
+        "id": "sad_wilted_autumn_leaves",
+        "name": "🍂 Falling Autumn Dead Leaves",
+        "category": "sad",
+        "family": "sad",
+        "badge": "🍂",
+        "desc": "Crisp amber-brown dried leaves swirling downward in cold November breeze.",
+        "tag": "AUTUMN DRIFT",
+        "primary_col": (120, 113, 108),
+        "secondary_col": (100, 116, 139),
+        "accent_col": (255, 255, 255)
+    },
+    {
+        "id": "sad_shattered_clock",
+        "name": "🕰️ Fractured Timepiece Shards",
+        "category": "sad",
+        "family": "sad",
+        "badge": "🕰️",
+        "desc": "Broken watch gears and glass ticking in reverse with hollow bass resonance.",
+        "tag": "BROKEN TIME",
+        "primary_col": (71, 85, 105),
+        "secondary_col": (100, 116, 139),
+        "accent_col": (255, 255, 255)
+    },
+    {
+        "id": "sad_candle_in_wind",
+        "name": "🕯️ Flickering Candle in Wind",
+        "category": "sad",
+        "family": "sad",
+        "badge": "🕯️",
+        "desc": "Fragile single wax candle flame struggling against heavy rain drops on bass pulse.",
+        "tag": "FLICKER",
+        "primary_col": (203, 213, 225),
+        "secondary_col": (100, 116, 139),
+        "accent_col": (255, 255, 255)
+    },
+    {
+        "id": "sad_ocean_abyss",
+        "name": "🌊 Midnight Ocean Abyss Wave",
+        "category": "sad",
+        "family": "sad",
+        "badge": "🌊",
+        "desc": "Dark midnight oceanic swell rising and falling with deep melancholic sub-bass.",
+        "tag": "DEEP ABYSS",
+        "primary_col": (56, 189, 248),
+        "secondary_col": (100, 116, 139),
+        "accent_col": (255, 255, 255)
+    },
+    {
+        "id": "devotional_auto",
+        "name": "🎲 Auto Bhakti Reactor (Random Shuffle)",
+        "category": "devotional",
+        "family": "devotional",
+        "badge": "🎲",
+        "desc": "Automatic selection: Bhakti aur mantra ke liye divine sacred chakra aur diya flame auto-shuffle honge!",
+        "tag": "AUTO DEFAULT",
+        "primary_col": (245, 158, 11),
+        "secondary_col": (249, 115, 22),
+        "accent_col": (255, 255, 255)
+    },
+    {
         "id": "devotional_chakra",
         "name": "🪔 Sacred Divine Aura Chakra",
-        "family": "devotional_chakra",
+        "category": "devotional",
+        "family": "devotional",
         "badge": "🪔",
-        "desc": "Center Circle Logo + Expanding Golden Chakra Rays + Diya Flame Pulse",
+        "desc": "Center Circle Logo + Expanding Golden Chakra Rays + Diya Flame Pulse.",
+        "tag": "CHAKRA CORE",
+        "primary_col": (245, 158, 11),
+        "secondary_col": (249, 115, 22),
+        "accent_col": (255, 255, 255)
+    },
+    {
+        "id": "devotional_sudarshan",
+        "name": "☸️ Maha Sudarshan Chakra Radiance",
+        "category": "devotional",
+        "family": "devotional",
+        "badge": "☸️",
+        "desc": "Spinning sacred golden disc with 32 razor-sharp energy teeth emitting divine golden light.",
+        "tag": "SUDARSHAN",
         "primary_col": (250, 204, 21),
         "secondary_col": (249, 115, 22),
         "accent_col": (255, 255, 255)
     },
     {
+        "id": "devotional_temple_flame",
+        "name": "🔥 Mandir Akhand Jyoti Flame",
+        "category": "devotional",
+        "family": "devotional",
+        "badge": "🔥",
+        "desc": "Pure golden temple brass diya flame rising and pulsing in rhythm with devotional dholak beats.",
+        "tag": "AKHAND JYOTI",
+        "primary_col": (234, 88, 12),
+        "secondary_col": (249, 115, 22),
+        "accent_col": (255, 255, 255)
+    },
+    {
+        "id": "devotional_omkar_ring",
+        "name": "🕉️ Omkar Celestial Ring",
+        "category": "devotional",
+        "family": "devotional",
+        "badge": "🕉️",
+        "desc": "Sacred primordial OM cosmic resonance wave pulsating around the divine avatar emblem.",
+        "tag": "OMKAR RING",
+        "primary_col": (245, 158, 11),
+        "secondary_col": (249, 115, 22),
+        "accent_col": (255, 255, 255)
+    },
+    {
+        "id": "devotional_temple_bell",
+        "name": "🔔 Temple Ghanta Sonic Wave",
+        "category": "devotional",
+        "family": "devotional",
+        "badge": "🔔",
+        "desc": "Acoustic brass resonance rings expanding outwards simulating the deep chime of a mandir bell.",
+        "tag": "TEMPLE BELL",
+        "primary_col": (234, 179, 8),
+        "secondary_col": (249, 115, 22),
+        "accent_col": (255, 255, 255)
+    },
+    {
+        "id": "devotional_aarti_ripple",
+        "name": "🪔 Maha Aarti Thali Orbit Rays",
+        "category": "devotional",
+        "family": "devotional",
+        "badge": "🪔",
+        "desc": "Golden circular aarti lamps revolving in sacred pradakshina orbit with warm amber radiance.",
+        "tag": "AARTI THALI",
+        "primary_col": (249, 115, 22),
+        "secondary_col": (249, 115, 22),
+        "accent_col": (255, 255, 255)
+    },
+    {
+        "id": "devotional_lotus_bloom",
+        "name": "🪷 Sahasrara Golden Lotus Bloom",
+        "category": "devotional",
+        "family": "devotional",
+        "badge": "🪷",
+        "desc": "1000-petal divine golden lotus unfolding gracefully beneath the sanctified center portrait.",
+        "tag": "GOLDEN LOTUS",
+        "primary_col": (251, 191, 36),
+        "secondary_col": (249, 115, 22),
+        "accent_col": (255, 255, 255)
+    },
+    {
+        "id": "devotional_mantra_orbit",
+        "name": "📿 Vedic Sacred Japa Orbit Ring",
+        "category": "devotional",
+        "family": "devotional",
+        "badge": "📿",
+        "desc": "108 glowing celestial prayer beads circulating in sacred geometric alignment on kirtan drops.",
+        "tag": "JAPA MALA",
+        "primary_col": (217, 119, 6),
+        "secondary_col": (249, 115, 22),
+        "accent_col": (255, 255, 255)
+    },
+    {
+        "id": "devotional_trishul_halo",
+        "name": "🔱 Mahadev Trishul Energy Aura",
+        "category": "devotional",
+        "family": "devotional",
+        "badge": "🔱",
+        "desc": "Cosmic electric blue & golden trishul aura emitting powerful Rudra energy pulses on damru hits.",
+        "tag": "TRISHUL ENERGY",
+        "primary_col": (2, 132, 199),
+        "secondary_col": (249, 115, 22),
+        "accent_col": (255, 255, 255)
+    },
+    {
+        "id": "devotional_swarna_pushpa",
+        "name": "🌼 Swarna Pushpa Divine Shower",
+        "category": "devotional",
+        "family": "devotional",
+        "badge": "🌼",
+        "desc": "Shower of blessed golden marigold petals raining gently around the sanctum sanctorum.",
+        "tag": "FLOWER SHOWER",
+        "primary_col": (234, 179, 8),
+        "secondary_col": (249, 115, 22),
+        "accent_col": (255, 255, 255)
+    },
+    {
+        "id": "devotional_divine_surya",
+        "name": "☀️ Surya Dev Golden Rays Aura",
+        "category": "devotional",
+        "family": "devotional",
+        "badge": "☀️",
+        "desc": "360° celestial solar corona radiating pure golden morning light and positive spiritual energy.",
+        "tag": "SURYA RAYS",
+        "primary_col": (245, 158, 11),
+        "secondary_col": (249, 115, 22),
+        "accent_col": (255, 255, 255)
+    },
+    {
+        "id": "devotional_kailash_mystic",
+        "name": "🏔️ Kailash Peak Mystic Glow",
+        "category": "devotional",
+        "family": "devotional",
+        "badge": "🏔️",
+        "desc": "Divine ethereal blue moonlight reflecting off sacred snow peaks with shimmering celestial frost.",
+        "tag": "KAILASH GLOW",
+        "primary_col": (56, 189, 248),
+        "secondary_col": (249, 115, 22),
+        "accent_col": (255, 255, 255)
+    },
+    {
+        "id": "devotional_rudraksha_core",
+        "name": "📿 Rudraksha Sacred Mala Beads",
+        "category": "devotional",
+        "family": "devotional",
+        "badge": "📿",
+        "desc": "Sacred Panchmukhi Rudraksha perimeter ring pulsating with spiritual grounding frequencies.",
+        "tag": "RUDRAKSHA",
+        "primary_col": (146, 64, 14),
+        "secondary_col": (249, 115, 22),
+        "accent_col": (255, 255, 255)
+    },
+    {
+        "id": "devotional_shankh_wave",
+        "name": "🐚 Panchajanya Sacred Conch Wave",
+        "category": "devotional",
+        "family": "devotional",
+        "badge": "🐚",
+        "desc": "Spiral sound geometry reproducing the holy vibrational frequency of the sacred Shankh blast.",
+        "tag": "SHANKH DHUN",
+        "primary_col": (248, 250, 252),
+        "secondary_col": (249, 115, 22),
+        "accent_col": (255, 255, 255)
+    },
+    {
+        "id": "devotional_golden_kalash",
+        "name": "🏺 Amrit Kalash Celestial Halo",
+        "category": "devotional",
+        "family": "devotional",
+        "badge": "🏺",
+        "desc": "Sacred Kalash with mango leaves and coconut halo radiating divine nectar and auspicious blessings.",
+        "tag": "AMRIT KALASH",
+        "primary_col": (245, 158, 11),
+        "secondary_col": (249, 115, 22),
+        "accent_col": (255, 255, 255)
+    },
+    {
+        "id": "devotional_ganga_aarti",
+        "name": "🪔 Haridwar Ganga Aarti Deepam",
+        "category": "devotional",
+        "family": "devotional",
+        "badge": "🪔",
+        "desc": "108 blazing oil lamps swirling in sacred clockwise circle with golden bells.",
+        "tag": "DEEPAM AARTI",
+        "primary_col": (245, 158, 11),
+        "secondary_col": (249, 115, 22),
+        "accent_col": (255, 255, 255)
+    },
+    {
+        "id": "devotional_nandi_dhun",
+        "name": "🐂 Sacred Nandi Damru Wave",
+        "category": "devotional",
+        "family": "devotional",
+        "badge": "🐂",
+        "desc": "Lord Shiva's divine damru rhythm pulses expanding cosmic sound waves outward.",
+        "tag": "DAMRU DHUN",
+        "primary_col": (234, 179, 8),
+        "secondary_col": (249, 115, 22),
+        "accent_col": (255, 255, 255)
+    },
+    {
+        "id": "devotional_garuda_wings",
+        "name": "🦅 Celestial Garuda Feather Halo",
+        "category": "devotional",
+        "family": "devotional",
+        "badge": "🦅",
+        "desc": "Golden divine wings fanning sacred radiance and celestial light rays.",
+        "tag": "GARUDA HALO",
+        "primary_col": (251, 191, 36),
+        "secondary_col": (249, 115, 22),
+        "accent_col": (255, 255, 255)
+    },
+    {
+        "id": "devotional_radha_krishna_flute",
+        "name": "🪈 Vaikuntha Bansuri Melodic Stream",
+        "category": "devotional",
+        "family": "devotional",
+        "badge": "🪈",
+        "desc": "Divine peacock feather and golden melodic note particles orbiting the avatar.",
+        "tag": "BANSURI VIBE",
+        "primary_col": (202, 138, 4),
+        "secondary_col": (249, 115, 22),
+        "accent_col": (255, 255, 255)
+    },
+    {
+        "id": "devotional_hanuman_gada",
+        "name": "🚩 Mahabali Hanuman Golden Aura",
+        "category": "devotional",
+        "family": "devotional",
+        "badge": "🚩",
+        "desc": "Blazing saffron aura with invulnerable protective energy shield on drops.",
+        "tag": "SANKAT MOCHAN",
+        "primary_col": (249, 115, 22),
+        "secondary_col": (249, 115, 22),
+        "accent_col": (255, 255, 255)
+    },
+    {
+        "id": "devotional_shiva_trinetra",
+        "name": "👁️ Trinetra Cosmic Third-Eye Beam",
+        "category": "devotional",
+        "family": "devotional",
+        "badge": "👁️",
+        "desc": "Piercing divine third-eye golden beam dissolving ignorance with cosmic vibration.",
+        "tag": "THIRD EYE",
+        "primary_col": (225, 29, 72),
+        "secondary_col": (249, 115, 22),
+        "accent_col": (255, 255, 255)
+    },
+    {
+        "id": "lofi_auto",
+        "name": "🎲 Auto Lo-Fi Reactor (Random Shuffle)",
+        "category": "lofi",
+        "family": "lofi",
+        "badge": "🎲",
+        "desc": "Automatic selection: Lo-Fi beats ke liye vinyl disc, cassette spool aur star dust auto-match honge!",
+        "tag": "AUTO DEFAULT",
+        "primary_col": (168, 85, 247),
+        "secondary_col": (99, 102, 241),
+        "accent_col": (255, 255, 255)
+    },
+    {
         "id": "lofi_vinyl",
         "name": "🌙 Cozy Lo-Fi Vinyl Spin Core",
-        "family": "lofi_vinyl",
+        "category": "lofi",
+        "family": "lofi",
         "badge": "🌙",
-        "desc": "Center Circle Logo + Rotating Vinyl Record Disc + Soft Lavender Starfield",
+        "desc": "Center Circle Logo + Rotating Vinyl Record Disc + Soft Lavender Starfield.",
+        "tag": "VINYL SPIN",
         "primary_col": (168, 85, 247),
         "secondary_col": (99, 102, 241),
-        "accent_col": (253, 224, 71)
-    },
-    {
-        "id": "trap_nation_trilobe",
-        "name": "👑 Trap Nation Tri-Lobe Core",
-        "family": "trap_nation",
-        "badge": "👑",
-        "desc": "Center Circle Logo + 3-Lobe Audio Bulges + Dotted Equalizer Perimeter + Neon Halo",
-        "primary_col": (168, 85, 247),
-        "secondary_col": (0, 242, 254),
         "accent_col": (255, 255, 255)
     },
     {
-        "id": "reactor_studio",
-        "name": "☢️ Extreme Reactor Studio",
-        "family": "reactor",
-        "badge": "☢️",
-        "desc": "Center Circle Logo + 360° Radial Bars + 3D Floor Grid + 808 Lightning & Shockwaves",
+        "id": "lofi_cassette_spool",
+        "name": "📼 Retro Cassette Tape Reel Spool",
+        "category": "lofi",
+        "family": "lofi",
+        "badge": "📼",
+        "desc": "Dual magnetic tape spools revolving gently with warm analog cassette hiss dust.",
+        "tag": "CASSETTE REEL",
+        "primary_col": (139, 92, 246),
+        "secondary_col": (99, 102, 241),
+        "accent_col": (255, 255, 255)
+    },
+    {
+        "id": "lofi_midnight_stars",
+        "name": "✨ Lavender Midnight Star Dust",
+        "category": "lofi",
+        "family": "lofi",
+        "badge": "✨",
+        "desc": "Drifting pastel purple and blue starfield with twinkling starlight around center frame.",
+        "tag": "STAR DUST",
+        "primary_col": (192, 132, 252),
+        "secondary_col": (99, 102, 241),
+        "accent_col": (255, 255, 255)
+    },
+    {
+        "id": "lofi_rainy_cafe",
+        "name": "☕ Tokyo Night Cafe Rainy Neon",
+        "category": "lofi",
+        "family": "lofi",
+        "badge": "☕",
+        "desc": "Soft blurred amber cafe neon lights glowing through foggy rain streaks on glass.",
+        "tag": "COZY CAFE",
+        "primary_col": (245, 158, 11),
+        "secondary_col": (99, 102, 241),
+        "accent_col": (255, 255, 255)
+    },
+    {
+        "id": "lofi_sunset_clouds",
+        "name": "☁️ Anime Pastel Cloud Horizon",
+        "category": "lofi",
+        "family": "lofi",
+        "badge": "☁️",
+        "desc": "Dreamy pastel pink and lavender cloud layers drifting peacefully across sunset sky.",
+        "tag": "PASTEL CLOUDS",
+        "primary_col": (244, 114, 182),
+        "secondary_col": (99, 102, 241),
+        "accent_col": (255, 255, 255)
+    },
+    {
+        "id": "lofi_vhs_tracking",
+        "name": "📺 Vintage VHS Tape Tracking Glitch",
+        "category": "lofi",
+        "family": "lofi",
+        "badge": "📺",
+        "desc": "Authentic 90s VHS tape scanlines and subtle magnetic distortion on lo-fi snare hits.",
+        "tag": "VHS GLITCH",
+        "primary_col": (6, 182, 212),
+        "secondary_col": (99, 102, 241),
+        "accent_col": (255, 255, 255)
+    },
+    {
+        "id": "lofi_tea_steam",
+        "name": "🍵 Warm Green Tea Vapor Ripple",
+        "category": "lofi",
+        "family": "lofi",
+        "badge": "🍵",
+        "desc": "Soothing curls of fragrant matcha tea steam swirling upwards in tranquil motion.",
+        "tag": "TEA VAPOR",
+        "primary_col": (16, 185, 129),
+        "secondary_col": (99, 102, 241),
+        "accent_col": (255, 255, 255)
+    },
+    {
+        "id": "lofi_retro_waveform",
+        "name": "📻 Retro Radio Waveform Ribbon",
+        "category": "lofi",
+        "family": "lofi",
+        "badge": "📻",
+        "desc": "Smooth curved oscilloscope sine ribbon simulating warm vacuum tube radio reception.",
+        "tag": "RADIO WAVE",
+        "primary_col": (167, 139, 250),
+        "secondary_col": (99, 102, 241),
+        "accent_col": (255, 255, 255)
+    },
+    {
+        "id": "lofi_sleepwalker_orbit",
+        "name": "🌌 Sleepwalker Celestial Orbit",
+        "category": "lofi",
+        "family": "lofi",
+        "badge": "🌌",
+        "desc": "Crescent moon and planetary orbit rings revolving in hypnotic midnight trance.",
+        "tag": "MOON ORBIT",
+        "primary_col": (99, 102, 241),
+        "secondary_col": (99, 102, 241),
+        "accent_col": (255, 255, 255)
+    },
+    {
+        "id": "lofi_paper_airplane",
+        "name": "✈️ Origami Airplane Cloud Drift",
+        "category": "lofi",
+        "family": "lofi",
+        "badge": "✈️",
+        "desc": "White paper airplane gliding smoothly on gentle lo-fi bass breeze with dashed trail.",
+        "tag": "ORIGAMI",
+        "primary_col": (226, 232, 240),
+        "secondary_col": (99, 102, 241),
+        "accent_col": (255, 255, 255)
+    },
+    {
+        "id": "lofi_city_rain",
+        "name": "🏙️ Cyber Lofi Rainy Skyline Pulse",
+        "category": "lofi",
+        "family": "lofi",
+        "badge": "🏙️",
+        "desc": "Distant metropolitan skyscraper silhouette with flickering warm apartment windows.",
+        "tag": "LOFI SKYLINE",
+        "primary_col": (59, 130, 246),
+        "secondary_col": (99, 102, 241),
+        "accent_col": (255, 255, 255)
+    },
+    {
+        "id": "lofi_bonsai_tree",
+        "name": "🪴 Zen Bonsai Tree Silhouette",
+        "category": "lofi",
+        "family": "lofi",
+        "badge": "🪴",
+        "desc": "Peaceful Japanese bonsai silhouette with falling cherry blossoms in meditative aura.",
+        "tag": "ZEN BONSAI",
+        "primary_col": (5, 150, 105),
+        "secondary_col": (99, 102, 241),
+        "accent_col": (255, 255, 255)
+    },
+    {
+        "id": "lofi_twilight_lamp",
+        "name": "🏮 Twilight Paper Lantern Glow",
+        "category": "lofi",
+        "family": "lofi",
+        "badge": "🏮",
+        "desc": "Traditional Japanese red paper lanterns swaying gently in the night breeze.",
+        "tag": "LANTERN",
+        "primary_col": (244, 63, 94),
+        "secondary_col": (99, 102, 241),
+        "accent_col": (255, 255, 255)
+    },
+    {
+        "id": "lofi_rainy_bus_stop",
+        "name": "🚏 Midnight Rainy Bus Stop",
+        "category": "lofi",
+        "family": "lofi",
+        "badge": "🚏",
+        "desc": "Fluorescent street lamp glowing in drizzle with gentle retro bus engine hum.",
+        "tag": "BUS STOP",
+        "primary_col": (129, 140, 248),
+        "secondary_col": (99, 102, 241),
+        "accent_col": (255, 255, 255)
+    },
+    {
+        "id": "lofi_bookstore_lamp",
+        "name": "📚 Cozy Midnight Library Glow",
+        "category": "lofi",
+        "family": "lofi",
+        "badge": "📚",
+        "desc": "Amber study lamp glow with flying book pages drifting peacefully on low-fi beats.",
+        "tag": "MIDNIGHT BOOK",
+        "primary_col": (167, 139, 250),
+        "secondary_col": (99, 102, 241),
+        "accent_col": (255, 255, 255)
+    },
+    {
+        "id": "lofi_retro_pixel_city",
+        "name": "👾 8-Bit Pixel Sunset Skyline",
+        "category": "lofi",
+        "family": "lofi",
+        "badge": "👾",
+        "desc": "Nostalgic 16-bit pixel art skyscraper silhouettes with 80s arcade sunset.",
+        "tag": "PIXEL CITY",
+        "primary_col": (192, 132, 252),
+        "secondary_col": (99, 102, 241),
+        "accent_col": (255, 255, 255)
+    },
+    {
+        "id": "lofi_cat_window",
+        "name": "🐱 Cat on Rainy Windowsill",
+        "category": "lofi",
+        "family": "lofi",
+        "badge": "🐱",
+        "desc": "Sleepy silhouette of cat watching rain droplets race down the glass pane.",
+        "tag": "PURR & CHILL",
+        "primary_col": (232, 121, 249),
+        "secondary_col": (99, 102, 241),
+        "accent_col": (255, 255, 255)
+    },
+    {
+        "id": "lofi_polaroid_memories",
+        "name": "📷 Floating Polaroid Drift",
+        "category": "lofi",
+        "family": "lofi",
+        "badge": "📷",
+        "desc": "Nostalgic instant film photo borders floating with soft sepia flash on kick drums.",
+        "tag": "POLAROID",
+        "primary_col": (168, 85, 247),
+        "secondary_col": (99, 102, 241),
+        "accent_col": (255, 255, 255)
+    },
+    {
+        "id": "lofi_cassette_pencil_rewind",
+        "name": "✏️ Cassette Tape Pencil Spool",
+        "category": "lofi",
+        "family": "lofi",
+        "badge": "✏️",
+        "desc": "Vintage magnetic tape winding gently around vintage yellow pencil.",
+        "tag": "REWIND TAPE",
+        "primary_col": (147, 51, 234),
+        "secondary_col": (99, 102, 241),
+        "accent_col": (255, 255, 255)
+    },
+    {
+        "id": "party_auto",
+        "name": "🎲 Auto Party Reactor (Random Shuffle)",
+        "category": "party",
+        "family": "party",
+        "badge": "🎲",
+        "desc": "Automatic selection: Club & EDM party ke liye lasers, shockwaves aur strobes auto-shuffle honge!",
+        "tag": "AUTO DEFAULT",
         "primary_col": (0, 242, 254),
         "secondary_col": (168, 85, 247),
-        "accent_col": (255, 0, 85)
-    },
-    {
-        "id": "monstercat_radial",
-        "name": "⭕ Monstercat 360° Circular Ring",
-        "family": "monstercat",
-        "badge": "⭕",
-        "desc": "Center Circle Logo + 64 dense radial audio bars vibrating with 808 sub-bass drops",
-        "primary_col": (236, 72, 153),
-        "secondary_col": (244, 114, 182),
-        "accent_col": (255, 255, 255)
-    },
-    {
-        "id": "cyber_hexagon",
-        "name": "🔷 Cyber Hexagon Core",
-        "family": "hexagon",
-        "badge": "🔷",
-        "desc": "Center Circle Logo + Dual rotating honeycomb hex shields + expanding techno brackets",
-        "primary_col": (56, 189, 248),
-        "secondary_col": (99, 102, 241),
-        "accent_col": (255, 255, 255)
-    },
-    {
-        "id": "diamond_prism",
-        "name": "💠 Diamond Core Bass Prism",
-        "family": "diamond",
-        "badge": "💠",
-        "desc": "Center Circle Logo + 45-degree rotating diamond frame + corner spikes & shockwave rings",
-        "primary_col": (244, 63, 94),
-        "secondary_col": (251, 113, 133),
-        "accent_col": (255, 255, 255)
-    },
-    {
-        "id": "biohazard_core",
-        "name": "🛡️ Biohazard Radioactive Core",
-        "family": "biohazard",
-        "badge": "🛡️",
-        "desc": "Center Circle Logo + Rotating biohazard tri-blade rotor + toxic neon radioactive shield",
-        "primary_col": (132, 204, 22),
-        "secondary_col": (163, 230, 53),
-        "accent_col": (254, 240, 138)
-    },
-    {
-        "id": "plasma_lightning",
-        "name": "⚡ Electric Plasma Arc Reactor",
-        "family": "plasma",
-        "badge": "⚡",
-        "desc": "Center Circle Logo + High-voltage plasma lightning bolts discharging along edges on drops",
-        "primary_col": (234, 179, 8),
-        "secondary_col": (250, 204, 21),
         "accent_col": (255, 255, 255)
     },
     {
         "id": "laser_strobe",
         "name": "🔦 Cyber Laser Stage Strobes",
-        "family": "laser",
+        "category": "party",
+        "family": "party",
         "badge": "🔦",
-        "desc": "Concert rave lasers crisscrossing from screen corners, sweeping across on beat rhythm",
-        "primary_col": (6, 182, 212),
-        "secondary_col": (34, 211, 238),
+        "desc": "Rave club concert laser beams sweeping in multi-fan formations across the screen.",
+        "tag": "LASER BEAMS",
+        "primary_col": (0, 242, 254),
+        "secondary_col": (168, 85, 247),
         "accent_col": (255, 255, 255)
     },
     {
-        "id": "shockwave_blast",
-        "name": "💥 Multi-Ring Sonic Shockwave Blast",
-        "family": "shockwave",
+        "id": "party_shockwave_blast",
+        "name": "💥 Multi-Ring Sonic Bass Shockwave",
+        "category": "party",
+        "family": "party",
         "badge": "💥",
-        "desc": "Concentric 808 sonic blast rings exploding outward from center reticle on kick drops",
-        "primary_col": (249, 115, 22),
-        "secondary_col": (251, 146, 60),
+        "desc": "Triple high-velocity circular sonic pressure rings expanding outward on heavy bass drops.",
+        "tag": "SHOCKWAVE",
+        "primary_col": (236, 72, 153),
+        "secondary_col": (168, 85, 247),
         "accent_col": (255, 255, 255)
     },
     {
-        "id": "starfield_warp",
-        "name": "🚀 Light Speed Starfield Accelerator",
-        "family": "starfield",
-        "badge": "🚀",
-        "desc": "3D hyperspace stars rushing forward, turning into lightspeed hyper-jump streaks on drops",
-        "primary_col": (96, 165, 250),
-        "secondary_col": (147, 197, 253),
-        "accent_col": (255, 255, 255)
-    },
-    {
-        "id": "tachometer_jdm",
-        "name": "🏎️ JDM Drift Tachometer & Boost",
-        "family": "tachometer",
-        "badge": "🏎️",
-        "desc": "Analog sports car tachometer with redline needle revving with 808 sub-bass + shift light",
-        "primary_col": (239, 68, 68),
-        "secondary_col": (248, 113, 113),
-        "accent_col": (254, 202, 202)
-    },
-    {
-        "id": "grid_3d_synthwave",
-        "name": "🌐 3D Synthwave Horizon & Sun",
-        "family": "grid_3d",
+        "id": "party_neon_laser_grid",
+        "name": "🌐 Neon Club 3D Laser Ceiling Grid",
+        "category": "party",
+        "family": "party",
         "badge": "🌐",
-        "desc": "3D Outrun perspective wireframe highway moving at lightspeed + sliced retro neon sun",
-        "primary_col": (217, 70, 239),
-        "secondary_col": (0, 242, 254),
+        "desc": "Sweeping cyberpunk club ceiling laser matrix illuminating the venue in synchronized grid lines.",
+        "tag": "LASER GRID",
+        "primary_col": (168, 85, 247),
+        "secondary_col": (168, 85, 247),
         "accent_col": (255, 255, 255)
     },
     {
-        "id": "tunnel_warp",
-        "name": "🌀 Hyperspace Polygonal Tunnel",
-        "family": "tunnel",
-        "badge": "🌀",
-        "desc": "5-layer concentric neon polygonal warp gates expanding toward camera into infinite vortex",
+        "id": "party_plasma_arc",
+        "name": "⚡ High-Voltage Plasma Arc Reactor",
+        "category": "party",
+        "family": "party",
+        "badge": "⚡",
+        "desc": "Electric tesla coil arcs leaping between electrodes with crackling violet lightning bolts.",
+        "tag": "PLASMA ARC",
+        "primary_col": (56, 189, 248),
+        "secondary_col": (168, 85, 247),
+        "accent_col": (255, 255, 255)
+    },
+    {
+        "id": "party_acid_equalizer",
+        "name": "🟢 Acid Glow Dual Equalizer",
+        "category": "party",
+        "family": "party",
+        "badge": "🟢",
+        "desc": "Toxic green and electric cyan frequency towers pulsing to 140 BPM techno basslines.",
+        "tag": "ACID EQUALIZER",
+        "primary_col": (34, 197, 94),
+        "secondary_col": (168, 85, 247),
+        "accent_col": (255, 255, 255)
+    },
+    {
+        "id": "party_edm_radial_ring",
+        "name": "⭕ Ultra EDM 360° Circular Ring",
+        "category": "party",
+        "family": "party",
+        "badge": "⭕",
+        "desc": "360-degree dense radial audio equalizer needles exploding outward with bass frequency spikes.",
+        "tag": "EDM 360",
+        "primary_col": (225, 29, 72),
+        "secondary_col": (168, 85, 247),
+        "accent_col": (255, 255, 255)
+    },
+    {
+        "id": "party_strobe_pulsar",
+        "name": "🎆 Festival Strobe Fireworks Pulsar",
+        "category": "party",
+        "family": "party",
+        "badge": "🎆",
+        "desc": "High-speed white and neon strobing flashes simulating mainstage Tomorrowland pyrotechnics.",
+        "tag": "FESTIVAL STROBE",
+        "primary_col": (251, 191, 36),
+        "secondary_col": (168, 85, 247),
+        "accent_col": (255, 255, 255)
+    },
+    {
+        "id": "party_bass_cannon",
+        "name": "🔊 Subwoofer Pressure Cannon",
+        "category": "party",
+        "family": "party",
+        "badge": "🔊",
+        "desc": "Concentric audio pressure cones vibrating violently on sub-bass drops with RGB chromatic flash.",
+        "tag": "BASS CANNON",
+        "primary_col": (249, 115, 22),
+        "secondary_col": (168, 85, 247),
+        "accent_col": (255, 255, 255)
+    },
+    {
+        "id": "party_equalizer_dome",
+        "name": "🌐 Neon Equalizer Dome Arena",
+        "category": "party",
+        "family": "party",
+        "badge": "🌐",
+        "desc": "3D hemispherical dome of pulsating audio spectrum towers creating an immersive club arena.",
+        "tag": "SPECTRUM DOME",
         "primary_col": (139, 92, 246),
-        "secondary_col": (196, 181, 253),
+        "secondary_col": (168, 85, 247),
         "accent_col": (255, 255, 255)
     },
     {
-        "id": "drift_hud_telemetry",
-        "name": "💨 Tokyo Drift HUD Telemetry",
-        "family": "drift_hud",
+        "id": "party_rainbow_strobe",
+        "name": "🌈 Spectrum Prism Laser Fan",
+        "category": "party",
+        "family": "party",
+        "badge": "🌈",
+        "desc": "Full-spectrum RGB rainbow laser fans spreading across the ceiling in synchronized sweep.",
+        "tag": "RAINBOW FAN",
+        "primary_col": (6, 182, 212),
+        "secondary_col": (168, 85, 247),
+        "accent_col": (255, 255, 255)
+    },
+    {
+        "id": "party_cyber_laser_fan",
+        "name": "🪭 Cyberpunk Multi-Beam Fan",
+        "category": "party",
+        "family": "party",
+        "badge": "🪭",
+        "desc": "16 high-intensity cyan laser shafts rotating in opposite directions with angular precision.",
+        "tag": "BEAM FAN",
+        "primary_col": (0, 242, 254),
+        "secondary_col": (168, 85, 247),
+        "accent_col": (255, 255, 255)
+    },
+    {
+        "id": "party_hyper_drop",
+        "name": "🚀 150 BPM Bass Drop Sonic Cone",
+        "category": "party",
+        "family": "party",
+        "badge": "🚀",
+        "desc": "Extreme screen-wide chromatic blast with warp-speed tunnel expansion on the main build-up drop.",
+        "tag": "HYPER DROP",
+        "primary_col": (244, 63, 94),
+        "secondary_col": (168, 85, 247),
+        "accent_col": (255, 255, 255)
+    },
+    {
+        "id": "party_acid_orbit",
+        "name": "🧪 Acid Glow Dual Ring Orbit",
+        "category": "party",
+        "family": "party",
+        "badge": "🧪",
+        "desc": "Intersecting fluorescent yellow and ultraviolet rings spinning with intense party energy.",
+        "tag": "ACID ORBIT",
+        "primary_col": (234, 179, 8),
+        "secondary_col": (168, 85, 247),
+        "accent_col": (255, 255, 255)
+    },
+    {
+        "id": "party_sub_woofer_vibration",
+        "name": "🔊 1000W Subwoofer Cone Vibration",
+        "category": "party",
+        "family": "party",
+        "badge": "🔊",
+        "desc": "Mechanical speaker cone punching forward with extreme air displacement rings.",
+        "tag": "SUB CONE",
+        "primary_col": (6, 182, 212),
+        "secondary_col": (168, 85, 247),
+        "accent_col": (255, 255, 255)
+    },
+    {
+        "id": "party_las_vegas_neon_strip",
+        "name": "🎰 Cyber Neon Strip Marquee",
+        "category": "party",
+        "family": "party",
+        "badge": "🎰",
+        "desc": "Multi-colored blinking neon signage tube flashing in hyper-speed sync.",
+        "tag": "VEGAS NEON",
+        "primary_col": (236, 72, 153),
+        "secondary_col": (168, 85, 247),
+        "accent_col": (255, 255, 255)
+    },
+    {
+        "id": "party_co2_cryo_cannon",
+        "name": "💨 Festival CO2 Cryo Blast",
+        "category": "party",
+        "family": "party",
         "badge": "💨",
-        "desc": "Japanese Kanji glow brackets + corner tactical telemetry + manga radial speed lines",
-        "primary_col": (16, 185, 129),
-        "secondary_col": (52, 211, 153),
+        "desc": "High-pressure white cold fog jets erupting upward on massive bass drop.",
+        "tag": "CRYO CANNON",
+        "primary_col": (56, 189, 248),
+        "secondary_col": (168, 85, 247),
         "accent_col": (255, 255, 255)
     },
     {
-        "id": "equalizer_wave",
-        "name": "📊 Dual-Horizon Equalizer Bars",
-        "family": "equalizer",
-        "badge": "📊",
-        "desc": "High-density stereo audio frequency columns bouncing from bottom with peak-hold caps",
-        "primary_col": (20, 184, 166),
-        "secondary_col": (45, 212, 191),
+        "id": "party_prism_confetti_drop",
+        "name": "🎊 Holographic Laser Confetti",
+        "category": "party",
+        "family": "party",
+        "badge": "🎊",
+        "desc": "Thousands of reflective metallic foil flakes catching multi-colored lasers.",
+        "tag": "CONFETTI DROP",
+        "primary_col": (168, 85, 247),
+        "secondary_col": (168, 85, 247),
+        "accent_col": (255, 255, 255)
+    },
+    {
+        "id": "party_rave_glowsticks",
+        "name": "🪄 Dual Neon Glowstick Trails",
+        "category": "party",
+        "family": "party",
+        "badge": "🪄",
+        "desc": "Neon green and electric pink trails tracing hypnotic orbital figure-8 patterns.",
+        "tag": "GLOWSTICKS",
+        "primary_col": (34, 197, 94),
+        "secondary_col": (168, 85, 247),
+        "accent_col": (255, 255, 255)
+    },
+    {
+        "id": "party_flame_thrower_burst",
+        "name": "🔥 Stage Pyro Flame Cannon",
+        "category": "party",
+        "family": "party",
+        "badge": "🔥",
+        "desc": "Controlled concert flame bursts shooting skyward on 128 BPM build-up.",
+        "tag": "STAGE PYRO",
+        "primary_col": (249, 115, 22),
+        "secondary_col": (168, 85, 247),
+        "accent_col": (255, 255, 255)
+    },
+    {
+        "id": "acoustic_auto",
+        "name": "🎲 Auto Acoustic Reactor (Random Shuffle)",
+        "category": "acoustic",
+        "family": "acoustic",
+        "badge": "🎲",
+        "desc": "Automatic selection: Acoustic guitar ke liye organic sine ribbon aur campfire ember auto-match honge!",
+        "tag": "AUTO DEFAULT",
+        "primary_col": (217, 119, 6),
+        "secondary_col": (217, 119, 6),
         "accent_col": (255, 255, 255)
     },
     {
         "id": "oscilloscope_ribbon",
         "name": "🌊 Analog Sine Oscilloscope Ribbon",
-        "family": "oscilloscope",
+        "category": "acoustic",
+        "family": "acoustic",
         "badge": "🌊",
-        "desc": "Full-screen multi-harmonic sine waveform ribbon smoothly undulating with musical notes",
+        "desc": "Smooth flowing analog sine wave ribbons curving organically around the center emblem.",
+        "tag": "OSCILLOSCOPE",
+        "primary_col": (56, 189, 248),
+        "secondary_col": (217, 119, 6),
+        "accent_col": (255, 255, 255)
+    },
+    {
+        "id": "acoustic_guitar_string",
+        "name": "🎸 Six-String Acoustic Frequency Wave",
+        "category": "acoustic",
+        "family": "acoustic",
+        "badge": "🎸",
+        "desc": "Parallel vibrating golden guitar string lines displaying authentic plucked string harmonics.",
+        "tag": "GUITAR STRINGS",
+        "primary_col": (245, 158, 11),
+        "secondary_col": (217, 119, 6),
+        "accent_col": (255, 255, 255)
+    },
+    {
+        "id": "acoustic_campfire_ember",
+        "name": "🔥 Campfire Golden Ember Sparkles",
+        "category": "acoustic",
+        "family": "acoustic",
+        "badge": "🔥",
+        "desc": "Warm glowing campfire embers drifting upward softly into a clear wilderness night sky.",
+        "tag": "CAMPFIRE",
+        "primary_col": (234, 88, 12),
+        "secondary_col": (217, 119, 6),
+        "accent_col": (255, 255, 255)
+    },
+    {
+        "id": "acoustic_morning_dew",
+        "name": "🍃 Morning Dewdrop Circular Ripple",
+        "category": "acoustic",
+        "family": "acoustic",
+        "badge": "🍃",
+        "desc": "Pristine forest water ripples reflecting emerald green leaves on delicate acoustic guitar plucks.",
+        "tag": "DEWDROP",
+        "primary_col": (16, 185, 129),
+        "secondary_col": (217, 119, 6),
+        "accent_col": (255, 255, 255)
+    },
+    {
+        "id": "acoustic_wood_grain",
+        "name": "🪵 Organic Wooden Tone Ring",
+        "category": "acoustic",
+        "family": "acoustic",
+        "badge": "🪵",
+        "desc": "Concentric tree ring acoustic cross-section vibrating with warm natural mahogany resonance.",
+        "tag": "WOOD GRAIN",
+        "primary_col": (146, 64, 14),
+        "secondary_col": (217, 119, 6),
+        "accent_col": (255, 255, 255)
+    },
+    {
+        "id": "acoustic_indie_horizon",
+        "name": "🌅 Indie Folk Sunset Horizon",
+        "category": "acoustic",
+        "family": "acoustic",
+        "badge": "🌅",
+        "desc": "Golden indie sunset mountain ridge with serene harmonic waveforms mirroring along the base.",
+        "tag": "INDIE HORIZON",
+        "primary_col": (245, 158, 11),
+        "secondary_col": (217, 119, 6),
+        "accent_col": (255, 255, 255)
+    },
+    {
+        "id": "acoustic_misty_road",
+        "name": "🌲 Misty Forest Road Atmospheric Echo",
+        "category": "acoustic",
+        "family": "acoustic",
+        "badge": "🌲",
+        "desc": "Gentle pines and pine needles swaying in misty mountain wind with tranquil audio response.",
+        "tag": "MISTY FOREST",
+        "primary_col": (4, 120, 87),
+        "secondary_col": (217, 119, 6),
+        "accent_col": (255, 255, 255)
+    },
+    {
+        "id": "acoustic_coffee_house",
+        "name": "☕ Coffee House Warm Resonance Ring",
+        "category": "acoustic",
+        "family": "acoustic",
+        "badge": "☕",
+        "desc": "Intimate unplugged acoustic warmth with subtle brassy rings and rich wooden undertones.",
+        "tag": "COFFEE HOUSE",
+        "primary_col": (180, 83, 9),
+        "secondary_col": (217, 119, 6),
+        "accent_col": (255, 255, 255)
+    },
+    {
+        "id": "acoustic_mountain_wind",
+        "name": "💨 Mountain Breeze Sine Oscillator",
+        "category": "acoustic",
+        "family": "acoustic",
+        "badge": "💨",
+        "desc": "Whispering mountain winds tracing fluid, continuous undulating sine ribbons on vocal chords.",
+        "tag": "MOUNTAIN BREEZE",
+        "primary_col": (2, 132, 199),
+        "secondary_col": (217, 119, 6),
+        "accent_col": (255, 255, 255)
+    },
+    {
+        "id": "acoustic_gentle_tide",
+        "name": "🏖️ Gentle Shoreline Tide Waveform",
+        "category": "acoustic",
+        "family": "acoustic",
+        "badge": "🏖️",
+        "desc": "Rhythmic ocean foam washing gently onto golden sand in sync with acoustic strumming.",
+        "tag": "SHORELINE",
+        "primary_col": (6, 182, 212),
+        "secondary_col": (217, 119, 6),
+        "accent_col": (255, 255, 255)
+    },
+    {
+        "id": "acoustic_sunbeam_glow",
+        "name": "🌤️ Golden Sunbeam Rays Halo",
+        "category": "acoustic",
+        "family": "acoustic",
+        "badge": "🌤️",
+        "desc": "Peaceful sun rays breaking through morning clouds with soft, heartwarming illumination.",
+        "tag": "SUNBEAM",
+        "primary_col": (250, 204, 21),
+        "secondary_col": (217, 119, 6),
+        "accent_col": (255, 255, 255)
+    },
+    {
+        "id": "acoustic_wooden_cajon",
+        "name": "🥁 Acoustic Wooden Cajon Beat",
+        "category": "acoustic",
+        "family": "acoustic",
+        "badge": "🥁",
+        "desc": "Resonant warm wooden hollow chamber resonance with organic acoustic thump.",
+        "tag": "CAJON PULSE",
+        "primary_col": (180, 83, 9),
+        "secondary_col": (217, 119, 6),
+        "accent_col": (255, 255, 255)
+    },
+    {
+        "id": "acoustic_harmonica_breeze",
+        "name": "🌬️ Appalachian Harmonica Sine",
+        "category": "acoustic",
+        "family": "acoustic",
+        "badge": "🌬️",
+        "desc": "Crisp rustic blues harmonica reed vibration shimmering like golden prairie grass.",
+        "tag": "HARMONICA",
+        "primary_col": (217, 119, 6),
+        "secondary_col": (217, 119, 6),
+        "accent_col": (255, 255, 255)
+    },
+    {
+        "id": "acoustic_violin_bow",
+        "name": "🎻 Cello & Violin Bow Resonance",
+        "category": "acoustic",
+        "family": "acoustic",
+        "badge": "🎻",
+        "desc": "Rich horsehair bow friction creating rich velvet string overtones.",
+        "tag": "CELLO BOW",
+        "primary_col": (146, 64, 14),
+        "secondary_col": (217, 119, 6),
+        "accent_col": (255, 255, 255)
+    },
+    {
+        "id": "acoustic_fingerstyle_chords",
+        "name": "🎶 Fingerstyle Nylon Resonance",
+        "category": "acoustic",
+        "family": "acoustic",
+        "badge": "🎶",
+        "desc": "Delicate classical guitar pluck ripples spreading across still mountain lake.",
+        "tag": "FINGERSTYLE",
+        "primary_col": (234, 88, 12),
+        "secondary_col": (217, 119, 6),
+        "accent_col": (255, 255, 255)
+    },
+    {
+        "id": "acoustic_driftwood_bonfire",
+        "name": "🪵 Ocean Beach Driftwood Bonfire",
+        "category": "acoustic",
+        "family": "acoustic",
+        "badge": "🪵",
+        "desc": "Warm coastal driftwood fire with salt-air sparks dancing upward.",
+        "tag": "DRIFTWOOD",
+        "primary_col": (245, 158, 11),
+        "secondary_col": (217, 119, 6),
+        "accent_col": (255, 255, 255)
+    },
+    {
+        "id": "acoustic_autumn_stream",
+        "name": "🍂 Crisp Mountain Brook Ripple",
+        "category": "acoustic",
+        "family": "acoustic",
+        "badge": "🍂",
+        "desc": "Clear mountain stream water flowing over smooth river stones on acoustic picking.",
+        "tag": "BROOK STREAM",
+        "primary_col": (16, 185, 129),
+        "secondary_col": (217, 119, 6),
+        "accent_col": (255, 255, 255)
+    },
+    {
+        "id": "phonk_auto",
+        "name": "🎲 Auto Phonk Reactor (Random Shuffle)",
+        "category": "phonk",
+        "family": "trap_nation",
+        "badge": "🎲",
+        "desc": "Automatic selection: Phonk / Funk gaane ke liye Trap Nation, Tokyo Drift aur 808 reactors auto-match honge!",
+        "tag": "AUTO DEFAULT",
         "primary_col": (0, 242, 254),
-        "secondary_col": (56, 189, 248),
+        "secondary_col": (168, 85, 247),
+        "accent_col": (255, 255, 255)
+    },
+    {
+        "id": "trap_nation_trilobe",
+        "name": "👑 Trap Nation Tri-Lobe Core",
+        "category": "phonk",
+        "family": "trap_nation",
+        "badge": "👑",
+        "desc": "Center Circle Logo + 3-Lobe Audio Bulges + Dotted Equalizer Perimeter + Neon Halo (Flagship Style).",
+        "tag": "TRAP NATION",
+        "primary_col": (168, 85, 247),
+        "secondary_col": (168, 85, 247),
+        "accent_col": (255, 255, 255)
+    },
+    {
+        "id": "reactor_studio",
+        "name": "☢️ Extreme Reactor Studio",
+        "category": "phonk",
+        "family": "reactor",
+        "badge": "☢️",
+        "desc": "Center Circle Logo + 360° Radial Frequency Bars + 808 Lightning & Shockwaves + Oscilloscope.",
+        "tag": "PRO STUDIO",
+        "primary_col": (249, 115, 22),
+        "secondary_col": (168, 85, 247),
+        "accent_col": (255, 255, 255)
+    },
+    {
+        "id": "primary",
+        "name": "🌟 Classic Tokyo Drift Shake & 808 Zoom",
+        "category": "phonk",
+        "family": "all",
+        "badge": "🌟",
+        "desc": "Original Tokyo drift camera vibration, 808 zoom pump & RGB chromatic flash (Zero extra shapes).",
+        "tag": "CLASSIC DRIFT",
+        "primary_col": (0, 242, 254),
+        "secondary_col": (168, 85, 247),
+        "accent_col": (255, 255, 255)
+    },
+    {
+        "id": "tachometer_jdm",
+        "name": "🏎️ JDM Drift Tachometer & 808 Boost",
+        "category": "phonk",
+        "family": "tachometer",
+        "badge": "🏎️",
+        "desc": "Dual RPM meter tachometer arches + boost gauge needles flashing on 808 sub-bass drops.",
+        "tag": "JDM BOOST",
+        "primary_col": (239, 68, 68),
+        "secondary_col": (168, 85, 247),
+        "accent_col": (255, 255, 255)
+    },
+    {
+        "id": "monstercat_radial",
+        "name": "⭕ Monstercat 360° Circular Ring",
+        "category": "phonk",
+        "family": "monstercat",
+        "badge": "⭕",
+        "desc": "Center Circle Logo + Dense 360-degree frequency bars vibrating outward with sub-bass drops.",
+        "tag": "360 RING",
+        "primary_col": (244, 63, 94),
+        "secondary_col": (168, 85, 247),
+        "accent_col": (255, 255, 255)
+    },
+    {
+        "id": "cyber_hexagon",
+        "name": "🔷 Cyber Hexagon Core",
+        "category": "phonk",
+        "family": "hexagon",
+        "badge": "🔷",
+        "desc": "Center Circle Logo + Dual rotating honeycomb hex shields + techno brackets expanding on drops.",
+        "tag": "HEX CORE",
+        "primary_col": (14, 165, 233),
+        "secondary_col": (168, 85, 247),
+        "accent_col": (255, 255, 255)
+    },
+    {
+        "id": "diamond_prism",
+        "name": "💠 Diamond Core Bass Prism",
+        "category": "phonk",
+        "family": "diamond",
+        "badge": "💠",
+        "desc": "Center Circle Logo + 45-degree rotating diamond frame + corner telemetry spikes & shockwave rings.",
+        "tag": "DIAMOND",
+        "primary_col": (6, 182, 212),
+        "secondary_col": (168, 85, 247),
+        "accent_col": (255, 255, 255)
+    },
+    {
+        "id": "biohazard_core",
+        "name": "🛡️ Biohazard Radioactive Core",
+        "category": "phonk",
+        "family": "biohazard",
+        "badge": "🛡️",
+        "desc": "Center Circle Logo + Triple biohazard arc blades rotating with radioactive neon green aura.",
+        "tag": "BIOHAZARD",
+        "primary_col": (34, 197, 94),
+        "secondary_col": (168, 85, 247),
+        "accent_col": (255, 255, 255)
+    },
+    {
+        "id": "plasma_lightning",
+        "name": "⚡ Electric Plasma Arc Reactor",
+        "category": "phonk",
+        "family": "plasma",
+        "badge": "⚡",
+        "desc": "Center Circle Logo + High-voltage plasma lightning bolts jumping between circular orbital nodes.",
+        "tag": "PLASMA",
+        "primary_col": (168, 85, 247),
+        "secondary_col": (168, 85, 247),
+        "accent_col": (255, 255, 255)
+    },
+    {
+        "id": "grid_3d_synthwave",
+        "name": "🌐 3D Synthwave Horizon & Sun",
+        "category": "phonk",
+        "family": "grid_3d",
+        "badge": "🌐",
+        "desc": "Center Circle Logo + Perspective wireframe neon floor grid vibrating to 808 bass + horizon sun.",
+        "tag": "3D GRID",
+        "primary_col": (236, 72, 153),
+        "secondary_col": (168, 85, 247),
+        "accent_col": (255, 255, 255)
+    },
+    {
+        "id": "tunnel_warp",
+        "name": "🌀 Hyperspace Polygonal Tunnel",
+        "category": "phonk",
+        "family": "tunnel",
+        "badge": "🌀",
+        "desc": "Center Circle Logo + Multi-layered octagonal warp tunnel rings collapsing and expanding on drops.",
+        "tag": "WARP TUNNEL",
+        "primary_col": (139, 92, 246),
+        "secondary_col": (168, 85, 247),
+        "accent_col": (255, 255, 255)
+    },
+    {
+        "id": "drift_hud_telemetry",
+        "name": "💨 Tokyo Drift HUD Telemetry",
+        "category": "phonk",
+        "family": "drift_hud",
+        "badge": "💨",
+        "desc": "Japanese Kanji glow brackets + corner tactical telemetry + manga radial speed lines.",
+        "tag": "TOKYO HUD",
+        "primary_col": (16, 185, 129),
+        "secondary_col": (168, 85, 247),
+        "accent_col": (255, 255, 255)
+    },
+    {
+        "id": "equalizer_wave",
+        "name": "📊 Dual-Horizon Equalizer Bars",
+        "category": "phonk",
+        "family": "equalizer",
+        "badge": "📊",
+        "desc": "Mirrored top and bottom audio equalizer bars reflecting like city lights on wet asphalt.",
+        "tag": "EQUALIZER",
+        "primary_col": (0, 242, 254),
+        "secondary_col": (168, 85, 247),
+        "accent_col": (255, 255, 255)
+    },
+    {
+        "id": "starfield_warp",
+        "name": "🚀 Light Speed Starfield Accelerator",
+        "category": "phonk",
+        "family": "starfield",
+        "badge": "🚀",
+        "desc": "Center Circle Logo + 3D starfield streaks accelerating into hyperspace on 808 bass drops.",
+        "tag": "STARFIELD",
+        "primary_col": (234, 179, 8),
+        "secondary_col": (168, 85, 247),
+        "accent_col": (255, 255, 255)
+    },
+    {
+        "id": "phonk_redline_overdrive",
+        "name": "🚨 JDM Redline Overdrive HUD Ring",
+        "category": "phonk",
+        "family": "tachometer",
+        "badge": "🚨",
+        "desc": "Twin neon redline tachometer brackets flashing warning flares on heavy 808 sub-bass drops.",
+        "tag": "REDLINE",
+        "primary_col": (239, 68, 68),
+        "secondary_col": (168, 85, 247),
+        "accent_col": (255, 255, 255)
+    },
+    {
+        "id": "phonk_kanji_neon",
+        "name": "🈲 Tokyo Kanji Drift Cyber Halo",
+        "category": "phonk",
+        "family": "drift_hud",
+        "badge": "🈲",
+        "desc": "Glowing Japanese kanji symbols and speed streaks flashing around the center avatar on drift turns.",
+        "tag": "KANJI",
+        "primary_col": (0, 242, 254),
+        "secondary_col": (168, 85, 247),
+        "accent_col": (255, 255, 255)
+    },
+    {
+        "id": "phonk_night_highway",
+        "name": "🛣️ Shuto Expressway Light Streaks",
+        "category": "phonk",
+        "family": "grid_3d",
+        "badge": "🛣️",
+        "desc": "Long-exposure Tokyo expressway tail-light speed streaks accelerating into distance.",
+        "tag": "HIGHWAY",
+        "primary_col": (244, 63, 94),
+        "secondary_col": (168, 85, 247),
+        "accent_col": (255, 255, 255)
+    },
+    {
+        "id": "phonk_wangan_midnight",
+        "name": "🏎️ Wangan Midnight 300km/h Blur",
+        "category": "phonk",
+        "family": "drift_hud",
+        "badge": "🏎️",
+        "desc": "Japanese highway tunnel fluorescent ceiling lights stretching into continuous lines.",
+        "tag": "WANGAN 300",
+        "primary_col": (239, 68, 68),
+        "secondary_col": (168, 85, 247),
+        "accent_col": (255, 255, 255)
+    },
+    {
+        "id": "phonk_turbo_blowoff",
+        "name": "💨 Twin-Turbo Anti-Lag Backfire",
+        "category": "phonk",
+        "family": "tachometer",
+        "badge": "💨",
+        "desc": "Exhaust flame bursts and boost spikes reacting to heavy 808 distortion.",
+        "tag": "TURBO BLOWOFF",
+        "primary_col": (249, 115, 22),
+        "secondary_col": (168, 85, 247),
+        "accent_col": (255, 255, 255)
+    },
+    {
+        "id": "phonk_akira_slide",
+        "name": "🏍️ Neo-Tokyo Cyber Slide",
+        "category": "phonk",
+        "family": "grid_3d",
+        "badge": "🏍️",
+        "desc": "Iconic red motorcycle drift slide with electric tire sparks and neon brake trails.",
+        "tag": "AKIRA SLIDE",
+        "primary_col": (220, 38, 38),
+        "secondary_col": (168, 85, 247),
+        "accent_col": (255, 255, 255)
+    },
+    {
+        "id": "phonk_ghost_drift",
+        "name": "👻 Shibuya Ghost Drift Fog",
+        "category": "phonk",
+        "family": "drift_hud",
+        "badge": "👻",
+        "desc": "Dense tire smoke illuminated by violet street lamps on aggressive cornering.",
+        "tag": "GHOST DRIFT",
+        "primary_col": (139, 92, 246),
+        "secondary_col": (168, 85, 247),
+        "accent_col": (255, 255, 255)
+    },
+    {
+        "id": "phonk_tach_shift_light",
+        "name": "⚡ Sequential Shift Light Flasher",
+        "category": "phonk",
+        "family": "tachometer",
+        "badge": "⚡",
+        "desc": "Formula drift tachometer LED ladder flashing amber-to-red at 9000 RPM.",
+        "tag": "SHIFT LIGHT",
+        "primary_col": (234, 179, 8),
+        "secondary_col": (168, 85, 247),
+        "accent_col": (255, 255, 255)
+    },
+    {
+        "id": "phonk_vhs_cyber_kanji",
+        "name": "🈲 90s JDM Drift Tape Scanlines",
+        "category": "phonk",
+        "family": "tunnel",
+        "badge": "🈲",
+        "desc": "Retro VHS tracking distortion lines with neon Japanese car tuning kanji stamps.",
+        "tag": "JDM VHS",
+        "primary_col": (6, 182, 212),
+        "secondary_col": (168, 85, 247),
         "accent_col": (255, 255, 255)
     },
     {
         "id": "random",
         "name": "🎲 Random (All Unique FX Mix)",
+        "category": "phonk",
         "family": "all",
         "badge": "🎲",
         "desc": "Auto random pick across all distinct visualizer designs",
+        "tag": "RANDOM",
         "primary_col": (236, 72, 153),
         "secondary_col": (0, 242, 254),
         "accent_col": (253, 224, 71)
@@ -1292,7 +2836,7 @@ def render_phonk_visualizer_overlay(
     is_drop = (b > 0.72)
 
     # 1. 💖 Romantic Heart Pulse Core (Love Song Radiating Hearts)
-    if fam == "romantic_heart" or (song_mood == "romantic" and fam in ("trap_nation", "all")):
+    if fam in ("romantic", "romantic_heart") or (song_mood == "romantic" and fam in ("trap_nation", "all")):
         num_hearts = 8
         for h_i in range(num_hearts):
             h_ang = (h_i / num_hearts) * 2.0 * math.pi + (t * 0.3)
@@ -1305,7 +2849,7 @@ def render_phonk_visualizer_overlay(
         _paste_circular_center_logo(im_frame, logo_im, cx, cy, base_r, outline_col=c1, accent_col=c3)
 
     # 2. 💔 Melancholy Rain Drop Core (Sad / Broken Heart)
-    elif fam == "sad_rain" or (song_mood == "sad" and fam in ("trap_nation", "all")):
+    elif fam in ("sad", "sad_rain") or (song_mood == "sad" and fam in ("trap_nation", "all")):
         for r_i in range(28):
             rx = int((r_i * 37 + t * 45.0) % tw)
             ry = int((r_i * 83 + t * 480.0) % th)
@@ -1315,7 +2859,7 @@ def render_phonk_visualizer_overlay(
         _paste_circular_center_logo(im_frame, logo_im, cx, cy, base_r, outline_col=c1, accent_col=c3)
 
     # 3. 🪔 Sacred Divine Aura Chakra (Bhakti / Devotional)
-    elif fam == "devotional_chakra" or (song_mood == "devotional" and fam in ("trap_nation", "all")):
+    elif fam in ("devotional", "devotional_chakra") or (song_mood == "devotional" and fam in ("trap_nation", "all")):
         for ch_i in range(16):
             ch_ang = (ch_i / 16.0) * 2.0 * math.pi + (t * 0.25)
             cx1 = cx + int(math.cos(ch_ang) * (base_r + 8))
@@ -1327,7 +2871,7 @@ def render_phonk_visualizer_overlay(
         _paste_circular_center_logo(im_frame, logo_im, cx, cy, base_r, outline_col=c1, accent_col=c3)
 
     # 4. 🌙 Cozy Lo-Fi Vinyl Spin Core
-    elif fam == "lofi_vinyl" or (song_mood == "lofi" and fam in ("trap_nation", "all")):
+    elif fam in ("lofi", "lofi_vinyl") or (song_mood == "lofi" and fam in ("trap_nation", "all")):
         for vr in range(base_r + 8, base_r + int(35 + 30 * b), 6):
             draw.ellipse([cx - vr, cy - vr, cx + vr, cy + vr], outline=(40, 35, 55), width=1)
         for s_k in range(20):
@@ -1481,7 +3025,7 @@ def render_phonk_visualizer_overlay(
         _paste_circular_center_logo(im_frame, logo_im, cx, cy, base_r, outline_col=c1, accent_col=c3)
 
     # 12. 🔦 Cyber Laser Stage Strobes
-    elif fam == "laser":
+    elif fam in ("laser", "party") or (song_mood == "party" and fam in ("trap_nation", "all")):
         for l_idx in range(6):
             sweep = math.sin(t * 3.0 + l_idx * 1.2) * 0.7
             ox = 0 if l_idx % 2 == 0 else tw
@@ -1590,7 +3134,7 @@ def render_phonk_visualizer_overlay(
             draw.line([(bx, by1), (bx + bar_w - 1, by1)], fill=c3, width=2)
 
     # 20. 🌊 Analog Sine Oscilloscope Ribbon
-    elif fam == "oscilloscope":
+    elif fam in ("oscilloscope", "acoustic") or (song_mood == "acoustic" and fam in ("trap_nation", "all")):
         wave_pts = []
         for wx in range(40, tw - 40, 8):
             wy = int(cy + 120 + math.sin(wx * 0.03 + t * 6.0) * math.cos(wx * 0.01 + t * 3.0) * (35.0 * (0.3 + 0.7 * b)))
@@ -3929,15 +5473,18 @@ def build_full_song_video(
             "acoustic": "oscilloscope_ribbon"
         }
 
-        if req_visualizer == "random":
-            valid_random_presets = [p["id"] for p in PHONK_VISUALIZER_PRESETS if p["id"] not in ("primary", "random")]
-            active_visualizer_preset_id = random.choice(valid_random_presets) if valid_random_presets else "trap_nation_trilobe"
-            print(f"🎲 [Visualizer] User selected 'Random' -> Randomly assigned style: '{active_visualizer_preset_id}'!")
-        elif req_visualizer in PHONK_VISUALIZER_MAP and req_visualizer != "primary":
+        if req_visualizer == "random" or req_visualizer.endswith("_auto") or req_visualizer == "primary":
+            valid_random_presets = [p["id"] for p in PHONK_VISUALIZER_PRESETS if p.get("category") == song_mood and not p["id"].endswith("_auto")]
+            if not valid_random_presets:
+                valid_random_presets = [p["id"] for p in PHONK_VISUALIZER_PRESETS if not p["id"].endswith("_auto")]
+            active_visualizer_preset_id = random.choice(valid_random_presets) if valid_random_presets else mood_defaults.get(song_mood, "trap_nation_trilobe")
+            print(f"🎲 [Visualizer] Auto/Random mode for mood '{song_mood}' -> Randomly assigned style: '{active_visualizer_preset_id}'!")
+        elif req_visualizer in PHONK_VISUALIZER_MAP:
             active_visualizer_preset_id = req_visualizer
             print(f"⚡ [Visualizer] User selected visualizer overlay style: '{active_visualizer_preset_id}'!")
         else:
-            active_visualizer_preset_id = mood_defaults.get(song_mood, "trap_nation_trilobe")
+            mood_candidates = [p["id"] for p in PHONK_VISUALIZER_PRESETS if p.get("category") == song_mood and not p["id"].endswith("_auto")]
+            active_visualizer_preset_id = random.choice(mood_candidates) if mood_candidates else mood_defaults.get(song_mood, "trap_nation_trilobe")
             print(f"🌟 [Visualizer] Assigned mood-matched visualizer: '{active_visualizer_preset_id}' for mood '{song_mood}'!")
 
     # Compute a unique salt for this video so different songs/jobs get different photo rotations
@@ -3970,17 +5517,19 @@ def build_full_song_video(
         else:
             logo_file_path = os.path.join(job_dir, "beat_center_logo.jpg")
             if song_mood == "romantic":
-                logo_kw = f"romantic anime couple love cute portrait emblem badge aesthetic square"
+                logo_kw = "graphic cartoon anime romantic couple love cute emblem badge square aesthetic"
             elif song_mood == "sad":
-                logo_kw = f"sad lonely anime rain portrait aesthetic badge dark square"
+                logo_kw = "graphic cartoon anime sad rain lonely noir portrait badge square aesthetic"
             elif song_mood == "devotional":
-                logo_kw = f"divine spiritual temple god golden aura aesthetic portrait square"
+                logo_kw = "graphic cartoon divine sacred god spiritual temple golden aura portrait square"
             elif song_mood == "lofi":
-                logo_kw = f"lofi anime chill room aesthetic avatar badge square"
+                logo_kw = "graphic cartoon anime cozy lofi room night stars avatar badge square aesthetic"
             elif song_mood == "party":
-                logo_kw = f"neon dj concert rave party anime aesthetic portrait badge square"
+                logo_kw = "graphic cartoon anime neon dj concert rave party club portrait badge square aesthetic"
+            elif song_mood == "acoustic":
+                logo_kw = "graphic cartoon anime acoustic guitar nature campfire road portrait badge square aesthetic"
             else:
-                logo_kw = f"{clean_singer_str or 'phonk'} anime character avatar portrait emblem badge aesthetic square"
+                logo_kw = f"graphic cartoon anime {clean_singer_str or 'phonk'} jdm drift car character emblem badge square aesthetic"
 
             print(f"🎯 [Beat Studio] Auto-fetching HD Center Circle Logo ({song_mood}): '{logo_kw}'...")
             p_logo_files = fetch_pinterest_photos_via_gallery_dl(
@@ -4050,17 +5599,19 @@ def build_full_song_video(
             else:
                 if is_beat_visualizer:
                     if song_mood == "romantic":
-                        pin_vid_query = f"{chosen_scene} romantic anime couple golden hour aesthetic motion 4k".strip()
+                        pin_vid_query = f"{chosen_scene} graphic cartoon anime romantic couple aesthetic motion 4k".strip()
                     elif song_mood == "sad":
-                        pin_vid_query = f"{chosen_scene} melancholy rain dark noir anime aesthetic motion 4k".strip()
+                        pin_vid_query = f"{chosen_scene} graphic cartoon anime melancholy rain dark noir aesthetic motion 4k".strip()
                     elif song_mood == "devotional":
-                        pin_vid_query = f"{chosen_scene} divine temple sacred golden light spiritual aesthetic 4k".strip()
+                        pin_vid_query = f"{chosen_scene} graphic cartoon divine temple sacred golden light spiritual aesthetic 4k".strip()
                     elif song_mood == "lofi":
-                        pin_vid_query = f"{chosen_scene} cozy lofi room night stars purple neon loop 4k".strip()
+                        pin_vid_query = f"{chosen_scene} graphic cartoon anime cozy lofi room night stars purple neon loop 4k".strip()
                     elif song_mood == "party":
-                        pin_vid_query = f"{chosen_scene} neon club laser stage rave concert visual loop 4k".strip()
+                        pin_vid_query = f"{chosen_scene} graphic cartoon anime neon club laser stage rave concert visual loop 4k".strip()
+                    elif song_mood == "acoustic":
+                        pin_vid_query = f"{chosen_scene} graphic cartoon anime acoustic guitar campfire misty forest road aesthetic motion 4k".strip()
                     else:
-                        pin_vid_query = f"{chosen_scene} jdm drift car neon cyberpunk anime motion 4k".strip()
+                        pin_vid_query = f"{chosen_scene} graphic cartoon anime jdm drift car neon cyberpunk motion 4k".strip()
                 else:
                     pin_vid_query = f"{chosen_scene} cinematic animation".strip()
 
@@ -4205,17 +5756,19 @@ def build_full_song_video(
             if not got_pinterest_photo:
                 if is_beat_visualizer:
                     if song_mood == "romantic":
-                        photo_query = f"{chosen_scene} romantic anime couple golden hour aesthetic wallpaper 4k".strip()
+                        photo_query = f"{chosen_scene} graphic cartoon anime romantic couple love cute golden hour aesthetic wallpaper 4k".strip()
                     elif song_mood == "sad":
-                        photo_query = f"{chosen_scene} melancholy rain dark noir anime aesthetic wallpaper 4k".strip()
+                        photo_query = f"{chosen_scene} graphic cartoon anime melancholy rain dark noir aesthetic wallpaper 4k".strip()
                     elif song_mood == "devotional":
-                        photo_query = f"{chosen_scene} divine temple sacred golden light spiritual aesthetic 4k".strip()
+                        photo_query = f"{chosen_scene} graphic cartoon divine temple sacred golden light spiritual aesthetic wallpaper 4k".strip()
                     elif song_mood == "lofi":
-                        photo_query = f"{chosen_scene} cozy lofi room night stars purple neon aesthetic 4k".strip()
+                        photo_query = f"{chosen_scene} graphic cartoon anime cozy lofi room night stars purple neon aesthetic wallpaper 4k".strip()
                     elif song_mood == "party":
-                        photo_query = f"{chosen_scene} neon club laser stage rave concert aesthetic 4k".strip()
+                        photo_query = f"{chosen_scene} graphic cartoon anime neon club laser stage rave concert aesthetic wallpaper 4k".strip()
+                    elif song_mood == "acoustic":
+                        photo_query = f"{chosen_scene} graphic cartoon anime acoustic guitar campfire misty forest road nature aesthetic wallpaper 4k".strip()
                     else:
-                        photo_query = f"{chosen_scene} jdm drift car neon cyberpunk anime aesthetic wallpaper 4k".strip()
+                        photo_query = f"{chosen_scene} graphic cartoon anime jdm drift car neon cyberpunk aggressive aesthetic wallpaper 4k".strip()
                 else:
                     photo_query = f"{chosen_scene} aesthetic anime background wallpaper cinematic 4k".strip()
 
