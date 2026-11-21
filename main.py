@@ -37,7 +37,7 @@ def release_system_memory():
     except Exception:
         pass
 
-from fastapi import FastAPI, BackgroundTasks, HTTPException, Request, Response, UploadFile, File
+from fastapi import FastAPI, BackgroundTasks, HTTPException, Request, Response, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
@@ -1856,6 +1856,9 @@ class VideoRequest(BaseModel):
     uploaded_audio_path: Optional[str] = None
     song_mood: Optional[str] = "romantic"
     phonk_visualizer_style: Optional[str] = "primary"
+    phonk_logo_image_path: Optional[str] = None
+    phonk_bg_image_path: Optional[str] = None
+    beat_bg_type: Optional[str] = "photo"
 
 class ScriptRequest(BaseModel):
     topic: str
@@ -2874,6 +2877,51 @@ async def upload_song_audio(file: UploadFile = File(...)):
     except Exception as e:
         print(f"⚠️ [Song Upload] Error uploading audio: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to upload audio: {str(e)}")
+
+@app.post("/upload-phonk-asset")
+async def upload_phonk_asset(
+    file: UploadFile = File(...),
+    asset_type: str = Form("logo")
+):
+    """
+    Uploads custom Center Circle Logo (Photo) or Background Media (Photo/Video)
+    for Phonk / Simple Beat Visualizer Studio.
+    """
+    try:
+        allowed_img = [".jpg", ".jpeg", ".png", ".webp"]
+        allowed_vid = [".mp4", ".mov", ".webm", ".mkv"]
+        allowed_exts = allowed_img + (allowed_vid if asset_type == "bg" else [])
+
+        orig_name = file.filename or ("logo.png" if asset_type == "logo" else "bg.jpg")
+        ext = os.path.splitext(orig_name)[1].lower()
+        if ext not in allowed_exts:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Unsupported format '{ext}'. Allowed for {asset_type}: {', '.join(allowed_exts)}"
+            )
+
+        upload_dir = "temp_uploads"
+        os.makedirs(upload_dir, exist_ok=True)
+        unique_name = f"phonk_{asset_type}_{uuid.uuid4().hex[:10]}{ext}"
+        saved_path = os.path.join(upload_dir, unique_name)
+
+        with open(saved_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+
+        file_size = os.path.getsize(saved_path)
+        print(f"🎨 [Beat Studio Upload] Saved {asset_type}: '{orig_name}' -> '{saved_path}' ({file_size} bytes)")
+        return {
+            "status": "success",
+            "file_path": saved_path,
+            "filename": orig_name,
+            "asset_type": asset_type,
+            "size": file_size
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"⚠️ [Beat Studio Upload] Error: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to upload asset: {str(e)}")
 
 class ProfilePicRequest(BaseModel):
     internal_id: str

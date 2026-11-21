@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import Auth from './Auth';
 import YouTubeIntegration from './YouTubeIntegration';
-import { Smartphone, Monitor, Zap, Film, Settings, Sparkles, Clock, Palette, Mic, Music, Layout, Hash, Dices, Clapperboard, MonitorPlay, User, Sun, Scroll, Circle, Ban, Rocket, Box, Square, Tv, Compass, Upload } from 'lucide-react';
+import { Smartphone, Monitor, Zap, Film, Settings, Sparkles, Clock, Palette, Mic, Music, Layout, Hash, Dices, Clapperboard, MonitorPlay, User, Sun, Scroll, Circle, Ban, Rocket, Box, Square, Tv, Compass, Upload, Activity } from 'lucide-react';
 import { PHONK_VISUALIZER_CATEGORIES, PHONK_VISUALIZER_PRESETS } from './phonkVisualizers';
 
 const API_BASE = window.location.hostname === 'localhost' ? 'http://localhost:8000' : '';
@@ -496,7 +496,16 @@ function App() {
   const [uploadedAudioFile, setUploadedAudioFile] = useState(null);
   const [uploadedAudioPath, setUploadedAudioPath] = useState('');
   const [isAudioUploading, setIsAudioUploading] = useState(false);
-  const [songVisualMode, setSongVisualMode] = useState('motion'); // 'motion' | 'video'
+  const [songVisualMode, setSongVisualMode] = useState('motion'); // 'motion' | 'video' | 'beat'
+  const [beatBgType, setBeatBgType] = useState('photo'); // 'photo' (2 Photos) | 'video' (Looped Video + Logo)
+  const [phonkLogoPath, setPhonkLogoPath] = useState('');
+  const [phonkLogoName, setPhonkLogoName] = useState('');
+  const [phonkLogoPreview, setPhonkLogoPreview] = useState('');
+  const [isLogoUploading, setIsLogoUploading] = useState(false);
+  const [phonkBgPath, setPhonkBgPath] = useState('');
+  const [phonkBgName, setPhonkBgName] = useState('');
+  const [phonkBgPreview, setPhonkBgPreview] = useState('');
+  const [isBgUploading, setIsBgUploading] = useState(false);
   const [songLyrics, setSongLyrics] = useState('');
   const [songMood, setSongMood] = useState('romantic'); // 'romantic' | 'sad' | 'party' | 'lofi' | 'acoustic' | 'devotional' | 'phonk'
   const [phonkVisualizerStyle, setPhonkVisualizerStyle] = useState('primary');
@@ -1430,6 +1439,62 @@ function App() {
     }
   };
 
+  const handleLogoUpload = async (file) => {
+    if (!file) return;
+    setIsLogoUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('asset_type', 'logo');
+      const res = await fetch(`${API_BASE}/upload-phonk-asset`, {
+        method: 'POST',
+        body: formData
+      });
+      const data = await res.json();
+      if (data.status === 'success' && data.file_path) {
+        setPhonkLogoPath(data.file_path);
+        setPhonkLogoName(file.name);
+        setPhonkLogoPreview(URL.createObjectURL(file));
+        triggerAlert("🎯 Center Logo Uploaded", `"${file.name}" uploaded successfully for center emblem!`, "🖼️", "success");
+      } else {
+        triggerAlert("Upload Failed", data.detail || "Could not upload logo image.", "❌", "danger");
+      }
+    } catch (err) {
+      triggerAlert("Upload Error", `Failed to upload logo: ${err.message}`, "❌", "danger");
+    } finally {
+      setIsLogoUploading(false);
+    }
+  };
+
+  const handleBgMediaUpload = async (file) => {
+    if (!file) return;
+    setIsBgUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('asset_type', 'bg');
+      const res = await fetch(`${API_BASE}/upload-phonk-asset`, {
+        method: 'POST',
+        body: formData
+      });
+      const data = await res.json();
+      if (data.status === 'success' && data.file_path) {
+        setPhonkBgPath(data.file_path);
+        setPhonkBgName(file.name);
+        setPhonkBgPreview(URL.createObjectURL(file));
+        const isVid = file.type.startsWith('video/') || /\.(mp4|mov|webm)$/i.test(file.name);
+        if (isVid) setBeatBgType('video');
+        triggerAlert("🌄 Background Media Uploaded", `"${file.name}" uploaded successfully!`, "🎨", "success");
+      } else {
+        triggerAlert("Upload Failed", data.detail || "Could not upload background media.", "❌", "danger");
+      }
+    } catch (err) {
+      triggerAlert("Upload Error", `Failed to upload background: ${err.message}`, "❌", "danger");
+    } finally {
+      setIsBgUploading(false);
+    }
+  };
+
   const handleGenerateVideo = async () => {
     if (isGeneratingVideo || jobStatus === 'processing' || jobStatus === 'initializing') return;
 
@@ -1491,6 +1556,9 @@ function App() {
           song_lyrics: isSongVideoMode ? (songLyrics || '') : '',
           song_mood: songMood,
           phonk_visualizer_style: phonkVisualizerStyle,
+          phonk_logo_image_path: phonkLogoPath || null,
+          phonk_bg_image_path: phonkBgPath || null,
+          beat_bg_type: beatBgType,
           uploaded_audio_path: uploadedAudioPath
         })
       });
@@ -2273,7 +2341,23 @@ function App() {
                     <button
                       key={m.id}
                       type="button"
-                      onClick={() => setSongMood(m.id)}
+                      onClick={() => {
+                        setSongMood(m.id);
+                        const moodDefaults = {
+                          romantic: 'romantic_heart',
+                          sad: 'sad_rain',
+                          devotional: 'devotional_chakra',
+                          lofi: 'lofi_vinyl',
+                          party: 'laser_strobe',
+                          phonk: 'trap_nation_trilobe',
+                          acoustic: 'oscilloscope_ribbon'
+                        };
+                        if (songVisualMode === 'beat' || m.id === 'phonk') {
+                          if (moodDefaults[m.id]) {
+                            setPhonkVisualizerStyle(moodDefaults[m.id]);
+                          }
+                        }
+                      }}
                       style={{
                         padding: '10px 8px',
                         borderRadius: '12px',
@@ -2300,25 +2384,172 @@ function App() {
                 </span>
               </div>
 
-              {/* Phonk / Funk Beat Visualizer Overlay Slider & 100+ FX Selector (Visible ONLY when Phonk is selected) */}
-              {songMood === 'phonk' && (
+              {/* Step 3: Video Duration & Dynamic Scenes */}
+              <div style={{ marginBottom: '1.2rem', background: 'rgba(15, 23, 42, 0.5)', padding: '14px', borderRadius: '14px', border: '1px solid rgba(255,255,255,0.08)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                  <label style={{ fontSize: '0.88rem', fontWeight: '800', color: '#e2e8f0', margin: 0 }}>
+                    3. Video Duration & Scene Count (Song ke hisab se)
+                  </label>
+                  <span style={{ fontSize: '0.74rem', color: '#38bdf8', fontWeight: 'bold' }}>
+                    {duration === 0 ? '🎵 Full Song Length' : `⏱️ ${duration}s (~${Math.max(4, Math.round(duration / 4))} Dynamic Scenes)`}
+                  </span>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(105px, 1fr))', gap: '8px' }}>
+                  {[
+                    { val: 20, label: '20s (Status)', scenes: '5 Scenes' },
+                    { val: 30, label: '30s (Reel/Short)', scenes: '8 Scenes' },
+                    { val: 45, label: '45s (Extended)', scenes: '11 Scenes' },
+                    { val: 60, label: '60s (1 Min)', scenes: '15 Scenes' },
+                    { val: 90, label: '90s (Extended)', scenes: '22 Scenes' },
+                    { val: 0, label: 'Full Song 🎶', scenes: 'Auto-Sync' },
+                  ].map(opt => (
+                    <button
+                      key={opt.val}
+                      type="button"
+                      onClick={() => setDuration(opt.val)}
+                      style={{
+                        padding: '10px 6px',
+                        borderRadius: '12px',
+                        border: duration === opt.val ? '2px solid #a855f7' : '1px solid rgba(255,255,255,0.1)',
+                        background: duration === opt.val ? 'linear-gradient(135deg, rgba(168, 85, 247, 0.3) 0%, rgba(236, 72, 153, 0.3) 100%)' : 'rgba(15, 23, 42, 0.6)',
+                        color: duration === opt.val ? '#fff' : '#cbd5e1',
+                        cursor: 'pointer',
+                        textAlign: 'center',
+                        fontSize: '0.82rem',
+                        fontWeight: duration === opt.val ? '800' : '600',
+                        boxShadow: duration === opt.val ? '0 0 12px rgba(168, 85, 247, 0.4)' : 'none',
+                        transition: 'all 0.15s ease'
+                      }}
+                    >
+                      <div>{opt.label}</div>
+                      <div style={{ fontSize: '0.68rem', color: duration === opt.val ? '#fbcfe8' : '#64748b', marginTop: '2px' }}>{opt.scenes}</div>
+                    </button>
+                  ))}
+                </div>
+                <span style={{ fontSize: '0.74rem', color: '#94a3b8', display: 'block', marginTop: '6px' }}>
+                  💡 Gana jitna lamba hoga, system automatically har ~4 second me fresh dynamic scene & unique title visual lagayega!
+                </span>
+              </div>
+
+              {/* Step 4: Visual Creation Choice (Video Clips vs 3D Photo Motion vs Simple Beat Visualizer) */}
+              <div style={{ marginBottom: '1.2rem', background: 'rgba(15, 23, 42, 0.5)', padding: '14px', borderRadius: '14px', border: '1px solid rgba(255,255,255,0.08)' }}>
+                <label style={{ display: 'block', fontSize: '0.88rem', fontWeight: '800', color: '#e2e8f0', marginBottom: '8px' }}>
+                  4. Visual Creation Mode (Video Clips vs Motion Photos vs Simple Beat)
+                </label>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: '12px' }}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSongVisualMode('video');
+                      setGenerationMode('standard');
+                    }}
+                    style={{
+                      padding: '14px 16px',
+                      borderRadius: '14px',
+                      border: songVisualMode === 'video' ? '2px solid #38bdf8' : '1px solid rgba(255,255,255,0.12)',
+                      background: songVisualMode === 'video' ? 'linear-gradient(135deg, rgba(56, 189, 248, 0.25) 0%, rgba(14, 165, 233, 0.4) 100%)' : 'rgba(15, 23, 42, 0.6)',
+                      color: '#fff',
+                      cursor: 'pointer',
+                      textAlign: 'left',
+                      boxShadow: songVisualMode === 'video' ? '0 4px 16px rgba(56, 189, 248, 0.35)' : 'none',
+                      transition: 'all 0.2s ease'
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: '800', fontSize: '0.92rem', color: '#38bdf8', marginBottom: '4px' }}>
+                      <Film size={18} /> 🎥 Stock Video Clips
+                    </div>
+                    <div style={{ fontSize: '0.78rem', color: '#cbd5e1', lineHeight: '1.3' }}>
+                      Pexels 4K/HD aesthetic video clips synced with song lyrics & rhythm.
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSongVisualMode('motion');
+                      setGenerationMode('ultra');
+                    }}
+                    style={{
+                      padding: '14px 16px',
+                      borderRadius: '14px',
+                      border: songVisualMode === 'motion' ? '2px solid #f59e0b' : '1px solid rgba(255,255,255,0.12)',
+                      background: songVisualMode === 'motion' ? 'linear-gradient(135deg, rgba(245, 158, 11, 0.25) 0%, rgba(217, 119, 6, 0.4) 100%)' : 'rgba(15, 23, 42, 0.6)',
+                      color: '#fff',
+                      cursor: 'pointer',
+                      textAlign: 'left',
+                      boxShadow: songVisualMode === 'motion' ? '0 4px 16px rgba(245, 158, 11, 0.35)' : 'none',
+                      transition: 'all 0.2s ease'
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: '800', fontSize: '0.92rem', color: '#fbbf24', marginBottom: '4px' }}>
+                      <Sparkles size={18} /> ⚡ Ultra 3D Photo Motion
+                    </div>
+                    <div style={{ fontSize: '0.78rem', color: '#cbd5e1', lineHeight: '1.3' }}>
+                      High-res aesthetic photos with cinematic cuts, light flashes, zoom/pan & motion.
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSongVisualMode('beat');
+                      setGenerationMode('ultra');
+                      const moodDefaults = {
+                        romantic: 'romantic_heart',
+                        sad: 'sad_rain',
+                        devotional: 'devotional_chakra',
+                        lofi: 'lofi_vinyl',
+                        party: 'laser_strobe',
+                        phonk: 'trap_nation_trilobe',
+                        acoustic: 'oscilloscope_ribbon'
+                      };
+                      if (moodDefaults[songMood]) {
+                        setPhonkVisualizerStyle(moodDefaults[songMood]);
+                      }
+                    }}
+                    style={{
+                      padding: '14px 16px',
+                      borderRadius: '14px',
+                      border: songVisualMode === 'beat' ? '2px solid #a855f7' : '1px solid rgba(255,255,255,0.12)',
+                      background: songVisualMode === 'beat' ? 'linear-gradient(135deg, rgba(168, 85, 247, 0.25) 0%, rgba(236, 72, 153, 0.4) 100%)' : 'rgba(15, 23, 42, 0.6)',
+                      color: '#fff',
+                      cursor: 'pointer',
+                      textAlign: 'left',
+                      boxShadow: songVisualMode === 'beat' ? '0 4px 16px rgba(168, 85, 247, 0.35)' : 'none',
+                      transition: 'all 0.2s ease'
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: '800', fontSize: '0.92rem', color: '#c084fc', marginBottom: '4px' }}>
+                      <Activity size={18} /> 🎵 Simple Beat Visualizer
+                    </div>
+                    <div style={{ fontSize: '0.78rem', color: '#cbd5e1', lineHeight: '1.3' }}>
+                      Continuous beat & bass reactor (Hearts, Rain, Chakra, Trap Nation) with 2 Photos or Looped Video.
+                    </div>
+                  </button>
+                </div>
+              </div>
+
+              {/* Audio Beat Reactor & Visualizer Overlay Studio (Visible when Simple Beat mode or Phonk mood is active) */}
+              {(songMood === 'phonk' || songVisualMode === 'beat') && (
                 <div style={{
                   marginBottom: '1.2rem',
-                  background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.9) 0%, rgba(24, 15, 45, 0.9) 100%)',
+                  background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.95) 0%, rgba(24, 15, 45, 0.95) 100%)',
                   padding: '16px',
                   borderRadius: '16px',
-                  border: '1.5px solid rgba(0, 242, 254, 0.4)',
-                  boxShadow: '0 0 25px rgba(0, 242, 254, 0.15)'
+                  border: '1.5px solid rgba(168, 85, 247, 0.45)',
+                  boxShadow: '0 0 25px rgba(168, 85, 247, 0.2)'
                 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px', flexWrap: 'wrap', gap: '8px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px', flexWrap: 'wrap', gap: '8px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <span style={{ fontSize: '1.1rem' }}>⚡</span>
+                      <span style={{ fontSize: '1.3rem' }}>{songVisualMode === 'beat' ? '🎵' : '⚡'}</span>
                       <div>
-                        <div style={{ fontSize: '0.92rem', fontWeight: '900', color: '#00f2fe', letterSpacing: '0.3px' }}>
-                          Phonk Beat Visualizer Overlay (100+ Designs)
+                        <div style={{ fontSize: '0.94rem', fontWeight: '900', color: songVisualMode === 'beat' ? '#c084fc' : '#00f2fe', letterSpacing: '0.3px' }}>
+                          {songVisualMode === 'beat' ? 'Audio Beat Reactor & Visualizer Studio (Unique Mood Cores)' : 'Phonk Beat Visualizer Studio (100% Unique FX)'}
                         </div>
-                        <div style={{ fontSize: '0.72rem', color: '#94a3b8' }}>
-                          Canvas FX background photo ya looped video ke upar beats ke saath pump & bounce karega!
+                        <div style={{ fontSize: '0.73rem', color: '#94a3b8' }}>
+                          {songVisualMode === 'beat'
+                            ? 'Center Emblem Logo + Mood audio-reactive FX (Love hearts, Sad rain, Bhakti chakra, Vinyl disc, Trap Nation) beat ke saath sync honge!'
+                            : 'Center Emblem Logo + 808 Sub-Bass audio engine: camera vibration, 808 zoom pump aur neon equalizer perimeter!'}
                         </div>
                       </div>
                     </div>
@@ -2326,15 +2557,238 @@ function App() {
                       display: 'flex',
                       alignItems: 'center',
                       gap: '6px',
-                      background: 'rgba(0, 242, 254, 0.1)',
-                      border: '1px solid rgba(0, 242, 254, 0.35)',
+                      background: 'rgba(168, 85, 247, 0.15)',
+                      border: '1px solid rgba(168, 85, 247, 0.4)',
                       padding: '4px 10px',
                       borderRadius: '20px'
                     }}>
-                      <span style={{ fontSize: '0.7rem', color: '#cbd5e1', fontWeight: '600' }}>Active:</span>
-                      <span style={{ fontSize: '0.74rem', color: '#00f2fe', fontWeight: '800' }}>
+                      <span style={{ fontSize: '0.7rem', color: '#cbd5e1', fontWeight: '600' }}>Active Style:</span>
+                      <span style={{ fontSize: '0.74rem', color: '#c084fc', fontWeight: '800' }}>
                         {(PHONK_VISUALIZER_PRESETS.find(p => p.id === phonkVisualizerStyle) || {}).name || '🌟 Primary'}
                       </span>
+                    </div>
+                  </div>
+
+                  {/* 2-Photos & Video Hybrid Media Deck */}
+                  <div style={{
+                    background: 'rgba(2, 6, 23, 0.7)',
+                    padding: '12px 14px',
+                    borderRadius: '14px',
+                    border: '1px solid rgba(255, 255, 255, 0.1)',
+                    marginBottom: '12px'
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px', flexWrap: 'wrap', gap: '8px' }}>
+                      <div style={{ fontSize: '0.82rem', fontWeight: '800', color: '#f8fafc' }}>
+                        📸 Media Mode: {beatBgType === 'photo' ? '2 Photos Hybrid (Background + Center Logo)' : 'Video Hybrid (Looped Video + Center Logo)'}
+                      </div>
+                      <div style={{ display: 'flex', gap: '6px' }}>
+                        <button
+                          type="button"
+                          onClick={() => setBeatBgType('photo')}
+                          style={{
+                            padding: '4px 10px',
+                            borderRadius: '16px',
+                            border: beatBgType === 'photo' ? '1px solid #a855f7' : '1px solid rgba(255,255,255,0.1)',
+                            background: beatBgType === 'photo' ? 'rgba(168, 85, 247, 0.35)' : 'rgba(15, 23, 42, 0.6)',
+                            color: beatBgType === 'photo' ? '#fff' : '#94a3b8',
+                            fontSize: '0.72rem',
+                            fontWeight: '700',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          📷 Photo Mode (2 Photos)
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setBeatBgType('video')}
+                          style={{
+                            padding: '4px 10px',
+                            borderRadius: '16px',
+                            border: beatBgType === 'video' ? '1px solid #38bdf8' : '1px solid rgba(255,255,255,0.1)',
+                            background: beatBgType === 'video' ? 'rgba(56, 189, 248, 0.35)' : 'rgba(15, 23, 42, 0.6)',
+                            color: beatBgType === 'video' ? '#fff' : '#94a3b8',
+                            fontSize: '0.72rem',
+                            fontWeight: '700',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          🎥 Video Mode (Video + Logo)
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="responsive-grid-2" style={{ gap: '10px' }}>
+                      {/* Card 1: Center Circle Logo Photo */}
+                      <div style={{
+                        background: 'rgba(15, 23, 42, 0.75)',
+                        padding: '10px 12px',
+                        borderRadius: '12px',
+                        border: phonkLogoPath ? '1px solid #a855f7' : '1px dashed rgba(255,255,255,0.18)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '10px'
+                      }}>
+                        <div style={{
+                          width: '52px',
+                          height: '52px',
+                          borderRadius: '50%',
+                          overflow: 'hidden',
+                          background: '#090d16',
+                          border: '2px solid #a855f7',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          flexShrink: 0
+                        }}>
+                          {phonkLogoPreview ? (
+                            <img src={phonkLogoPreview} alt="Logo" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                          ) : (
+                            <span style={{ fontSize: '1.4rem' }}>🎯</span>
+                          )}
+                        </div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontSize: '0.78rem', fontWeight: '800', color: '#e2e8f0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            {phonkLogoName ? phonkLogoName : 'Center Circle Logo (Photo 2)'}
+                          </div>
+                          <div style={{ fontSize: '0.68rem', color: '#94a3b8', marginBottom: '4px' }}>
+                            {phonkLogoPath ? 'Custom logo active' : `Auto AI: ${songMood} aesthetic emblem portrait if empty`}
+                          </div>
+                          <div style={{ display: 'flex', gap: '6px' }}>
+                            <label style={{
+                              display: 'inline-block',
+                              padding: '3px 8px',
+                              borderRadius: '6px',
+                              background: 'rgba(168, 85, 247, 0.25)',
+                              border: '1px solid #a855f7',
+                              color: '#e9d5ff',
+                              fontSize: '0.7rem',
+                              fontWeight: '700',
+                              cursor: 'pointer'
+                            }}>
+                              {isLogoUploading ? 'Uploading...' : (phonkLogoPath ? 'Change Logo' : 'Upload Logo')}
+                              <input
+                                type="file"
+                                accept="image/*"
+                                style={{ display: 'none' }}
+                                onChange={e => {
+                                  if (e.target.files && e.target.files[0]) {
+                                    handleLogoUpload(e.target.files[0]);
+                                  }
+                                }}
+                              />
+                            </label>
+                            {phonkLogoPath && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setPhonkLogoPath('');
+                                  setPhonkLogoName('');
+                                  setPhonkLogoPreview('');
+                                }}
+                                style={{
+                                  padding: '3px 6px',
+                                  borderRadius: '6px',
+                                  background: 'rgba(239, 68, 68, 0.2)',
+                                  border: '1px solid rgba(239, 68, 68, 0.4)',
+                                  color: '#fca5a5',
+                                  fontSize: '0.7rem',
+                                  cursor: 'pointer'
+                                }}
+                              >
+                                Remove
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Card 2: Background Media (Photo or Video) */}
+                      <div style={{
+                        background: 'rgba(15, 23, 42, 0.75)',
+                        padding: '10px 12px',
+                        borderRadius: '12px',
+                        border: phonkBgPath ? '1px solid #38bdf8' : '1px dashed rgba(255,255,255,0.18)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '10px'
+                      }}>
+                        <div style={{
+                          width: '52px',
+                          height: '52px',
+                          borderRadius: '8px',
+                          overflow: 'hidden',
+                          background: '#090d16',
+                          border: '1px solid #38bdf8',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          flexShrink: 0
+                        }}>
+                          {phonkBgPreview ? (
+                            beatBgType === 'video' ? (
+                              <video src={phonkBgPreview} style={{ width: '100%', height: '100%', objectFit: 'cover' }} muted autoPlay loop />
+                            ) : (
+                              <img src={phonkBgPreview} alt="Background" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                            )
+                          ) : (
+                            <span style={{ fontSize: '1.4rem' }}>{beatBgType === 'video' ? '🎥' : '🌄'}</span>
+                          )}
+                        </div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontSize: '0.78rem', fontWeight: '800', color: '#e2e8f0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            {phonkBgName ? phonkBgName : `Background ${beatBgType === 'video' ? 'Video' : 'Photo (Photo 1)'}`}
+                          </div>
+                          <div style={{ fontSize: '0.68rem', color: '#94a3b8', marginBottom: '4px' }}>
+                            {phonkBgPath ? 'Custom background active' : `Auto AI: 4K ${songMood} aesthetic visuals if empty`}
+                          </div>
+                          <div style={{ display: 'flex', gap: '6px' }}>
+                            <label style={{
+                              display: 'inline-block',
+                              padding: '3px 8px',
+                              borderRadius: '6px',
+                              background: 'rgba(56, 189, 248, 0.25)',
+                              border: '1px solid #38bdf8',
+                              color: '#bae6fd',
+                              fontSize: '0.7rem',
+                              fontWeight: '700',
+                              cursor: 'pointer'
+                            }}>
+                              {isBgUploading ? 'Uploading...' : (phonkBgPath ? 'Change Media' : `Upload ${beatBgType === 'video' ? 'Video' : 'Photo'}`)}
+                              <input
+                                type="file"
+                                accept={beatBgType === 'video' ? 'video/*,image/*' : 'image/*'}
+                                style={{ display: 'none' }}
+                                onChange={e => {
+                                  if (e.target.files && e.target.files[0]) {
+                                    handleBgMediaUpload(e.target.files[0]);
+                                  }
+                                }}
+                              />
+                            </label>
+                            {phonkBgPath && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setPhonkBgPath('');
+                                  setPhonkBgName('');
+                                  setPhonkBgPreview('');
+                                }}
+                                style={{
+                                  padding: '3px 6px',
+                                  borderRadius: '6px',
+                                  background: 'rgba(239, 68, 68, 0.2)',
+                                  border: '1px solid rgba(239, 68, 68, 0.4)',
+                                  color: '#fca5a5',
+                                  fontSize: '0.7rem',
+                                  cursor: 'pointer'
+                                }}
+                              >
+                                Remove
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      </div>
                     </div>
                   </div>
 
@@ -2356,8 +2810,8 @@ function App() {
                           whiteSpace: 'nowrap',
                           padding: '5px 11px',
                           borderRadius: '16px',
-                          border: phonkVisCategory === cat.id ? '1px solid #00f2fe' : '1px solid rgba(255,255,255,0.08)',
-                          background: phonkVisCategory === cat.id ? 'linear-gradient(135deg, rgba(0, 242, 254, 0.3) 0%, rgba(168, 85, 247, 0.3) 100%)' : 'rgba(15, 23, 42, 0.6)',
+                          border: phonkVisCategory === cat.id ? '1px solid #c084fc' : '1px solid rgba(255,255,255,0.08)',
+                          background: phonkVisCategory === cat.id ? 'linear-gradient(135deg, rgba(168, 85, 247, 0.35) 0%, rgba(236, 72, 153, 0.35) 100%)' : 'rgba(15, 23, 42, 0.6)',
                           color: phonkVisCategory === cat.id ? '#fff' : '#94a3b8',
                           fontSize: '0.72rem',
                           fontWeight: phonkVisCategory === cat.id ? '800' : '600',
@@ -2374,7 +2828,7 @@ function App() {
                   <div style={{ marginBottom: '10px' }}>
                     <input
                       type="text"
-                      placeholder="🔍 Search 100+ Visualizer FX (e.g. 3D grid, radial, shockwave, tachometer, laser, redline)..."
+                      placeholder="🔍 Search visualizer presets (e.g. heart, rain, chakra, vinyl, trap nation, reactor)..."
                       value={phonkVisSearch}
                       onChange={e => setPhonkVisSearch(e.target.value)}
                       style={{
@@ -2391,7 +2845,7 @@ function App() {
                     />
                   </div>
 
-                  {/* Visualizer Presets Horizontal Slider Deck */}
+                  {/* Visualizer Presets Horizontal Slider Deck (18 Curated Unique FX) */}
                   <div style={{
                     display: 'grid',
                     gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))',
@@ -2404,11 +2858,7 @@ function App() {
                     {PHONK_VISUALIZER_PRESETS
                       .filter(p => {
                         if (phonkVisCategory !== 'all') {
-                          if (phonkVisCategory === 'featured') {
-                            if (p.id !== 'primary' && p.id !== 'random') return false;
-                          } else if (p.family !== phonkVisCategory) {
-                            return false;
-                          }
+                          if (p.category !== phonkVisCategory && p.family !== phonkVisCategory) return false;
                         }
                         if (phonkVisSearch.trim()) {
                           const q = phonkVisSearch.toLowerCase().trim();
@@ -2467,118 +2917,12 @@ function App() {
                   </div>
 
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '10px', fontSize: '0.72rem', color: '#94a3b8' }}>
-                    <span>💡 <b>Background Visual:</b> User ki select ki gayi photo ya video 100% visible rahegi, visualizer FX upar dynamically bounce karega.</span>
-                    <span style={{ color: '#00f2fe', fontWeight: 'bold' }}>116 Total FX Loaded</span>
+                    <span>💡 <b>Background Visual:</b> User ki select ki gayi photo ya video 100% visible rahegi, visualizer FX center emblem ke saath beats par react karega.</span>
+                    <span style={{ color: '#c084fc', fontWeight: 'bold' }}>18 Unique Curated FX (Zero Duplicates)</span>
                   </div>
                 </div>
               )}
 
-              {/* Step 3: Video Duration & Dynamic Scenes */}
-              <div style={{ marginBottom: '1.2rem', background: 'rgba(15, 23, 42, 0.5)', padding: '14px', borderRadius: '14px', border: '1px solid rgba(255,255,255,0.08)' }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-                  <label style={{ fontSize: '0.88rem', fontWeight: '800', color: '#e2e8f0', margin: 0 }}>
-                    3. Video Duration & Scene Count (Song ke hisab se)
-                  </label>
-                  <span style={{ fontSize: '0.74rem', color: '#38bdf8', fontWeight: 'bold' }}>
-                    {duration === 0 ? '🎵 Full Song Length' : `⏱️ ${duration}s (~${Math.max(4, Math.round(duration / 4))} Dynamic Scenes)`}
-                  </span>
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(105px, 1fr))', gap: '8px' }}>
-                  {[
-                    { val: 20, label: '20s (Status)', scenes: '5 Scenes' },
-                    { val: 30, label: '30s (Reel/Short)', scenes: '8 Scenes' },
-                    { val: 45, label: '45s (Extended)', scenes: '11 Scenes' },
-                    { val: 60, label: '60s (1 Min)', scenes: '15 Scenes' },
-                    { val: 90, label: '90s (Extended)', scenes: '22 Scenes' },
-                    { val: 0, label: 'Full Song 🎶', scenes: 'Auto-Sync' },
-                  ].map(opt => (
-                    <button
-                      key={opt.val}
-                      type="button"
-                      onClick={() => setDuration(opt.val)}
-                      style={{
-                        padding: '10px 6px',
-                        borderRadius: '12px',
-                        border: duration === opt.val ? '2px solid #a855f7' : '1px solid rgba(255,255,255,0.1)',
-                        background: duration === opt.val ? 'linear-gradient(135deg, rgba(168, 85, 247, 0.3) 0%, rgba(236, 72, 153, 0.3) 100%)' : 'rgba(15, 23, 42, 0.6)',
-                        color: duration === opt.val ? '#fff' : '#cbd5e1',
-                        cursor: 'pointer',
-                        textAlign: 'center',
-                        fontSize: '0.82rem',
-                        fontWeight: duration === opt.val ? '800' : '600',
-                        boxShadow: duration === opt.val ? '0 0 12px rgba(168, 85, 247, 0.4)' : 'none',
-                        transition: 'all 0.15s ease'
-                      }}
-                    >
-                      <div>{opt.label}</div>
-                      <div style={{ fontSize: '0.68rem', color: duration === opt.val ? '#fbcfe8' : '#64748b', marginTop: '2px' }}>{opt.scenes}</div>
-                    </button>
-                  ))}
-                </div>
-                <span style={{ fontSize: '0.74rem', color: '#94a3b8', display: 'block', marginTop: '6px' }}>
-                  💡 Gana jitna lamba hoga, system automatically har ~4 second me fresh dynamic scene & unique title visual lagayega!
-                </span>
-              </div>
-
-              {/* Step 4: Visual Creation Choice (Video Clips vs 3D Photo Motion) */}
-              <div style={{ marginBottom: '1.2rem', background: 'rgba(15, 23, 42, 0.5)', padding: '14px', borderRadius: '14px', border: '1px solid rgba(255,255,255,0.08)' }}>
-                <label style={{ display: 'block', fontSize: '0.88rem', fontWeight: '800', color: '#e2e8f0', marginBottom: '8px' }}>
-                  4. Visual Creation Mode (Video Clips vs Motion Photos)
-                </label>
-                <div className="responsive-grid-2" style={{ gap: '12px' }}>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSongVisualMode('video');
-                      setGenerationMode('standard');
-                    }}
-                    style={{
-                      padding: '14px 16px',
-                      borderRadius: '14px',
-                      border: songVisualMode === 'video' ? '2px solid #38bdf8' : '1px solid rgba(255,255,255,0.12)',
-                      background: songVisualMode === 'video' ? 'linear-gradient(135deg, rgba(56, 189, 248, 0.25) 0%, rgba(14, 165, 233, 0.4) 100%)' : 'rgba(15, 23, 42, 0.6)',
-                      color: '#fff',
-                      cursor: 'pointer',
-                      textAlign: 'left',
-                      boxShadow: songVisualMode === 'video' ? '0 4px 16px rgba(56, 189, 248, 0.35)' : 'none',
-                      transition: 'all 0.2s ease'
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: '800', fontSize: '0.92rem', color: '#38bdf8', marginBottom: '4px' }}>
-                      <Film size={18} /> 🎥 Stock Video Clips
-                    </div>
-                    <div style={{ fontSize: '0.78rem', color: '#cbd5e1', lineHeight: '1.3' }}>
-                      Pexels 4K/HD aesthetic video clips synced with song lyrics & rhythm.
-                    </div>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSongVisualMode('motion');
-                      setGenerationMode('ultra');
-                    }}
-                    style={{
-                      padding: '14px 16px',
-                      borderRadius: '14px',
-                      border: songVisualMode === 'motion' ? '2px solid #f59e0b' : '1px solid rgba(255,255,255,0.12)',
-                      background: songVisualMode === 'motion' ? 'linear-gradient(135deg, rgba(245, 158, 11, 0.25) 0%, rgba(217, 119, 6, 0.4) 100%)' : 'rgba(15, 23, 42, 0.6)',
-                      color: '#fff',
-                      cursor: 'pointer',
-                      textAlign: 'left',
-                      boxShadow: songVisualMode === 'motion' ? '0 4px 16px rgba(245, 158, 11, 0.35)' : 'none',
-                      transition: 'all 0.2s ease'
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: '800', fontSize: '0.92rem', color: '#fbbf24', marginBottom: '4px' }}>
-                      <Sparkles size={18} /> ⚡ Ultra 3D Photo Motion
-                    </div>
-                    <div style={{ fontSize: '0.78rem', color: '#cbd5e1', lineHeight: '1.3' }}>
-                      High-res aesthetic photos with cinematic cuts, light flashes, zoom/pan & motion.
-                    </div>
-                  </button>
-                </div>
-              </div>
 
               {/* Step 5: Typography & Multi-Font Style */}
               <div style={{ marginBottom: '1.2rem', background: 'rgba(15, 23, 42, 0.5)', padding: '14px', borderRadius: '14px', border: '1px solid rgba(255,255,255,0.08)' }}>
