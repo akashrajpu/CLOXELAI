@@ -58,13 +58,14 @@ from firewall_security import (
     sanitize_alphanumeric_id, sanitize_nosql, clean_xss, resolve_client_ip
 )
 try:
-    from web_image_fetcher import fetch_web_image, extract_rich_scene_visual_keywords, clean_topic_title, HINDI_STOPWORDS
+    from web_image_fetcher import fetch_web_image, extract_rich_scene_visual_keywords, clean_topic_title, HINDI_STOPWORDS, translate_to_visual_english
 except Exception as _w_err:
     print(f"⚠️ web_image_fetcher top import warning: {_w_err}")
     fetch_web_image = None
     extract_rich_scene_visual_keywords = None
     clean_topic_title = lambda x: str(x)
     HINDI_STOPWORDS = set()
+    translate_to_visual_english = lambda text, topic="": text
 
 os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
 os.environ['OAUTHLIB_RELAX_TOKEN_SCOPE'] = '1'
@@ -2183,10 +2184,11 @@ def full_process(req: VideoRequest, job_id: str):
                     v_paths = []
                     
                     if is_contrast and len(contrast_parts) == 2:
-                        # Contrast Punchline: Fetch 2 separate Pinterest photos with 'cinematic animation photo'
-                        # e.g. "Modi dictator cinematic animation photo" and "Modi real hero cinematic animation photo"
-                        p1_term = f"{main_topic} {contrast_parts[0]} cinematic animation photo".strip()
-                        p2_term = f"{main_topic} {contrast_parts[1]} cinematic animation photo".strip()
+                        # Contrast Punchline: Translate Hindi/Hinglish contrast parts to visual English
+                        p1_clean = translate_to_visual_english(contrast_parts[0], main_topic) if translate_to_visual_english else contrast_parts[0]
+                        p2_clean = translate_to_visual_english(contrast_parts[1], main_topic) if translate_to_visual_english else contrast_parts[1]
+                        p1_term = f"{p1_clean} cinematic animation photo".strip()
+                        p2_term = f"{p2_clean} cinematic animation photo".strip()
                         print(f"🎬 [Ultra After Effects Scene {i+1}] Contrast Punchline detected! Fetching 2 Pinterest Photos: '{p1_term}' & '{p2_term}' (Pinterest Only)...")
                         
                         p1_files = fetch_pinterest_photos_via_gallery_dl(p1_term, limit=1, output_dir=job_dir, used_media_ids=used_media_ids, orientation=orientation)
@@ -2198,68 +2200,48 @@ def full_process(req: VideoRequest, job_id: str):
                             v_paths.append(p2_files[0])
                             
                     elif is_short_line:
-                        # Short line: Fetch 1 Pinterest photo with 'cinematic animation photo'
-                        if extract_rich_scene_visual_keywords:
-                            _, _, photo_visual_phrase = extract_rich_scene_visual_keywords(
-                                topic=main_topic,
-                                scene_text=scene_text,
-                                scene_kw=scene_kw,
-                                scene_idx=i,
-                                category=req.category
-                            )
-                        else:
-                            photo_visual_phrase = scene_kw or main_topic
-                            
-                        clean_t = " ".join([w for w in (req.topic or main_topic).split() if w.lower() not in ["ancient", "historical", "deep", "outer"]][:3]) or main_topic
-                        clean_p = " ".join([w for w in (photo_visual_phrase or scene_kw).split() if w.lower() not in [x.lower() for x in clean_t.split()]][:3])
-                        scene_angle_mods = ["neon cyberpunk", "abstract particles", "quantum burst", "light tunnel", "techno glitch", "luxury plexus", "fluid smoke", "laser vortex"]
-                        if not clean_p or clean_p.strip() == clean_t.strip():
-                            clean_p = scene_angle_mods[i % len(scene_angle_mods)]
-                        photo_term = f"{clean_t} {clean_p} cinematic animation photo".strip()
-                        print(f"📸 [Ultra After Effects Scene {i+1}] Short Line detected ({len(words)} words)! Fetching Pinterest {orientation.upper()} Photo: '{photo_term}' (Pinterest Only)...")
+                        # Short line: Translate Hindi/Hinglish script to visual English -> Fetch 1 Pinterest photo with 'cinematic animation photo'
+                        en_visual_phrase = translate_to_visual_english(scene_text or scene_kw, main_topic) if translate_to_visual_english else ""
+                        if not en_visual_phrase:
+                            clean_t = " ".join([w for w in (req.topic or main_topic).split() if w.lower() not in ["ancient", "historical", "deep", "outer"]][:3]) or main_topic
+                            clean_p = scene_kw or main_topic
+                            en_visual_phrase = f"{clean_t} {clean_p}".strip()
+                        photo_term = f"{en_visual_phrase} cinematic animation photo".strip()
+                        print(f"📸 [Ultra After Effects Scene {i+1}] Short Line detected ({len(words)} words)! Translated Pinterest {orientation.upper()} Photo: '{photo_term}' (Pinterest Only)...")
                         p_files = fetch_pinterest_photos_via_gallery_dl(photo_term, limit=1, output_dir=job_dir, used_media_ids=used_media_ids, orientation=orientation)
                         if p_files and os.path.exists(p_files[0]):
                             v_paths.append(p_files[0])
                     else:
-                        # Longer narrative: Fetch 1 Pinterest Video with 'cinematic animation video'
-                        if extract_rich_scene_visual_keywords:
-                            _, _, scene_visual_phrase = extract_rich_scene_visual_keywords(
-                                topic=main_topic,
-                                scene_text=scene_text,
-                                scene_kw=scene_kw,
-                                scene_idx=i,
-                                category=req.category
-                            )
-                        else:
-                            scene_visual_phrase = scene_kw or main_topic
-                            
-                        clean_t = " ".join([w for w in (req.topic or main_topic).split() if w.lower() not in ["ancient", "historical", "deep", "outer"]][:3]) or main_topic
-                        clean_p = " ".join([w for w in scene_visual_phrase.split() if w.lower() not in [x.lower() for x in clean_t.split()]][:3])
-                        scene_angle_mods = ["neon cyberpunk", "abstract particles", "quantum burst", "light tunnel", "techno glitch", "luxury plexus", "fluid smoke", "laser vortex"]
-                        if not clean_p or clean_p.strip() == clean_t.strip():
-                            clean_p = scene_angle_mods[i % len(scene_angle_mods)]
-                        vid_term = f"{clean_t} {clean_p} cinematic animation video".strip()
-                        print(f"🎬 [Ultra After Effects Scene {i+1}] Narrative Video Line detected ({len(words)} words)! Fetching Pinterest {orientation.upper()} Video: '{vid_term}' (Pinterest Only)...")
+                        # Longer narrative: Translate Hindi/Hinglish script to visual English -> Fetch 1 Pinterest Video with 'cinematic animation video'
+                        en_visual_phrase = translate_to_visual_english(scene_text or scene_kw, main_topic) if translate_to_visual_english else ""
+                        if not en_visual_phrase:
+                            clean_t = " ".join([w for w in (req.topic or main_topic).split() if w.lower() not in ["ancient", "historical", "deep", "outer"]][:3]) or main_topic
+                            clean_p = scene_kw or main_topic
+                            en_visual_phrase = f"{clean_t} {clean_p}".strip()
+                        vid_term = f"{en_visual_phrase} cinematic animation video".strip()
+                        print(f"🎬 [Ultra After Effects Scene {i+1}] Narrative Video Line detected ({len(words)} words)! Translated Pinterest {orientation.upper()} Video: '{vid_term}' (Pinterest Only)...")
                         vid_files = fetch_pinterest_videos_via_gallery_dl(vid_term, limit=1, output_dir=job_dir, used_media_ids=used_media_ids, orientation=orientation)
                         if vid_files and os.path.exists(vid_files[0]):
                             v_paths.append(vid_files[0])
                                 
                     # If Pinterest video was not found for narrative, fall back to Pinterest photo with 'cinematic animation photo' (STRICTLY PINTEREST ONLY)
                     if not v_paths or not os.path.exists(v_paths[0]) or os.path.getsize(v_paths[0]) < 1000:
-                        fb_photo_term = f"{clean_t} {clean_p or 'cinematic'} cinematic animation photo".strip()
+                        fb_photo_term = f"{en_visual_phrase} cinematic animation photo".strip()
                         print(f"🔄 [Ultra After Effects Scene {i+1}] Pinterest Video fallback -> Fetching Pinterest {orientation.upper()} Photo: '{fb_photo_term}'...")
                         p_fb_files = fetch_pinterest_photos_via_gallery_dl(fb_photo_term, limit=1, output_dir=job_dir, used_media_ids=used_media_ids, orientation=orientation)
                         if p_fb_files and os.path.exists(p_fb_files[0]):
                             v_paths = [p_fb_files[0]]
                         else:
                             # Ultimate Pinterest fallback
-                            ult_p = fetch_pinterest_photos_via_gallery_dl(f"{clean_t} cinematic animation photo", limit=1, output_dir=job_dir, used_media_ids=used_media_ids, orientation=orientation)
+                            en_topic_only = translate_to_visual_english(main_topic, "") if translate_to_visual_english else main_topic
+                            ult_p = fetch_pinterest_photos_via_gallery_dl(f"{en_topic_only} cinematic animation photo", limit=1, output_dir=job_dir, used_media_ids=used_media_ids, orientation=orientation)
                             if ult_p and os.path.exists(ult_p[0]):
                                 v_paths = [ult_p[0]]
                 except Exception as e_ae:
                     print(f"⚠️ [Ultra After Effects Pinterest Pipeline Error]: {e_ae}")
                     try:
-                        fb = fetch_pinterest_photos_via_gallery_dl(f"{req.topic or 'cinematic'} cinematic animation photo", limit=1, output_dir=job_dir, used_media_ids=used_media_ids, orientation=orientation)
+                        en_topic = translate_to_visual_english(req.topic or "cinematic", "") if translate_to_visual_english else (req.topic or "cinematic")
+                        fb = fetch_pinterest_photos_via_gallery_dl(f"{en_topic} cinematic animation photo", limit=1, output_dir=job_dir, used_media_ids=used_media_ids, orientation=orientation)
                         v_paths = fb if fb else []
                     except Exception:
                         v_paths = []
@@ -2392,12 +2374,13 @@ def full_process(req: VideoRequest, job_id: str):
                     if not clean_guard_kw and main_topic:
                         clean_guard_kw = " ".join([w for w in re.findall(r'[a-zA-Z0-9]+', main_topic) if len(w) > 1 and w.lower() not in ["and", "the", "for", "with", "from", "about", "hindi", "english"]])
                     if is_after_effects_req:
-                        alt_query = f"{clean_guard_kw or main_topic} cinematic animation video scene {i+1} angle {i+1}"
+                        en_guard_term = translate_to_visual_english(scene_kw or main_topic, main_topic) if translate_to_visual_english else (clean_guard_kw or main_topic)
+                        alt_query = f"{en_guard_term} cinematic animation video scene {i+1} angle {i+1}"
                         new_v = fetch_pinterest_videos_via_gallery_dl(alt_query, limit=1, output_dir=job_dir, used_media_ids=used_media_ids, orientation=orientation)
                         if new_v and os.path.exists(new_v[0]) and get_media_fingerprint(new_v[0]) not in prior_scene_assets:
                             v_paths = new_v
                         else:
-                            alt_p_query = f"{clean_guard_kw or main_topic} cinematic animation photo scene {i+1} angle {i+1}"
+                            alt_p_query = f"{en_guard_term} cinematic animation photo scene {i+1} angle {i+1}"
                             new_p = fetch_pinterest_photos_via_gallery_dl(alt_p_query, limit=1, output_dir=job_dir, used_media_ids=used_media_ids, orientation=orientation)
                             if new_p and os.path.exists(new_p[0]) and get_media_fingerprint(new_p[0]) not in prior_scene_assets:
                                 v_paths = new_p

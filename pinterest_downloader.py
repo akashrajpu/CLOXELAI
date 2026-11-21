@@ -173,6 +173,14 @@ def fetch_pinterest_photos_via_gallery_dl(query: str, limit: int = 3, output_dir
     used_media_ids = used_media_ids if used_media_ids is not None else set()
     orientation = str(orientation or "portrait").lower()
 
+    # Clean and translate Devanagari Hindi or Hinglish queries to English visual keywords for Pinterest
+    if re.search(r'[\u0900-\u097F]', query):
+        try:
+            from web_image_fetcher import translate_to_visual_english
+            query = translate_to_visual_english(query)
+        except Exception:
+            pass
+
     if orientation in ["portrait", "9:16"]:
         aspect_keyword = "9:16 vertical phone wallpaper cinematic animation"
     elif orientation in ["landscape", "16:9"]:
@@ -439,6 +447,14 @@ def fetch_pinterest_videos_via_gallery_dl(query: str, limit: int = 1, output_dir
     timestamp_prefix = int(time.time() * 1000) % 1000000
     used_media_ids = used_media_ids if used_media_ids is not None else set()
     orientation = str(orientation or "portrait").lower()
+
+    # Clean and translate Devanagari Hindi or Hinglish queries to English visual keywords for Pinterest
+    if re.search(r'[\u0900-\u097F]', query):
+        try:
+            from web_image_fetcher import translate_to_visual_english
+            query = translate_to_visual_english(query)
+        except Exception:
+            pass
 
     # Clean query to concise, high-impact search term (max 4-5 words before 'graphics video')
     raw_words = query.strip().split()

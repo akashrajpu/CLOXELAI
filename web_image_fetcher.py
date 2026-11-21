@@ -20,13 +20,16 @@ HINDI_STOPWORDS = {
     "का", "के", "की", "को", "से", "में", "ने", "पर", "और", "एक", "दो", "भी", "तो", "जो", "कर", "दिया", "लिया",
     "गया", "गई", "गए", "कि", "इस", "उस", "अपने", "अपनी", "अपना", "इन", "उन", "सकते", "सकता", "सकती", "रहा",
     "रही", "रहे", "तक", "जब", "तब", "अब", "सब", "क्या", "क्यों", "कहा", "कहते", "जैसे", "किए", "गए", "गया",
-    "कहा", "वहां", "यहाँ", "किसी", "कुछ", "बहुत", "मगर", "लेकिन", "परंतु", "ताकि", "क्योंकि", "तथा", "एवं",
+    "कहा", "वहां", "यहाँ", "किसी", "कुछ", "बहुत", "मगर", "लेकिन", "परंतु", "ताकि", "क्योंकि", "तथा", "एवं", "या", "अथवा",
     # Hinglish Stopwords
     "yeh", "woh", "ye", "wo", "tha", "thi", "the", "hai", "hain", "ho", "hua", "hui", "hue", "hota", "hoti", "hote",
-    "ka", "ke", "ki", "ko", "se", "me", "mein", "ne", "par", "aur", "ek", "bhi", "to", "toh", "jo", "kar", "diya",
+    "ka", "ke", "ki", "ko", "se", "me", "mein", "ne", "par", "pe", "aur", "ek", "bhi", "to", "toh", "jo", "kar", "diya",
     "liya", "gaya", "gayi", "gaye", "is", "us", "apne", "apni", "apna", "in", "un", "sakte", "sakta", "sakti",
-    "raha", "rahi", "rahe", "tak", "jab", "tab", "ab", "sab", "kya", "kyon", "kaha", "kahte", "jaise", "kuch",
-    "bahut", "lekin", "magar", "bina", "sirf", "wali", "wale", "wala", "mil", "sakti", "rahe", "the", "gaya"
+    "raha", "rahi", "rahe", "tak", "jab", "tab", "ab", "sab", "kya", "kyon", "kyu", "kaha", "kahte", "jaise", "kuch",
+    "bahut", "lekin", "magar", "bina", "sirf", "wali", "wale", "wala", "mil", "sakti", "rahe", "the", "gaya", "fir",
+    "phir", "kaise", "kahan", "kisne", "jisko", "jisme", "jahan", "wahan", "yahan", "unka", "unki", "unke", "iska", "iski", "iske",
+    "ya", "athwa", "unhone", "inhone", "sabka", "sabki", "sabke", "puri", "poori", "akele", "kisi", "aisa", "aisi", "aise", "shuru", "khatam",
+    "nahi", "na", "samne", "saamne", "karte", "karta", "karti", "pata", "baad", "pehle", "hi"
 }
 
 # Comprehensive Concept Dictionary (Devanagari & Hinglish -> Rich English visual search keywords)
@@ -258,7 +261,101 @@ CONCEPT_MAP = {
     "दिन": "bright daylight morning sunrise horizon",
     "din": "bright daylight morning sunrise horizon",
     "रात": "dark starry night moonlight shadow",
-    "raat": "dark starry night moonlight shadow"
+    "raat": "dark starry night moonlight shadow",
+
+    # Political, Leaders, After Effects & Contrast Keywords
+    "dictator": "authoritarian dictator ruler throne",
+    "taanashah": "authoritarian dictator ruler throne",
+    "tanashah": "authoritarian dictator ruler throne",
+    "तानाशाह": "authoritarian dictator ruler throne",
+    "hero": "national hero visionary savior champion",
+    "हीरो": "national hero visionary savior champion",
+    "नायक": "national hero visionary savior champion",
+    "asli": "authentic real true heroic",
+    "असली": "authentic real true heroic",
+    "nakli": "fake fraudulent illusion deceptive",
+    "नकली": "fake fraudulent illusion deceptive",
+    "sach": "hidden truth revelation mystery light",
+    "sacchai": "hidden truth revelation mystery light",
+    "सच्चाई": "hidden truth revelation mystery light",
+    "सच": "hidden truth revelation mystery light",
+    "satya": "hidden truth revelation mystery light",
+    "सत्य": "hidden truth revelation mystery light",
+    "jhooth": "dark lie deceit illusion shadow",
+    "झूठ": "dark lie deceit illusion shadow",
+    "neta": "powerful politician leader speech podium",
+    "नेता": "powerful politician leader speech podium",
+    "rajneeti": "political election power struggle",
+    "राजनीति": "political election power struggle",
+    "modi": "Narendra Modi Prime Minister leader",
+    "मोदी": "Narendra Modi Prime Minister leader",
+    "gandhi": "Mahatma Gandhi freedom struggle",
+    "गांधी": "Mahatma Gandhi freedom struggle",
+    "bhashan": "leader speech podium stage address crowd",
+    "भाषण": "leader speech podium stage address crowd",
+    "chunav": "election political campaign rally crowd",
+    "चुनाव": "election political campaign rally crowd",
+    "sansad": "parliament building capitol democracy",
+    "संसद": "parliament building capitol democracy",
+    "shaktishali": "powerful mighty colossal majestic",
+    "शक्तिशाली": "powerful mighty colossal majestic",
+    "dushman": "enemy fierce rival opponent",
+    "दुश्मन": "enemy fierce rival opponent",
+    "dost": "trusted allies friends companion",
+    "दोस्त": "trusted allies friends companion",
+    "kahaani": "epic story legend chronicle",
+    "कहानी": "epic story legend chronicle",
+    "katha": "mythological legend epic chronicle",
+    "कथा": "mythological legend epic chronicle",
+
+    # Characters, Epics, Battles, Nature & Monuments
+    "नरेंद्र": "Narendra Modi leader",
+    "मोदी": "Narendra Modi leader",
+    "pratap": "Maharana Pratap warrior king",
+    "प्रताप": "Maharana Pratap warrior king",
+    "maharana": "Maharana Pratap warrior king",
+    "महाराणा": "Maharana Pratap warrior king",
+    "shivaji": "Shivaji Maharaj warrior king",
+    "शिवाजी": "Shivaji Maharaj warrior king",
+    "सेना": "mighty army soldiers battalion",
+    "sena": "mighty army soldiers battalion",
+    "yudh": "epic battle warrior conflict",
+    "yuddh": "epic battle warrior conflict",
+    "युद्ध": "epic battle warrior conflict",
+    "larai": "fierce battle war clash",
+    "लड़ाई": "fierce battle war clash",
+    "kila": "ancient fort castle fortress",
+    "किला": "ancient fort castle fortress",
+    "mahal": "royal palace kingdom castle",
+    "महल": "royal palace kingdom castle",
+    "talwar": "ancient sword warrior blade",
+    "तलवार": "ancient sword warrior blade",
+    "ghoda": "war horse stallion galloping",
+    "घोड़ा": "war horse stallion galloping",
+    "sher": "lion fierce predator royal",
+    "शेर": "lion fierce predator royal",
+    "ram": "Lord Ram divine bow radiance",
+    "राम": "Lord Ram divine bow radiance",
+    "krishna": "Lord Krishna divine flute aura",
+    "कृष्ण": "Lord Krishna divine flute aura",
+    "shiva": "Lord Shiva mahadev cosmic meditation",
+    "शिव": "Lord Shiva mahadev cosmic meditation",
+    "mahadev": "Lord Shiva mahadev cosmic meditation",
+    "महादेव": "Lord Shiva mahadev cosmic meditation",
+    "hanuman": "Lord Hanuman mace power aura",
+    "हनुमान": "Lord Hanuman mace power aura",
+    "aag": "fiery burning flames inferno",
+    "आग": "fiery burning flames inferno",
+    "pani": "flowing water ocean river",
+    "पानी": "flowing water ocean river",
+    "bijli": "thunderstorm lightning neon sparks",
+    "बिजली": "thunderstorm lightning neon sparks",
+    "dhoka": "dark betrayal treason shadow",
+    "धोखा": "dark betrayal treason shadow",
+    "desh": "nation patriotic homeland",
+    "देश": "nation patriotic homeland",
+    "bharat": "India national heritage",
+    "भारत": "India national heritage"
 }
 
 def clean_topic_title(topic: str) -> str:
@@ -400,6 +497,86 @@ def translate_query(query: str) -> str:
             seen.add(w.lower())
             dedup.append(w)
     return " ".join(dedup) if dedup else query
+
+
+ENG_VISUAL_STOPS = {
+    'the', 'is', 'was', 'were', 'are', 'been', 'being', 'have', 'has', 'had', 'do', 'does', 'did',
+    'will', 'would', 'shall', 'should', 'can', 'could', 'may', 'might', 'must', 'a', 'an', 'and',
+    'or', 'but', 'if', 'because', 'as', 'what', 'which', 'this', 'that', 'these', 'those', 'then',
+    'so', 'than', 'such', 'both', 'through', 'about', 'for', 'with', 'by', 'at', 'from', 'into',
+    'over', 'after', 'beneath', 'under', 'above', 'of', 'to', 'in', 'on', 'it', 'its', 'he', 'she',
+    'they', 'them', 'their', 'his', 'her', 'my', 'your', 'our', 'we', 'you', 'i', 'me', 'him',
+    'who', 'whom', 'whose', 'how', 'when', 'where', 'why', 'all', 'any', 'each', 'few', 'more',
+    'most', 'other', 'some', 'such', 'no', 'nor', 'not', 'only', 'own', 'same', 'very', 'else',
+    'either', 'neither', 'vs', 'versus', 'ya'
+}
+
+
+def translate_to_visual_english(text: str, topic: str = "") -> str:
+    """
+    Translates Hindi and Hinglish script/scene text and topic into rich, descriptive English visual keywords
+    for Pinterest and web media search in Ultra After Effects mode.
+    Guarantees 100% English keywords without Devanagari or raw Hinglish fragments.
+    """
+    raw = (text or '').strip()
+    topic_raw = (topic or '').strip()
+    if not raw and not topic_raw:
+        return "cinematic animation"
+
+    has_devanagari = bool(re.search(r'[\u0900-\u097F]', raw + ' ' + topic_raw))
+    words = [w.lower().strip('.,!?:;"\'()[]{}') for w in (raw + ' ' + topic_raw).split()]
+    has_hinglish = any(w in HINDI_STOPWORDS for w in words) or any(w in CONCEPT_MAP for w in words)
+
+    translated_text = raw
+    translated_topic = topic_raw
+
+    if has_devanagari or has_hinglish:
+        for target, src in [('topic', topic_raw), ('text', raw)]:
+            if not src:
+                continue
+            src_dev = bool(re.search(r'[\u0900-\u097F]', src))
+            src_words = [w.lower().strip('.,!?:;"\'()[]{}') for w in src.split()]
+            src_hing = any(w in HINDI_STOPWORDS for w in src_words)
+            if src_dev or src_hing:
+                try:
+                    url = 'https://api.mymemory.translated.net/get'
+                    params = {'q': src[:250], 'langpair': 'hi|en'}
+                    resp = requests.get(url, params=params, timeout=3.5)
+                    if resp.status_code == 200:
+                        tr = resp.json().get('responseData', {}).get('translatedText', '')
+                        if tr and not tr.startswith('MYMEMORY WARNING') and tr.strip():
+                            if target == 'topic':
+                                translated_topic = tr.strip()
+                            else:
+                                translated_text = tr.strip()
+                except Exception:
+                    pass
+
+    # 2. Extract concepts from tokens BEFORE stripping non-ASCII (so Devanagari and Hinglish match CONCEPT_MAP)
+    combined = f'{translated_topic} {translated_text}'
+    tokens = [t.strip('.,!?:;"\'()[]{}') for t in combined.split()]
+    clean_kw = []
+    seen = set()
+
+    for t in tokens:
+        tl = t.lower()
+        if len(tl) < 2 or tl in ENG_VISUAL_STOPS or tl in HINDI_STOPWORDS:
+            continue
+        if tl in CONCEPT_MAP:
+            for cw in CONCEPT_MAP[tl].split()[:2]:
+                if cw.lower() not in seen:
+                    seen.add(cw.lower())
+                    clean_kw.append(cw)
+        else:
+            ascii_word = re.sub(r'[^\x00-\x7F]+', '', t).strip()
+            if ascii_word and len(ascii_word) >= 2 and ascii_word.lower() not in ENG_VISUAL_STOPS and ascii_word.lower() not in HINDI_STOPWORDS:
+                if ascii_word.lower() not in seen:
+                    seen.add(ascii_word.lower())
+                    clean_kw.append(ascii_word)
+
+    res = ' '.join(clean_kw[:5]).strip()
+    return res or (re.sub(r'[^\x00-\x7F]+', '', translated_topic).strip() or "cinematic animation")
+
 
 PEXELS_API_KEY = os.getenv("PEXELS_API_KEY", "jqGZN1a4uHQFpxqdFAdVaD1l1eyjW1kzHqtdlNJ1TPkSmOEXcbAL7yhN")
 
