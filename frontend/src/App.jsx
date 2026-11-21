@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import Auth from './Auth';
 import YouTubeIntegration from './YouTubeIntegration';
-import { Smartphone, Monitor, Zap, Film, Settings, Sparkles, Clock, Palette, Mic, Music, Layout, Hash, Dices, Clapperboard, MonitorPlay, User, Sun, Scroll, Circle, Ban, Rocket, Box, Square, Tv, Compass, Upload, Activity } from 'lucide-react';
+import { Smartphone, Monitor, Zap, Film, Settings, Sparkles, Clock, Palette, Mic, Music, Layout, Hash, Dices, Clapperboard, MonitorPlay, User, Sun, Scroll, Circle, Ban, Rocket, Box, Square, Tv, Compass, Upload, Activity, Heart, HeartCrack, Moon, Flame, Layers, Search } from 'lucide-react';
 import { PHONK_VISUALIZER_CATEGORIES, PHONK_VISUALIZER_PRESETS, MOOD_VISUALIZER_INFO } from './phonkVisualizers';
 
 const API_BASE = window.location.hostname === 'localhost' ? 'http://localhost:8000' : '';
@@ -2261,7 +2261,7 @@ function App() {
               <div className="responsive-grid-2" style={{ marginBottom: '1.2rem', alignItems: 'flex-end' }}>
                 <div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-                    <span style={{ fontSize: '1.4rem' }}>🎵</span>
+                    <Music size={24} color="#ec4899" />
                     <h3 style={{ margin: 0, fontSize: '1.15rem', color: '#fff', fontWeight: '800' }}>
                       Ultra Song & Music Video Studio
                     </h3>
@@ -2313,9 +2313,10 @@ function App() {
                     />
                   </div>
                 </div>
-                <span style={{ fontSize: '0.74rem', color: '#94a3b8', display: 'block', marginTop: '6px' }}>
-                  💡 Agar song name likhenge to wahi specific gana uthayega. Agar khali chhodenge to is artist ka popular random song automatically download ho jayega!
-                </span>
+                <div style={{ fontSize: '0.74rem', color: '#94a3b8', display: 'flex', alignItems: 'center', gap: '6px', marginTop: '6px' }}>
+                  <Sparkles size={14} color="#38bdf8" style={{ flexShrink: 0 }} />
+                  <span>Agar song name likhenge to wahi specific gana uthayega. Agar khali chhodenge to is artist ka popular random song automatically download ho jayega!</span>
+                </div>
               </div>
 
               {/* Step 2: Song Mood & Vibe Theme Category */}
@@ -2324,57 +2325,71 @@ function App() {
                   <label style={{ fontSize: '0.88rem', fontWeight: '800', color: '#e2e8f0', margin: 0 }}>
                     2. Song Mood & Category (HD Visuals & Filters Match)
                   </label>
-                  <span style={{ fontSize: '0.74rem', color: '#ec4899', fontWeight: 'bold' }}>
-                    🎨 Cinematic Color Grading Filters
+                  <span style={{ fontSize: '0.74rem', color: '#ec4899', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                    <Palette size={14} color="#ec4899" /> Cinematic Color Grading Filters
                   </span>
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '8px' }}>
                   {[
-                    { id: 'romantic', label: '❤️ Romantic / Love', desc: 'Sunset & Golden Hour' },
-                    { id: 'sad', label: '💔 Sad / Dard / Broken', desc: 'Rain & Dark Moody Noir' },
-                    { id: 'party', label: '⚡ Party / High Energy', desc: 'Neon Club & Bass Lasers' },
-                    { id: 'lofi', label: '🌙 Lo-Fi / Chill Vibes', desc: 'Cozy Room & Night Stars' },
-                    { id: 'acoustic', label: '🎸 Acoustic / Indie', desc: 'Nature & Misty Road' },
-                    { id: 'devotional', label: '💫 Devotional / Bhakti', desc: 'Golden Temple & Divine' },
-                    { id: 'phonk', label: '🔥 Phonk / Funk / Drift', desc: 'Beat & Bass Reactive Shake' },
-                  ].map(m => (
-                    <button
-                      key={m.id}
-                      type="button"
-                      onClick={() => {
-                        setSongMood(m.id);
-                        if (m.id === 'phonk') {
-                          setSongVisualMode('beat');
-                          setGenerationMode('ultra');
-                          setPhonkVisualizerStyle('phonk_auto');
-                        } else if (songVisualMode === 'beat') {
-                          setPhonkVisualizerStyle(`${m.id}_auto`);
-                        }
-                      }}
-                      style={{
-                        padding: '10px 8px',
-                        borderRadius: '12px',
-                        border: songMood === m.id ? '2px solid #ec4899' : '1px solid rgba(255,255,255,0.1)',
-                        background: songMood === m.id ? 'linear-gradient(135deg, rgba(236, 72, 153, 0.3) 0%, rgba(168, 85, 247, 0.3) 100%)' : 'rgba(15, 23, 42, 0.6)',
-                        color: songMood === m.id ? '#fff' : '#cbd5e1',
-                        cursor: 'pointer',
-                        textAlign: 'center',
-                        fontSize: '0.82rem',
-                        fontWeight: songMood === m.id ? '800' : '600',
-                        boxShadow: songMood === m.id ? '0 0 12px rgba(236, 72, 153, 0.4)' : 'none',
-                        transition: 'all 0.15s ease'
-                      }}
-                    >
-                      <div>{m.label}</div>
-                      <div style={{ fontSize: '0.68rem', color: songMood === m.id ? '#fbcfe8' : '#64748b', marginTop: '2px' }}>{m.desc}</div>
-                    </button>
-                  ))}
+                    { id: 'romantic', label: 'Romantic / Love', desc: 'Sunset & Golden Hour', Icon: Heart, iconColor: '#f43f5e' },
+                    { id: 'sad', label: 'Sad / Dard / Broken', desc: 'Rain & Dark Moody Noir', Icon: HeartCrack, iconColor: '#38bdf8' },
+                    { id: 'party', label: 'Party / High Energy', desc: 'Neon Club & Bass Lasers', Icon: Zap, iconColor: '#facc15' },
+                    { id: 'lofi', label: 'Lo-Fi / Chill Vibes', desc: 'Cozy Room & Night Stars', Icon: Moon, iconColor: '#a78bfa' },
+                    { id: 'acoustic', label: 'Acoustic / Indie', desc: 'Nature & Misty Road', Icon: Music, iconColor: '#fb923c' },
+                    { id: 'devotional', label: 'Devotional / Bhakti', desc: 'Golden Temple & Divine', Icon: Sun, iconColor: '#f59e0b' },
+                    { id: 'phonk', label: 'Phonk / Funk / Drift', desc: 'Beat & Bass Reactive Shake', Icon: Flame, iconColor: '#ef4444' },
+                  ].map(m => {
+                    const MoodIcon = m.Icon;
+                    return (
+                      <button
+                        key={m.id}
+                        type="button"
+                        onClick={() => {
+                          setSongMood(m.id);
+                          if (m.id === 'phonk') {
+                            setSongVisualMode('beat');
+                            setGenerationMode('ultra');
+                            setPhonkVisualizerStyle('phonk_auto');
+                          } else if (songVisualMode === 'beat') {
+                            setPhonkVisualizerStyle(`${m.id}_auto`);
+                          }
+                        }}
+                        style={{
+                          padding: '10px 8px',
+                          borderRadius: '12px',
+                          border: songMood === m.id ? '2px solid #ec4899' : '1px solid rgba(255,255,255,0.1)',
+                          background: songMood === m.id ? 'linear-gradient(135deg, rgba(236, 72, 153, 0.3) 0%, rgba(168, 85, 247, 0.3) 100%)' : 'rgba(15, 23, 42, 0.6)',
+                          color: songMood === m.id ? '#fff' : '#cbd5e1',
+                          cursor: 'pointer',
+                          textAlign: 'center',
+                          fontSize: '0.82rem',
+                          fontWeight: songMood === m.id ? '800' : '600',
+                          boxShadow: songMood === m.id ? '0 0 12px rgba(236, 72, 153, 0.4)' : 'none',
+                          transition: 'all 0.15s ease'
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+                          <MoodIcon size={15} color={songMood === m.id ? '#fff' : m.iconColor} />
+                          <span>{m.label}</span>
+                        </div>
+                        <div style={{ fontSize: '0.68rem', color: songMood === m.id ? '#fbcfe8' : '#64748b', marginTop: '2px' }}>{m.desc}</div>
+                      </button>
+                    );
+                  })}
                 </div>
-                <span style={{ fontSize: '0.74rem', color: '#94a3b8', display: 'block', marginTop: '6px' }}>
-                  {songMood === 'phonk'
-                    ? '🔥 Phonk / Funk Mode Active: 1 Single continuous visual (photo or looped video) with 808 Sub-Bass audio engine — bass ke hisab se camera shake aur beat zoom pump hoga!'
-                    : '💡 Is category ke anusaar background photos ka mood aur cinematic color filters (Teal & Orange, Moody Noir, Golden Glow, etc.) auto-apply honge!'}
-                </span>
+                <div style={{ fontSize: '0.74rem', color: '#94a3b8', display: 'flex', alignItems: 'center', gap: '6px', marginTop: '6px' }}>
+                  {songMood === 'phonk' ? (
+                    <>
+                      <Flame size={14} color="#ef4444" style={{ flexShrink: 0 }} />
+                      <span>Phonk / Funk Mode Active: 1 Single continuous visual (photo or looped video) with 808 Sub-Bass audio engine — bass ke hisab se camera shake aur beat zoom pump hoga!</span>
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles size={14} color="#38bdf8" style={{ flexShrink: 0 }} />
+                      <span>Is category ke anusaar background photos ka mood aur cinematic color filters (Teal & Orange, Moody Noir, Golden Glow, etc.) auto-apply honge!</span>
+                    </>
+                  )}
+                </div>
               </div>
 
               {/* Step 3: Video Duration & Dynamic Scenes */}
@@ -2383,8 +2398,16 @@ function App() {
                   <label style={{ fontSize: '0.88rem', fontWeight: '800', color: '#e2e8f0', margin: 0 }}>
                     3. Video Duration & Scene Count (Song ke hisab se)
                   </label>
-                  <span style={{ fontSize: '0.74rem', color: '#38bdf8', fontWeight: 'bold' }}>
-                    {duration === 0 ? '🎵 Full Song Length' : `⏱️ ${duration}s (~${Math.max(4, Math.round(duration / 4))} Dynamic Scenes)`}
+                  <span style={{ fontSize: '0.74rem', color: '#38bdf8', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                    {duration === 0 ? (
+                      <>
+                        <Music size={13} color="#38bdf8" /> Full Song Length
+                      </>
+                    ) : (
+                      <>
+                        <Clock size={13} color="#38bdf8" /> {duration}s (~{Math.max(4, Math.round(duration / 4))} Dynamic Scenes)
+                      </>
+                    )}
                   </span>
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(105px, 1fr))', gap: '8px' }}>
@@ -2394,40 +2417,51 @@ function App() {
                     { val: 45, label: '45s (Extended)', scenes: '11 Scenes' },
                     { val: 60, label: '60s (1 Min)', scenes: '15 Scenes' },
                     { val: 90, label: '90s (Extended)', scenes: '22 Scenes' },
-                    { val: 0, label: 'Full Song 🎶', scenes: 'Auto-Sync' },
-                  ].map(opt => (
-                    <button
-                      key={opt.val}
-                      type="button"
-                      onClick={() => setDuration(opt.val)}
-                      style={{
-                        padding: '10px 6px',
-                        borderRadius: '12px',
-                        border: duration === opt.val ? '2px solid #a855f7' : '1px solid rgba(255,255,255,0.1)',
-                        background: duration === opt.val ? 'linear-gradient(135deg, rgba(168, 85, 247, 0.3) 0%, rgba(236, 72, 153, 0.3) 100%)' : 'rgba(15, 23, 42, 0.6)',
-                        color: duration === opt.val ? '#fff' : '#cbd5e1',
-                        cursor: 'pointer',
-                        textAlign: 'center',
-                        fontSize: '0.82rem',
-                        fontWeight: duration === opt.val ? '800' : '600',
-                        boxShadow: duration === opt.val ? '0 0 12px rgba(168, 85, 247, 0.4)' : 'none',
-                        transition: 'all 0.15s ease'
-                      }}
-                    >
-                      <div>{opt.label}</div>
-                      <div style={{ fontSize: '0.68rem', color: duration === opt.val ? '#fbcfe8' : '#64748b', marginTop: '2px' }}>{opt.scenes}</div>
-                    </button>
-                  ))}
+                    { val: 0, label: 'Full Song', scenes: 'Auto-Sync', icon: Music },
+                  ].map(opt => {
+                    const OptIcon = opt.icon;
+                    return (
+                      <button
+                        key={opt.val}
+                        type="button"
+                        onClick={() => setDuration(opt.val)}
+                        style={{
+                          padding: '10px 6px',
+                          borderRadius: '12px',
+                          border: duration === opt.val ? '2px solid #a855f7' : '1px solid rgba(255,255,255,0.1)',
+                          background: duration === opt.val ? 'linear-gradient(135deg, rgba(168, 85, 247, 0.3) 0%, rgba(236, 72, 153, 0.3) 100%)' : 'rgba(15, 23, 42, 0.6)',
+                          color: duration === opt.val ? '#fff' : '#cbd5e1',
+                          cursor: 'pointer',
+                          textAlign: 'center',
+                          fontSize: '0.82rem',
+                          fontWeight: duration === opt.val ? '800' : '600',
+                          boxShadow: duration === opt.val ? '0 0 12px rgba(168, 85, 247, 0.4)' : 'none',
+                          transition: 'all 0.15s ease'
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px' }}>
+                          {OptIcon && <OptIcon size={14} color={duration === opt.val ? '#fff' : '#c084fc'} />}
+                          <span>{opt.label}</span>
+                        </div>
+                        <div style={{ fontSize: '0.68rem', color: duration === opt.val ? '#fbcfe8' : '#64748b', marginTop: '2px' }}>{opt.scenes}</div>
+                      </button>
+                    );
+                  })}
                 </div>
-                <span style={{ fontSize: '0.74rem', color: '#94a3b8', display: 'block', marginTop: '6px' }}>
-                  💡 Gana jitna lamba hoga, system automatically har ~4 second me fresh dynamic scene & unique title visual lagayega!
-                </span>
+                <div style={{ fontSize: '0.74rem', color: '#94a3b8', display: 'flex', alignItems: 'center', gap: '6px', marginTop: '6px' }}>
+                  <Sparkles size={14} color="#38bdf8" style={{ flexShrink: 0 }} />
+                  <span>Gana jitna lamba hoga, system automatically har ~4 second me fresh dynamic scene & unique title visual lagayega!</span>
+                </div>
               </div>
 
               {/* Step 4: Visual Creation Choice */}
               <div style={{ marginBottom: '1.2rem', background: 'rgba(15, 23, 42, 0.5)', padding: '14px', borderRadius: '14px', border: '1px solid rgba(255,255,255,0.08)' }}>
-                <label style={{ display: 'block', fontSize: '0.88rem', fontWeight: '800', color: '#e2e8f0', marginBottom: '8px' }}>
-                  4. Visual Creation Mode {songMood === 'phonk' ? '(🔥 Phonk Beat & Bass Engine Active)' : '(Video Clips vs Motion Photos vs Simple Beat)'}
+                <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.88rem', fontWeight: '800', color: '#e2e8f0', marginBottom: '8px' }}>
+                  4. Visual Creation Mode {songMood === 'phonk' ? (
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', color: '#f43f5e' }}>
+                      (<Flame size={14} color="#f43f5e" /> Phonk Beat & Bass Engine Active)
+                    </span>
+                  ) : '(Video Clips vs Motion Photos vs Simple Beat)'}
                 </label>
 
                 {songMood === 'phonk' ? (
@@ -2448,8 +2482,8 @@ function App() {
                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                       <Activity size={24} color="#c084fc" />
                       <div>
-                        <div style={{ fontWeight: '800', fontSize: '0.94rem', color: '#c084fc', marginBottom: '2px' }}>
-                          🔥 Phonk Beat & 808 Sub-Bass Reactor (Automatic Exclusive)
+                        <div style={{ fontWeight: '800', fontSize: '0.94rem', color: '#c084fc', marginBottom: '2px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <Flame size={18} color="#ef4444" /> Phonk Beat & 808 Sub-Bass Reactor (Automatic Exclusive)
                         </div>
                         <div style={{ fontSize: '0.76rem', color: '#cbd5e1' }}>
                           Phonk / Funk mode me video strictly audio-reactive beat & bass visualizer se banti hai. Pinterest se 4K JDM / Anime visuals auto-sync honge!
@@ -2464,9 +2498,12 @@ function App() {
                       background: 'rgba(168, 85, 247, 0.35)',
                       border: '1px solid #a855f7',
                       color: '#e9d5ff',
-                      letterSpacing: '0.3px'
+                      letterSpacing: '0.3px',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '5px'
                     }}>
-                      ⚡ Beat Reactor Locked
+                      <Zap size={12} color="#facc15" /> Beat Reactor Locked
                     </span>
                   </div>
                 ) : (
@@ -2491,7 +2528,7 @@ function App() {
                       }}
                     >
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: '800', fontSize: '0.92rem', color: '#38bdf8', marginBottom: '4px' }}>
-                        <Film size={18} /> 🎥 Stock Video Clips
+                        <Film size={18} /> Stock Video Clips
                       </div>
                       <div style={{ fontSize: '0.78rem', color: '#cbd5e1', lineHeight: '1.3' }}>
                         Pexels 4K/HD aesthetic video clips synced with song lyrics & rhythm.
@@ -2517,7 +2554,7 @@ function App() {
                       }}
                     >
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: '800', fontSize: '0.92rem', color: '#fbbf24', marginBottom: '4px' }}>
-                        <Sparkles size={18} /> ⚡ Ultra 3D Photo Motion
+                        <Sparkles size={18} /> Ultra 3D Photo Motion
                       </div>
                       <div style={{ fontSize: '0.78rem', color: '#cbd5e1', lineHeight: '1.3' }}>
                         High-res aesthetic photos with cinematic cuts, light flashes, zoom/pan & motion.
@@ -2544,7 +2581,7 @@ function App() {
                       }}
                     >
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: '800', fontSize: '0.92rem', color: '#c084fc', marginBottom: '4px' }}>
-                        <Activity size={18} /> 🎵 Simple Beat Visualizer
+                        <Activity size={18} /> Simple Beat Visualizer
                       </div>
                       <div style={{ fontSize: '0.78rem', color: '#cbd5e1', lineHeight: '1.3' }}>
                         Continuous beat & bass reactor (Hearts, Rain, Chakra, Trap Nation) from Pinterest HD visuals.
@@ -2566,10 +2603,12 @@ function App() {
                 }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px', flexWrap: 'wrap', gap: '8px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <span style={{ fontSize: '1.3rem' }}>{songVisualMode === 'beat' ? '🎵' : '⚡'}</span>
+                      <span style={{ display: 'flex', alignItems: 'center' }}>
+                        {songVisualMode === 'beat' ? <Activity size={22} color="#c084fc" /> : <Flame size={22} color="#00f2fe" />}
+                      </span>
                       <div>
                         <div style={{ fontSize: '0.94rem', fontWeight: '900', color: songVisualMode === 'beat' ? '#c084fc' : '#00f2fe', letterSpacing: '0.3px' }}>
-                          {(MOOD_VISUALIZER_INFO[songMood] || {}).title || '🎵 Audio Beat Reactor & Visualizer Studio'}
+                          {(MOOD_VISUALIZER_INFO[songMood] || {}).title || 'Audio Beat Reactor & Visualizer Studio'}
                         </div>
                         <div style={{ fontSize: '0.73rem', color: '#94a3b8' }}>
                           {(MOOD_VISUALIZER_INFO[songMood] || {}).desc || 'Center Emblem Logo + Beat Reactor audio engine!'}
@@ -2586,8 +2625,9 @@ function App() {
                       borderRadius: '20px'
                     }}>
                       <span style={{ fontSize: '0.7rem', color: '#cbd5e1', fontWeight: '600' }}>Active Style:</span>
-                      <span style={{ fontSize: '0.74rem', color: '#c084fc', fontWeight: '800' }}>
-                        {(PHONK_VISUALIZER_PRESETS.find(p => p.id === phonkVisualizerStyle) || {}).name || '🎲 Auto Mood Match'}
+                      <span style={{ fontSize: '0.74rem', color: '#c084fc', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <Sparkles size={12} color="#c084fc" />
+                        {((PHONK_VISUALIZER_PRESETS.find(p => p.id === phonkVisualizerStyle) || {}).name || 'Auto Mood Match').replace(/^[\p{Extended_Pictographic}\uFE0F\u200D\s]+/u, '')}
                       </span>
                     </div>
                   </div>
@@ -2605,10 +2645,10 @@ function App() {
                     fontSize: '0.78rem',
                     color: '#e2e8f0'
                   }}>
-                    <span style={{ fontSize: '1.25rem' }}>📌</span>
+                    <Compass size={20} color="#c084fc" style={{ flexShrink: 0 }} />
                     <div>
                       <span style={{ fontWeight: '800', color: '#c084fc' }}>Pinterest 4K HD Visuals Active:</span>{' '}
-                      Background visual aur center emblem logo Pinterest se <b>{songMood.toUpperCase()}</b> mood aur lyrics ke anusaar automatically Graphic Cartoon / Anime HD quality me fetch honge!
+                      Background visual aur center emblem logo Pinterest se <b>{songMood.toUpperCase()}</b> mood ke anusaar automatically Graphic Cartoon / Anime HD quality me fetch honge!
                     </div>
                   </div>
 
@@ -2626,15 +2666,17 @@ function App() {
                       fontSize: '0.78rem',
                       fontWeight: '800'
                     }}>
-                      <span>🎯 Filtered To:</span>
+                      <Layers size={14} color="#f472b6" />
+                      <span>Filtered To:</span>
                       <span style={{ color: '#f472b6', textTransform: 'uppercase' }}>{songMood} MOOD</span>
                       <span style={{ fontSize: '0.7rem', color: '#cbd5e1', fontWeight: '600' }}>
                         ({PHONK_VISUALIZER_PRESETS.filter(p => p.category === songMood).length} Unique Curated Styles)
                       </span>
                     </div>
 
-                    <div style={{ fontSize: '0.72rem', color: '#94a3b8' }}>
-                      🎲 <b>Auto Default:</b> Gaane ke hisaab se random unique core auto-pick hoga!
+                    <div style={{ fontSize: '0.72rem', color: '#94a3b8', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                      <Dices size={14} color="#c084fc" />
+                      <span><b>Auto Default:</b> Gaane ke hisaab se random unique core auto-pick hoga!</span>
                     </div>
                   </div>
 
@@ -2642,7 +2684,7 @@ function App() {
                   <div style={{ marginBottom: '10px' }}>
                     <input
                       type="text"
-                      placeholder={`🔍 Search ${songMood.toUpperCase()} presets (e.g. ${songMood === 'romantic' ? 'heart, rose, starlight' : songMood === 'sad' ? 'rain, tear, broken' : songMood === 'devotional' ? 'chakra, diya, bell' : songMood === 'lofi' ? 'vinyl, stars, cafe' : songMood === 'party' ? 'laser, shockwave, plasma' : songMood === 'acoustic' ? 'guitar, ember, dewdrop' : 'trap, drift, 808'})...`}
+                      placeholder={`Search ${songMood.toUpperCase()} presets (e.g. ${songMood === 'romantic' ? 'heart, rose, starlight' : songMood === 'sad' ? 'rain, tear, broken' : songMood === 'devotional' ? 'chakra, diya, bell' : songMood === 'lofi' ? 'vinyl, stars, cafe' : songMood === 'party' ? 'laser, shockwave, plasma' : songMood === 'acoustic' ? 'guitar, ember, dewdrop' : 'trap, drift, 808'})...`}
                       value={phonkVisSearch}
                       onChange={e => setPhonkVisSearch(e.target.value)}
                       style={{
@@ -2703,8 +2745,17 @@ function App() {
                             }}
                           >
                             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '4px', marginBottom: '4px' }}>
-                              <div style={{ fontSize: '0.8rem', fontWeight: isSelected ? '800' : '700', color: isSelected ? '#fff' : '#e2e8f0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                {p.name}
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem', fontWeight: isSelected ? '800' : '700', color: isSelected ? '#fff' : '#e2e8f0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                {songMood === 'romantic' && <Heart size={13} color={cardCol} style={{ flexShrink: 0 }} />}
+                                {songMood === 'sad' && <HeartCrack size={13} color={cardCol} style={{ flexShrink: 0 }} />}
+                                {songMood === 'devotional' && <Sun size={13} color={cardCol} style={{ flexShrink: 0 }} />}
+                                {songMood === 'lofi' && <Moon size={13} color={cardCol} style={{ flexShrink: 0 }} />}
+                                {songMood === 'party' && <Zap size={13} color={cardCol} style={{ flexShrink: 0 }} />}
+                                {songMood === 'acoustic' && <Music size={13} color={cardCol} style={{ flexShrink: 0 }} />}
+                                {songMood === 'phonk' && <Flame size={13} color={cardCol} style={{ flexShrink: 0 }} />}
+                                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                  {p.name.replace(/^[\p{Extended_Pictographic}\uFE0F\u200D\s]+/u, '')}
+                                </span>
                               </div>
                               {p.tag && (
                                 <span style={{
@@ -2729,7 +2780,10 @@ function App() {
                   </div>
 
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '10px', fontSize: '0.72rem', color: '#94a3b8' }}>
-                    <span>💡 <b>Pinterest HD Visuals:</b> Background visual aur center emblem logo Pinterest se <b>{songMood.toUpperCase()}</b> mood ke Graphic Cartoon / Anime visuals automatically fetch honge.</span>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                      <Sparkles size={13} color="#c084fc" />
+                      <span><b>Pinterest HD Visuals:</b> Background visual aur center emblem logo Pinterest se <b>{songMood.toUpperCase()}</b> mood ke Graphic Cartoon / Anime visuals automatically fetch honge.</span>
+                    </span>
                     <span style={{ color: '#c084fc', fontWeight: 'bold' }}>
                       {PHONK_VISUALIZER_PRESETS.filter(p => p.category === songMood).length} Unique Curated FX (Zero Duplicates)
                     </span>
@@ -2747,8 +2801,8 @@ function App() {
                       <label style={{ fontSize: '0.88rem', fontWeight: '800', color: '#e2e8f0', margin: 0 }}>
                         5. Typography & Multi-Font Engine (5+ Fonts & Typewriter Printer)
                       </label>
-                      <span style={{ fontSize: '0.74rem', color: '#38bdf8', fontWeight: 'bold' }}>
-                        🖨️ Typewriter Printer Animation Active
+                      <span style={{ fontSize: '0.74rem', color: '#38bdf8', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                        <Scroll size={14} color="#38bdf8" /> Typewriter Printer Animation Active
                       </span>
                     </div>
                     <div className="responsive-grid-2" style={{ gap: '10px' }}>
@@ -2785,9 +2839,10 @@ function App() {
                         />
                       </div>
                     </div>
-                    <span style={{ fontSize: '0.74rem', color: '#94a3b8', display: 'block', marginTop: '6px' }}>
-                      ✨ Ek hi video me automatically 5+ premium fonts (Mukta, Kalam, Yatra One, Devanagari, Rozha, Bebas) typewriter printer effect aur dynamic locations par chalenge!
-                    </span>
+                    <div style={{ fontSize: '0.74rem', color: '#94a3b8', display: 'flex', alignItems: 'center', gap: '5px', marginTop: '6px' }}>
+                      <Sparkles size={13} color="#38bdf8" style={{ flexShrink: 0 }} />
+                      <span>Ek hi video me automatically 5+ premium fonts (Mukta, Kalam, Yatra One, Devanagari, Rozha, Bebas) typewriter printer effect aur dynamic locations par chalenge!</span>
+                    </div>
                   </div>
 
                   {/* Step 6: Optional Song Lyrics Input */}
@@ -2820,7 +2875,7 @@ function App() {
                   alignItems: 'center',
                   gap: '14px'
                 }}>
-                  <span style={{ fontSize: '1.6rem' }}>🎵</span>
+                  <Activity size={26} color="#c084fc" style={{ flexShrink: 0 }} />
                   <div>
                     <div style={{ fontSize: '0.92rem', fontWeight: '800', color: '#c084fc', marginBottom: '2px' }}>
                       Clean Beat Visualizer Active (Zero Screen Lyrics Mode)

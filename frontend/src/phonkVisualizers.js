@@ -4,51 +4,51 @@
 
 export const MOOD_VISUALIZER_INFO = {
   romantic: {
-    title: '💖 Romantic & Love Beat Reactors',
+    title: 'Romantic & Love Beat Reactors',
     desc: 'Glowing heartbeat pulse, floating radiating hearts, cupid halos aur warm golden romance auras.',
     defaultId: 'romantic_auto'
   },
   sad: {
-    title: '💔 Melancholy & Sad Beat Reactors',
+    title: 'Melancholy & Sad Beat Reactors',
     desc: 'Falling rain streaks, tear ripples on drops, shattered glass fragments aur cold dark noir ripples.',
     defaultId: 'sad_auto'
   },
   devotional: {
-    title: '🪔 Sacred Divine & Bhakti Beat Reactors',
+    title: 'Sacred Divine & Bhakti Beat Reactors',
     desc: 'Expanding golden chakra rays, Sudarshan chakra, temple diya flame pulse aur celestial aarti halos.',
     defaultId: 'devotional_auto'
   },
   lofi: {
-    title: '🌙 Cozy Lo-Fi & Chill Beat Reactors',
+    title: 'Cozy Lo-Fi & Chill Beat Reactors',
     desc: 'Rotating vinyl record grooves, vintage cassette spool, midnight star dust aur lavender waveforms.',
     defaultId: 'lofi_auto'
   },
   party: {
-    title: '⚡ Party & EDM Rave Beat Reactors',
+    title: 'Party & EDM Rave Beat Reactors',
     desc: 'Concert rave lasers, high-voltage plasma arcs, bass shockwaves aur 360° club strobe cannons.',
     defaultId: 'party_auto'
   },
   acoustic: {
-    title: '🎸 Acoustic & Indie Beat Reactors',
+    title: 'Acoustic & Indie Beat Reactors',
     desc: 'Analog sine oscilloscope ribbons, six-string guitar vibrations, campfire embers aur dewdrop ripples.',
     defaultId: 'acoustic_auto'
   },
   phonk: {
-    title: '🔥 Phonk, Drift & 808 Beat Reactors',
+    title: 'Phonk, Drift & 808 Beat Reactors',
     desc: 'Trap Nation 3-lobe core, 360° radial reactor, Tokyo drift camera vibration, JDM gauges aur 3D synth grid.',
     defaultId: 'phonk_auto'
   }
 };
 
 export const PHONK_VISUALIZER_CATEGORIES = [
-  { id: 'all', label: '🔥 All Mood FX' },
-  { id: 'romantic', label: '❤️ Romantic / Love' },
-  { id: 'sad', label: '💔 Sad / Dard' },
-  { id: 'devotional', label: '🪔 Bhakti / Devotional' },
-  { id: 'lofi', label: '🌙 Lo-Fi / Chill' },
-  { id: 'party', label: '⚡ Party / Rave' },
-  { id: 'acoustic', label: '🎸 Acoustic / Indie' },
-  { id: 'phonk', label: '🏎️ Phonk / Drift' }
+  { id: 'all', label: 'All Mood FX' },
+  { id: 'romantic', label: 'Romantic / Love' },
+  { id: 'sad', label: 'Sad / Dard' },
+  { id: 'devotional', label: 'Bhakti / Devotional' },
+  { id: 'lofi', label: 'Lo-Fi / Chill' },
+  { id: 'party', label: 'Party / Rave' },
+  { id: 'acoustic', label: 'Acoustic / Indie' },
+  { id: 'phonk', label: 'Phonk / Drift' }
 ];
 
 export const PHONK_VISUALIZER_PRESETS = [
