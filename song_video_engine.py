@@ -12676,7 +12676,7 @@ def build_full_song_video(
     print(f"==================================================")
 
     visual_mode = getattr(req, 'song_visual_mode', 'motion') or getattr(req, 'mode', 'ultra')
-    is_beat_visualizer = (visual_mode in ['beat', 'simple_beat']) or (song_mood == "phonk")
+    is_beat_visualizer = (visual_mode in ['beat', 'simple_beat', 'video_beat', 'video_simple_visualization', 'beat_video']) or (song_mood == "phonk")
 
     # 2. Extract Exact Synced Lyrics & Style Attributes (Clean Visualizer: Zero Lyrics Mode)
     if is_beat_visualizer:
@@ -12839,7 +12839,7 @@ def build_full_song_video(
         if user_bg_file and os.path.exists(user_bg_file):
             bg_ext = os.path.splitext(user_bg_file)[1].lower()
             is_stock_video = bg_ext in [".mp4", ".mov", ".webm", ".mkv", ".avi"]
-        elif getattr(req, "beat_bg_type", None) == "video":
+        elif getattr(req, "beat_bg_type", None) == "video" or visual_mode in ['video_beat', 'video_simple_visualization', 'beat_video']:
             is_stock_video = True
         elif getattr(req, "beat_bg_type", None) == "photo":
             is_stock_video = False
@@ -12994,6 +12994,8 @@ def build_full_song_video(
             if user_bg_file and os.path.exists(user_bg_file) and os.path.getsize(user_bg_file) > 5000:
                 v_paths = [user_bg_file]
                 print(f"🎬 [Beat Studio] Using custom user-uploaded Background Video: {os.path.basename(user_bg_file)}")
+            elif is_beat_visualizer and beat_shared_bg_video and os.path.exists(beat_shared_bg_video) and os.path.getsize(beat_shared_bg_video) > 5000:
+                v_paths = [beat_shared_bg_video]
             else:
                 if is_beat_visualizer:
                     if song_mood == "romantic":
@@ -13024,7 +13026,7 @@ def build_full_song_video(
 
             # Fallback 1 on Pinterest: Shorter query
             if not v_paths or not os.path.exists(v_paths[0]) or os.path.getsize(v_paths[0]) < 5000:
-                fb_pin_query = f"{song_mood} cinematic animation".strip()
+                fb_pin_query = f"{song_mood} graphic cartoon anime aesthetic motion 4k".strip()
                 print(f"🔄 [Ultra Song Visual] Fallback Pinterest Video query: '{fb_pin_query}'...")
                 v_paths = fetch_pinterest_videos_via_gallery_dl(
                     query=fb_pin_query,
@@ -13038,7 +13040,7 @@ def build_full_song_video(
             if not v_paths or not os.path.exists(v_paths[0]) or os.path.getsize(v_paths[0]) < 5000:
                 print(f"🔄 [Ultra Song Visual] Fallback to Web/Pexels video engine: '{pin_vid_query}'...")
                 v_paths = fetch_videos(
-                    f"{chosen_scene} cinematic animation", v_temp,
+                    f"{chosen_scene} graphic cartoon anime animation", v_temp,
                     orientation=orientation,
                     category="Music",
                     video_type="short" if target_aspect == "9:16" else "long",
@@ -13047,6 +13049,8 @@ def build_full_song_video(
                 )
 
             if v_paths and os.path.exists(v_paths[0]) and os.path.getsize(v_paths[0]) > 5000:
+                if is_beat_visualizer and not beat_shared_bg_video:
+                    beat_shared_bg_video = v_paths[0]
                 v_h = get_media_fingerprint(v_paths[0])
                 if v_h: used_media_ids.add(v_h)
                 used_media_ids.add(f"size_{os.path.getsize(v_paths[0])}")
@@ -13054,12 +13058,14 @@ def build_full_song_video(
                 try:
                     tw, th = target_size
                     prep_clip_path = os.path.join(job_dir, f"prep_stock_{seg_idx}.mp4")
-                    prep_w = int(tw * 1.35) if song_mood == "phonk" else tw
-                    prep_h = int(th * 1.35) if song_mood == "phonk" else th
+                    prep_w = int(tw * 1.35) if (song_mood == "phonk" or is_beat_visualizer) else tw
+                    prep_h = int(th * 1.35) if (song_mood == "phonk" or is_beat_visualizer) else th
+                    seek_args = ["-ss", str(seg_start)] if is_beat_visualizer else []
                     # Memory-Safe: Use FFmpeg C-binary (< 20MB RAM) to scale, center crop and loop
                     ff_prep = [
                         "ffmpeg", "-y",
-                        "-stream_loop", "-1" if song_mood == "phonk" else "3",
+                        "-stream_loop", "-1" if (song_mood == "phonk" or is_beat_visualizer) else "3",
+                        *seek_args,
                         "-i", v_paths[0],
                         "-t", str(this_seg_dur),
                         "-vf", f"scale={prep_w}:{prep_h}:force_original_aspect_ratio=increase,crop={prep_w}:{prep_h}",

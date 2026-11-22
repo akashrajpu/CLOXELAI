@@ -1133,6 +1133,7 @@ def process_single_user_schedule(user: dict, now_ist: datetime, today_str: str):
                             song_topic_title = f"{singer} {s_title}".strip() if singer else f"{mood.title()} AI Song Video"
                             topic = song_topic_title
 
+                            eff_beat_bg = "video" if vis_mode in ["video_beat", "video_simple_visualization"] else "photo"
                             v_req = VideoRequest(
                                 user_id=internal_id,
                                 category="🎵 Song Video",
@@ -1143,6 +1144,7 @@ def process_single_user_schedule(user: dict, now_ist: datetime, today_str: str):
                                 song_mood=mood,
                                 song_visual_mode=vis_mode,
                                 phonk_visualizer_style=vis_style,
+                                beat_bg_type=eff_beat_bg,
                                 duration=duration,
                                 aspect_ratio=aspect_ratio,
                                 font_color=color,

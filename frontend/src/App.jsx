@@ -1575,12 +1575,12 @@ function App() {
           singer_name: singerName,
           song_title: songTitle,
           song_visual_mode: songVisualMode,
-          song_lyrics: isSongVideoMode ? ((songMood === 'phonk' || songVisualMode === 'beat') ? '' : (songLyrics || '')) : '',
+          song_lyrics: isSongVideoMode ? ((songMood === 'phonk' || songVisualMode === 'beat' || songVisualMode === 'video_beat') ? '' : (songLyrics || '')) : '',
           song_mood: songMood,
           phonk_visualizer_style: phonkVisualizerStyle,
           phonk_logo_image_path: phonkLogoPath || null,
           phonk_bg_image_path: phonkBgPath || null,
-          beat_bg_type: beatBgType,
+          beat_bg_type: (songVisualMode === 'video_beat') ? 'video' : beatBgType,
           uploaded_audio_path: uploadedAudioPath
         })
       });
@@ -2487,50 +2487,67 @@ function App() {
                 </label>
 
                 {songMood === 'phonk' ? (
-                  /* Phonk Mode: Video & Photo options removed! Exclusively locked to Beat Visualizer */
-                  <div style={{
-                    padding: '14px 18px',
-                    borderRadius: '14px',
-                    border: '2px solid #a855f7',
-                    background: 'linear-gradient(135deg, rgba(168, 85, 247, 0.25) 0%, rgba(236, 72, 153, 0.35) 100%)',
-                    color: '#fff',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    flexWrap: 'wrap',
-                    gap: '12px',
-                    boxShadow: '0 4px 16px rgba(168, 85, 247, 0.35)'
-                  }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                      <Activity size={24} color="#c084fc" />
-                      <div>
-                        <div style={{ fontWeight: '800', fontSize: '0.94rem', color: '#c084fc', marginBottom: '2px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          <Flame size={18} color="#ef4444" /> Phonk Beat & 808 Sub-Bass Reactor (Automatic Exclusive)
-                        </div>
-                        <div style={{ fontSize: '0.76rem', color: '#cbd5e1' }}>
-                          Phonk / Funk mode me video strictly audio-reactive beat & bass visualizer se banti hai. Pinterest se 4K JDM / Anime visuals auto-sync honge!
-                        </div>
+                  /* Phonk Mode: Photo Visualizer vs Video Simple Visualization */
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: '12px' }}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSongVisualMode('beat');
+                        setBeatBgType('photo');
+                        setGenerationMode('ultra');
+                        setPhonkVisualizerStyle(`${songMood}_auto`);
+                      }}
+                      style={{
+                        padding: '14px 16px',
+                        borderRadius: '14px',
+                        border: (songVisualMode === 'beat' && beatBgType === 'photo') ? '2px solid #a855f7' : '1px solid rgba(255,255,255,0.12)',
+                        background: (songVisualMode === 'beat' && beatBgType === 'photo') ? 'linear-gradient(135deg, rgba(168, 85, 247, 0.25) 0%, rgba(236, 72, 153, 0.4) 100%)' : 'rgba(15, 23, 42, 0.6)',
+                        color: '#fff',
+                        cursor: 'pointer',
+                        textAlign: 'left',
+                        boxShadow: (songVisualMode === 'beat' && beatBgType === 'photo') ? '0 4px 16px rgba(168, 85, 247, 0.35)' : 'none',
+                        transition: 'all 0.2s ease'
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: '800', fontSize: '0.92rem', color: '#c084fc', marginBottom: '4px' }}>
+                        <Activity size={18} /> Simple Beat Visualizer
                       </div>
-                    </div>
-                    <span style={{
-                      fontSize: '0.72rem',
-                      fontWeight: '800',
-                      padding: '5px 12px',
-                      borderRadius: '20px',
-                      background: 'rgba(168, 85, 247, 0.35)',
-                      border: '1px solid #a855f7',
-                      color: '#e9d5ff',
-                      letterSpacing: '0.3px',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '5px'
-                    }}>
-                      <Zap size={12} color="#facc15" /> Beat Reactor Locked
-                    </span>
+                      <div style={{ fontSize: '0.78rem', color: '#cbd5e1', lineHeight: '1.3' }}>
+                        Pinterest 4K JDM / Anime Photo BG + Center Logo + 808 Sub-Bass Reactor shake.
+                      </div>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSongVisualMode('video_beat');
+                        setBeatBgType('video');
+                        setGenerationMode('ultra');
+                        setPhonkVisualizerStyle(`${songMood}_auto`);
+                      }}
+                      style={{
+                        padding: '14px 16px',
+                        borderRadius: '14px',
+                        border: (songVisualMode === 'video_beat' || (songVisualMode === 'beat' && beatBgType === 'video')) ? '2px solid #ec4899' : '1px solid rgba(255,255,255,0.12)',
+                        background: (songVisualMode === 'video_beat' || (songVisualMode === 'beat' && beatBgType === 'video')) ? 'linear-gradient(135deg, rgba(236, 72, 153, 0.25) 0%, rgba(168, 85, 247, 0.4) 100%)' : 'rgba(15, 23, 42, 0.6)',
+                        color: '#fff',
+                        cursor: 'pointer',
+                        textAlign: 'left',
+                        boxShadow: (songVisualMode === 'video_beat' || (songVisualMode === 'beat' && beatBgType === 'video')) ? '0 4px 16px rgba(236, 72, 153, 0.35)' : 'none',
+                        transition: 'all 0.2s ease'
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: '800', fontSize: '0.92rem', color: '#f472b6', marginBottom: '4px' }}>
+                        <Film size={18} /> Video Simple Visualization
+                      </div>
+                      <div style={{ fontSize: '0.78rem', color: '#cbd5e1', lineHeight: '1.3' }}>
+                        Pinterest 4K Graphic Cartoon Anime Video in background + Center Logo + 808 Sub-Bass Reactor.
+                      </div>
+                    </button>
                   </div>
                 ) : (
-                  /* Non-Phonk Moods: 3 Options (Stock Video Clips, Ultra 3D Photo Motion, Simple Beat Visualizer) */
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: '12px' }}>
+                  /* Non-Phonk Moods: 4 Options (Stock Video Clips, Ultra 3D Photo Motion, Simple Beat Visualizer, Video Simple Visualization) */
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px' }}>
                     <button
                       type="button"
                       onClick={() => {
@@ -2587,18 +2604,19 @@ function App() {
                       type="button"
                       onClick={() => {
                         setSongVisualMode('beat');
+                        setBeatBgType('photo');
                         setGenerationMode('ultra');
                         setPhonkVisualizerStyle(`${songMood}_auto`);
                       }}
                       style={{
                         padding: '14px 16px',
                         borderRadius: '14px',
-                        border: songVisualMode === 'beat' ? '2px solid #a855f7' : '1px solid rgba(255,255,255,0.12)',
-                        background: songVisualMode === 'beat' ? 'linear-gradient(135deg, rgba(168, 85, 247, 0.25) 0%, rgba(236, 72, 153, 0.4) 100%)' : 'rgba(15, 23, 42, 0.6)',
+                        border: (songVisualMode === 'beat' && beatBgType === 'photo') ? '2px solid #a855f7' : '1px solid rgba(255,255,255,0.12)',
+                        background: (songVisualMode === 'beat' && beatBgType === 'photo') ? 'linear-gradient(135deg, rgba(168, 85, 247, 0.25) 0%, rgba(236, 72, 153, 0.4) 100%)' : 'rgba(15, 23, 42, 0.6)',
                         color: '#fff',
                         cursor: 'pointer',
                         textAlign: 'left',
-                        boxShadow: songVisualMode === 'beat' ? '0 4px 16px rgba(168, 85, 247, 0.35)' : 'none',
+                        boxShadow: (songVisualMode === 'beat' && beatBgType === 'photo') ? '0 4px 16px rgba(168, 85, 247, 0.35)' : 'none',
                         transition: 'all 0.2s ease'
                       }}
                     >
@@ -2606,15 +2624,43 @@ function App() {
                         <Activity size={18} /> Simple Beat Visualizer
                       </div>
                       <div style={{ fontSize: '0.78rem', color: '#cbd5e1', lineHeight: '1.3' }}>
-                        Continuous beat & bass reactor (Hearts, Rain, Chakra, Trap Nation) from Pinterest HD visuals.
+                        Continuous beat & bass reactor (Photo BG + Center Logo) from Pinterest HD visuals.
+                      </div>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSongVisualMode('video_beat');
+                        setBeatBgType('video');
+                        setGenerationMode('ultra');
+                        setPhonkVisualizerStyle(`${songMood}_auto`);
+                      }}
+                      style={{
+                        padding: '14px 16px',
+                        borderRadius: '14px',
+                        border: (songVisualMode === 'video_beat' || (songVisualMode === 'beat' && beatBgType === 'video')) ? '2px solid #ec4899' : '1px solid rgba(255,255,255,0.12)',
+                        background: (songVisualMode === 'video_beat' || (songVisualMode === 'beat' && beatBgType === 'video')) ? 'linear-gradient(135deg, rgba(236, 72, 153, 0.25) 0%, rgba(168, 85, 247, 0.4) 100%)' : 'rgba(15, 23, 42, 0.6)',
+                        color: '#fff',
+                        cursor: 'pointer',
+                        textAlign: 'left',
+                        boxShadow: (songVisualMode === 'video_beat' || (songVisualMode === 'beat' && beatBgType === 'video')) ? '0 4px 16px rgba(236, 72, 153, 0.35)' : 'none',
+                        transition: 'all 0.2s ease'
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: '800', fontSize: '0.92rem', color: '#f472b6', marginBottom: '4px' }}>
+                        <Film size={18} /> Video Simple Visualization
+                      </div>
+                      <div style={{ fontSize: '0.78rem', color: '#cbd5e1', lineHeight: '1.3' }}>
+                        Graphic Cartoon Anime Video Loop in background + Center Logo + Audio Beat Reactor FX.
                       </div>
                     </button>
                   </div>
                 )}
               </div>
 
-              {/* Audio Beat Reactor & Visualizer Overlay Studio (Visible when Simple Beat mode or Phonk mood is active) */}
-              {(songMood === 'phonk' || songVisualMode === 'beat') && (
+              {/* Audio Beat Reactor & Visualizer Overlay Studio (Visible when Simple Beat mode, Video Simple Visualization or Phonk mood is active) */}
+              {(songMood === 'phonk' || songVisualMode === 'beat' || songVisualMode === 'video_beat') && (
                 <div style={{
                   marginBottom: '1.2rem',
                   background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.95) 0%, rgba(24, 15, 45, 0.95) 100%)',
@@ -2626,10 +2672,10 @@ function App() {
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px', flexWrap: 'wrap', gap: '8px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <span style={{ display: 'flex', alignItems: 'center' }}>
-                        {songVisualMode === 'beat' ? <Activity size={22} color="#c084fc" /> : <Flame size={22} color="#00f2fe" />}
+                        {(songVisualMode === 'beat' || songVisualMode === 'video_beat') ? <Activity size={22} color="#c084fc" /> : <Flame size={22} color="#00f2fe" />}
                       </span>
                       <div>
-                        <div style={{ fontSize: '0.94rem', fontWeight: '900', color: songVisualMode === 'beat' ? '#c084fc' : '#00f2fe', letterSpacing: '0.3px' }}>
+                        <div style={{ fontSize: '0.94rem', fontWeight: '900', color: (songVisualMode === 'beat' || songVisualMode === 'video_beat') ? '#c084fc' : '#00f2fe', letterSpacing: '0.3px' }}>
                           {(MOOD_VISUALIZER_INFO[songMood] || {}).title || 'Audio Beat Reactor & Visualizer Studio'}
                         </div>
                         <div style={{ fontSize: '0.73rem', color: '#94a3b8' }}>
@@ -4413,7 +4459,8 @@ function App() {
                                   {[
                                     { id: 'clips', label: 'Stock Video Clips', icon: '🎬', desc: 'Pexels 4K/HD video clips' },
                                     { id: 'motion', label: 'Ultra 3D Photo Motion', icon: '✨', desc: 'HD photos with motion cuts' },
-                                    { id: 'beat', label: 'Simple Beat Visualizer', icon: '⚡', desc: 'Audio Beat & Bass Reactor' },
+                                    { id: 'beat', label: 'Simple Beat Visualizer', icon: '⚡', desc: 'Photo BG + Center Logo FX' },
+                                    { id: 'video_beat', label: 'Video Simple Visualization', icon: '🎥', desc: 'Cartoon Video BG + Logo FX' },
                                   ].map(v => (
                                     <button
                                       key={v.id}
@@ -4436,8 +4483,8 @@ function App() {
                                 </div>
                               </div>
 
-                              {/* 4. Visualizer Style (When Beat Visualizer is chosen) */}
-                              {(autoSchedule.ultra_song_visual_mode === 'beat' || autoSchedule.ultra_song_mood === 'phonk') && (
+                              {/* 4. Visualizer Style (When Beat Visualizer or Video Simple Visualization is chosen) */}
+                              {(autoSchedule.ultra_song_visual_mode === 'beat' || autoSchedule.ultra_song_visual_mode === 'video_beat' || autoSchedule.ultra_song_mood === 'phonk') && (
                                 <div style={{ marginBottom: '14px', background: 'rgba(168,85,247,0.1)', padding: '12px', borderRadius: '12px', border: '1px solid rgba(168,85,247,0.3)' }}>
                                   <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 'bold', color: '#c084fc', marginBottom: '6px' }}>
                                     Visualizer Preset / Core FX Style ({moodPresets.length || 102} Unique FX for {curMood.toUpperCase()}):
