@@ -4253,7 +4253,7 @@ function App() {
                   {autoSchedule.ultra_enabled && (
                     <>
                       {(() => {
-                        const isUltraSongVideo = (autoSchedule.ultra_category === '🎵 Song Video' || (autoSchedule.ultra_category || '').toLowerCase().includes('song video'));
+                        const isUltraSongVideo = (autoSchedule.ultra_category === '🎵 Song Video' || (autoSchedule.ultra_category || '').toLowerCase().includes('song'));
                         if (isUltraSongVideo) {
                           const curMood = autoSchedule.ultra_song_mood || 'romantic';
                           const moodPresets = (PHONK_VISUALIZER_PRESETS || []).filter(p => p.category === curMood);

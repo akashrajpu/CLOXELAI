@@ -1120,7 +1120,7 @@ def process_single_user_schedule(user: dict, now_ist: datetime, today_str: str):
                         aspect_ratio = "9:16" if kind == "short" else ("16:9" if kind == "long" else (fresh_sched.get("ultra_aspect_ratio") or "16:9"))
                         duration = int(fresh_sched.get(f"{kind}_duration") or default_dur)
 
-                        if kind == "ultra" and ("song video" in str(category).lower()):
+                        if kind == "ultra" and ("song" in str(category).lower()):
                             import uuid
                             job_id = str(uuid.uuid4())
                             is_rand_singer = fresh_sched.get("ultra_is_random_singer", True)
