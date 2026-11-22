@@ -8,6 +8,8 @@ import urllib.parse
 import os
 import random
 import re
+import json
+import threading
 
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
@@ -416,6 +418,221 @@ CONCEPT_MAP = {
     "भारत": "India national heritage"
 }
 
+# ==============================================================================
+# Dynamic Built-in Translation Memory & Free Auto-Translator
+# Auto-learns and persists Hindi/Hinglish vocabulary from every script to dynamic_translation_memory.json
+# ==============================================================================
+
+_TRANSLATION_MEMORY_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "dynamic_translation_memory.json")
+_MEMORY_LOCK = threading.Lock()
+DYNAMIC_TRANSLATION_MEMORY = {}
+
+def clean_script_word(w: str) -> str:
+    """Strips leading/trailing punctuation including Devanagari punctuation (।, ॥), symbols, and whitespace."""
+    if not w:
+        return ""
+    # Strip leading non-letters/non-digits
+    s = re.sub(r'^[^\w\u0900-\u097F]+', '', str(w))
+    # Strip trailing non-letters/non-digits and punctuation
+    s = re.sub(r'[^\w\u0900-\u097F]+$', '', s)
+    # Normalize multiple whitespace to single space
+    s = re.sub(r'\s+', ' ', s).strip('.,!?:;"\'()[]{}।॥ ')
+    return s
+
+def load_translation_memory():
+    """Loads dynamically learned vocabulary from dynamic_translation_memory.json into CONCEPT_MAP on startup."""
+    global DYNAMIC_TRANSLATION_MEMORY
+    try:
+        if os.path.exists(_TRANSLATION_MEMORY_FILE):
+            with open(_TRANSLATION_MEMORY_FILE, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                if isinstance(data, dict):
+                    DYNAMIC_TRANSLATION_MEMORY = data
+                    for k, v in data.items():
+                        CONCEPT_MAP[k] = v
+                        CONCEPT_MAP[k.lower()] = v
+                    print(f"📖 [Translation Memory]: Loaded {len(data)} learned translations from dynamic_translation_memory.json")
+    except Exception as e:
+        print(f"⚠️ [Translation Memory Load Error]: {e}")
+
+# Load immediately on module load
+load_translation_memory()
+
+def save_learned_translation(hindi_key: str, english_val: str):
+    """Saves a single newly learned Hindi/Hinglish term and its English visual meaning to memory and disk."""
+    if not hindi_key or not english_val:
+        return
+    k_clean = clean_script_word(hindi_key)
+    v_clean = english_val.strip().lower()
+    if not k_clean or not v_clean or k_clean.lower() == v_clean:
+        return
+        
+    with _MEMORY_LOCK:
+        DYNAMIC_TRANSLATION_MEMORY[k_clean] = v_clean
+        CONCEPT_MAP[k_clean] = v_clean
+        CONCEPT_MAP[k_clean.lower()] = v_clean
+        try:
+            with open(_TRANSLATION_MEMORY_FILE, "w", encoding="utf-8") as f:
+                json.dump(DYNAMIC_TRANSLATION_MEMORY, f, indent=2, ensure_ascii=False)
+        except Exception as e:
+            print(f"⚠️ [Translation Memory Save Error]: {e}")
+
+def batch_save_learned_translations(translations: dict):
+    """Atomically persists multiple newly learned Hindi terms to dynamic_translation_memory.json and CONCEPT_MAP."""
+    if not translations:
+        return
+    with _MEMORY_LOCK:
+        updated = False
+        for k, v in translations.items():
+            k_clean = clean_script_word(k)
+            v_clean = str(v).strip().lower()
+            if k_clean and v_clean and k_clean.lower() != v_clean:
+                DYNAMIC_TRANSLATION_MEMORY[k_clean] = v_clean
+                CONCEPT_MAP[k_clean] = v_clean
+                CONCEPT_MAP[k_clean.lower()] = v_clean
+                updated = True
+        if updated:
+            try:
+                with open(_TRANSLATION_MEMORY_FILE, "w", encoding="utf-8") as f:
+                    json.dump(DYNAMIC_TRANSLATION_MEMORY, f, indent=2, ensure_ascii=False)
+                print(f"💾 [Translation Memory]: Saved {len(translations)} new words/phrases to dynamic_translation_memory.json (Total learned: {len(DYNAMIC_TRANSLATION_MEMORY)})")
+            except Exception as e:
+                print(f"⚠️ [Translation Memory Batch Save Error]: {e}")
+
+def free_translate_text(text: str) -> str:
+    """
+    100% Free Built-in Translator (Google GTX -> MyMemory -> deep_translator -> fallback).
+    Requires zero API keys and zero billing.
+    """
+    raw = (text or "").strip()
+    if not raw:
+        return ""
+        
+    raw_lower = raw.lower()
+    if raw in CONCEPT_MAP:
+        return CONCEPT_MAP[raw]
+    if raw_lower in CONCEPT_MAP:
+        return CONCEPT_MAP[raw_lower]
+        
+    # Tier 1: Google Translate GTX endpoint (Instant, high accuracy, handles sentences or words)
+    try:
+        url = 'https://translate.googleapis.com/translate_a/single'
+        params = {'client': 'gtx', 'sl': 'auto', 'tl': 'en', 'dt': 't', 'q': raw[:300]}
+        headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}
+        resp = requests.get(url, params=params, headers=headers, timeout=4.0)
+        if resp.status_code == 200:
+            data = resp.json()
+            tr = "".join([segment[0] for segment in data[0] if segment and segment[0]]).strip()
+            if tr and tr.lower() != raw_lower:
+                return tr
+    except Exception:
+        pass
+
+    # Tier 2: MyMemory Free Translation API
+    try:
+        url = 'https://api.mymemory.translated.net/get'
+        params = {'q': raw[:250], 'langpair': 'hi|en'}
+        resp = requests.get(url, params=params, timeout=3.5)
+        if resp.status_code == 200:
+            tr = resp.json().get('responseData', {}).get('translatedText', '')
+            if tr and not tr.startswith('MYMEMORY WARNING') and tr.strip():
+                return tr.strip()
+    except Exception:
+        pass
+
+    # Tier 3: deep-translator library (built-in fallback)
+    try:
+        from deep_translator import GoogleTranslator
+        tr = GoogleTranslator(source='auto', target='en').translate(raw)
+        if tr and tr.strip():
+            return tr.strip()
+    except Exception:
+        pass
+
+    return raw
+
+def auto_learn_script_vocabulary(script_text: str) -> dict:
+    """
+    Analyzes any incoming script, detects unmapped Hindi words and key 2-word phrases,
+    translates them using the free built-in translator in batch, and automatically persists
+    their meanings to dynamic_translation_memory.json so the engine continuously learns!
+    """
+    if not script_text or not str(script_text).strip():
+        return {}
+        
+    text_str = str(script_text)
+    has_devanagari = bool(re.search(r'[\u0900-\u097F]', text_str))
+    if not has_devanagari:
+        return {}
+
+    raw_words = text_str.split()
+    cleaned_tokens = []
+    for w in raw_words:
+        c = clean_script_word(w)
+        if c and len(c) >= 2 and not c.isdigit():
+            cleaned_tokens.append(c)
+
+    candidates = set()
+    # 1. Single words (Devanagari, not stopwords, not already in CONCEPT_MAP)
+    for tok in cleaned_tokens:
+        tok_l = tok.lower()
+        if tok_l in HINDI_STOPWORDS or tok in HINDI_STOPWORDS:
+            continue
+        if tok not in CONCEPT_MAP and tok_l not in CONCEPT_MAP:
+            if re.search(r'[\u0900-\u097F]', tok):
+                candidates.add(tok)
+
+    # 2. Key Bigrams (e.g., 'सैन्य शक्ति', 'आर्थिक विकास', 'न्याय व्यवस्था', 'स्वतंत्रता संग्राम')
+    for i in range(len(cleaned_tokens) - 1):
+        w1, w2 = cleaned_tokens[i], cleaned_tokens[i+1]
+        if w1 in HINDI_STOPWORDS or w2 in HINDI_STOPWORDS:
+            continue
+        bg = f"{w1} {w2}"
+        if bg not in CONCEPT_MAP and bg.lower() not in CONCEPT_MAP:
+            if re.search(r'[\u0900-\u097F]', bg):
+                candidates.add(bg)
+
+    if not candidates:
+        return {}
+
+    # Batch translate unmapped candidates (up to 40 candidates per batch)
+    cand_list = list(candidates)[:40]
+    learned = {}
+
+    try:
+        url = 'https://translate.googleapis.com/translate_a/single'
+        batch_query = '\n'.join(cand_list)
+        params = {'client': 'gtx', 'sl': 'auto', 'tl': 'en', 'dt': 't', 'q': batch_query}
+        headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}
+        resp = requests.get(url, params=params, headers=headers, timeout=5.0)
+        if resp.status_code == 200:
+            data = resp.json()
+            for seg in data[0]:
+                if seg and len(seg) >= 2 and seg[0] and seg[1]:
+                    orig = clean_script_word(seg[1])
+                    trans = seg[0].strip().lower()
+                    trans = re.sub(r'^the\s+', '', trans).strip('.,!?:;"\'')
+                    if orig and trans and orig != trans and len(trans) >= 2:
+                        learned[orig] = trans
+    except Exception as e:
+        print(f"⚠️ [Auto-Learn Batch Translation Notice]: {e}")
+
+    # Fallback to individual translation if batch had gaps
+    if not learned and cand_list:
+        for c in cand_list[:10]:
+            try:
+                tr = free_translate_text(c)
+                tr_clean = re.sub(r'^the\s+', '', tr.strip().lower()).strip('.,!?:;"\'')
+                if tr_clean and tr_clean != c.lower():
+                    learned[c] = tr_clean
+            except Exception:
+                pass
+
+    if learned:
+        batch_save_learned_translations(learned)
+
+    return learned
+
 def clean_topic_title(topic: str) -> str:
     """Fix common word splits like 'i ndians' -> 'indians' and normalize spaces."""
     if not topic:
@@ -434,6 +651,12 @@ def extract_rich_scene_visual_keywords(topic: str, scene_text: str, scene_kw: st
     cat_lower = str(category or "").lower()
     
     combined_raw = f"{scene_kw or ''} {scene_text or ''}"
+    if any(re.search(r'[\u0900-\u097F]', w) for w in combined_raw.split()):
+        try:
+            auto_learn_script_vocabulary(combined_raw)
+        except Exception:
+            pass
+
     tokens = [t.strip('.,!?:;"\'()[]{}') for t in combined_raw.split() if t.strip('.,!?:;"\'()[]{}')]
     
     matched_concepts = []
@@ -585,36 +808,20 @@ def translate_to_visual_english(text: str, topic: str = "") -> str:
     has_devanagari = bool(re.search(r'[\u0900-\u097F]', raw))
     raw_lower = raw.lower()
 
-    translated_scene_text = raw
-    
-    # 1. Live Dynamic Translation for arbitrary Hindi/Hinglish text
+    # 1. Automatically learn and persist any new vocabulary from this script text to dynamic_translation_memory.json
     if has_devanagari or any(w in raw_lower.split() for w in HINDI_STOPWORDS):
-        # Try Google Translate first (most accurate for complete sentences)
         try:
-            g_url = 'https://translate.googleapis.com/translate_a/single'
-            g_params = {'client': 'gtx', 'sl': 'auto', 'tl': 'en', 'dt': 't', 'q': raw[:280]}
-            g_headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}
-            g_resp = requests.get(g_url, params=g_params, headers=g_headers, timeout=3.5)
-            if g_resp.status_code == 200:
-                g_data = g_resp.json()
-                g_tr = "".join([segment[0] for segment in g_data[0] if segment and segment[0]])
-                if g_tr and g_tr.strip():
-                    translated_scene_text = g_tr.strip()
+            auto_learn_script_vocabulary(raw)
         except Exception:
             pass
 
-        # Secondary API: MyMemory
-        if translated_scene_text == raw:
-            try:
-                url = 'https://api.mymemory.translated.net/get'
-                params = {'q': raw[:250], 'langpair': 'hi|en'}
-                resp = requests.get(url, params=params, timeout=3.0)
-                if resp.status_code == 200:
-                    tr = resp.json().get('responseData', {}).get('translatedText', '')
-                    if tr and not tr.startswith('MYMEMORY WARNING') and tr.strip():
-                        translated_scene_text = tr.strip()
-            except Exception:
-                pass
+    translated_scene_text = raw
+    
+    # 2. Live Dynamic Multi-Tier Translation for arbitrary Hindi/Hinglish text
+    if has_devanagari or any(w in raw_lower.split() for w in HINDI_STOPWORDS):
+        tr = free_translate_text(raw)
+        if tr and tr.strip() and tr.lower() != raw_lower:
+            translated_scene_text = tr.strip()
 
     # 2. Extract concepts directly from the scene text (sorted longest key first)
     extracted_visual_words = []

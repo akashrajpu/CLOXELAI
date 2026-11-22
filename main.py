@@ -58,7 +58,10 @@ from firewall_security import (
     sanitize_alphanumeric_id, sanitize_nosql, clean_xss, resolve_client_ip
 )
 try:
-    from web_image_fetcher import fetch_web_image, extract_rich_scene_visual_keywords, clean_topic_title, HINDI_STOPWORDS, translate_to_visual_english
+    from web_image_fetcher import (
+        fetch_web_image, extract_rich_scene_visual_keywords, clean_topic_title,
+        HINDI_STOPWORDS, translate_to_visual_english, auto_learn_script_vocabulary
+    )
 except Exception as _w_err:
     print(f"⚠️ web_image_fetcher top import warning: {_w_err}")
     fetch_web_image = None
@@ -66,6 +69,7 @@ except Exception as _w_err:
     clean_topic_title = lambda x: str(x)
     HINDI_STOPWORDS = set()
     translate_to_visual_english = lambda text, topic="": text
+    auto_learn_script_vocabulary = lambda script_text: {}
 
 os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
 os.environ['OAUTHLIB_RELAX_TOKEN_SCOPE'] = '1'
@@ -2083,6 +2087,13 @@ def full_process(req: VideoRequest, job_id: str):
 
         if req.full_script and req.full_script.strip():
             # 1. Full script provided (SHORT, LONG, or ULTRA):
+            # Auto-learn and persist new Hindi/Hinglish vocabulary upfront into dynamic_translation_memory.json
+            if auto_learn_script_vocabulary:
+                try:
+                    auto_learn_script_vocabulary(req.full_script)
+                except Exception as _al_err:
+                    print(f"⚠️ [Script Auto-Learning Warning]: {_al_err}")
+
             # Smartly split script into progressive dynamic scene sentences & clauses (supports Hindi danda ।, ?, !, clauses)
             raw_sentences = smart_split_script_to_scenes(req.full_script.strip())
             is_user_manual_script = bool(raw_sentences) and not any(s in existing_kw_map for s in raw_sentences)
@@ -2098,6 +2109,12 @@ def full_process(req: VideoRequest, job_id: str):
 
         elif req.scenes and len(req.scenes) > 0 and any(s.text and s.text.strip() for s in req.scenes):
             # 2. Scene cards provided: Split long cards if they contain multiple sentences or long paragraphs
+            if auto_learn_script_vocabulary:
+                try:
+                    all_scenes_txt = " ".join([s.text for s in req.scenes if s.text])
+                    auto_learn_script_vocabulary(all_scenes_txt)
+                except Exception as _al_err:
+                    print(f"⚠️ [Scenes Auto-Learning Warning]: {_al_err}")
             for sc_idx, s in enumerate(req.scenes):
                 if not s.text or not s.text.strip():
                     continue
