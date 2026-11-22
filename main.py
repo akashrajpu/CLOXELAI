@@ -2286,7 +2286,7 @@ def full_process(req: VideoRequest, job_id: str):
                         is_collage_eligible = bool(
                             collage_meta.get("is_multi_entity") or
                             (is_contrast and len(contrast_parts) == 2) or
-                            len(collage_meta.get("entities", [])) > 0
+                            (collage_meta.get("is_detected") and len(collage_meta.get("entities", [])) > 0)
                         )
 
                         if is_collage_eligible:
