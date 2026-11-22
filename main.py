@@ -2262,7 +2262,53 @@ def full_process(req: VideoRequest, job_id: str):
                         elif os.path.exists(ev_img_path):
                             v_paths = [ev_img_path]
 
-                    elif is_contrast and len(contrast_parts) == 2:
+                    if not v_paths:
+                        # 0.b Vox / Johnny Harris Style Documentary Collage Cutout Engine (Maps, Contrasts & Entities with Sliding & Focused Zoom)
+                        from collage_cutout_engine import (
+                            detect_collage_entities,
+                            fetch_and_prepare_cutouts,
+                            render_collage_motion_clip
+                        )
+                        collage_meta = detect_collage_entities(scene_text, main_topic)
+                        # Eligible if multi-entity (e.g. Bharat & Pakistan, King vs Empire) OR contrast detected OR After Effects mode with known entities
+                        is_collage_eligible = bool(
+                            collage_meta.get("is_multi_entity") or
+                            (is_contrast and len(contrast_parts) == 2) or
+                            (is_after_effects_req and len(collage_meta.get("entities", [])) > 0)
+                        )
+
+                        if is_collage_eligible:
+                            ent_list = collage_meta.get("entities", [])
+                            if is_contrast and len(contrast_parts) == 2 and not collage_meta.get("is_multi_entity"):
+                                ent_list = [
+                                    {"raw": contrast_parts[0], "clean_en": translate_to_visual_english(contrast_parts[0], main_topic) if translate_to_visual_english else contrast_parts[0], "label": contrast_parts[0].upper()[:15], "search": f"{contrast_parts[0]} transparent png cutout isolated"},
+                                    {"raw": contrast_parts[1], "clean_en": translate_to_visual_english(contrast_parts[1], main_topic) if translate_to_visual_english else contrast_parts[1], "label": contrast_parts[1].upper()[:15], "search": f"{contrast_parts[1]} transparent png cutout isolated"}
+                                ]
+                                collage_meta["entities"] = ent_list
+                                collage_meta["is_multi_entity"] = True
+
+                            try:
+                                sc_a_dur = get_audio_duration_fast(a_path, fallback=5.0)
+                            except Exception:
+                                sc_a_dur = 5.0
+
+                            print(f"🗺️ [Vox Documentary Collage Scene {i+1}] Multi-Entity Cutout & Sliding Motion Active ({len(ent_list)} entities: {[e['label'] for e in ent_list]})! Downloading transparent cutouts & rendering paper canvas slide clip...")
+                            cutout_pngs = fetch_and_prepare_cutouts(ent_list, output_dir=job_dir, used_media_ids=used_media_ids)
+                            if cutout_pngs:
+                                collage_clip_path = os.path.join(job_dir, f"collage_slide_{i}.mp4")
+                                render_collage_motion_clip(
+                                    cutout_paths=cutout_pngs,
+                                    output_mp4=collage_clip_path,
+                                    duration=sc_a_dur,
+                                    entity_metadata=collage_meta,
+                                    target_size=(target_w, target_h),
+                                    fps=20
+                                )
+                                if os.path.exists(collage_clip_path) and os.path.getsize(collage_clip_path) > 1000:
+                                    v_paths = [collage_clip_path]
+                                    print(f"✅ [Vox Documentary Collage Scene {i+1}] Motion clip ready: {os.path.basename(collage_clip_path)} (Duration: {sc_a_dur:.1f}s)")
+
+                    if not v_paths and is_contrast and len(contrast_parts) == 2:
                         p1_clean = translate_to_visual_english(contrast_parts[0], main_topic) if translate_to_visual_english else contrast_parts[0]
                         p2_clean = translate_to_visual_english(contrast_parts[1], main_topic) if translate_to_visual_english else contrast_parts[1]
                         p1_term = f"{p1_clean} cinematic animation photo".strip()
@@ -2277,7 +2323,7 @@ def full_process(req: VideoRequest, job_id: str):
                         if p2_files and os.path.exists(p2_files[0]):
                             v_paths.append(p2_files[0])
                             
-                    else:
+                    elif not v_paths:
                         # Rich Script-Driven Detail Mode (Both Video & Photo fetched for micro-detail coverage)
                         en_visual_phrase = translate_to_visual_english(scene_text or scene_kw, main_topic) if translate_to_visual_english else ""
                         if not en_visual_phrase:

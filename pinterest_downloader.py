@@ -97,10 +97,11 @@ def get_video_dimensions(filepath: str) -> tuple:
 
     return None, None
 
-def is_valid_hd_photo(filepath: str, min_dim: int = 350, orientation: str = None) -> bool:
+def is_valid_hd_photo(filepath: str, min_dim: int = 350, orientation: str = None, allow_any_aspect: bool = False) -> bool:
     """
     Verifies that the downloaded file is a non-corrupt, valid high-resolution image
-    and strictly matches requested aspect ratio / orientation (9:16 portrait vs 16:9 landscape).
+    and strictly matches requested aspect ratio / orientation (9:16 portrait vs 16:9 landscape),
+    unless allow_any_aspect is True (for transparent cutouts, maps, and collage assets).
     """
     try:
         from PIL import Image
@@ -113,6 +114,10 @@ def is_valid_hd_photo(filepath: str, min_dim: int = 350, orientation: str = None
             if w < min_dim or h < min_dim:
                 return False
             
+            # If allow_any_aspect is True (e.g. cutouts, maps, objects), skip portrait/landscape filter
+            if allow_any_aspect:
+                return True
+
             # Strict aspect ratio validation
             if orientation in ["portrait", "9:16"]:
                 # Must be 9:16 vertical (height >= width)
@@ -181,7 +186,11 @@ def fetch_pinterest_photos_via_gallery_dl(query: str, limit: int = 3, output_dir
         except Exception:
             pass
 
-    if orientation in ["portrait", "9:16"]:
+    is_cutout_search = any(k in query.lower() for k in ["cutout", "transparent", "png", "isolated", "nobg", "no-bg", "white background", "map outline"]) or orientation == "any"
+
+    if is_cutout_search:
+        aspect_keyword = "transparent cutout png"
+    elif orientation in ["portrait", "9:16"]:
         aspect_keyword = "9:16 vertical phone wallpaper cinematic animation"
     elif orientation in ["landscape", "16:9"]:
         aspect_keyword = "16:9 landscape desktop wallpaper widescreen cinematic animation"
@@ -200,7 +209,7 @@ def fetch_pinterest_photos_via_gallery_dl(query: str, limit: int = 3, output_dir
     encoded_query = urllib.parse.quote(search_query)
     pinterest_url = f"https://www.pinterest.com/search/pins/?q={encoded_query}"
 
-    print(f"📥 [Pinterest Engine] Searching and downloading HD {orientation.upper()} photos for: '{search_query}'...")
+    print(f"📥 [Pinterest Engine] Searching and downloading HD {'CUTOUT' if is_cutout_search else orientation.upper()} photos for: '{search_query}'...")
 
     downloaded_files = []
     gallery_cmd = get_gallery_dl_cmd()
@@ -226,7 +235,7 @@ def fetch_pinterest_photos_via_gallery_dl(query: str, limit: int = 3, output_dir
                 for f in files:
                     if f.lower().endswith(('.jpg', '.jpeg', '.png', '.webp')):
                         full_p = os.path.join(root, f)
-                        if is_valid_hd_photo(full_p, min_dim=350, orientation=orientation):
+                        if is_valid_hd_photo(full_p, min_dim=250 if is_cutout_search else 350, orientation=orientation, allow_any_aspect=is_cutout_search):
                             found_raw.append(full_p)
 
             found_raw.sort(key=os.path.getmtime, reverse=True)
@@ -299,7 +308,7 @@ def fetch_pinterest_photos_via_gallery_dl(query: str, limit: int = 3, output_dir
                     if img_req.status_code == 200 and len(img_req.content) > 10000:
                         with open(save_path, "wb") as f:
                             f.write(img_req.content)
-                        if is_valid_hd_photo(save_path, min_dim=350, orientation=orientation):
+                        if is_valid_hd_photo(save_path, min_dim=250 if is_cutout_search else 350, orientation=orientation, allow_any_aspect=is_cutout_search):
                             f_hash = get_media_fingerprint(save_path)
                             f_size = os.path.getsize(save_path)
                             if (f_hash and f_hash in used_media_ids) or f"size_{f_size}" in used_media_ids:
@@ -359,7 +368,7 @@ def fetch_pinterest_photos_via_gallery_dl(query: str, limit: int = 3, output_dir
                     if img_req.status_code == 200 and len(img_req.content) > 10000:
                         with open(save_path, "wb") as f:
                             f.write(img_req.content)
-                        if is_valid_hd_photo(save_path, min_dim=350, orientation=orientation):
+                        if is_valid_hd_photo(save_path, min_dim=250 if is_cutout_search else 350, orientation=orientation, allow_any_aspect=is_cutout_search):
                             f_hash = get_media_fingerprint(save_path)
                             f_size = os.path.getsize(save_path)
                             if (f_hash and f_hash in used_media_ids) or f"size_{f_size}" in used_media_ids:
@@ -406,7 +415,7 @@ def fetch_pinterest_photos_via_gallery_dl(query: str, limit: int = 3, output_dir
                     if img_req.status_code == 200 and len(img_req.content) > 10000:
                         with open(save_path, "wb") as f:
                             f.write(img_req.content)
-                        if is_valid_hd_photo(save_path, min_dim=350, orientation=orientation):
+                        if is_valid_hd_photo(save_path, min_dim=250 if is_cutout_search else 350, orientation=orientation, allow_any_aspect=is_cutout_search):
                             f_hash = get_media_fingerprint(save_path)
                             f_size = os.path.getsize(save_path)
                             if (f_hash and f_hash in used_media_ids) or f"size_{f_size}" in used_media_ids:
