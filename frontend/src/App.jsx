@@ -671,7 +671,7 @@ function App() {
     ultra_enabled: false,
     ultra_auto_topic: true,
     ultra_topic: 'History of Ancient Warriors',
-    ultra_category: '🎵 Song Video',
+    ultra_category: 'default',
     ultra_aspect_ratio: '16:9',
     ultra_voice: 'hi-IN-MadhurNeural',
     ultra_font: 'Arial.ttf',
@@ -1226,6 +1226,13 @@ function App() {
       }
     }
 
+    if (finalEnabledState && autoSchedule.ultra_enabled) {
+      if (!autoSchedule.ultra_category || autoSchedule.ultra_category === 'default' || autoSchedule.ultra_category.trim() === '') {
+        triggerAlert("Ultra Category Required", "Please choose an Ultra Category / Niche from the dropdown before activating your schedule!", "⚠️", "warning");
+        return;
+      }
+    }
+
     setIsSavingSchedule(true);
     try {
       const res = await fetch(`${API_BASE}/save-auto-schedule`, {
@@ -1258,7 +1265,7 @@ function App() {
           ultra_enabled: autoSchedule.ultra_enabled || false,
           ultra_auto_topic: autoSchedule.ultra_auto_topic !== false,
           ultra_topic: autoSchedule.ultra_topic || 'History of Ancient Warriors',
-          ultra_category: autoSchedule.ultra_category || 'Random',
+          ultra_category: (autoSchedule.ultra_category && autoSchedule.ultra_category !== 'default') ? autoSchedule.ultra_category : 'default',
           ultra_aspect_ratio: autoSchedule.ultra_aspect_ratio || '16:9',
           ultra_voice: autoSchedule.ultra_voice || 'hi-IN-MadhurNeural',
           ultra_font: autoSchedule.ultra_font || 'Arial.ttf',
@@ -4279,7 +4286,7 @@ function App() {
 
               {(subStatus.has_active_ultra_subscription || subStatus.plan_type === 'ultra' || subStatus.plan_type === 'combo' || autoSchedule.ultra_enabled) && (
                 <div style={{ background: 'rgba(236,72,153,0.08)', padding: '18px', borderRadius: '14px', border: '1px solid rgba(236,72,153,0.3)', marginBottom: '20px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
                     <h4 style={{ color: '#f472b6', margin: 0, fontSize: '1rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
                       🎬 Ultra Cinematic 3D Photo Motion Auto-Upload Workflow
                     </h4>
@@ -4287,7 +4294,14 @@ function App() {
                       <input 
                         type="checkbox" 
                         checked={autoSchedule.ultra_enabled || false}
-                        onChange={(e) => setAutoSchedule({ ...autoSchedule, ultra_enabled: e.target.checked })}
+                        onChange={(e) => {
+                          const willEnable = e.target.checked;
+                          if (willEnable && (!autoSchedule.ultra_category || autoSchedule.ultra_category === 'default' || autoSchedule.ultra_category.trim() === '')) {
+                            triggerAlert("Category Required", "Please select an Ultra Category / Niche from the dropdown below before enabling Ultra mode!", "⚠️", "warning");
+                            return;
+                          }
+                          setAutoSchedule({ ...autoSchedule, ultra_enabled: willEnable });
+                        }}
                         style={{ width: '16px', height: '16px', accentColor: '#ec4899' }}
                       />
                       <span style={{ color: '#fff', fontSize: '0.8rem', fontWeight: 'bold' }}>
@@ -4296,7 +4310,66 @@ function App() {
                     </label>
                   </div>
 
-                  {autoSchedule.ultra_enabled && (
+                  {/* MASTER CATEGORY / NICHE SELECTOR AT THE TOP */}
+                  <div style={{
+                    marginBottom: '14px',
+                    background: 'rgba(15, 23, 42, 0.75)',
+                    padding: '12px 14px',
+                    borderRadius: '12px',
+                    border: (!autoSchedule.ultra_category || autoSchedule.ultra_category === 'default') ? '1.5px dashed #f43f5e' : '1px solid rgba(236,72,153,0.45)'
+                  }}>
+                    <label style={{ display: 'block', fontSize: '0.84rem', fontWeight: 'bold', color: '#e2e8f0', marginBottom: '6px' }}>
+                      📁 Ultra Category / Niche (Choose Category to Activate): *
+                    </label>
+                    <select
+                      value={autoSchedule.ultra_category || 'default'}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setAutoSchedule({
+                          ...autoSchedule,
+                          ultra_category: val,
+                          ultra_enabled: (val && val !== 'default') ? autoSchedule.ultra_enabled : false
+                        });
+                      }}
+                      style={{
+                        width: '100%',
+                        padding: '10px 12px',
+                        background: '#1e1738',
+                        border: (!autoSchedule.ultra_category || autoSchedule.ultra_category === 'default') ? '1.5px solid #f43f5e' : '1px solid rgba(236,72,153,0.5)',
+                        color: (!autoSchedule.ultra_category || autoSchedule.ultra_category === 'default') ? '#fca5a5' : '#fff',
+                        borderRadius: '8px',
+                        fontSize: '0.88rem',
+                        fontWeight: '600'
+                      }}
+                    >
+                      <option value="default">-- Choose Category / Niche (Required to Enable) --</option>
+                      {ULTRA_CATEGORIES.map((cat, i) => (
+                        <option key={i} value={cat}>{cat}</option>
+                      ))}
+                    </select>
+
+                    {(!autoSchedule.ultra_category || autoSchedule.ultra_category === 'default') && (
+                      <p style={{ margin: '6px 0 0 0', fontSize: '0.74rem', color: '#f87171' }}>
+                        ⚠️ Ultra mode ko activate karne ke liye upar dropdown se koi Category (e.g. 🎵 Song Video, ✨ After Effect, etc.) choose karein!
+                      </p>
+                    )}
+                  </div>
+
+                  {(!autoSchedule.ultra_category || autoSchedule.ultra_category === 'default') ? (
+                    <div style={{
+                      background: 'rgba(244, 63, 94, 0.08)',
+                      border: '1px solid rgba(244, 63, 94, 0.3)',
+                      borderRadius: '12px',
+                      padding: '16px',
+                      textAlign: 'center',
+                      color: '#cbd5e1',
+                      fontSize: '0.85rem'
+                    }}>
+                      <div style={{ fontSize: '1.4rem', marginBottom: '6px' }}>🎯</div>
+                      <div style={{ fontWeight: 'bold', color: '#f43f5e', marginBottom: '4px' }}>Category Selection Mandatory</div>
+                      <div>Ultra mode chalu karne ke liye upar diye gaye dropdown se koi bhi Category (jaise <b>🎵 Song Video</b> ya <b>✨ After Effect</b>) select karein. Select karte hi uska dedicated dashboard open ho jayega!</div>
+                    </div>
+                  ) : autoSchedule.ultra_enabled && (
                     <>
                       {(() => {
                         const isUltraSongVideo = (autoSchedule.ultra_category === '🎵 Song Video' || (autoSchedule.ultra_category || '').toLowerCase().includes('song'));
@@ -4306,30 +4379,16 @@ function App() {
 
                           return (
                             <div style={{ background: 'linear-gradient(135deg, rgba(30, 27, 75, 0.7) 0%, rgba(15, 23, 42, 0.9) 100%)', padding: '16px', borderRadius: '16px', border: '1px solid rgba(236,72,153,0.35)', marginTop: '8px' }}>
-                              {/* Category Header with Switcher */}
-                              <div className="responsive-grid-2" style={{ marginBottom: '14px', alignItems: 'center' }}>
+                              {/* Category Header */}
+                              <div style={{ marginBottom: '14px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <Music size={22} color="#ec4899" />
                                 <div>
-                                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                    <Music size={20} color="#ec4899" />
-                                    <h5 style={{ margin: 0, color: '#f472b6', fontSize: '0.95rem', fontWeight: 'bold' }}>
-                                      🎵 Ultra Song Video Auto-Upload Engine
-                                    </h5>
-                                  </div>
-                                  <p style={{ margin: 0, fontSize: '0.74rem', color: '#cbd5e1' }}>
+                                  <h5 style={{ margin: 0, color: '#f472b6', fontSize: '0.98rem', fontWeight: 'bold' }}>
+                                    🎵 Ultra Song Video Auto-Upload Engine
+                                  </h5>
+                                  <p style={{ margin: 0, fontSize: '0.75rem', color: '#cbd5e1' }}>
                                     Daily automated music video creation synced to beat with YouTube auto-publishing!
                                   </p>
-                                </div>
-                                <div>
-                                  <label style={{ fontSize: '0.78rem', color: '#cbd5e1', display: 'block', marginBottom: '3px' }}>Category / Niche (Switch anytime):</label>
-                                  <select 
-                                    value={autoSchedule.ultra_category || '🎵 Song Video'} 
-                                    onChange={(e) => setAutoSchedule({ ...autoSchedule, ultra_category: e.target.value })} 
-                                    style={{ width: '100%', padding: '7px 10px', background: '#1e1738', border: '1px solid rgba(236,72,153,0.4)', color: '#fff', borderRadius: '8px', fontSize: '0.82rem' }}
-                                  >
-                                    {ULTRA_CATEGORIES.map((cat, i) => (
-                                      <option key={i} value={cat}>{cat.substring(cat.indexOf(' ') + 1)}</option>
-                                    ))}
-                                  </select>
                                 </div>
                               </div>
 
@@ -4611,15 +4670,6 @@ function App() {
                             </div>
 
                             <div className="responsive-grid-2" style={{ gap: '12px', fontSize: '0.82rem' }}>
-                              <div>
-                                <label style={{ color: '#cbd5e1', display: 'block', marginBottom: '4px' }}>Category / Niche:</label>
-                                <select value={autoSchedule.ultra_category || '🎲 Random / All Categories'} onChange={(e) => setAutoSchedule({ ...autoSchedule, ultra_category: e.target.value })} style={{ width: '100%', padding: '8px', background: '#1e1738', border: '1px solid rgba(255,255,255,0.15)', color: '#fff', borderRadius: '8px' }}>
-                                  {ULTRA_CATEGORIES.map((cat, i) => (
-                                    <option key={i} value={cat}>{cat.substring(cat.indexOf(' ') + 1)}</option>
-                                  ))}
-                                </select>
-                              </div>
-
                               <div>
                                 <label style={{ color: '#cbd5e1', display: 'block', marginBottom: '4px' }}>Video Size / Aspect Ratio:</label>
                                 <select 
