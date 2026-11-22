@@ -2175,16 +2175,22 @@ def full_process(req: VideoRequest, job_id: str):
             a_path = os.path.join(job_dir, f"audio_{i}.mp3")
             v_path = os.path.join(job_dir, f"video_{i}.mp4")
             
-            try:
-                make_audio(sc["text"], a_path, req.voice_id)
-                print(f"   🔊 Voice generated -> {a_path}")
-            except Exception as e_aud:
-                print(f"   ⚠️ Voice synthesis warning (Scene {i+1}): {e_aud}")
-
+            # Check if this scene has an external/user-provided news broadcast soundbite
+            custom_news_audio = sc.get("news_audio_path") or sc.get("news_audio")
             cat_lower_req = str(req.category).lower()
             is_cartoon_req = any(k in cat_lower_req for k in ["cartoon", "anime", "animation", "character", "comic"])
             is_world_news_req = any(k in cat_lower_req for k in ["world news", "geopolitics", "news"])
             is_after_effects_req = any(k in cat_lower_req for k in ["after effect", "after iffect", "after effects", "vfx", "motion graphic"])
+
+            if is_after_effects_req and custom_news_audio and os.path.exists(custom_news_audio) and os.path.getsize(custom_news_audio) > 500:
+                print(f"🎙️ [Ultra After Effects Scene {i+1}] News Broadcast Soundbite Active: Using authentic news soundbite directly ({os.path.basename(custom_news_audio)}) - AI narrator stays silent!")
+                shutil.copy2(custom_news_audio, a_path)
+            else:
+                try:
+                    make_audio(sc["text"], a_path, req.voice_id)
+                    print(f"   🔊 Voice generated -> {a_path}")
+                except Exception as e_aud:
+                    print(f"   ⚠️ Voice synthesis warning (Scene {i+1}): {e_aud}")
 
             if is_ultra and (is_cartoon_req or is_world_news_req):
                 print(f"🎨 [Ultra Scene {i+1}] Pure AI Render Mode (Cartoon/WebGL). Skipping web photo downloads; Cloxel AI Director will generate scene directly from script!")
@@ -2219,7 +2225,32 @@ def full_process(req: VideoRequest, job_id: str):
                     
                     v_paths = []
                     
-                    if is_contrast and len(contrast_parts) == 2:
+                    # 0. Check for Documentary Evidence / Wikipedia / Official Report Scene (with Fluorescent Yellow Highlighter)
+                    from after_effects_evidence import (
+                        detect_evidence_scene,
+                        generate_newspaper_evidence_image,
+                        generate_documentary_evidence_clip
+                    )
+                    is_evidence, ev_meta = detect_evidence_scene(scene_text, main_topic)
+                    if is_evidence:
+                        print(f"📰 [Ultra After Effects Scene {i+1}] Documentary Evidence Scene Detected (Year/Type: {ev_meta.get('year')})! Generating Authentic Newspaper/Wikipedia Clipping with Fluorescent Yellow Highlighter...")
+                        ev_img_path = os.path.join(job_dir, f"evidence_clipping_{i}.jpg")
+                        generate_newspaper_evidence_image(ev_meta, ev_img_path, target_size=(target_w, target_h))
+                        
+                        try:
+                            sc_a_dur = get_audio_duration_fast(a_path, fallback=5.0)
+                        except Exception:
+                            sc_a_dur = 5.0
+                            
+                        ev_clip_path = os.path.join(job_dir, f"evidence_zoom_{i}.mp4")
+                        generate_documentary_evidence_clip(ev_img_path, ev_clip_path, duration=sc_a_dur, target_size=(target_w, target_h))
+                        if os.path.exists(ev_clip_path) and os.path.getsize(ev_clip_path) > 1000:
+                            v_paths = [ev_clip_path]
+                            print(f"✅ [Ultra After Effects Scene {i+1}] Documentary Evidence Zoom Video ready: {os.path.basename(ev_clip_path)} (Duration: {sc_a_dur:.1f}s)")
+                        elif os.path.exists(ev_img_path):
+                            v_paths = [ev_img_path]
+
+                    elif is_contrast and len(contrast_parts) == 2:
                         # Contrast Punchline: Translate Hindi/Hinglish contrast parts to visual English
                         p1_clean = translate_to_visual_english(contrast_parts[0], main_topic) if translate_to_visual_english else contrast_parts[0]
                         p2_clean = translate_to_visual_english(contrast_parts[1], main_topic) if translate_to_visual_english else contrast_parts[1]

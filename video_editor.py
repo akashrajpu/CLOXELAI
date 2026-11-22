@@ -1173,7 +1173,9 @@ AFTER_EFFECTS_SFX_CATALOG = [
         "keywords": [
             "page turn", "turn page", "turn the page", "book page", "diary entry",
             "notebook page", "panna palta", "panne palte", "kitab ka panna",
-            "पन्ना पलटना", "पन्ने पलटना", "किताब का पन्ना",
+            "report", "riport", "newspaper", "akhbar", "document", "dastavez",
+            "evidence", "saboot", "archives", "article", "wikipedia", "official record",
+            "रिपोर्ट", "अखबार", "सबूत", "दस्तावेज", "पन्ना पलटना", "पन्ने पलटना", "किताब का पन्ना",
         ],
     },
     {
