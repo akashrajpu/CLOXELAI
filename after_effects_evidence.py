@@ -22,7 +22,7 @@ def release_system_memory():
         pass
 
 
-# Regex patterns to detect reports, official statistics, years, court/police cases, surveys
+# Regex patterns to detect reports, official statistics, years, court/police cases, surveys, and historical events
 _EVIDENCE_KEYWORDS = [
     r'\breport\b', r'\briport\b', r'\breports\b', r'\banusar\b', r'\bmutabik\b',
     r'\baccording to\b', r'\bstudy\b', r'\bsurvey\b', r'\bsurvekshan\b', r'\bresearch\b',
@@ -33,14 +33,20 @@ _EVIDENCE_KEYWORDS = [
     r'\bpolice\b', r'\bfir\b', r'\bchargesheet\b', r'\bcharge sheet\b', r'\bcbi\b',
     r'\bed\b', r'\bcid\b', r'\binvestigation\b', r'\bprobe\b', r'\bpostmortem\b',
     r'\barrest\b', r'\bgiraftaar\b', r'\bhiraasat\b', r'\bdetained\b', r'\bjudgement\b',
-    r'\bsaboot\b', r'\bevidence\b', r'\bgawah\b', r'\bproof\b', r'\bdocument\b', r'\bdastavez\b'
+    r'\bsaboot\b', r'\bevidence\b', r'\bgawah\b', r'\bproof\b', r'\bdocument\b', r'\bdastavez\b',
+    # Hindi/Devanagari keywords for reports, records, and historical documentary milestones
+    r'रिपोर्ट', r'अनुसार', r'मुताबिक', r'अखबार', r'समाचार', r'दस्तावेज', r'सबूत', r'गवाह',
+    r'अदालत', r'कोर्ट', r'सुप्रीम कोर्ट', r'पुलिस', r'जांच', r'इन्वेस्टिगेशन', r'गिरफ्तार',
+    r'संविधान लागू', r'संविधान सभा', r'लागू हुआ', r'स्वतंत्रता संग्राम', r'आजादी', r'विभाजन', r'विद्रोह', r'प्लासी का युद्ध',
+    r'ईस्ट इंडिया कंपनी', r'संसद', r'गजट', r'ऐतिहासिक', r'आधिकारिक'
 ]
 
 _STAT_PATTERNS = [
-    r'\b(19\d\d|20\d\d)\b', # Years like 2002, 1999, 2024
+    r'\b(1[5-9]\d\d|20\d\d)\b', # Years from 1500 to 2099 (e.g. 1757, 1857, 1947, 1950, 2002)
     r'\b\d+\s*(?:lakh|crore|million|billion|hazaar|thousand|percent|%)\b',
     r'\b(?:lakh|crore|million|hazaar)\b',
-    r'\b(?:murder|marder|hatya|death|maut|ghotala|scam|kaand|accident|tragedy|incident)\b'
+    r'\b(?:murder|marder|hatya|death|maut|ghotala|scam|kaand|accident|tragedy|incident)\b',
+    r'\b(?:युद्ध|विद्रोह|संग्राम|आजादी|संविधान|विभाजन|लागू|हजारों|लाखों|करोड़ों)\b'
 ]
 
 
@@ -59,39 +65,52 @@ def detect_evidence_scene(scene_text: str, main_topic: str = "") -> Tuple[bool, 
 
     is_evidence = False
     # If report/news/official keyword is present OR year + stat/incident is present
-    if len(evidence_hits) >= 1 or (re.search(r'\b(19\d\d|20\d\d)\b', scene_lower) and len(stat_hits) >= 2):
+    has_year = re.search(r'\b(1[5-9]\d\d|20\d\d)\b', scene_lower)
+    if len(evidence_hits) >= 1 or (has_year and len(stat_hits) >= 1):
         is_evidence = True
 
     if not is_evidence:
         return False, {}
 
     # Extract detected year
-    year_match = re.search(r'\b(19\d\d|20\d\d)\b', scene_lower)
+    year_match = re.search(r'\b(1[5-9]\d\d|20\d\d)\b', scene_lower)
     year_str = year_match.group(1) if year_match else "OFFICIAL ARCHIVE"
 
     # Determine whether Wikipedia or Newspaper style
-    is_wikipedia = any(w in scene_lower for w in ["wikipedia", "wikimidia", "wikimedia", "encyclopedia"])
+    is_wikipedia = any(w in scene_lower for w in ["wikipedia", "wikimidia", "wikimedia", "encyclopedia", "विकिपीडिया"])
 
     # Extract key phrases that must be highlighted in yellow marker
     phrases_to_highlight = []
     
-    # 1. Extract year report phrase e.g. "2002 ki report ke anusar" or "report of 2002"
-    rep_m = re.search(r'(?:(?:19\d\d|20\d\d)\s*(?:ki\s+)?(?:report|riport)(?:\s+ke\s+anusar|\s+ke\s+mutabik)?|(?:according\s+to\s+)?(?:19\d\d|20\d\d)\s+report)', scene_lower)
+    # 1. Extract year report phrase e.g. "2002 ki report ke anusar" or "report of 2002" or "साल 1757 में"
+    rep_m = re.search(r'(?:(?:1[5-9]\d\d|20\d\d)\s*(?:ki\s+)?(?:report|riport)(?:\s+ke\s+anusar|\s+ke\s+mutabik)?|(?:according\s+to\s+)?(?:1[5-9]\d\d|20\d\d)\s+report|साल\s+\d{4}\s+में|वर्ष\s+\d{4}\s+में)', scene_lower)
     if rep_m:
         phrases_to_highlight.append(rep_m.group(0).strip())
+
+    # 1.b Extract date phrases like "15 अगस्त 1947", "26 जनवरी 1950", "15th August 1947"
+    date_hindi_m = re.search(r'(\d{1,2}\s+(?:जनवरी|फरवरी|मार्च|अप्रैल|मई|जून|जुलाई|अगस्त|सितंबर|अक्टूबर|नवंबर|दिसंबर)\s+\d{4}|\d{1,2}(?:th|st|nd|rd)?\s+(?:january|february|march|april|may|june|july|august|september|october|november|december)\s+\d{4})', scene_lower)
+    if date_hindi_m:
+        phrases_to_highlight.append(date_hindi_m.group(0).strip())
 
     # 2. Extract number / stat phrases e.g. "4 lakh se bhi jyada murder", "400,000 cases"
     stat_pat = r'(\d+[\d,]*\s*(?:lakh|crore|million|billion|hazaar|thousand|%|percent)?(?:\s+se\s+bhi\s+j(?:i)?yada|\s+se\s+j(?:i)?yada)?\s*(?:murder|marder|hatya|death|cases|incidents|arrests|crimes)?)'
     for sm in re.finditer(stat_pat, scene_lower):
         m_str = sm.group(0).strip()
-        # Avoid capturing only a bare year like '2002' if year is already captured
         if m_str and m_str != year_str and len(m_str) > 2:
             phrases_to_highlight.append(m_str)
 
-    # 3. Extract legal / police / incident actions e.g. "further probe was on", "driver detained", "investigation initiated"
-    action_m = re.search(r'(?:police\s+investigation|further\s+probe|driver\s+detained|postmortem|inquiry\s+commission|chargesheet\s+filed|court\s+orders?|arrested|hiraasat|critically\s+injured|collided)', scene_lower)
-    if action_m:
-        phrases_to_highlight.append(action_m.group(0).strip())
+    # 3. Extract historical & legal milestone terms
+    hist_terms = [
+        "प्लासी का युद्ध", "ईस्ट इंडिया कंपनी", "प्रथम स्वतंत्रता संग्राम",
+        "अंग्रेजी शासन के खिलाफ", "बड़ा विद्रोह", "ब्रिटिश शासन से आजादी",
+        "देश का विभाजन", "संविधान लागू हुआ", "लोकतांत्रिक गणराज्य",
+        "battle of plassey", "east india company", "first war of independence",
+        "police investigation", "further probe", "driver detained", "postmortem",
+        "inquiry commission", "chargesheet filed", "court order", "arrested"
+    ]
+    for ht in hist_terms:
+        if ht in scene_lower:
+            phrases_to_highlight.append(ht)
 
     # Fallback if list is short: capture key clauses
     if not phrases_to_highlight:
@@ -99,11 +118,30 @@ def detect_evidence_scene(scene_text: str, main_topic: str = "") -> Tuple[bool, 
         if len(words) >= 4:
             phrases_to_highlight.append(" ".join(words[:min(6, len(words))]))
 
-    # Generate authoritative newspaper headline
-    clean_topic = re.sub(r'[^\w\s]', '', main_topic).strip().upper() or "NATIONAL INVESTIGATION"
-    if year_str != "OFFICIAL ARCHIVE":
+    # Generate authoritative newspaper headline & masthead
+    source = "THE DAILY INVESTIGATIVE CHRONICLE"
+    date_str = f"OFFICIAL RECORD ARCHIVE • {year_str} SPECIAL REPORT • EDITION NO. 48"
+
+    if (year_str == "1757" or "प्लासी" in scene_lower or "plassey" in scene_lower) and any(w in scene_lower for w in ["1757", "प्लासी", "plassey", "युद्ध", "battle"]):
+        headline = "1757: BATTLE OF PLASSEY — EAST INDIA COMPANY CONSOLIDATES POWER IN BENGAL"
+        source = "THE HISTORICAL DISPATCH & GAZETTE"
+        date_str = "HISTORICAL ARCHIVE • JUNE 1757 • BENGAL EXPEDITION DISPATCH"
+    elif (year_str == "1857" or "विद्रोह" in scene_lower or "स्वतंत्रता संग्राम" in scene_lower) and any(w in scene_lower for w in ["1857", "विद्रोह", "संग्राम", "revolt"]):
+        headline = "1857: FIRST WAR OF INDEPENDENCE — NATIONWIDE REVOLT AGAINST BRITISH RULE"
+        source = "THE IMPERIAL CHRONICLE & GAZETTE"
+        date_str = "OFFICIAL HISTORICAL DISPATCH • MAY 1857 • SPECIAL ARCHIVE"
+    elif (year_str == "1947" or "15 अगस्त" in scene_lower or "आजादी" in scene_lower) and any(w in scene_lower for w in ["1947", "15 अगस्त", "आजादी", "विभाजन", "independence"]):
+        headline = "15 AUGUST 1947: INDIA INDEPENDENT — BRITISH RULE OF TWO CENTURIES ENDS"
+        source = "THE NATIONAL DAILY • INDEPENDENCE ARCHIVE"
+        date_str = "NEW DELHI • AUGUST 15, 1947 • HISTORICAL FIRST EDITION"
+    elif (year_str == "1950" or "26 जनवरी" in scene_lower) and any(w in scene_lower for w in ["1950", "26 जनवरी", "लागू", "गणराज्य", "republic"]):
+        headline = "26 JANUARY 1950: CONSTITUTION OF INDIA IN FORCE — SOVEREIGN REPUBLIC DECLARED"
+        source = "THE GAZETTE OF INDIA • REPUBLIC ARCHIVE"
+        date_str = "THE GAZETTE OF INDIA • 26 JANUARY 1950 • EXTRAORDINARY ISSUE"
+    elif year_str != "OFFICIAL ARCHIVE":
         headline = f"OFFICIAL REPORT {year_str}: CRITICAL FINDINGS DOCUMENTED ACROSS REGIONAL RECORDS"
     else:
+        clean_topic = re.sub(r'[^\w\s]', '', main_topic).strip().upper() or "NATIONAL INVESTIGATION"
         headline = f"OFFICIAL INVESTIGATIVE REPORT: {clean_topic[:40]} EVIDENCE REVEALED"
 
     # Journalistic body text structured into realistic paragraphs
@@ -117,8 +155,8 @@ def detect_evidence_scene(scene_text: str, main_topic: str = "") -> Tuple[bool, 
         "is_wikipedia": is_wikipedia,
         "year": year_str,
         "headline": headline,
-        "source": "WIKIPEDIA: THE FREE ENCYCLOPEDIA" if is_wikipedia else "THE DAILY INVESTIGATIVE CHRONICLE",
-        "date_str": f"OFFICIAL RECORD ARCHIVE • {year_str} SPECIAL REPORT • EDITION NO. 48",
+        "source": "WIKIPEDIA: THE FREE ENCYCLOPEDIA" if is_wikipedia else source,
+        "date_str": date_str,
         "paragraphs": paragraphs,
         "phrases_to_highlight": phrases_to_highlight,
         "is_news_soundbite": is_news_soundbite
