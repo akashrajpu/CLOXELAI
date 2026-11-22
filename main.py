@@ -1120,18 +1120,50 @@ def process_single_user_schedule(user: dict, now_ist: datetime, today_str: str):
                         aspect_ratio = "9:16" if kind == "short" else ("16:9" if kind == "long" else (fresh_sched.get("ultra_aspect_ratio") or "16:9"))
                         duration = int(fresh_sched.get(f"{kind}_duration") or default_dur)
 
-                        res = render_video_with_smart_fallback(
-                            user_id=internal_id,
-                            topic=topic,
-                            category=category,
-                            voice_id=voice,
-                            font_name=font,
-                            font_color=color,
-                            video_type=kind,
-                            requested_duration=duration,
-                            aspect_ratio=aspect_ratio,
-                            language=language
-                        )
+                        if kind == "ultra" and ("song video" in str(category).lower()):
+                            import uuid
+                            job_id = str(uuid.uuid4())
+                            is_rand_singer = fresh_sched.get("ultra_is_random_singer", True)
+                            singer = "" if is_rand_singer else (fresh_sched.get("ultra_singer_name") or "")
+                            s_title = fresh_sched.get("ultra_song_title") or ""
+                            mood = fresh_sched.get("ultra_song_mood") or "romantic"
+                            vis_mode = fresh_sched.get("ultra_song_visual_mode") or "motion"
+                            vis_style = fresh_sched.get("ultra_phonk_visualizer_style") or "random"
+
+                            song_topic_title = f"{singer} {s_title}".strip() if singer else f"{mood.title()} AI Song Video"
+                            topic = song_topic_title
+
+                            v_req = VideoRequest(
+                                user_id=internal_id,
+                                category="🎵 Song Video",
+                                video_type="ultra",
+                                topic=song_topic_title,
+                                singer_name=singer,
+                                song_title=s_title,
+                                song_mood=mood,
+                                song_visual_mode=vis_mode,
+                                phonk_visualizer_style=vis_style,
+                                duration=duration,
+                                aspect_ratio=aspect_ratio,
+                                font_color=color,
+                                song_source_type="search"
+                            )
+                            jobs[job_id] = {"status": "processing"}
+                            full_process(v_req, job_id)
+                            res = jobs.get(job_id, {})
+                        else:
+                            res = render_video_with_smart_fallback(
+                                user_id=internal_id,
+                                topic=topic,
+                                category=category,
+                                voice_id=voice,
+                                font_name=font,
+                                font_color=color,
+                                video_type=kind,
+                                requested_duration=duration,
+                                aspect_ratio=aspect_ratio,
+                                language=language
+                            )
 
                         if res.get("status") == "completed":
                             video_file = res.get("file")
@@ -2694,6 +2726,12 @@ class AutoScheduleRequest(BaseModel):
     ultra_duration: int = 60
     ultra_time: str = "21:00"
     ultra_language: str = "hi"
+    ultra_singer_name: Optional[str] = ""
+    ultra_is_random_singer: bool = True
+    ultra_song_title: Optional[str] = ""
+    ultra_song_mood: str = "romantic"
+    ultra_song_visual_mode: str = "motion"
+    ultra_phonk_visualizer_style: str = "random"
 
 @app.post("/generate-custom-video")
 async def generate_custom_video(req: VideoRequest, background_tasks: BackgroundTasks):
@@ -3335,6 +3373,12 @@ async def save_auto_schedule(req: AutoScheduleRequest):
         "ultra_duration": req.ultra_duration,
         "ultra_time": req.ultra_time,
         "ultra_language": req.ultra_language,
+        "ultra_singer_name": req.ultra_singer_name,
+        "ultra_is_random_singer": req.ultra_is_random_singer,
+        "ultra_song_title": req.ultra_song_title,
+        "ultra_song_mood": req.ultra_song_mood,
+        "ultra_song_visual_mode": req.ultra_song_visual_mode,
+        "ultra_phonk_visualizer_style": req.ultra_phonk_visualizer_style,
         
         "updated_at": datetime.utcnow()
     }
@@ -3510,6 +3554,12 @@ async def get_auto_schedule(internal_id: str):
         "ultra_duration": schedule.get("ultra_duration", 60),
         "ultra_time": schedule.get("ultra_time", "21:00"),
         "ultra_language": schedule.get("ultra_language", "hi"),
+        "ultra_singer_name": schedule.get("ultra_singer_name", ""),
+        "ultra_is_random_singer": schedule.get("ultra_is_random_singer", True),
+        "ultra_song_title": schedule.get("ultra_song_title", ""),
+        "ultra_song_mood": schedule.get("ultra_song_mood", "romantic"),
+        "ultra_song_visual_mode": schedule.get("ultra_song_visual_mode", "motion"),
+        "ultra_phonk_visualizer_style": schedule.get("ultra_phonk_visualizer_style", "random"),
 
         "total_videos_created": used_videos,
         "remaining_plan_videos": remaining,

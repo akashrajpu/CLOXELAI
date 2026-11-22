@@ -668,6 +668,22 @@ function App() {
     long_duration: 60,
     long_time: '18:00',
     long_language: 'hi',
+    ultra_enabled: false,
+    ultra_auto_topic: true,
+    ultra_topic: 'History of Ancient Warriors',
+    ultra_category: '🎵 Song Video',
+    ultra_aspect_ratio: '16:9',
+    ultra_voice: 'hi-IN-MadhurNeural',
+    ultra_font: 'Arial.ttf',
+    ultra_color: 'yellow',
+    ultra_duration: 60,
+    ultra_time: '21:00',
+    ultra_singer_name: '',
+    ultra_is_random_singer: true,
+    ultra_song_title: '',
+    ultra_song_mood: 'romantic',
+    ultra_song_visual_mode: 'motion',
+    ultra_phonk_visualizer_style: 'random',
     topics: 'Space Exploration, AI Innovations, Ancient Mysteries, Wealth & Finance',
     total_videos_created: 0,
     remaining_plan_videos: 60,
@@ -1249,7 +1265,13 @@ function App() {
           ultra_color: autoSchedule.ultra_color || 'yellow',
           ultra_duration: autoSchedule.ultra_duration || 60,
           ultra_time: autoSchedule.ultra_time || '21:00',
-          ultra_language: ((autoSchedule.ultra_voice || '').startsWith('hi') || (autoSchedule.ultra_voice || '').includes('hf_') || (autoSchedule.ultra_voice || '').includes('hm_')) ? 'hi' : (((autoSchedule.ultra_voice || '').startsWith('en') || (autoSchedule.ultra_voice || '').includes('kokoro')) ? 'en' : 'hi')
+          ultra_language: ((autoSchedule.ultra_voice || '').startsWith('hi') || (autoSchedule.ultra_voice || '').includes('hf_') || (autoSchedule.ultra_voice || '').includes('hm_')) ? 'hi' : (((autoSchedule.ultra_voice || '').startsWith('en') || (autoSchedule.ultra_voice || '').includes('kokoro')) ? 'en' : 'hi'),
+          ultra_singer_name: autoSchedule.ultra_singer_name || '',
+          ultra_is_random_singer: autoSchedule.ultra_is_random_singer !== false,
+          ultra_song_title: autoSchedule.ultra_song_title || '',
+          ultra_song_mood: autoSchedule.ultra_song_mood || 'romantic',
+          ultra_song_visual_mode: autoSchedule.ultra_song_visual_mode || 'motion',
+          ultra_phonk_visualizer_style: autoSchedule.ultra_phonk_visualizer_style || 'random'
         })
       });
       if (res.ok) {
@@ -4230,156 +4252,431 @@ function App() {
 
                   {autoSchedule.ultra_enabled && (
                     <>
-                      <div style={{ marginBottom: '14px' }}>
-                        <div style={{ display: 'flex', gap: '10px', alignItems: 'center', marginBottom: '6px' }}>
-                          <input 
-                            type="checkbox" 
-                            id="ultra-auto-topic"
-                            checked={autoSchedule.ultra_auto_topic !== false}
-                            onChange={(e) => setAutoSchedule({ ...autoSchedule, ultra_auto_topic: e.target.checked })}
-                            style={{ width: '16px', height: '16px', accentColor: '#ec4899' }}
-                          />
-                          <label htmlFor="ultra-auto-topic" style={{ color: '#ffffff', fontSize: '0.85rem', fontWeight: 'bold' }}>
-                            🎲 Dynamic AI Auto-Topic (History, Ancient Warriors & Science Mysteries)
-                          </label>
-                        </div>
+                      {(() => {
+                        const isUltraSongVideo = (autoSchedule.ultra_category === '🎵 Song Video' || (autoSchedule.ultra_category || '').toLowerCase().includes('song video'));
+                        if (isUltraSongVideo) {
+                          const curMood = autoSchedule.ultra_song_mood || 'romantic';
+                          const moodPresets = (PHONK_VISUALIZER_PRESETS || []).filter(p => p.category === curMood);
 
-                        {autoSchedule.ultra_auto_topic === false && (
-                          <textarea 
-                            rows="2"
-                            value={autoSchedule.ultra_topic || ''}
-                            onChange={(e) => setAutoSchedule({ ...autoSchedule, ultra_topic: e.target.value })}
-                            placeholder="Enter custom Ultra topics separated by comma (e.g. Maharana Pratap, Ancient Warriors)"
-                            style={{ width: '100%', padding: '10px', background: '#1e1738', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '8px', color: '#ffffff', fontSize: '0.85rem' }}
-                          />
-                        )}
-                      </div>
-
-                      <div className="responsive-grid-2" style={{ gap: '12px', fontSize: '0.82rem' }}>
-                        <div>
-                          <label style={{ color: '#cbd5e1', display: 'block', marginBottom: '4px' }}>Category / Niche:</label>
-                          <select value={autoSchedule.ultra_category || '🎲 Random / All Categories'} onChange={(e) => setAutoSchedule({ ...autoSchedule, ultra_category: e.target.value })} style={{ width: '100%', padding: '8px', background: '#1e1738', border: '1px solid rgba(255,255,255,0.15)', color: '#fff', borderRadius: '8px' }}>
-                            {ULTRA_CATEGORIES.map((cat, i) => (
-                              <option key={i} value={cat}>{cat.substring(cat.indexOf(' ') + 1)}</option>
-                            ))}
-                          </select>
-                        </div>
-
-                        <div>
-                          <label style={{ color: '#cbd5e1', display: 'block', marginBottom: '4px' }}>Video Size / Aspect Ratio:</label>
-                          <select 
-                            value={autoSchedule.ultra_aspect_ratio || '16:9'} 
-                            onChange={(e) => {
-                              const newRatio = e.target.value;
-                              const maxDur = newRatio === '9:16' ? 60 : 300;
-                              const currentDur = autoSchedule.ultra_duration || 60;
-                              setAutoSchedule({ 
-                                ...autoSchedule, 
-                                ultra_aspect_ratio: newRatio,
-                                ultra_duration: Math.min(maxDur, Math.max(20, currentDur))
-                              });
-                            }} 
-                            style={{ width: '100%', padding: '8px', background: '#1e1738', border: '1px solid rgba(255,255,255,0.15)', color: '#fff', borderRadius: '8px' }}
-                          >
-                            <option value="16:9">📺 16:9 Landscape HD (1920×1080)</option>
-                            <option value="9:16">📱 9:16 Vertical Shorts (1080×1920)</option>
-                          </select>
-                        </div>
-
-                        <div>
-                          <label style={{ color: '#cbd5e1', display: 'block', marginBottom: '4px' }}>Voice:</label>
-                          <select value={autoSchedule.ultra_voice || 'hi-IN-MadhurNeural'} onChange={(e) => setAutoSchedule({ ...autoSchedule, ultra_voice: e.target.value })} style={{ width: '100%', padding: '8px', background: '#1e1738', border: '1px solid rgba(255,255,255,0.15)', color: '#fff', borderRadius: '8px' }}>
-                            <option value="hi-IN-MadhurNeural">Madhur (Male, Hindi)</option>
-                            <option value="hi-IN-SwaraNeural">Swara (Female, Hindi)</option>
-                            <option value="kokoro-hf_alpha">Kokoro Hindi Female (Alpha HQ)</option>
-                            <option value="kokoro-hm_omega">Kokoro Hindi Male (Omega HQ)</option>
-                            <option value="en-US-GuyNeural">Guy (Male, English)</option>
-                            <option value="en-US-JennyNeural">Jenny (Female, English)</option>
-                            <option value="kokoro-af_heart">Kokoro English Female (Heart HQ)</option>
-                            <option value="kokoro-af_bella">Kokoro English Female (Bella Ultra HQ)</option>
-                            <option value="kokoro-am_adam">Kokoro English Male (Adam HQ)</option>
-                            <option value="kokoro-am_michael">Kokoro English Male (Michael Natural)</option>
-                            <option value="kokoro-bf_emma">Kokoro British Female (Emma HQ)</option>
-                            <option value="kokoro-bm_george">Kokoro British Male (George HQ)</option>
-                          </select>
-                        </div>
-
-                        <div>
-                          <label style={{ color: '#cbd5e1', display: 'block', marginBottom: '4px' }}>Daily Upload Time (24h):</label>
-                          <input 
-                            type="time" 
-                            value={autoSchedule.ultra_time || '21:00'} 
-                            onChange={(e) => setAutoSchedule({ ...autoSchedule, ultra_time: e.target.value })}
-                            style={{ width: '100%', padding: '8px', background: '#1e1738', border: '1px solid rgba(255,255,255,0.15)', color: '#fff', borderRadius: '8px' }}
-                          />
-                        </div>
-
-                        {(() => {
-                          const isUltraShort = (autoSchedule.ultra_aspect_ratio === '9:16');
-                          const maxUltraDur = isUltraShort ? 60 : 300;
-                          const labelText = isUltraShort ? "Ultra Duration (20s - 60s Max for Vertical Shorts):" : "Ultra Duration (20s - 300s / 5m Max):";
                           return (
-                            <div>
-                              <label style={{ color: '#cbd5e1', display: 'block', marginBottom: '4px' }}>{labelText}</label>
-                              <input 
-                                type="number" 
-                                min="20" 
-                                max={maxUltraDur} 
-                                value={autoSchedule.ultra_duration || (isUltraShort ? 60 : 60)} 
-                                onChange={(e) => setAutoSchedule({ ...autoSchedule, ultra_duration: Math.min(maxUltraDur, Math.max(20, Number(e.target.value))) })}
-                                style={{ width: '100%', padding: '8px', background: '#1e1738', border: '1px solid rgba(255,255,255,0.15)', color: '#fff', borderRadius: '8px' }}
-                              />
-                            </div>
-                          );
-                        })()}
-
-                        {(() => {
-                          const catLow = (autoSchedule.ultra_category || '').toLowerCase();
-                          const isCartoon = ['cartoon', 'anime', 'animation', 'character', 'comic'].some(k => catLow.includes(k));
-                          if (!isCartoon) {
-                            return (
-                              <>
+                            <div style={{ background: 'linear-gradient(135deg, rgba(30, 27, 75, 0.7) 0%, rgba(15, 23, 42, 0.9) 100%)', padding: '16px', borderRadius: '16px', border: '1px solid rgba(236,72,153,0.35)', marginTop: '8px' }}>
+                              {/* Category Header with Switcher */}
+                              <div className="responsive-grid-2" style={{ marginBottom: '14px', alignItems: 'center' }}>
                                 <div>
-                                  {(() => {
-                                    const isUltraH = (autoSchedule.ultra_voice || '').startsWith('hi') || (autoSchedule.ultra_voice || '').includes('hf_') || (autoSchedule.ultra_voice || '').includes('hm_');
-                                    return (
-                                      <>
-                                        <label style={{ color: '#cbd5e1', display: 'block', marginBottom: '4px' }}>Font Family ({isUltraH ? 'Hindi' : 'English'}):</label>
-                                        <select value={autoSchedule.ultra_font || (isUltraH ? 'Ams Aaditya.ttf' : 'Arial.ttf')} onChange={(e) => setAutoSchedule({ ...autoSchedule, ultra_font: e.target.value })} style={{ width: '100%', padding: '8px', background: '#1e1738', border: '1px solid rgba(255,255,255,0.15)', color: '#fff', borderRadius: '8px' }}>
-                                          {(fontList && fontList.length > 0 ? fontList : ['Arial.ttf']).filter(f => {
-                                            const isH = f.toLowerCase().startsWith("ams ") || f.toLowerCase().includes("devanagari");
-                                            return isUltraH ? isH : !isH;
-                                          }).map((font, i) => {
-                                            const isHindi = font.toLowerCase().startsWith("ams ") || font.toLowerCase().includes("devanagari");
-                                            const fontClean = font.replace(/\.[^/.]+$/, "");
-                                            return (
-                                              <option key={i} value={font}>{isHindi ? `${fontClean} (Hindi)` : fontClean}</option>
-                                            );
-                                          })}
-                                        </select>
-                                      </>
-                                    );
-                                  })()}
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                    <Music size={20} color="#ec4899" />
+                                    <h5 style={{ margin: 0, color: '#f472b6', fontSize: '0.95rem', fontWeight: 'bold' }}>
+                                      🎵 Ultra Song Video Auto-Upload Engine
+                                    </h5>
+                                  </div>
+                                  <p style={{ margin: 0, fontSize: '0.74rem', color: '#cbd5e1' }}>
+                                    Daily automated music video creation synced to beat with YouTube auto-publishing!
+                                  </p>
                                 </div>
-
                                 <div>
-                                  <label style={{ color: '#cbd5e1', display: 'block', marginBottom: '4px' }}>Subtitle Highlight Color:</label>
-                                  <select value={autoSchedule.ultra_color || 'yellow'} onChange={(e) => setAutoSchedule({ ...autoSchedule, ultra_color: e.target.value })} style={{ width: '100%', padding: '8px', background: '#1e1738', border: '1px solid rgba(255,255,255,0.15)', color: '#fff', borderRadius: '8px' }}>
-                                    <option value="yellow">🟡 Vivid Yellow</option>
-                                    <option value="#00FF00">🟢 Neon Green</option>
-                                    <option value="cyan">🔵 Cyan / Sky Blue</option>
-                                    <option value="#FFD700">🏆 Royal Gold</option>
-                                    <option value="#FFFFFF">⚪ Pure White</option>
-                                    <option value="#FF00FF">Magenta / Hot Pink</option>
-                                    <option value="#FF3333">🔥 Flame Red</option>
+                                  <label style={{ fontSize: '0.78rem', color: '#cbd5e1', display: 'block', marginBottom: '3px' }}>Category / Niche (Switch anytime):</label>
+                                  <select 
+                                    value={autoSchedule.ultra_category || '🎵 Song Video'} 
+                                    onChange={(e) => setAutoSchedule({ ...autoSchedule, ultra_category: e.target.value })} 
+                                    style={{ width: '100%', padding: '7px 10px', background: '#1e1738', border: '1px solid rgba(236,72,153,0.4)', color: '#fff', borderRadius: '8px', fontSize: '0.82rem' }}
+                                  >
+                                    {ULTRA_CATEGORIES.map((cat, i) => (
+                                      <option key={i} value={cat}>{cat.substring(cat.indexOf(' ') + 1)}</option>
+                                    ))}
                                   </select>
                                 </div>
-                              </>
-                            );
-                          }
-                          return null;
-                        })()}
-                      </div>
+                              </div>
+
+                              {/* 1. Singer & Song Selection Mode */}
+                              <div style={{ marginBottom: '14px', background: 'rgba(15, 23, 42, 0.6)', padding: '12px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.08)' }}>
+                                <label style={{ display: 'block', fontSize: '0.84rem', fontWeight: 'bold', color: '#e2e8f0', marginBottom: '8px' }}>
+                                  1. Singer & Track Selection Mode
+                                </label>
+                                
+                                <div style={{ display: 'flex', gap: '8px', marginBottom: '10px' }}>
+                                  <button
+                                    type="button"
+                                    onClick={() => setAutoSchedule({ ...autoSchedule, ultra_is_random_singer: true })}
+                                    style={{
+                                      flex: 1,
+                                      padding: '8px 12px',
+                                      borderRadius: '10px',
+                                      border: autoSchedule.ultra_is_random_singer !== false ? '2px solid #ec4899' : '1px solid rgba(255,255,255,0.12)',
+                                      background: autoSchedule.ultra_is_random_singer !== false ? 'rgba(236,72,153,0.25)' : 'rgba(15,23,42,0.6)',
+                                      color: '#fff',
+                                      fontWeight: 'bold',
+                                      fontSize: '0.80rem',
+                                      cursor: 'pointer'
+                                    }}
+                                  >
+                                    🎲 Random Top Singers (Category-matched)
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => setAutoSchedule({ ...autoSchedule, ultra_is_random_singer: false })}
+                                    style={{
+                                      flex: 1,
+                                      padding: '8px 12px',
+                                      borderRadius: '10px',
+                                      border: autoSchedule.ultra_is_random_singer === false ? '2px solid #ec4899' : '1px solid rgba(255,255,255,0.12)',
+                                      background: autoSchedule.ultra_is_random_singer === false ? 'rgba(236,72,153,0.25)' : 'rgba(15,23,42,0.6)',
+                                      color: '#fff',
+                                      fontWeight: 'bold',
+                                      fontSize: '0.80rem',
+                                      cursor: 'pointer'
+                                    }}
+                                  >
+                                    🎙️ Specific Singer Name
+                                  </button>
+                                </div>
+
+                                {autoSchedule.ultra_is_random_singer !== false ? (
+                                  <div style={{ fontSize: '0.75rem', color: '#38bdf8', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                    <Sparkles size={14} color="#38bdf8" style={{ flexShrink: 0 }} />
+                                    <span>Autopilot Mode: Har roz aapki chuni gayi category (Sad, Romantic, Bhakti, etc.) ke top trending hit gaane automatically fetch honge!</span>
+                                  </div>
+                                ) : (
+                                  <div className="responsive-grid-2" style={{ gap: '10px' }}>
+                                    <div>
+                                      <label style={{ fontSize: '0.76rem', color: '#cbd5e1', display: 'block', marginBottom: '3px' }}>Singer / Artist Name *</label>
+                                      <input
+                                        type="text"
+                                        value={autoSchedule.ultra_singer_name || ''}
+                                        onChange={(e) => setAutoSchedule({ ...autoSchedule, ultra_singer_name: e.target.value })}
+                                        placeholder="e.g. Arijit Singh, Atif Aslam, Vishal Mishra"
+                                        style={{ width: '100%', padding: '8px 10px', borderRadius: '8px', background: '#1e1738', border: '1px solid rgba(236,72,153,0.4)', color: '#fff', fontSize: '0.82rem' }}
+                                      />
+                                    </div>
+                                    <div>
+                                      <label style={{ fontSize: '0.76rem', color: '#cbd5e1', display: 'block', marginBottom: '3px' }}>Specific Song Name (Optional - Blank for Random Hit)</label>
+                                      <input
+                                        type="text"
+                                        value={autoSchedule.ultra_song_title || ''}
+                                        onChange={(e) => setAutoSchedule({ ...autoSchedule, ultra_song_title: e.target.value })}
+                                        placeholder="e.g. Kesariya, Deewaniyat"
+                                        style={{ width: '100%', padding: '8px 10px', borderRadius: '8px', background: '#1e1738', border: '1px solid rgba(255,255,255,0.15)', color: '#fff', fontSize: '0.82rem' }}
+                                      />
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+
+                              {/* 2. Song Mood & Category */}
+                              <div style={{ marginBottom: '14px', background: 'rgba(15, 23, 42, 0.6)', padding: '12px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.08)' }}>
+                                <label style={{ display: 'block', fontSize: '0.84rem', fontWeight: 'bold', color: '#e2e8f0', marginBottom: '8px' }}>
+                                  2. Song Mood & Category (HD Visuals & Filters Match)
+                                </label>
+                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(115px, 1fr))', gap: '8px' }}>
+                                  {[
+                                    { id: 'romantic', label: 'Romantic / Love', icon: '❤️' },
+                                    { id: 'sad', label: 'Sad / Dard', icon: '💔' },
+                                    { id: 'party', label: 'Party / EDM', icon: '⚡' },
+                                    { id: 'lofi', label: 'Lo-Fi / Chill', icon: '🌙' },
+                                    { id: 'acoustic', label: 'Acoustic / Indie', icon: '🎸' },
+                                    { id: 'devotional', label: 'Devotional / Bhakti', icon: '🪔' },
+                                    { id: 'phonk', label: 'Phonk / Drift', icon: '🔥' },
+                                  ].map(m => (
+                                    <button
+                                      key={m.id}
+                                      type="button"
+                                      onClick={() => {
+                                        const newMood = m.id;
+                                        setAutoSchedule({
+                                          ...autoSchedule,
+                                          ultra_song_mood: newMood,
+                                          ultra_song_visual_mode: (newMood === 'phonk') ? 'beat' : (autoSchedule.ultra_song_visual_mode || 'motion')
+                                        });
+                                      }}
+                                      style={{
+                                        padding: '7px 9px',
+                                        borderRadius: '8px',
+                                        border: (autoSchedule.ultra_song_mood || 'romantic') === m.id ? '2px solid #ec4899' : '1px solid rgba(255,255,255,0.12)',
+                                        background: (autoSchedule.ultra_song_mood || 'romantic') === m.id ? 'rgba(236,72,153,0.3)' : 'rgba(15,23,42,0.6)',
+                                        color: '#fff',
+                                        fontSize: '0.78rem',
+                                        fontWeight: 'bold',
+                                        cursor: 'pointer'
+                                      }}
+                                    >
+                                      {m.icon} {m.label}
+                                    </button>
+                                  ))}
+                                </div>
+                              </div>
+
+                              {/* 3. Visual Creation Mode */}
+                              <div style={{ marginBottom: '14px', background: 'rgba(15, 23, 42, 0.6)', padding: '12px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.08)' }}>
+                                <label style={{ display: 'block', fontSize: '0.84rem', fontWeight: 'bold', color: '#e2e8f0', marginBottom: '8px' }}>
+                                  3. Visual Creation Mode
+                                </label>
+                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '8px' }}>
+                                  {[
+                                    { id: 'clips', label: 'Stock Video Clips', icon: '🎬', desc: 'Pexels 4K/HD video clips' },
+                                    { id: 'motion', label: 'Ultra 3D Photo Motion', icon: '✨', desc: 'HD photos with motion cuts' },
+                                    { id: 'beat', label: 'Simple Beat Visualizer', icon: '⚡', desc: 'Audio Beat & Bass Reactor' },
+                                  ].map(v => (
+                                    <button
+                                      key={v.id}
+                                      type="button"
+                                      onClick={() => setAutoSchedule({ ...autoSchedule, ultra_song_visual_mode: v.id })}
+                                      style={{
+                                        padding: '8px 10px',
+                                        borderRadius: '8px',
+                                        border: (autoSchedule.ultra_song_visual_mode || 'motion') === v.id ? '2px solid #a855f7' : '1px solid rgba(255,255,255,0.12)',
+                                        background: (autoSchedule.ultra_song_visual_mode || 'motion') === v.id ? 'rgba(168,85,247,0.3)' : 'rgba(15,23,42,0.6)',
+                                        color: '#fff',
+                                        textAlign: 'left',
+                                        cursor: 'pointer'
+                                      }}
+                                    >
+                                      <div style={{ fontWeight: 'bold', fontSize: '0.80rem' }}>{v.icon} {v.label}</div>
+                                      <div style={{ fontSize: '0.68rem', color: '#cbd5e1' }}>{v.desc}</div>
+                                    </button>
+                                  ))}
+                                </div>
+                              </div>
+
+                              {/* 4. Visualizer Style (When Beat Visualizer is chosen) */}
+                              {(autoSchedule.ultra_song_visual_mode === 'beat' || autoSchedule.ultra_song_mood === 'phonk') && (
+                                <div style={{ marginBottom: '14px', background: 'rgba(168,85,247,0.1)', padding: '12px', borderRadius: '12px', border: '1px solid rgba(168,85,247,0.3)' }}>
+                                  <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 'bold', color: '#c084fc', marginBottom: '6px' }}>
+                                    Visualizer Preset / Core FX Style ({moodPresets.length || 102} Unique FX for {curMood.toUpperCase()}):
+                                  </label>
+                                  <select
+                                    value={autoSchedule.ultra_phonk_visualizer_style || 'random'}
+                                    onChange={(e) => setAutoSchedule({ ...autoSchedule, ultra_phonk_visualizer_style: e.target.value })}
+                                    style={{ width: '100%', padding: '8px 10px', background: '#1e1738', border: '1px solid rgba(168,85,247,0.4)', color: '#fff', borderRadius: '8px', fontSize: '0.82rem' }}
+                                  >
+                                    <option value="random">🎲 Auto / Random (Auto-picks unique preset for {curMood} every day)</option>
+                                    {moodPresets.map(p => (
+                                      <option key={p.id} value={p.id}>{p.name} [{p.tag}]</option>
+                                    ))}
+                                  </select>
+                                </div>
+                              )}
+
+                              {/* 5. Format, Duration, Color, Upload Time Grid */}
+                              <div className="responsive-grid-2" style={{ gap: '10px', fontSize: '0.80rem' }}>
+                                <div>
+                                  <label style={{ color: '#cbd5e1', display: 'block', marginBottom: '3px' }}>Video Size / Aspect Ratio:</label>
+                                  <select 
+                                    value={autoSchedule.ultra_aspect_ratio || '16:9'} 
+                                    onChange={(e) => setAutoSchedule({ ...autoSchedule, ultra_aspect_ratio: e.target.value })} 
+                                    style={{ width: '100%', padding: '7px 10px', background: '#1e1738', border: '1px solid rgba(255,255,255,0.15)', color: '#fff', borderRadius: '8px' }}
+                                  >
+                                    <option value="16:9">📺 16:9 Landscape HD (1920×1080)</option>
+                                    <option value="9:16">📱 9:16 Vertical Shorts (1080×1920)</option>
+                                  </select>
+                                </div>
+
+                                <div>
+                                  <label style={{ color: '#cbd5e1', display: 'block', marginBottom: '3px' }}>Daily Upload Time (24h):</label>
+                                  <input 
+                                    type="time" 
+                                    value={autoSchedule.ultra_time || '21:00'} 
+                                    onChange={(e) => setAutoSchedule({ ...autoSchedule, ultra_time: e.target.value })}
+                                    style={{ width: '100%', padding: '7px 10px', background: '#1e1738', border: '1px solid rgba(255,255,255,0.15)', color: '#fff', borderRadius: '8px' }}
+                                  />
+                                </div>
+
+                                <div>
+                                  <label style={{ color: '#cbd5e1', display: 'block', marginBottom: '3px' }}>Video Duration:</label>
+                                  <select
+                                    value={autoSchedule.ultra_duration !== undefined ? autoSchedule.ultra_duration : 60}
+                                    onChange={(e) => setAutoSchedule({ ...autoSchedule, ultra_duration: Number(e.target.value) })}
+                                    style={{ width: '100%', padding: '7px 10px', background: '#1e1738', border: '1px solid rgba(255,255,255,0.15)', color: '#fff', borderRadius: '8px' }}
+                                  >
+                                    <option value={20}>20s (Status - ~5 Scenes)</option>
+                                    <option value={30}>30s (Reel/Short - ~8 Scenes)</option>
+                                    <option value={45}>45s (Extended - ~11 Scenes)</option>
+                                    <option value={60}>60s (1 Min - ~15 Scenes)</option>
+                                    <option value={90}>90s (Extended - ~22 Scenes)</option>
+                                    <option value={0}>Full Song (Auto-Sync)</option>
+                                  </select>
+                                </div>
+
+                                <div>
+                                  <label style={{ color: '#cbd5e1', display: 'block', marginBottom: '3px' }}>Subtitle Highlight Color:</label>
+                                  <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center', marginTop: '4px' }}>
+                                    {['yellow', '#22c55e', '#ec4899', '#06b6d4', '#ef4444', '#f97316', '#a855f7', '#3b82f6', '#ffffff'].map(c => (
+                                      <button
+                                        key={c}
+                                        type="button"
+                                        onClick={() => setAutoSchedule({ ...autoSchedule, ultra_color: c })}
+                                        style={{
+                                          width: '22px',
+                                          height: '22px',
+                                          borderRadius: '6px',
+                                          background: c,
+                                          border: (autoSchedule.ultra_color || 'yellow') === c ? '2px solid #fff' : '1px solid rgba(0,0,0,0.4)',
+                                          cursor: 'pointer',
+                                          boxShadow: (autoSchedule.ultra_color || 'yellow') === c ? '0 0 6px ' + c : 'none'
+                                        }}
+                                      />
+                                    ))}
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        }
+
+                        // Standard non-song ultra options
+                        return (
+                          <>
+                            <div style={{ marginBottom: '14px' }}>
+                              <div style={{ display: 'flex', gap: '10px', alignItems: 'center', marginBottom: '6px' }}>
+                                <input 
+                                  type="checkbox" 
+                                  id="ultra-auto-topic"
+                                  checked={autoSchedule.ultra_auto_topic !== false}
+                                  onChange={(e) => setAutoSchedule({ ...autoSchedule, ultra_auto_topic: e.target.checked })}
+                                  style={{ width: '16px', height: '16px', accentColor: '#ec4899' }}
+                                />
+                                <label htmlFor="ultra-auto-topic" style={{ color: '#ffffff', fontSize: '0.85rem', fontWeight: 'bold' }}>
+                                  🎲 Dynamic AI Auto-Topic (History, Ancient Warriors & Science Mysteries)
+                                </label>
+                              </div>
+
+                              {autoSchedule.ultra_auto_topic === false && (
+                                <textarea 
+                                  rows="2"
+                                  value={autoSchedule.ultra_topic || ''}
+                                  onChange={(e) => setAutoSchedule({ ...autoSchedule, ultra_topic: e.target.value })}
+                                  placeholder="Enter custom Ultra topics separated by comma (e.g. Maharana Pratap, Ancient Warriors)"
+                                  style={{ width: '100%', padding: '10px', background: '#1e1738', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '8px', color: '#ffffff', fontSize: '0.85rem' }}
+                                />
+                              )}
+                            </div>
+
+                            <div className="responsive-grid-2" style={{ gap: '12px', fontSize: '0.82rem' }}>
+                              <div>
+                                <label style={{ color: '#cbd5e1', display: 'block', marginBottom: '4px' }}>Category / Niche:</label>
+                                <select value={autoSchedule.ultra_category || '🎲 Random / All Categories'} onChange={(e) => setAutoSchedule({ ...autoSchedule, ultra_category: e.target.value })} style={{ width: '100%', padding: '8px', background: '#1e1738', border: '1px solid rgba(255,255,255,0.15)', color: '#fff', borderRadius: '8px' }}>
+                                  {ULTRA_CATEGORIES.map((cat, i) => (
+                                    <option key={i} value={cat}>{cat.substring(cat.indexOf(' ') + 1)}</option>
+                                  ))}
+                                </select>
+                              </div>
+
+                              <div>
+                                <label style={{ color: '#cbd5e1', display: 'block', marginBottom: '4px' }}>Video Size / Aspect Ratio:</label>
+                                <select 
+                                  value={autoSchedule.ultra_aspect_ratio || '16:9'} 
+                                  onChange={(e) => {
+                                    const newRatio = e.target.value;
+                                    const maxDur = newRatio === '9:16' ? 60 : 300;
+                                    const currentDur = autoSchedule.ultra_duration || 60;
+                                    setAutoSchedule({ 
+                                      ...autoSchedule, 
+                                      ultra_aspect_ratio: newRatio,
+                                      ultra_duration: Math.min(maxDur, Math.max(20, currentDur))
+                                    });
+                                  }} 
+                                  style={{ width: '100%', padding: '8px', background: '#1e1738', border: '1px solid rgba(255,255,255,0.15)', color: '#fff', borderRadius: '8px' }}
+                                >
+                                  <option value="16:9">📺 16:9 Landscape HD (1920×1080)</option>
+                                  <option value="9:16">📱 9:16 Vertical Shorts (1080×1920)</option>
+                                </select>
+                              </div>
+
+                              <div>
+                                <label style={{ color: '#cbd5e1', display: 'block', marginBottom: '4px' }}>Voice:</label>
+                                <select value={autoSchedule.ultra_voice || 'hi-IN-MadhurNeural'} onChange={(e) => setAutoSchedule({ ...autoSchedule, ultra_voice: e.target.value })} style={{ width: '100%', padding: '8px', background: '#1e1738', border: '1px solid rgba(255,255,255,0.15)', color: '#fff', borderRadius: '8px' }}>
+                                  <option value="hi-IN-MadhurNeural">Madhur (Male, Hindi)</option>
+                                  <option value="hi-IN-SwaraNeural">Swara (Female, Hindi)</option>
+                                  <option value="kokoro-hf_alpha">Kokoro Hindi Female (Alpha HQ)</option>
+                                  <option value="kokoro-hm_omega">Kokoro Hindi Male (Omega HQ)</option>
+                                  <option value="en-US-GuyNeural">Guy (Male, English)</option>
+                                  <option value="en-US-JennyNeural">Jenny (Female, English)</option>
+                                  <option value="kokoro-af_heart">Kokoro English Female (Heart HQ)</option>
+                                  <option value="kokoro-af_bella">Kokoro English Female (Bella Ultra HQ)</option>
+                                  <option value="kokoro-am_adam">Kokoro English Male (Adam HQ)</option>
+                                  <option value="kokoro-am_michael">Kokoro English Male (Michael Natural)</option>
+                                  <option value="kokoro-bf_emma">Kokoro British Female (Emma HQ)</option>
+                                  <option value="kokoro-bm_george">Kokoro British Male (George HQ)</option>
+                                </select>
+                              </div>
+
+                              <div>
+                                <label style={{ color: '#cbd5e1', display: 'block', marginBottom: '4px' }}>Daily Upload Time (24h):</label>
+                                <input 
+                                  type="time" 
+                                  value={autoSchedule.ultra_time || '21:00'} 
+                                  onChange={(e) => setAutoSchedule({ ...autoSchedule, ultra_time: e.target.value })}
+                                  style={{ width: '100%', padding: '8px', background: '#1e1738', border: '1px solid rgba(255,255,255,0.15)', color: '#fff', borderRadius: '8px' }}
+                                />
+                              </div>
+
+                              {(() => {
+                                const isUltraShort = (autoSchedule.ultra_aspect_ratio === '9:16');
+                                const maxUltraDur = isUltraShort ? 60 : 300;
+                                const labelText = isUltraShort ? "Ultra Duration (20s - 60s Max for Vertical Shorts):" : "Ultra Duration (20s - 300s / 5m Max):";
+                                return (
+                                  <div>
+                                    <label style={{ color: '#cbd5e1', display: 'block', marginBottom: '4px' }}>{labelText}</label>
+                                    <input 
+                                      type="number" 
+                                      min="20" 
+                                      max={maxUltraDur} 
+                                      value={autoSchedule.ultra_duration || (isUltraShort ? 60 : 60)} 
+                                      onChange={(e) => setAutoSchedule({ ...autoSchedule, ultra_duration: Math.min(maxUltraDur, Math.max(20, Number(e.target.value))) })}
+                                      style={{ width: '100%', padding: '8px', background: '#1e1738', border: '1px solid rgba(255,255,255,0.15)', color: '#fff', borderRadius: '8px' }}
+                                    />
+                                  </div>
+                                );
+                              })()}
+
+                              {(() => {
+                                const catLow = (autoSchedule.ultra_category || '').toLowerCase();
+                                const isCartoon = ['cartoon', 'anime', 'animation', 'character', 'comic'].some(k => catLow.includes(k));
+                                if (!isCartoon) {
+                                  return (
+                                    <>
+                                      <div>
+                                        {(() => {
+                                          const isUltraH = (autoSchedule.ultra_voice || '').startsWith('hi') || (autoSchedule.ultra_voice || '').includes('hf_') || (autoSchedule.ultra_voice || '').includes('hm_');
+                                          return (
+                                            <>
+                                              <label style={{ color: '#cbd5e1', display: 'block', marginBottom: '4px' }}>Font Family ({isUltraH ? 'Hindi' : 'English'}):</label>
+                                              <select value={autoSchedule.ultra_font || (isUltraH ? 'Ams Aaditya.ttf' : 'Arial.ttf')} onChange={(e) => setAutoSchedule({ ...autoSchedule, ultra_font: e.target.value })} style={{ width: '100%', padding: '8px', background: '#1e1738', border: '1px solid rgba(255,255,255,0.15)', color: '#fff', borderRadius: '8px' }}>
+                                                {(fontList && fontList.length > 0 ? fontList : ['Arial.ttf']).filter(f => {
+                                                  const isH = f.toLowerCase().startsWith("ams ") || f.toLowerCase().includes("devanagari");
+                                                  return isUltraH ? isH : !isH;
+                                                }).map((font, i) => {
+                                                  const isHindi = font.toLowerCase().startsWith("ams ") || font.toLowerCase().includes("devanagari");
+                                                  const fontClean = font.replace(/\.[^/.]+$/, "");
+                                                  return (
+                                                    <option key={i} value={font}>{isHindi ? `${fontClean} (Hindi)` : fontClean}</option>
+                                                  );
+                                                })}
+                                              </select>
+                                            </>
+                                          );
+                                        })()}
+                                      </div>
+
+                                      <div>
+                                        <label style={{ color: '#cbd5e1', display: 'block', marginBottom: '4px' }}>Subtitle Highlight Color:</label>
+                                        <select value={autoSchedule.ultra_color || 'yellow'} onChange={(e) => setAutoSchedule({ ...autoSchedule, ultra_color: e.target.value })} style={{ width: '100%', padding: '8px', background: '#1e1738', border: '1px solid rgba(255,255,255,0.15)', color: '#fff', borderRadius: '8px' }}>
+                                          <option value="yellow">🟡 Vivid Yellow</option>
+                                          <option value="#00FF00">🟢 Neon Green</option>
+                                          <option value="cyan">🔵 Cyan / Sky Blue</option>
+                                          <option value="#FFD700">🏆 Royal Gold</option>
+                                          <option value="#FFFFFF">⚪ Pure White</option>
+                                          <option value="#FF00FF">Magenta / Hot Pink</option>
+                                          <option value="#FF3333">🔥 Flame Red</option>
+                                        </select>
+                                      </div>
+                                    </>
+                                  );
+                                }
+                                return null;
+                              })()}
+                            </div>
+                          </>
+                        );
+                      })()}
                     </>
                   )}
                 </div>

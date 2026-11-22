@@ -11772,14 +11772,16 @@ def download_youtube_song_audio(
     song_title: Optional[str] = None,
     uploaded_audio_path: Optional[str] = None,
     target_dir: str = "temp_song",
-    desired_duration: int = 0
+    desired_duration: int = 0,
+    song_mood: str = "romantic"
 ) -> Dict[str, Any]:
     """
     Downloads official song audio from:
     1. User-Uploaded MP3 file (100% reliable)
     2. Direct Cloud Music CDN (Akamai stream - zero bot checks, full 320kbps master)
-    3. SoundCloud auto-fallback (bypasses Render datacenter IP botwall)
-    4. YouTube with optional session cookies
+    3. Category & Singer Dynamic Auto-Search (Picks top category hits for random singers)
+    4. SoundCloud auto-fallback (bypasses Render datacenter IP botwall)
+    5. YouTube with optional session cookies
     """
     os.makedirs(target_dir, exist_ok=True)
     target_path = os.path.join(target_dir, "master_song_audio.mp3")
@@ -11824,17 +11826,118 @@ def download_youtube_song_audio(
             clean_singer = meta.get("author") or meta.get("query")
             clean_title = meta.get("clean_title") or ""
 
-    if not clean_singer and not clean_title:
-        clean_singer = "Darshan Raval"
-        clean_title = "Tera Zikr"
+    # Normalize category / mood
+    eff_mood = str(song_mood or 'romantic').lower().strip()
+    if eff_mood in ("sed", "dard", "broken"): eff_mood = "sad"
+    elif eff_mood in ("love",): eff_mood = "romantic"
+    elif eff_mood in ("bhakti", "divine"): eff_mood = "devotional"
+    elif eff_mood in ("funk", "drift"): eff_mood = "phonk"
+
+    # Category-specific curated top hits pool for Random Singer mode
+    CATEGORY_TOP_HITS = {
+        "sad": [
+            ("Arijit Singh", "Channa Mereya"),
+            ("B Praak", "Filhall"),
+            ("Atif Aslam", "Jeena Jeena"),
+            ("Vishal Mishra", "Pehle Bhi Main"),
+            ("Jubin Nautiyal", "Wafa Na Raas Aayee"),
+            ("Arijit Singh", "Hamari Adhuri Kahani"),
+            ("Stebin Ben", "Thoda Thoda Pyaar Sad"),
+            ("Akhil Sachdeva", "Humsafar"),
+            ("Anuv Jain", "Husn"),
+            ("B Praak", "Mann Bharryaa 2.0"),
+            ("Arijit Singh", "Khairiyat"),
+            ("Vishal Mishra", "Deewaniyat"),
+            ("Atif Aslam", "Tu Jaane Na"),
+            ("Arijit Singh", "Agar Tum Saath Ho"),
+            ("Mustafa Zahid", "Toh Phir Aao")
+        ],
+        "romantic": [
+            ("Arijit Singh", "Kesariya"),
+            ("Darshan Raval", "Tera Zikr"),
+            ("Atif Aslam", "Pehli Dafa"),
+            ("Arijit Singh", "Tum Hi Ho"),
+            ("Vishal Mishra", "Pehle Bhi Main"),
+            ("Jubin Nautiyal", "Raataan Lambiyan"),
+            ("Shreya Ghoshal", "Sunn Raha Hai"),
+            ("Armaan Malik", "Bol Do Na Zara"),
+            ("Darshan Raval", "Mahiya Jinna Sohna"),
+            ("Arijit Singh", "Apna Bana Le"),
+            ("Atif Aslam", "Tere Sang Yaara"),
+            ("Darshan Raval", "Asal Mein"),
+            ("Vishal Mishra", "Kaise Hua")
+        ],
+        "devotional": [
+            ("Hansraj Raghuwanshi", "Shiv Kailasho Ke Vasi"),
+            ("Jubin Nautiyal", "Meri Maa Ke Barabar Koi Nahi"),
+            ("Hansraj Raghuwanshi", "Mera Bhola Hai Bhandari"),
+            ("Anuradha Paudwal", "Om Jai Jagdish Hare"),
+            ("Gulshan Kumar", "Main Balak Tu Mata"),
+            ("Jubin Nautiyal", "Shri Krishna Govind Hare Murari"),
+            ("Lakhbir Singh Lakkha", "Are Dwarpalo Kanhaiya Se Keh Do"),
+            ("Hansraj Raghuwanshi", "Radhe Radhe"),
+            ("Gulshan Kumar", "Shiv Shankar Ko Jisne Pooja"),
+            ("Jubin Nautiyal", "Kabir Amritwani")
+        ],
+        "party": [
+            ("Badshah", "Jugnu"),
+            ("Yo Yo Honey Singh", "Love Dose"),
+            ("Diljit Dosanjh", "Lover"),
+            ("AP Dhillon", "Excuses"),
+            ("Guru Randhawa", "High Rated Gabru"),
+            ("Hardy Sandhu", "Kya Baat Ay"),
+            ("Badshah", "Kala Chashma"),
+            ("Diljit Dosanjh", "G.O.A.T."),
+            ("Yo Yo Honey Singh", "Dheere Dheere"),
+            ("Guru Randhawa", "Lahore")
+        ],
+        "lofi": [
+            ("Anuv Jain", "Baarishein"),
+            ("Jasleen Royal", "Din Shagna Da"),
+            ("Prateek Kuhad", "Kasoor"),
+            ("Zaeden", "tere bina"),
+            ("Anuv Jain", "Alag Aasmaan"),
+            ("Jasleen Royal", "Heeriye"),
+            ("Prateek Kuhad", "cold/mess"),
+            ("Anuv Jain", "Gul")
+        ],
+        "acoustic": [
+            ("Prateek Kuhad", "cold/mess"),
+            ("Anuv Jain", "Baarishein"),
+            ("The Local Train", "Choo Lo"),
+            ("Jasleen Royal", "Kho Gaye Hum Kahan"),
+            ("Twin Strings", "Dhalti Rahe"),
+            ("Prateek Kuhad", "Kasoor"),
+            ("Anuv Jain", "Mazaak"),
+            ("The Local Train", "Aaoge Tum Kabhi")
+        ],
+        "phonk": [
+            ("Kordhell", "Murder In My Mind"),
+            ("DVRST", "Close Eyes"),
+            ("Hensonn", "Sahara"),
+            ("Pharmacist", "North Memphis"),
+            ("Playaphonk", "Phonky Town"),
+            ("KSLV Noh", "Disaster"),
+            ("SXID", "Shadow Phonk")
+        ]
+    }
+
+    import random
+    is_random_singer_request = (not clean_singer and not clean_title) or (clean_singer.lower() in ("random", "random singer", "any", "all"))
+    if is_random_singer_request:
+        hits_pool = CATEGORY_TOP_HITS.get(eff_mood, CATEGORY_TOP_HITS["romantic"])
+        picked_singer, picked_song = random.choice(hits_pool)
+        clean_singer = picked_singer
+        clean_title = picked_song
+        print(f"🎲 [Song Engine] Random Singer Mode Active: Auto-selected '{clean_singer} - {clean_title}' for '{eff_mood}' mood!")
 
     norm_singer = normalize_singer_name(clean_singer)
     active_singer = norm_singer or clean_singer
-    print(f"🎙️ [Song Engine] Artist: '{active_singer}' (Input: '{clean_singer}') | Specific Song: '{clean_title or '(Random Artist Hit)'}'...")
+    print(f"🎙️ [Song Engine] Artist: '{active_singer}' (Input: '{clean_singer}') | Specific Song: '{clean_title or '(Random Artist Hit)'}' | Mood: '{eff_mood}'...")
 
     # Attempt 1: Direct Cloud Music CDN (Akamai Stream - Zero Bot Checks on Render)
     try:
-        import urllib.request, urllib.parse, ssl, json, random
+        import urllib.request, urllib.parse, ssl, json
         ctx = ssl._create_unverified_context() if hasattr(ssl, '_create_unverified_context') else None
 
         search_queries = []
@@ -11844,14 +11947,17 @@ def download_youtube_song_audio(
             search_queries.append(f"{clean_title} {active_singer}".strip())
             if clean_singer and clean_singer != active_singer:
                 search_queries.append(f"{clean_singer} {clean_title}".strip())
-            # Secondary fallback: song title alone (candidate scorer strictly rejects mismatched singers!)
             search_queries.append(clean_title)
-            # Tertiary fallback: singer name alone
             search_queries.append(active_singer)
         elif clean_title:
             search_queries.append(clean_title)
-        else:
+        elif active_singer:
+            # Specific singer provided without song name -> search that singer's top hits in this mood!
+            search_queries.append(f"{active_singer} {eff_mood} songs".strip())
+            search_queries.append(f"{active_singer} hit song".strip())
             search_queries.append(active_singer)
+        else:
+            search_queries.append(f"{eff_mood} hindi songs hits".strip())
 
         results = []
         seen_ids = set()
@@ -12489,7 +12595,8 @@ def build_full_song_video(
         song_title=song_title,
         uploaded_audio_path=uploaded_audio_path,
         target_dir=job_dir,
-        desired_duration=req_dur
+        desired_duration=req_dur,
+        song_mood=song_mood
     )
     master_audio_path = audio_res.get('audio_path')
 
