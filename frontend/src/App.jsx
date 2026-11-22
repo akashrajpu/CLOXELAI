@@ -47,7 +47,10 @@ const ULTRA_CATEGORIES = [
   ...STANDARD_CATEGORIES
 ];
 
-const CATEGORIES = STANDARD_CATEGORIES;
+const CATEGORIES = [
+  '✨ After Effect Video',
+  ...STANDARD_CATEGORIES
+];
 
 export const formatUserFriendlyError = (rawError) => {
   if (!rawError) {
