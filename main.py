@@ -1128,6 +1128,8 @@ def process_single_user_schedule(user: dict, now_ist: datetime, today_str: str):
                             s_title = fresh_sched.get("ultra_song_title") or ""
                             mood = fresh_sched.get("ultra_song_mood") or "romantic"
                             vis_mode = fresh_sched.get("ultra_song_visual_mode") or "motion"
+                            if mood == "phonk" and vis_mode not in ["beat", "video_beat", "video_simple_visualization"]:
+                                vis_mode = "beat"
                             vis_style = fresh_sched.get("ultra_phonk_visualizer_style") or "random"
 
                             song_topic_title = f"{singer} {s_title}".strip() if singer else f"{mood.title()} AI Song Video"

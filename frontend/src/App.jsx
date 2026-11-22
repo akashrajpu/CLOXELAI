@@ -4430,7 +4430,7 @@ function App() {
                                         setAutoSchedule({
                                           ...autoSchedule,
                                           ultra_song_mood: newMood,
-                                          ultra_song_visual_mode: (newMood === 'phonk') ? 'beat' : (autoSchedule.ultra_song_visual_mode || 'motion')
+                                          ultra_song_visual_mode: (newMood === 'phonk' && !['beat', 'video_beat'].includes(autoSchedule.ultra_song_visual_mode)) ? 'beat' : (autoSchedule.ultra_song_visual_mode || 'motion')
                                         });
                                       }}
                                       style={{
@@ -4452,34 +4452,48 @@ function App() {
 
                               {/* 3. Visual Creation Mode */}
                               <div style={{ marginBottom: '14px', background: 'rgba(15, 23, 42, 0.6)', padding: '12px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.08)' }}>
-                                <label style={{ display: 'block', fontSize: '0.84rem', fontWeight: 'bold', color: '#e2e8f0', marginBottom: '8px' }}>
-                                  3. Visual Creation Mode
-                                </label>
-                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '8px' }}>
-                                  {[
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px', flexWrap: 'wrap', gap: '6px' }}>
+                                  <label style={{ fontSize: '0.84rem', fontWeight: 'bold', color: '#e2e8f0', margin: 0 }}>
+                                    3. Visual Creation Mode
+                                  </label>
+                                  {autoSchedule.ultra_song_mood === 'phonk' && (
+                                    <span style={{ fontSize: '0.72rem', color: '#f43f5e', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                      🔥 Phonk Beat & Bass Exclusive (Photo vs Video)
+                                    </span>
+                                  )}
+                                </div>
+                                <div style={{ display: 'grid', gridTemplateColumns: autoSchedule.ultra_song_mood === 'phonk' ? 'repeat(auto-fit, minmax(200px, 1fr))' : 'repeat(auto-fit, minmax(130px, 1fr))', gap: '8px' }}>
+                                  {(autoSchedule.ultra_song_mood === 'phonk' ? [
+                                    { id: 'beat', label: 'Simple Beat Visualizer', icon: '⚡', desc: 'Pinterest 4K JDM/Anime Photo + Center Logo + 808 Bass Shake' },
+                                    { id: 'video_beat', label: 'Video Simple Visualization', icon: '🎥', desc: 'Pinterest 4K Cartoon Anime Video Loop + Center Logo + 808 Shake' },
+                                  ] : [
                                     { id: 'clips', label: 'Stock Video Clips', icon: '🎬', desc: 'Pexels 4K/HD video clips' },
                                     { id: 'motion', label: 'Ultra 3D Photo Motion', icon: '✨', desc: 'HD photos with motion cuts' },
                                     { id: 'beat', label: 'Simple Beat Visualizer', icon: '⚡', desc: 'Photo BG + Center Logo FX' },
                                     { id: 'video_beat', label: 'Video Simple Visualization', icon: '🎥', desc: 'Cartoon Video BG + Logo FX' },
-                                  ].map(v => (
-                                    <button
-                                      key={v.id}
-                                      type="button"
-                                      onClick={() => setAutoSchedule({ ...autoSchedule, ultra_song_visual_mode: v.id })}
-                                      style={{
-                                        padding: '8px 10px',
-                                        borderRadius: '8px',
-                                        border: (autoSchedule.ultra_song_visual_mode || 'motion') === v.id ? '2px solid #a855f7' : '1px solid rgba(255,255,255,0.12)',
-                                        background: (autoSchedule.ultra_song_visual_mode || 'motion') === v.id ? 'rgba(168,85,247,0.3)' : 'rgba(15,23,42,0.6)',
-                                        color: '#fff',
-                                        textAlign: 'left',
-                                        cursor: 'pointer'
-                                      }}
-                                    >
-                                      <div style={{ fontWeight: 'bold', fontSize: '0.80rem' }}>{v.icon} {v.label}</div>
-                                      <div style={{ fontSize: '0.68rem', color: '#cbd5e1' }}>{v.desc}</div>
-                                    </button>
-                                  ))}
+                                  ]).map(v => {
+                                    const effectiveVis = (autoSchedule.ultra_song_mood === 'phonk' && !['beat', 'video_beat'].includes(autoSchedule.ultra_song_visual_mode)) ? 'beat' : (autoSchedule.ultra_song_visual_mode || 'motion');
+                                    const isSel = effectiveVis === v.id;
+                                    return (
+                                      <button
+                                        key={v.id}
+                                        type="button"
+                                        onClick={() => setAutoSchedule({ ...autoSchedule, ultra_song_visual_mode: v.id })}
+                                        style={{
+                                          padding: '8px 10px',
+                                          borderRadius: '8px',
+                                          border: isSel ? '2px solid #a855f7' : '1px solid rgba(255,255,255,0.12)',
+                                          background: isSel ? 'rgba(168,85,247,0.3)' : 'rgba(15,23,42,0.6)',
+                                          color: '#fff',
+                                          textAlign: 'left',
+                                          cursor: 'pointer'
+                                        }}
+                                      >
+                                        <div style={{ fontWeight: 'bold', fontSize: '0.80rem' }}>{v.icon} {v.label}</div>
+                                        <div style={{ fontSize: '0.68rem', color: '#cbd5e1' }}>{v.desc}</div>
+                                      </button>
+                                    );
+                                  })}
                                 </div>
                               </div>
 
