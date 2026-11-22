@@ -298,6 +298,64 @@ CONCEPT_MAP = {
     "sansad": "parliament building capitol democracy",
     "संसद": "parliament building capitol democracy",
     "shaktishali": "powerful mighty colossal majestic",
+
+    # Comprehensive Historical, Civilizational, Modern & Constitutional Expansions
+    "सभ्यताओं": "ancient civilization indus valley majestic heritage temples architecture",
+    "सभ्यता": "ancient civilization indus valley majestic heritage temples architecture",
+    "सभ्यताएं": "ancient civilization indus valley majestic heritage temples architecture",
+    "civilization": "ancient civilization indus valley majestic heritage temples architecture",
+    "हजारों सालों": "ancient history thousands of years golden era",
+    "हजारों": "ancient historical heritage thousands of years",
+    "आक्रमणों": "foreign invasion historical conquerors medieval warfare battle",
+    "आक्रमण": "foreign invasion historical conquerors medieval warfare battle",
+    "गुलामी": "colonial oppression captivity chains historical era",
+    "गुलाम": "colonial oppression captivity historical era",
+    "समृद्ध": "flourishing prosperous golden era rich heritage",
+    "राजाओं": "royal ancient maharajas kings throne dynasty emperor",
+    "साम्राज्यों": "grand royal empire ancient dynasties kingdoms majestic",
+    "कहानियां": "legendary historical saga epic chronicle",
+    "दास्तान": "epic historical chronicle long journey",
+    "सत्ता": "royal throne power crown emperor palace",
+    "बदलाव": "historical transformation revolution new era",
+    "अंग्रेजों": "british colonial raj east india company 18th century historical fleet",
+    "अंग्रेज": "british colonial raj east india company historical era",
+    "ब्रिटिश": "british empire colonial rule historical fleet maps",
+    "प्रभाव": "expanding colonial influence historical maps empire",
+    "अधीन": "colonial dominion historical empire rule",
+    "विद्रोह": "historic revolt rebellion 1857 soldiers freedom fighters",
+    "प्रथम स्वतंत्रता संग्राम": "first war of independence 1857 freedom struggle battle",
+    "विभाजन": "historic partition of india 1947 refugee migration historical documentary",
+    "लाखों लोगों": "millions of people historical migration documentary",
+    "लाखों": "millions of people historical migration documentary",
+    "संविधान": "constitution of india preamble supreme court sacred law book",
+    "लोकतांत्रिक": "democratic sovereign republic parliament citizens voting",
+    "गणराज्य": "sovereign republic celebration national emblem ashoka",
+    "विज्ञान": "modern science laboratory research technology innovation",
+    "तकनीक": "modern advanced technology digital tech innovation",
+    "अंतरिक्ष": "isro satellite rocket launch space cosmos galaxy exploration",
+    "अर्थव्यवस्था": "modern economy financial growth stock market city skyline",
+    "पहचान": "global recognition international pride modern power",
+    "सैन्य शक्ति": "indian military armed forces army tanks missiles defense warship",
+    "सैन्य": "indian military armed forces army tanks missiles defense warship",
+    "शक्ति": "powerful national strength military defense force",
+    "आर्थिक विकास": "modern economic growth city skyscrapers financial power infrastructure",
+    "आर्थिक": "modern economic growth city skyscrapers financial power infrastructure",
+    "विकास": "infrastructure high-tech modern development cityscape",
+    "लोकतंत्र": "democracy parliament voting citizens people rights freedom",
+    "नागरिकों": "proud citizens people of india unity diversity democracy",
+    "नागरिक": "proud citizen people of india democracy",
+    "अधिकार": "fundamental citizen rights human freedom equality law",
+    "न्याय व्यवस्था": "supreme court justice scales balance lady justice law and order",
+    "न्याय": "supreme court justice scales balance lady justice law and order",
+    "व्यवस्था": "legal judicial system supreme court constitution law",
+    "संस्थाएं": "national democratic institutions parliament supreme court ashoka pillar",
+    "संस्थान": "national democratic institutions parliament supreme court",
+    "संस्था": "national democratic institutions parliament supreme court",
+    "सवाल": "deep philosophical mystery question thinker reflection",
+    "कहानी": "epic historical journey narrative chronicle",
+    "अगला अध्याय": "futuristic rising india new chapter golden era horizon",
+    "आने वाला समय": "future vision rising nation sunrise golden horizon",
+    "भविष्य": "futuristic high-tech modern india shining horizon",
     "शक्तिशाली": "powerful mighty colossal majestic",
     "dushman": "enemy fierce rival opponent",
     "दुश्मन": "enemy fierce rival opponent",
@@ -514,87 +572,81 @@ ENG_VISUAL_STOPS = {
 
 def translate_to_visual_english(text: str, topic: str = "") -> str:
     """
-    Translates Hindi and Hinglish script/scene text and topic into rich, descriptive English visual keywords
+    Translates Hindi and Hinglish script/scene text into rich, highly descriptive English visual keywords (8-12 words)
     for Pinterest and web media search in Ultra After Effects mode.
-    Guarantees 100% English keywords without Devanagari or raw Hinglish fragments.
+    Guarantees detailed, scene-specific English visual phrases covering micro-details,
+    without generic topic overshadowing.
     """
     raw = (text or '').strip()
     topic_raw = (topic or '').strip()
     if not raw and not topic_raw:
         return "cinematic animation"
 
-    has_devanagari = bool(re.search(r'[\u0900-\u097F]', raw + ' ' + topic_raw))
-    words = [w.lower().strip('.,!?:;"\'()[]{}') for w in (raw + ' ' + topic_raw).split()]
-    has_hinglish = any(w in HINDI_STOPWORDS for w in words) or any(w in CONCEPT_MAP for w in words)
+    has_devanagari = bool(re.search(r'[\u0900-\u097F]', raw))
+    raw_lower = raw.lower()
 
-    translated_text = raw
-    translated_topic = topic_raw
+    translated_scene_text = raw
+    
+    # 1. Live Dynamic Translation for arbitrary Hindi/Hinglish text
+    if has_devanagari or any(w in raw_lower.split() for w in HINDI_STOPWORDS):
+        # Try Google Translate first (most accurate for complete sentences)
+        try:
+            g_url = 'https://translate.googleapis.com/translate_a/single'
+            g_params = {'client': 'gtx', 'sl': 'auto', 'tl': 'en', 'dt': 't', 'q': raw[:280]}
+            g_headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}
+            g_resp = requests.get(g_url, params=g_params, headers=g_headers, timeout=3.5)
+            if g_resp.status_code == 200:
+                g_data = g_resp.json()
+                g_tr = "".join([segment[0] for segment in g_data[0] if segment and segment[0]])
+                if g_tr and g_tr.strip():
+                    translated_scene_text = g_tr.strip()
+        except Exception:
+            pass
 
-    if has_devanagari or has_hinglish:
-        for target, src in [('topic', topic_raw), ('text', raw)]:
-            if not src:
-                continue
-            src_dev = bool(re.search(r'[\u0900-\u097F]', src))
-            src_words = [w.lower().strip('.,!?:;"\'()[]{}') for w in src.split()]
-            src_hing = any(w in HINDI_STOPWORDS for w in src_words)
-            if src_dev or src_hing:
-                # 1. Primary Live Dynamic Translation API: MyMemory (Translates arbitrary new words/sentences)
-                try:
-                    url = 'https://api.mymemory.translated.net/get'
-                    params = {'q': src[:250], 'langpair': 'hi|en'}
-                    resp = requests.get(url, params=params, timeout=3.5)
-                    if resp.status_code == 200:
-                        tr = resp.json().get('responseData', {}).get('translatedText', '')
-                        if tr and not tr.startswith('MYMEMORY WARNING') and tr.strip():
-                            if target == 'topic':
-                                translated_topic = tr.strip()
-                            else:
-                                translated_text = tr.strip()
-                except Exception:
-                    pass
+        # Secondary API: MyMemory
+        if translated_scene_text == raw:
+            try:
+                url = 'https://api.mymemory.translated.net/get'
+                params = {'q': raw[:250], 'langpair': 'hi|en'}
+                resp = requests.get(url, params=params, timeout=3.0)
+                if resp.status_code == 200:
+                    tr = resp.json().get('responseData', {}).get('translatedText', '')
+                    if tr and not tr.startswith('MYMEMORY WARNING') and tr.strip():
+                        translated_scene_text = tr.strip()
+            except Exception:
+                pass
 
-                # 2. Secondary Live Dynamic Translation Fallback: Google Translate (For any brand new Hindi/Hinglish phrase)
-                if (target == 'topic' and translated_topic == topic_raw) or (target == 'text' and translated_text == raw):
-                    try:
-                        g_url = 'https://translate.googleapis.com/translate_a/single'
-                        g_params = {'client': 'gtx', 'sl': 'auto', 'tl': 'en', 'dt': 't', 'q': src[:250]}
-                        g_headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}
-                        g_resp = requests.get(g_url, params=g_params, headers=g_headers, timeout=3.0)
-                        if g_resp.status_code == 200:
-                            g_data = g_resp.json()
-                            g_tr = "".join([segment[0] for segment in g_data[0] if segment and segment[0]])
-                            if g_tr and g_tr.strip():
-                                if target == 'topic':
-                                    translated_topic = g_tr.strip()
-                                else:
-                                    translated_text = g_tr.strip()
-                    except Exception:
-                        pass
-
-    # 2. Extract concepts from tokens BEFORE stripping non-ASCII (so Devanagari and Hinglish match CONCEPT_MAP)
-    combined = f'{translated_topic} {translated_text}'
-    tokens = [t.strip('.,!?:;"\'()[]{}') for t in combined.split()]
-    clean_kw = []
+    # 2. Extract concepts directly from the scene text (sorted longest key first)
+    extracted_visual_words = []
     seen = set()
 
-    for t in tokens:
-        tl = t.lower()
-        if len(tl) < 2 or tl in ENG_VISUAL_STOPS or tl in HINDI_STOPWORDS:
-            continue
-        if tl in CONCEPT_MAP:
-            for cw in CONCEPT_MAP[tl].split()[:2]:
-                if cw.lower() not in seen:
-                    seen.add(cw.lower())
-                    clean_kw.append(cw)
-        else:
-            ascii_word = re.sub(r'[^\x00-\x7F]+', '', t).strip()
-            if ascii_word and len(ascii_word) >= 2 and ascii_word.lower() not in ENG_VISUAL_STOPS and ascii_word.lower() not in HINDI_STOPWORDS:
-                if ascii_word.lower() not in seen:
-                    seen.add(ascii_word.lower())
-                    clean_kw.append(ascii_word)
+    sorted_concept_keys = sorted(CONCEPT_MAP.keys(), key=lambda x: len(x), reverse=True)
+    for ck in sorted_concept_keys:
+        if ck in raw_lower:
+            concept_expansion = CONCEPT_MAP[ck]
+            for cw in concept_expansion.split():
+                cw_l = cw.lower()
+                if cw_l not in seen and cw_l not in ENG_VISUAL_STOPS:
+                    seen.add(cw_l)
+                    extracted_visual_words.append(cw)
 
-    res = ' '.join(clean_kw[:5]).strip()
-    return res or (re.sub(r'[^\x00-\x7F]+', '', translated_topic).strip() or "cinematic animation")
+    # 3. If live translation succeeded, extract substantive English visual words from translated text
+    if translated_scene_text and translated_scene_text != raw:
+        tr_words = [re.sub(r'[^a-zA-Z0-9]', '', w) for w in translated_scene_text.split()]
+        for tw in tr_words:
+            tw_l = tw.lower()
+            if len(tw_l) >= 3 and tw_l not in seen and tw_l not in ENG_VISUAL_STOPS and tw_l not in HINDI_STOPWORDS:
+                seen.add(tw_l)
+                extracted_visual_words.append(tw)
+
+    # 4. Context anchor (e.g. India) if not already present
+    if "india" not in seen and topic_raw and "india" in topic_raw.lower():
+        extracted_visual_words.append("India")
+        seen.add("india")
+
+    # Retain up to 10-12 rich, descriptive words (instead of previous 5 words)
+    res = ' '.join(extracted_visual_words[:11]).strip()
+    return res or (re.sub(r'[^a-zA-Z0-9\s]', '', translated_scene_text).strip() or "cinematic animation")
 
 
 PEXELS_API_KEY = os.getenv("PEXELS_API_KEY", "jqGZN1a4uHQFpxqdFAdVaD1l1eyjW1kzHqtdlNJ1TPkSmOEXcbAL7yhN")

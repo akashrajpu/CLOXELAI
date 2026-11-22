@@ -2266,40 +2266,39 @@ def full_process(req: VideoRequest, job_id: str):
                         if p2_files and os.path.exists(p2_files[0]):
                             v_paths.append(p2_files[0])
                             
-                    elif is_short_line:
-                        # Short line: Translate Hindi/Hinglish script to visual English -> Fetch 1 Pinterest photo with 'cinematic animation photo'
-                        en_visual_phrase = translate_to_visual_english(scene_text or scene_kw, main_topic) if translate_to_visual_english else ""
-                        if not en_visual_phrase:
-                            clean_t = " ".join([w for w in (req.topic or main_topic).split() if w.lower() not in ["ancient", "historical", "deep", "outer"]][:3]) or main_topic
-                            clean_p = scene_kw or main_topic
-                            en_visual_phrase = f"{clean_t} {clean_p}".strip()
-                        photo_term = f"{en_visual_phrase} cinematic animation photo".strip()
-                        print(f"📸 [Ultra After Effects Scene {i+1}] Short Line detected ({len(words)} words)! Translated Pinterest {orientation.upper()} Photo: '{photo_term}' (Pinterest Only)...")
-                        p_files = fetch_pinterest_photos_via_gallery_dl(photo_term, limit=1, output_dir=job_dir, used_media_ids=used_media_ids, orientation=orientation)
-                        if p_files and os.path.exists(p_files[0]):
-                            v_paths.append(p_files[0])
                     else:
-                        # Longer narrative: Translate Hindi/Hinglish script to visual English -> Fetch 1 Pinterest Video with 'cinematic animation video'
+                        # Rich Script-Driven Detail Mode (Both Video & Photo fetched for micro-detail coverage)
                         en_visual_phrase = translate_to_visual_english(scene_text or scene_kw, main_topic) if translate_to_visual_english else ""
                         if not en_visual_phrase:
                             clean_t = " ".join([w for w in (req.topic or main_topic).split() if w.lower() not in ["ancient", "historical", "deep", "outer"]][:3]) or main_topic
                             clean_p = scene_kw or main_topic
                             en_visual_phrase = f"{clean_t} {clean_p}".strip()
+
                         vid_term = f"{en_visual_phrase} cinematic animation video".strip()
-                        print(f"🎬 [Ultra After Effects Scene {i+1}] Narrative Video Line detected ({len(words)} words)! Translated Pinterest {orientation.upper()} Video: '{vid_term}' (Pinterest Only)...")
+                        photo_term = f"{en_visual_phrase} cinematic animation photo".strip()
+                        print(f"🎬 [Ultra After Effects Scene {i+1}] Micro-Detail Dual Search (Video & Photo) with Rich Script Keywords ({len(en_visual_phrase.split())} words): '{en_visual_phrase}'...")
+
+                        # 1. Fetch Pinterest Video for cinematic motion
                         vid_files = fetch_pinterest_videos_via_gallery_dl(vid_term, limit=1, output_dir=job_dir, used_media_ids=used_media_ids, orientation=orientation)
-                        if vid_files and os.path.exists(vid_files[0]):
+                        # 2. Fetch Pinterest HD Photo for micro-detail clarity
+                        p_files = fetch_pinterest_photos_via_gallery_dl(photo_term, limit=1, output_dir=job_dir, used_media_ids=used_media_ids, orientation=orientation)
+
+                        if vid_files and os.path.exists(vid_files[0]) and os.path.getsize(vid_files[0]) > 5000:
                             v_paths.append(vid_files[0])
-                                
-                    # If Pinterest video was not found for narrative, fall back to Pinterest photo with 'cinematic animation photo' (STRICTLY PINTEREST ONLY)
+                            # If detailed photo also fetched, keep as secondary cut/overlay asset
+                            if p_files and os.path.exists(p_files[0]) and os.path.getsize(p_files[0]) > 1000:
+                                v_paths.append(p_files[0])
+                        elif p_files and os.path.exists(p_files[0]) and os.path.getsize(p_files[0]) > 1000:
+                            v_paths.append(p_files[0])
+
+                    # Guaranteed Safety Fallback if Pinterest returned zero assets
                     if not v_paths or not os.path.exists(v_paths[0]) or os.path.getsize(v_paths[0]) < 1000:
                         fb_photo_term = f"{en_visual_phrase} cinematic animation photo".strip()
-                        print(f"🔄 [Ultra After Effects Scene {i+1}] Pinterest Video fallback -> Fetching Pinterest {orientation.upper()} Photo: '{fb_photo_term}'...")
+                        print(f"🔄 [Ultra After Effects Scene {i+1}] Fallback -> Fetching Pinterest {orientation.upper()} Photo: '{fb_photo_term}'...")
                         p_fb_files = fetch_pinterest_photos_via_gallery_dl(fb_photo_term, limit=1, output_dir=job_dir, used_media_ids=used_media_ids, orientation=orientation)
                         if p_fb_files and os.path.exists(p_fb_files[0]):
                             v_paths = [p_fb_files[0]]
                         else:
-                            # Ultimate Pinterest fallback
                             en_topic_only = translate_to_visual_english(main_topic, "") if translate_to_visual_english else main_topic
                             ult_p = fetch_pinterest_photos_via_gallery_dl(f"{en_topic_only} cinematic animation photo", limit=1, output_dir=job_dir, used_media_ids=used_media_ids, orientation=orientation)
                             if ult_p and os.path.exists(ult_p[0]):
