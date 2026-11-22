@@ -497,14 +497,17 @@ def fetch_videos(keyword, job_id, count=1, orientation="portrait", category="Ran
     is_ultra_mode = (str(video_type).lower() == "ultra")
     is_after_effects = any(k in cat_lower for k in ["after effect", "after iffect", "after effects", "vfx", "motion graphic"])
 
-    # Translate Hinglish/Hindi concepts to rich English and remove stop words like 'यह' or 'woh'
-    translated_kw = translate_query(keyword)
-    noise_words = {"category", "random", "concept", "impact"}.union(HINDI_STOPWORDS)
-    raw_words = [w for w in translated_kw.replace('🎨', '').replace('🎲', '').replace('✍️', '').split() if w.lower() not in noise_words and w not in noise_words]
-    # Filter out non-ASCII tokens (Devanagari Hindi characters) if English words are available
-    ascii_words = [w for w in raw_words if w.isascii() and any(c.isalnum() for c in w)]
-    clean_words = ascii_words if ascii_words else raw_words
-    video_query = " ".join(clean_words) if clean_words else (topic or keyword)
+    # Translate Hinglish/Hindi concepts to rich English visual keywords
+    try:
+        from web_image_fetcher import translate_to_visual_english
+        video_query = translate_to_visual_english(keyword, topic)
+    except Exception:
+        translated_kw = translate_query(keyword)
+        noise_words = {"category", "random", "concept", "impact"}.union(HINDI_STOPWORDS)
+        raw_words = [w for w in translated_kw.replace('🎨', '').replace('🎲', '').replace('✍️', '').split() if w.lower() not in noise_words and w not in noise_words]
+        ascii_words = [w for w in raw_words if w.isascii() and any(c.isalnum() for c in w)]
+        clean_words = ascii_words if ascii_words else raw_words
+        video_query = " ".join(clean_words) if clean_words else (topic or keyword)
 
     # For Ultra Mode: fetch Pinterest HD Videos for After Effects (No API), Pinterest HD Pins for others
     if is_ultra_mode and is_after_effects:
@@ -614,15 +617,15 @@ def fetch_videos(keyword, job_id, count=1, orientation="portrait", category="Ran
             contextual_fallbacks.append(f"{category} cinematic footage")
         if clean_words:
             contextual_fallbacks.append(clean_words[0])
-        if orientation == "landscape" or str(video_type).lower() == "long":
-            contextual_fallbacks.extend(["cinematic documentary landscape", "atmospheric wide angle scene", "epic landscape backdrop"])
-        else:
-            contextual_fallbacks.extend(["cinematic atmospheric backdrop", "abstract background motion"])
+        # Strictly script-driven fallbacks only (no generic clouds/grass/backdrops)
+        if video_query:
+            contextual_fallbacks.append(f"{video_query} cinematic")
+            contextual_fallbacks.append(f"{video_query} animation")
 
     for fallback_kw in contextual_fallbacks:
         if fallback_kw.lower() not in seen_q:
             try:
-                print(f"🔄 Retrying with contextual fallback video clip keyword: '{fallback_kw}'...")
+                print(f"🔄 Retrying with script-driven video clip keyword: '{fallback_kw}'...")
                 if is_after_effects:
                     clips = fetch_pinterest_videos(fallback_kw, job_id, count=count, orientation=orientation, used_media_ids=used_media_ids)
                 else:
@@ -634,23 +637,19 @@ def fetch_videos(keyword, job_id, count=1, orientation="portrait", category="Ran
             except Exception:
                 continue
 
-    if is_ultra_mode and is_after_effects:
-        # Ultimate fallback on Pinterest: fetch Pinterest photo with 'graphics photo'
-        try:
-            from pinterest_downloader import fetch_pinterest_photos_via_gallery_dl
-            t_dir = os.path.dirname(job_id) if job_id else "."
-            fb_photo = fetch_pinterest_photos_via_gallery_dl(f"{keyword} graphics photo", limit=count, output_dir=t_dir)
-            if fb_photo:
-                return fb_photo
-        except Exception as e_pfb:
-            print(f"⚠️ [Pinterest Photo Fallback Skip]: {e_pfb}")
-    elif is_ultra_mode and not is_after_effects:
-        try:
-            pins = fetch_pinterest_pins(keyword, job_id, count=count, orientation=orientation, used_media_ids=used_media_ids)
-            if pins:
-                return pins
-        except Exception as e_p2:
-            print(f"⚠️ [Pinterest Fallback Skip]: {e_p2}")
+    # High-Quality Graphical Pinterest Fallback for all modes (avoids generic random footage)
+    try:
+        from pinterest_downloader import fetch_pinterest_videos_via_gallery_dl, fetch_pinterest_photos_via_gallery_dl
+        t_dir = os.path.dirname(job_id) if job_id else "."
+        pin_q = f"{video_query} cinematic animation"
+        pin_v = fetch_pinterest_videos_via_gallery_dl(f"{pin_q} video", limit=count, output_dir=t_dir, orientation=orientation, used_media_ids=used_media_ids)
+        if pin_v and os.path.exists(pin_v[0]):
+            return pin_v
+        pin_p = fetch_pinterest_photos_via_gallery_dl(f"{pin_q} photo", limit=count, output_dir=t_dir, orientation=orientation, used_media_ids=used_media_ids)
+        if pin_p and os.path.exists(pin_p[0]):
+            return pin_p
+    except Exception as e_pin_fb:
+        print(f"⚠️ [Pinterest Quality Fallback Skip]: {e_pin_fb}")
 
     print(f"⚠️ [Media Fetcher] No online media found for '{keyword}'. Using internal canvas background...")
     return []

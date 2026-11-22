@@ -481,7 +481,7 @@ function App() {
   const [bgMusic, setBgMusic] = useState('cool.mp3');
   const [bgMusicList, setBgMusicList] = useState(['cool.mp3', 'cool1.mp3', 'cool2.mp3', 'cool3.mp3', 'cool4.mp3', 'cool5.mp3', 'random', 'none']);
 
-  const [category, setCategory] = useState('🎲 Random / All Categories');
+  const [category, setCategory] = useState('✨ After Effect Video');
   const [customCategory, setCustomCategory] = useState('');
 
   const [generationMode, setGenerationMode] = useState('ultra');
@@ -1382,8 +1382,8 @@ function App() {
   const isLimitExhausted = !subStatus.has_active_subscription && !subStatus.has_active_ultra_subscription && (subStatus.free_demo_count !== undefined ? subStatus.free_demo_count <= 0 : false);
 
   const getEffectiveCategory = () => {
-    if (videoType !== 'ultra') return '🎲 Random / All Categories';
-    return (category || '').includes('Custom Category') ? (customCategory || 'Random') : category;
+    const curCat = category || '✨ After Effect Video';
+    return curCat.includes('Custom Category') ? (customCategory || 'Random') : curCat;
   };
 
   const handleAutoGenerate = async () => {
@@ -2164,7 +2164,6 @@ function App() {
                     setVideoType('short');
                     setAspectRatio('9:16');
                     if (duration > 55) setDuration(30);
-                    setCategory('🎲 Random / All Categories');
                   }}
                   style={{ 
                     flex: 1, 
@@ -2194,7 +2193,6 @@ function App() {
                     setVideoType('long');
                     setAspectRatio('16:9');
                     if (duration < 20) setDuration(60);
-                    setCategory('🎲 Random / All Categories');
                   }}
                   style={{ 
                     flex: 1, 
@@ -2224,9 +2222,6 @@ function App() {
                     setVideoType('ultra');
                     setAspectRatio('16:9');
                     if (duration < 20) setDuration(60);
-                    if (videoType !== 'ultra') {
-                      setCategory('🎲 Random / All Categories');
-                    }
                   }}
                   style={{ 
                     flex: 1, 
@@ -3020,7 +3015,7 @@ function App() {
             /* Regular Dashboard (Shown for all other 30+ categories) */
             <>
               <div id="tour-topic-script">
-                <div className={videoType === 'ultra' ? 'responsive-grid-2' : ''}>
+                <div className="responsive-grid-2">
                   <div className="form-group">
                     <label>Main Topic</label>
                     <input 
@@ -3031,23 +3026,21 @@ function App() {
                     />
                   </div>
 
-                  {videoType === 'ultra' && (
-                    <div className="form-group">
-                      <label>Category / Niche (Ultra &amp; 30+ Categories)</label>
-                      <CustomSelect 
-                        theme={theme}
-                        value={category} 
-                        onChange={(val) => setCategory(val)}
-                        options={ULTRA_CATEGORIES.map(cat => ({
-                          value: cat,
-                          label: <span style={{display: 'flex', alignItems: 'center', gap: '6px'}}><Hash size={16} /> {cat.substring(cat.indexOf(' ') + 1)}</span>
-                        }))}
-                      />
-                    </div>
-                  )}
+                  <div className="form-group">
+                    <label>Category / Niche (30+ High-Impact Visual Categories)</label>
+                    <CustomSelect 
+                      theme={theme}
+                      value={category} 
+                      onChange={(val) => setCategory(val)}
+                      options={ULTRA_CATEGORIES.map(cat => ({
+                        value: cat,
+                        label: <span style={{display: 'flex', alignItems: 'center', gap: '6px'}}><Hash size={16} /> {cat.substring(cat.indexOf(' ') + 1)}</span>
+                      }))}
+                    />
+                  </div>
                 </div>
 
-                {videoType === 'ultra' && category === '✍️ Custom Category (Type Below)' && (
+                {category === '✍️ Custom Category (Type Below)' && (
                   <div className="form-group">
                     <label>Custom Category / Niche Name</label>
                     <input 

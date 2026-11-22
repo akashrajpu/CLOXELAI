@@ -2212,9 +2212,9 @@ def full_process(req: VideoRequest, job_id: str):
             if is_ultra and (is_cartoon_req or is_world_news_req):
                 print(f"🎨 [Ultra Scene {i+1}] Pure AI Render Mode (Cartoon/WebGL). Skipping web photo downloads; Cloxel AI Director will generate scene directly from script!")
                 v_paths = []
-            elif is_ultra and is_after_effects_req:
+            else:
                 try:
-                    main_topic = req.topic if req.topic else "motion graphics"
+                    main_topic = req.topic if req.topic else "cinematic"
                     scene_text = sc.get('text', '').strip()
                     scene_kw = sc.get('keyword', '').strip()
                     words = scene_text.split()
@@ -2235,11 +2235,6 @@ def full_process(req: VideoRequest, job_id: str):
                             contrast_parts = [parts[0].strip(), parts[1].strip()]
                             break
                             
-                    # 2. Distinguish short lines vs longer narrative:
-                    # User rule: Use photos when short lines appear in between (<= 7 words or contrast)
-                    # Use videos when it is a normal longer narrative line (> 7 words)
-                    is_short_line = (len(words) <= 7 or len(scene_text) <= 45)
-                    
                     v_paths = []
                     
                     # 0. Check for Documentary Evidence / Wikipedia / Official Report Scene (with Fluorescent Yellow Highlighter)
@@ -2250,7 +2245,7 @@ def full_process(req: VideoRequest, job_id: str):
                     )
                     is_evidence, ev_meta = detect_evidence_scene(scene_text, main_topic)
                     if is_evidence:
-                        print(f"📰 [Ultra After Effects Scene {i+1}] Documentary Evidence Scene Detected (Year/Type: {ev_meta.get('year')})! Generating Authentic Newspaper/Wikipedia Clipping with Fluorescent Yellow Highlighter...")
+                        print(f"📰 [Documentary Evidence Scene {i+1}] Historical Date/Report Detected (Year/Type: {ev_meta.get('year')})! Generating Authentic Newspaper/Wikipedia Clipping with Fluorescent Yellow Highlighter...")
                         ev_img_path = os.path.join(job_dir, f"evidence_clipping_{i}.jpg")
                         generate_newspaper_evidence_image(ev_meta, ev_img_path, target_size=(target_w, target_h))
                         
@@ -2263,17 +2258,16 @@ def full_process(req: VideoRequest, job_id: str):
                         generate_documentary_evidence_clip(ev_img_path, ev_clip_path, duration=sc_a_dur, target_size=(target_w, target_h))
                         if os.path.exists(ev_clip_path) and os.path.getsize(ev_clip_path) > 1000:
                             v_paths = [ev_clip_path]
-                            print(f"✅ [Ultra After Effects Scene {i+1}] Documentary Evidence Zoom Video ready: {os.path.basename(ev_clip_path)} (Duration: {sc_a_dur:.1f}s)")
+                            print(f"✅ [Documentary Evidence Scene {i+1}] Zoom Video ready: {os.path.basename(ev_clip_path)} (Duration: {sc_a_dur:.1f}s)")
                         elif os.path.exists(ev_img_path):
                             v_paths = [ev_img_path]
 
                     elif is_contrast and len(contrast_parts) == 2:
-                        # Contrast Punchline: Translate Hindi/Hinglish contrast parts to visual English
                         p1_clean = translate_to_visual_english(contrast_parts[0], main_topic) if translate_to_visual_english else contrast_parts[0]
                         p2_clean = translate_to_visual_english(contrast_parts[1], main_topic) if translate_to_visual_english else contrast_parts[1]
                         p1_term = f"{p1_clean} cinematic animation photo".strip()
                         p2_term = f"{p2_clean} cinematic animation photo".strip()
-                        print(f"🎬 [Ultra After Effects Scene {i+1}] Contrast Punchline detected! Fetching 2 Pinterest Photos: '{p1_term}' & '{p2_term}' (Pinterest Only)...")
+                        print(f"🎬 [Scene {i+1} Contrast] Fetching 2 Pinterest Photos: '{p1_term}' & '{p2_term}'...")
                         
                         p1_files = fetch_pinterest_photos_via_gallery_dl(p1_term, limit=1, output_dir=job_dir, used_media_ids=used_media_ids, orientation=orientation)
                         p2_files = fetch_pinterest_photos_via_gallery_dl(p2_term, limit=1, output_dir=job_dir, used_media_ids=used_media_ids, orientation=orientation)
@@ -2293,7 +2287,7 @@ def full_process(req: VideoRequest, job_id: str):
 
                         vid_term = f"{en_visual_phrase} cinematic animation video".strip()
                         photo_term = f"{en_visual_phrase} cinematic animation photo".strip()
-                        print(f"🎬 [Ultra After Effects Scene {i+1}] Micro-Detail Dual Search (Video & Photo) with Rich Script Keywords ({len(en_visual_phrase.split())} words): '{en_visual_phrase}'...")
+                        print(f"🎬 [Script-Driven Scene {i+1}] Micro-Detail Dual Search (Video & Photo) with Rich Script Keywords ({len(en_visual_phrase.split())} words): '{en_visual_phrase}'...")
 
                         # 1. Fetch Pinterest Video for cinematic motion
                         vid_files = fetch_pinterest_videos_via_gallery_dl(vid_term, limit=1, output_dir=job_dir, used_media_ids=used_media_ids, orientation=orientation)
@@ -2302,142 +2296,64 @@ def full_process(req: VideoRequest, job_id: str):
 
                         if vid_files and os.path.exists(vid_files[0]) and os.path.getsize(vid_files[0]) > 5000:
                             v_paths.append(vid_files[0])
-                            # If detailed photo also fetched, keep as secondary cut/overlay asset
                             if p_files and os.path.exists(p_files[0]) and os.path.getsize(p_files[0]) > 1000:
                                 v_paths.append(p_files[0])
                         elif p_files and os.path.exists(p_files[0]) and os.path.getsize(p_files[0]) > 1000:
                             v_paths.append(p_files[0])
 
-                    # Guaranteed Safety Fallback if Pinterest returned zero assets
+                    # Guaranteed Quality Fallback 1: Pinterest Photo with full visual phrase
                     if not v_paths or not os.path.exists(v_paths[0]) or os.path.getsize(v_paths[0]) < 1000:
                         fb_photo_term = f"{en_visual_phrase} cinematic animation photo".strip()
-                        print(f"🔄 [Ultra After Effects Scene {i+1}] Fallback -> Fetching Pinterest {orientation.upper()} Photo: '{fb_photo_term}'...")
+                        print(f"🔄 [Scene {i+1} Fallback 1] -> Fetching Pinterest {orientation.upper()} Photo: '{fb_photo_term}'...")
                         p_fb_files = fetch_pinterest_photos_via_gallery_dl(fb_photo_term, limit=1, output_dir=job_dir, used_media_ids=used_media_ids, orientation=orientation)
                         if p_fb_files and os.path.exists(p_fb_files[0]):
                             v_paths = [p_fb_files[0]]
-                        else:
-                            en_topic_only = translate_to_visual_english(main_topic, "") if translate_to_visual_english else main_topic
-                            ult_p = fetch_pinterest_photos_via_gallery_dl(f"{en_topic_only} cinematic animation photo", limit=1, output_dir=job_dir, used_media_ids=used_media_ids, orientation=orientation)
-                            if ult_p and os.path.exists(ult_p[0]):
-                                v_paths = [ult_p[0]]
-                except Exception as e_ae:
-                    print(f"⚠️ [Ultra After Effects Pinterest Pipeline Error]: {e_ae}")
+
+                    # Guaranteed Quality Fallback 2: High-Resolution Web Image (fetch_web_image) with exact phrase
+                    if not v_paths or not os.path.exists(v_paths[0]) or os.path.getsize(v_paths[0]) < 1000:
+                        try:
+                            web_img_path = os.path.join(job_dir, f"web_asset_{i}.jpg")
+                            if fetch_web_image and fetch_web_image(photo_term, web_img_path, orientation=orientation):
+                                if os.path.exists(web_img_path) and os.path.getsize(web_img_path) > 1000:
+                                    v_paths = [web_img_path]
+                        except Exception as e_web:
+                            print(f"⚠️ [Scene {i+1} Web Fetch Fallback]: {e_web}")
+
+                    # Guaranteed Quality Fallback 3: fetch_videos using the exact en_visual_phrase (script keywords)
+                    if not v_paths or not os.path.exists(v_paths[0]) or os.path.getsize(v_paths[0]) < 1000:
+                        try:
+                            print(f"🔄 [Scene {i+1} Fallback 3] -> Searching Video Clips for: '{en_visual_phrase}'...")
+                            v_clips = fetch_videos(
+                                en_visual_phrase, 
+                                v_path, 
+                                orientation=orientation, 
+                                category=req.category or "Random", 
+                                video_type=req.video_type or "short",
+                                topic=main_topic,
+                                used_media_ids=used_media_ids
+                            )
+                            if v_clips and os.path.exists(v_clips[0]) and os.path.getsize(v_clips[0]) > 2000:
+                                v_paths = v_clips
+                        except Exception as e_v:
+                            print(f"⚠️ [Scene {i+1} Video Fetcher Fallback]: {e_v}")
+
+                    # Guaranteed Safety Fallback 4: Top core keywords on Pinterest
+                    if not v_paths or not os.path.exists(v_paths[0]) or os.path.getsize(v_paths[0]) < 1000:
+                        top_words = " ".join([w for w in en_visual_phrase.split() if w.lower() not in ["cinematic", "animation", "photo", "video"]][:4]) or main_topic
+                        ult_term = f"{top_words} cinematic animation photo".strip()
+                        print(f"🔄 [Scene {i+1} Fallback 4] -> Fetching Top Keywords Pinterest Photo: '{ult_term}'...")
+                        ult_p = fetch_pinterest_photos_via_gallery_dl(ult_term, limit=1, output_dir=job_dir, used_media_ids=used_media_ids, orientation=orientation)
+                        if ult_p and os.path.exists(ult_p[0]):
+                            v_paths = [ult_p[0]]
+                            
+                except Exception as e_scene_media:
+                    print(f"⚠️ [Scene {i+1} Media Pipeline Warning]: {e_scene_media}")
                     try:
                         en_topic = translate_to_visual_english(req.topic or "cinematic", "") if translate_to_visual_english else (req.topic or "cinematic")
                         fb = fetch_pinterest_photos_via_gallery_dl(f"{en_topic} cinematic animation photo", limit=1, output_dir=job_dir, used_media_ids=used_media_ids, orientation=orientation)
                         v_paths = fb if fb else []
                     except Exception:
                         v_paths = []
-            elif is_ultra and fetch_web_image:
-                try:
-                    bg_img_path = os.path.join(job_dir, f"bg_photo_{i}.jpg")
-                    fg_img_path = os.path.join(job_dir, f"fg_photo_{i}.jpg")
-                    
-                    main_topic = req.topic if req.topic else "hero warrior"
-                    scene_text = sc.get('text', '')
-                    scene_kw = sc.get('keyword', '').strip()
-                    
-                    if extract_rich_scene_visual_keywords:
-                        bg_query, fg_query, scene_visual_phrase = extract_rich_scene_visual_keywords(
-                            topic=main_topic,
-                            scene_text=scene_text,
-                            scene_kw=scene_kw,
-                            scene_idx=i,
-                            category=req.category
-                        )
-                    else:
-                        bg_query = f"{main_topic} {scene_kw} dramatic landscape wallpaper photo".strip()
-                        fg_query = f"{main_topic} {scene_kw} realistic character hero portrait".strip()
-                        scene_visual_phrase = scene_kw or main_topic
-                    
-                    print(f"   📥 Fetching Dual HD Assets: BG='{bg_query}', FG='{fg_query}'...")
-                    fetch_web_image(bg_query, bg_img_path, orientation=orientation)
-                    fetch_web_image(fg_query, fg_img_path, orientation=orientation)
-                    
-                    v_paths = []
-                    if os.path.exists(bg_img_path) and os.path.getsize(bg_img_path) > 1000:
-                        v_paths.append(bg_img_path)
-                    if os.path.exists(fg_img_path) and os.path.getsize(fg_img_path) > 1000:
-                        v_paths.append(fg_img_path)
-                        
-                    if not v_paths or any(w in scene_visual_phrase.lower() for w in ["battle", "war", "action", "fight", "army"]):
-                        vid_list = fetch_videos(f"{main_topic} {scene_visual_phrase}", v_path, orientation=orientation, category=req.category or "Random", video_type=req.video_type or "short", used_media_ids=used_media_ids)
-                        if vid_list and os.path.exists(vid_list[0]):
-                            if not v_paths:
-                                v_paths = vid_list
-                            else:
-                                v_paths.append(vid_list[0])
-                except Exception as e_img:
-                    print(f"   ⚠️ Ultra script image fetch fallback: {e_img}")
-                    v_paths = fetch_videos(sc["keyword"], v_path, orientation=orientation, category=req.category or "Random", video_type=req.video_type or "short", topic=req.topic or "", used_media_ids=used_media_ids)
-            else:
-                scene_kw = (sc.get("keyword") or "").strip()
-                scene_text = (sc.get("text") or "").strip()
-                main_topic = (req.topic or "").strip()
-                
-                if req.video_type == "short":
-                    # SHORT VIDEO: Use scene's dedicated video search keyword + topic context (e.g. "surgeon operating room" + "doctor" = "surgeon operating room doctor")
-                    # Clean English alphanumeric words only (strictly eliminates Hindi Devanagari words like 'पर', 'तब')
-                    clean_kw_words = [w for w in re.findall(r'[a-zA-Z0-9]+', scene_kw) if len(w) > 1]
-                    
-                    if not clean_kw_words and scene_text:
-                        # If scene_kw was missing, extract big English words from script text (e.g. "doctor", "hospital", "prescription")
-                        clean_kw_words = [w for w in re.findall(r'[a-zA-Z]+', scene_text) if len(w) >= 4 and w.lower() not in {
-                            "this", "that", "with", "from", "have", "been", "will", "would", "could", "should",
-                            "what", "when", "where", "which", "there", "their", "about", "your", "they", "them",
-                            "more", "some", "into", "then", "than", "very", "also", "just", "like"
-                        }][:3]
-
-                    search_query_parts = []
-                    # 1. Video search keyword first (e.g. "surgeon operating room")
-                    for w in clean_kw_words:
-                        if w.lower() not in [p.lower() for p in search_query_parts]:
-                            search_query_parts.append(w)
-
-                    # 2. Append topic context (e.g. "doctor") -> "surgeon operating room doctor"
-                    if main_topic:
-                        clean_topic_words = [w for w in re.findall(r'[a-zA-Z0-9]+', main_topic) if len(w) > 1 and w.lower() not in ["and", "the", "for", "with", "from", "about", "hindi", "english"]]
-                        for tw in clean_topic_words[:2]:
-                            if tw.lower() not in [p.lower() for p in search_query_parts]:
-                                search_query_parts.append(tw)
-
-                    rich_scene_query = " ".join(search_query_parts).strip()
-                    if not rich_scene_query:
-                        rich_scene_query = main_topic or "cinematic hd"
-                else:
-                    # LONG or ULTRA: Keep existing search behavior untouched
-                    search_query_parts = []
-                    # 1. Prioritize scene-specific keyword FIRST so each scene searches its unique visual action
-                    if scene_kw:
-                        for kw_word in scene_kw.split():
-                            if kw_word.lower() not in HINDI_STOPWORDS and kw_word not in HINDI_STOPWORDS:
-                                if kw_word.lower() not in [p.lower() for p in search_query_parts]:
-                                    search_query_parts.append(kw_word)
-                    elif scene_text:
-                        eng_words = [w for w in scene_text.split() if w.isascii() and len(w) > 3 and w.lower() not in HINDI_STOPWORDS][:3]
-                        if eng_words:
-                            search_query_parts.extend(eng_words)
-                            
-                    # 2. Add topic context anchor words after scene keyword
-                    if main_topic:
-                        topic_words = [w for w in main_topic.split() if len(w) > 2 and w.lower() not in ["and", "the", "for", "with", "from", "about", "hindi", "english"]]
-                        for tw in topic_words[:2]:
-                            if tw.lower() not in [p.lower() for p in search_query_parts]:
-                                search_query_parts.append(tw)
-
-                    rich_scene_query = " ".join(search_query_parts).strip()
-                    if not rich_scene_query:
-                        rich_scene_query = scene_kw or main_topic or "cinematic hd"
-                    
-                v_paths = fetch_videos(
-                    rich_scene_query, 
-                    v_path, 
-                    orientation=orientation, 
-                    category=req.category or "Random", 
-                    video_type=req.video_type or "short",
-                    topic=main_topic,
-                    used_media_ids=used_media_ids
-                )
             
             # Double Safety Net: Ensure scene video/photo is NEVER identical in content hash, size, or name to ANY PREVIOUS scene
             if v_paths and os.path.exists(v_paths[0]):
