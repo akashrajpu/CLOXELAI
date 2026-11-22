@@ -9599,6 +9599,67 @@ def _draw_heart_shape(draw, cx: int, cy: int, size: int, fill=None, outline=None
         draw.polygon(pts, outline=outline, width=width)
 
 
+def _draw_star_shape(draw, cx: int, cy: int, size: int, points: int = 5, fill=None, outline=None, width=1, rot: float = 0.0):
+    """Draws a multi-point celestial star or stardust sparkle."""
+    pts = []
+    inner_size = size * 0.45
+    for i in range(points * 2):
+        ang = rot + (i * math.pi / points)
+        r = size if i % 2 == 0 else inner_size
+        pts.append((int(cx + math.cos(ang) * r), int(cy + math.sin(ang) * r)))
+    if fill:
+        draw.polygon(pts, fill=fill)
+    if outline:
+        draw.polygon(pts, outline=outline, width=width)
+
+
+def _draw_petal_shape(draw, cx: int, cy: int, length: int, width_p: int, angle: float, fill=None, outline=None, width=1):
+    """Draws a smooth organic floral / lotus / chakra petal at angle."""
+    cos_a = math.cos(angle)
+    sin_a = math.sin(angle)
+    tip_x = cx + int(cos_a * length)
+    tip_y = cy + int(sin_a * length)
+    mid_dist = length * 0.5
+    perp_x = -sin_a * (width_p * 0.5)
+    perp_y = cos_a * (width_p * 0.5)
+    left_x = cx + int(cos_a * mid_dist + perp_x)
+    left_y = cy + int(sin_a * mid_dist + perp_y)
+    right_x = cx + int(cos_a * mid_dist - perp_x)
+    right_y = cy + int(sin_a * mid_dist - perp_y)
+    pts = [(cx, cy), (int(left_x), int(left_y)), (tip_x, tip_y), (int(right_x), int(right_y))]
+    if fill:
+        draw.polygon(pts, fill=fill)
+    if outline:
+        draw.polygon(pts, outline=outline, width=width)
+
+
+def _draw_cupid_arrow(draw, ax: int, ay: int, angle: float, length: int, col1, col2, width=2):
+    """Draws an ornate golden Cupid arrow with fletching and arrowhead."""
+    cos_a = math.cos(angle)
+    sin_a = math.sin(angle)
+    end_x = ax + int(cos_a * length)
+    end_y = ay + int(sin_a * length)
+    draw.line([(ax, ay), (end_x, end_y)], fill=col1, width=width)
+    tip_len = 16
+    tip1 = (end_x - int(math.cos(angle - 0.5) * tip_len), end_y - int(math.sin(angle - 0.5) * tip_len))
+    tip2 = (end_x - int(math.cos(angle + 0.5) * tip_len), end_y - int(math.sin(angle + 0.5) * tip_len))
+    draw.polygon([(end_x, end_y), tip1, tip2], fill=col2)
+    f_len = 12
+    f1 = (ax + int(math.cos(angle - 2.5) * f_len), ay + int(math.sin(angle - 2.5) * f_len))
+    f2 = (ax + int(math.cos(angle + 2.5) * f_len), ay + int(math.sin(angle + 2.5) * f_len))
+    draw.line([(ax, ay), f1], fill=col1, width=2)
+    draw.line([(ax, ay), f2], fill=col1, width=2)
+
+
+def _draw_diamond_shape(draw, cx: int, cy: int, w: int, h: int, fill=None, outline=None, width=1):
+    """Draws a 4-point diamond prism or telemetry marker."""
+    pts = [(cx, cy - h), (cx + w, cy), (cx, cy + h), (cx - w, cy)]
+    if fill:
+        draw.polygon(pts, fill=fill)
+    if outline:
+        draw.polygon(pts, outline=outline, width=width)
+
+
 def _paste_circular_center_logo(
     im_frame: Image.Image,
     logo_im: Optional[Image.Image],
@@ -9655,8 +9716,10 @@ def render_phonk_visualizer_overlay(
 ) -> Image.Image:
     """
     Renders 100% unique, curated audio-reactive visualizer designs for all moods
-    (Love hearts, Sad rain, Bhakti chakra, Lo-Fi vinyl, Phonk 808s) directly on top
-    of the user's background photo or video frame.
+    (Romantic velvet/roses/cupid, Sad rain/shattered glass/tears, Bhakti sudarshan/jyoti/aarti,
+     Lo-Fi cassette/vinyl/steam, Party laser grids/shockwaves, Acoustic guitar strings/campfire, Phonk 808s)
+    directly on top of the user's background photo or video frame.
+    Every preset has a unique layout, geometry, particle type, and motion.
     Supports 2-Photos & Video hybrid (Photo 1 = Background, Photo 2 = Center Logo).
     """
     if not preset_id_or_dict or preset_id_or_dict == "primary":
@@ -9670,7 +9733,15 @@ def render_phonk_visualizer_overlay(
         preset = preset_id_or_dict
 
     draw = ImageDraw.Draw(im_frame)
-    fam = preset.get("family", "")
+    pid = str(preset.get("id", "")).lower()
+    tag = str(preset.get("tag", "")).lower()
+    name = str(preset.get("name", "")).lower()
+    desc = str(preset.get("desc", "")).lower()
+    fam = str(preset.get("family", "")).lower()
+    cat = str(preset.get("category", "")).lower() or song_mood.lower()
+    p_text = f"{pid} {tag} {name} {desc} {fam}"
+    p_hash = int(hashlib.md5(pid.encode("utf-8")).hexdigest(), 16)
+
     c1 = preset.get("primary_col", (0, 242, 254))
     c2 = preset.get("secondary_col", (168, 85, 247))
     c3 = preset.get("accent_col", (255, 255, 255))
@@ -9681,184 +9752,462 @@ def render_phonk_visualizer_overlay(
     base_r = int((min(tw, th) * (0.13 if is_vertical else 0.16)) + (35 * b))
     is_drop = (b > 0.72)
 
-    # 1. 💖 Romantic Heart Pulse Core (Love Song Radiating Hearts)
-    if fam in ("romantic", "romantic_heart") or (song_mood == "romantic" and fam in ("trap_nation", "all")):
-        num_hearts = 8
-        for h_i in range(num_hearts):
-            h_ang = (h_i / num_hearts) * 2.0 * math.pi + (t * 0.3)
-            h_dist = base_r + int((30 + 110 * b) * (1.2 if h_i % 2 == 0 else 0.8))
-            hx = cx + int(math.cos(h_ang) * h_dist)
-            hy = cy + int(math.sin(h_ang) * h_dist) - int((t * 35.0 + h_i * 15.0) % 85.0)
-            h_sz = int(14 + 10 * b)
-            _draw_heart_shape(draw, hx, hy, size=h_sz, fill=c1, outline=c3, width=2)
-        _draw_heart_shape(draw, cx, cy - 5, size=int(base_r * 0.95), outline=c2, width=3)
-        _paste_circular_center_logo(im_frame, logo_im, cx, cy, base_r, outline_col=c1, accent_col=c3)
+    eff_cat = cat if cat in ("romantic", "sad", "devotional", "lofi", "party", "acoustic", "phonk") else song_mood.lower()
 
-    # 2. 💔 Melancholy Rain Drop Core (Sad / Broken Heart)
-    elif fam in ("sad", "sad_rain") or (song_mood == "sad" and fam in ("trap_nation", "all")):
-        for r_i in range(28):
-            rx = int((r_i * 37 + t * 45.0) % tw)
-            ry = int((r_i * 83 + t * 480.0) % th)
-            draw.line([(rx, ry), (rx, ry + int(20 + 25 * b))], fill=(186, 230, 253), width=2 if r_i % 3 == 0 else 1)
-        if is_drop:
-            draw.ellipse([cx - base_r - 25, cy - base_r - 25, cx + base_r + 25, cy + base_r + 25], outline=c1, width=2)
-        _paste_circular_center_logo(im_frame, logo_im, cx, cy, base_r, outline_col=c1, accent_col=c3)
+    # =========================================================================
+    # 1. 💖 ROMANTIC / LOVE SUITE (102 UNIQUE PRESETS)
+    # =========================================================================
+    if eff_cat == "romantic" or fam in ("romantic", "romantic_heart"):
+        # A. Velvet Wave Rings & Candlelit Ripples (Crimson Velvet)
+        if any(k in p_text for k in ("velvet", "ripple", "crimson", "wine", "candle_aura", "hearth")):
+            num_rings = 3 + (p_hash % 3)
+            for r_idx in range(num_rings):
+                cur_r = base_r + int((r_idx * 32.0 + (t * 70.0)) % 140.0)
+                undul = int(math.sin(t * 3.0 + r_idx * 1.5) * (6 + 12 * b))
+                draw.ellipse([cx - cur_r - undul, cy - cur_r - undul, cx + cur_r + undul, cy + cur_r + undul],
+                             outline=c1 if r_idx % 2 == 0 else c2, width=max(1, int(2 + 3 * b)))
+            for em_i in range(14):
+                em_ang = (em_i * 0.45) + t * 0.4
+                em_dist = base_r + 20 + int((em_i * 19 + t * 45.0) % 95.0)
+                em_x = cx + int(math.cos(em_ang) * em_dist)
+                em_y = cy + int(math.sin(em_ang) * (em_dist * 0.75)) - int((t * 40.0 + em_i * 12.0) % 110.0)
+                em_sz = max(1, int((math.sin(t * 4.0 + em_i) + 1.2) * 2.5))
+                draw.ellipse([em_x - em_sz, em_y - em_sz, em_x + em_sz, em_y + em_sz], fill=c3 if em_i % 2 == 0 else c1)
+            if is_drop:
+                sw_r = base_r + int((t * 220.0) % (tw * 0.35))
+                draw.ellipse([cx - sw_r, cy - sw_r, cx + sw_r, cy + sw_r], outline=c1, width=3)
+            _paste_circular_center_logo(im_frame, logo_im, cx, cy, base_r, outline_col=c1, accent_col=c3)
 
-    # 3. 🪔 Sacred Divine Aura Chakra (Bhakti / Devotional)
-    elif fam in ("devotional", "devotional_chakra") or (song_mood == "devotional" and fam in ("trap_nation", "all")):
-        for ch_i in range(16):
-            ch_ang = (ch_i / 16.0) * 2.0 * math.pi + (t * 0.25)
-            cx1 = cx + int(math.cos(ch_ang) * (base_r + 8))
-            cy1 = cy + int(math.sin(ch_ang) * (base_r + 8))
-            cx2 = cx + int(math.cos(ch_ang) * (base_r + int(30 + 75 * b)))
-            cy2 = cy + int(math.sin(ch_ang) * (base_r + int(30 + 75 * b)))
-            draw.line([(cx1, cy1), (cx2, cy2)], fill=c1, width=3)
-        draw.ellipse([cx - base_r - 20, cy - base_r - 20, cx + base_r + 20, cy + base_r + 20], outline=c2, width=2)
-        _paste_circular_center_logo(im_frame, logo_im, cx, cy, base_r, outline_col=c1, accent_col=c3)
+        # B. Rose Petal Bloom Crown (Rose Burst / Floral)
+        elif any(k in p_text for k in ("rose", "petal", "bloom", "flower", "chariot rose")):
+            num_petals = 12 + ((p_hash % 3) * 2)
+            p_len = int(base_r * 0.50 + 45.0 * b)
+            p_w = int(20 + 12 * b)
+            rot = t * 0.25
+            for p_i in range(num_petals):
+                ang = rot + (p_i / num_petals) * 2.0 * math.pi
+                _draw_petal_shape(draw, cx, cy, base_r + p_len, p_w, ang, fill=c1 if p_i % 2 == 0 else c2, outline=c3, width=1)
+            draw.ellipse([cx - base_r - 8, cy - base_r - 8, cx + base_r + 8, cy + base_r + 8], outline=c3, width=2)
+            if is_drop:
+                for sh_k in range(8):
+                    sh_a = rot + (sh_k * math.pi / 4.0)
+                    sh_x = cx + int(math.cos(sh_a) * (base_r + p_len + 30))
+                    sh_y = cy + int(math.sin(sh_a) * (base_r + p_len + 30))
+                    _draw_star_shape(draw, sh_x, sh_y, size=8, points=4, fill=c3)
+            _paste_circular_center_logo(im_frame, logo_im, cx, cy, base_r, outline_col=c1, accent_col=c3)
 
-    # 4. 🌙 Cozy Lo-Fi Vinyl Spin Core
-    elif fam in ("lofi", "lofi_vinyl") or (song_mood == "lofi" and fam in ("trap_nation", "all")):
-        for vr in range(base_r + 8, base_r + int(35 + 30 * b), 6):
-            draw.ellipse([cx - vr, cy - vr, cx + vr, cy + vr], outline=(40, 35, 55), width=1)
-        for s_k in range(20):
-            st_x = int((s_k * 43 + t * 15.0) % tw)
-            st_y = int((s_k * 71) % (th // 2))
-            st_sz = max(1, int(abs(math.sin(t * 3.0 + s_k)) * 3))
-            draw.ellipse([st_x - st_sz, st_y - st_sz, st_x + st_sz, st_y + st_sz], fill=c3)
-        _paste_circular_center_logo(im_frame, logo_im, cx, cy, base_r, outline_col=c1, accent_col=c3)
+        # C. Cupid's Golden Arrow & Sparkling Orbit
+        elif any(k in p_text for k in ("cupid", "arrow", "wings", "eros")):
+            num_arrows = 2 + (p_hash % 2)
+            for a_i in range(num_arrows):
+                a_phase = (a_i * (2.0 * math.pi / num_arrows)) + (t * 1.6)
+                orb_rx = base_r + int(50 + 40 * b)
+                orb_ry = int(base_r * 0.65 + 20 * b)
+                ax = cx + int(math.cos(a_phase) * orb_rx)
+                ay = cy + int(math.sin(a_phase) * orb_ry)
+                tangent_ang = a_phase + math.pi / 2.0 + 0.25
+                _draw_cupid_arrow(draw, ax, ay, tangent_ang, length=int(55 + 25 * b), col1=c1, col2=c3, width=3)
+            draw.arc([cx - orb_rx, cy - orb_ry, cx + orb_rx, cy + orb_ry], start=0, end=360, fill=c2, width=1)
+            for st_i in range(12):
+                sa = (st_i * 0.52) + t * 0.8
+                sr = base_r + int((st_i * 17 + t * 30.0) % 80.0)
+                _draw_star_shape(draw, cx + int(math.cos(sa) * sr), cy + int(math.sin(sa) * sr), size=5, points=4, fill=c3)
+            _paste_circular_center_logo(im_frame, logo_im, cx, cy, base_r, outline_col=c1, accent_col=c3)
 
-    # 5. 👑 Trap Nation Tri-Lobe Core (User's Exact Uploaded Image Style)
-    elif fam == "trap_nation":
-        num_pts = 64
-        pts_out = []
-        pts_in = []
-        for i in range(num_pts):
-            ang = (i / num_pts) * 2.0 * math.pi
-            lobe = 0.28 * math.cos(3 * ang - math.pi / 2.0)
-            audio_freq = 0.40 * abs(math.sin(i * 0.5 + t * 4.5)) * b
-            r_out = base_r * (1.28 + lobe + audio_freq)
-            r_in = base_r * (1.04 + lobe * 0.4)
-            pts_out.append((cx + int(math.cos(ang) * r_out), cy + int(math.sin(ang) * r_out)))
-            pts_in.append((cx + int(math.cos(ang) * r_in), cy + int(math.sin(ang) * r_in)))
+        # D. Dual Entangled Cardioid Hearts
+        elif any(k in p_text for k in ("dual", "twin", "entangled", "embrace")):
+            sep = int(base_r * 0.85)
+            h_sz = int(base_r * 0.60 + 25 * b)
+            _draw_heart_shape(draw, cx - sep, cy, size=h_sz, fill=None, outline=c1, width=3)
+            _draw_heart_shape(draw, cx + sep, cy, size=h_sz, fill=None, outline=c2, width=3)
+            inf_pts = []
+            for u_i in range(36):
+                u = (u_i / 36.0) * 2.0 * math.pi + t * 2.0
+                ix = cx + int(math.cos(u) * (sep * 1.35))
+                iy = cy + int(math.sin(2 * u) * (h_sz * 0.45))
+                inf_pts.append((ix, iy))
+            if len(inf_pts) >= 2:
+                draw.line(inf_pts + [inf_pts[0]], fill=c3, width=2)
+            _paste_circular_center_logo(im_frame, logo_im, cx, cy, base_r, outline_col=c1, accent_col=c3)
 
-        draw.polygon(pts_out, outline=c1, width=4)
-        for i in range(0, num_pts, 2):
-            draw.line([pts_in[i], pts_out[i]], fill=c3, width=3)
-        if is_drop:
-            sw_r = int(base_r * 1.55 + ((t * 220.0) % 80.0))
-            draw.ellipse([cx - sw_r, cy - sw_r, cx + sw_r, cy + sw_r], outline=c2, width=3)
-        _paste_circular_center_logo(im_frame, logo_im, cx, cy, base_r, outline_col=c2, accent_col=c3)
+        # E. Starlight Lovers Constellation
+        elif any(k in p_text for k in ("starlight", "constellation", "celestial", "fairy dust")):
+            num_stars = 8 + (p_hash % 5)
+            star_coords = []
+            for s_i in range(num_stars):
+                sa = (s_i / num_stars) * 2.0 * math.pi + (t * 0.35)
+                s_dist = base_r + int(35 + 65 * b + math.sin(s_i * 2.0 + t * 3.0) * 20.0)
+                sx = cx + int(math.cos(sa) * s_dist)
+                sy = cy + int(math.sin(sa) * s_dist)
+                star_coords.append((sx, sy))
+                _draw_star_shape(draw, sx, sy, size=int(8 + 6 * b), points=5, fill=c1, outline=c3, width=1, rot=t)
+            for s_i in range(num_stars):
+                draw.line([star_coords[s_i], star_coords[(s_i + 1) % num_stars]], fill=c2, width=1)
+                if s_i % 2 == 0:
+                    draw.line([star_coords[s_i], (cx, cy)], fill=c2, width=1)
+            _paste_circular_center_logo(im_frame, logo_im, cx, cy, base_r, outline_col=c1, accent_col=c3)
 
-    # 6. ☢️ Extreme Reactor Studio (User's HTML Visualizer)
-    elif fam == "reactor":
-        for s_idx in range(35):
-            seed_x = ((s_idx * 173 + 47) % 1000) - 500
-            seed_y = ((s_idx * 281 + 83) % 1000) - 500
-            z_pos = (s_idx * 28.0 - t * (5.0 + b * 22.0) * 12.0) % 800.0 + 20.0
-            scale_fac = 300.0 / max(10.0, z_pos)
-            sx = int(cx + seed_x * scale_fac * 0.7)
-            sy = int(cy + seed_y * scale_fac * 0.7)
-            if 0 <= sx < tw and 0 <= sy < th:
-                draw.ellipse([sx - 1, sy - 1, sx + 1, sy + 1], fill=c1 if s_idx % 2 == 0 else c2)
+        # F. Neon Ribbon Lissajous Wave
+        elif any(k in p_text for k in ("ribbon", "silk", "figure_8", "infinity")):
+            rib_pts = []
+            rib_pts2 = []
+            steps = 48
+            for st in range(steps):
+                u = (st / steps) * 2.0 * math.pi + (t * 1.8)
+                rx = cx + int(math.sin(u * 2.0) * (base_r + 65 + 35 * b))
+                ry = cy + int(math.sin(u * 3.0) * (base_r * 0.75 + 20 * b))
+                rib_pts.append((rx, ry))
+                rib_pts2.append((rx + 3, ry + 3))
+            if len(rib_pts) >= 2:
+                draw.line(rib_pts + [rib_pts[0]], fill=c1, width=3)
+                draw.line(rib_pts2 + [rib_pts2[0]], fill=c2, width=1)
+            _paste_circular_center_logo(im_frame, logo_im, cx, cy, base_r, outline_col=c1, accent_col=c3)
 
-        horizon = int(th * (0.72 if is_vertical else 0.68))
-        terrain_offset = (t * 70.0 + b * 60.0) % 28.0
-        for i in range(-12, 13):
-            top_x = cx + int(i * (tw / 34.0))
-            bot_x = cx + int(i * (tw / 8.5))
-            draw.line([(top_x, horizon), (bot_x, th)], fill=c2, width=1)
-        for y_step in range(horizon, th, 24):
-            py = y_step + int(terrain_offset * ((y_step - horizon) / max(1, th - horizon)))
-            if horizon < py < th:
-                draw.line([(0, py), (tw, py)], fill=c2, width=1)
+        # G. Sunset Kiss Golden Rays
+        elif any(k in p_text for k in ("sunset", "sunbeam", "kiss", "beach sunset")):
+            num_rays = 20 + ((p_hash % 3) * 4)
+            for r_i in range(num_rays):
+                ra = (r_i / num_rays) * 2.0 * math.pi + (t * 0.15)
+                rlen = base_r + int((35 + 85 * b) * (0.6 + 0.4 * math.sin(r_i * 1.5 + t * 4.0)))
+                rx1 = cx + int(math.cos(ra) * (base_r + 4))
+                ry1 = cy + int(math.sin(ra) * (base_r + 4))
+                rx2 = cx + int(math.cos(ra) * rlen)
+                ry2 = cy + int(math.sin(ra) * rlen)
+                draw.line([(rx1, ry1), (rx2, ry2)], fill=c1 if r_i % 2 == 0 else c2, width=2 if r_i % 2 == 0 else 3)
+            draw.ellipse([cx - base_r - 15, cy - base_r - 15, cx + base_r + 15, cy + base_r + 15], outline=c3, width=2)
+            _paste_circular_center_logo(im_frame, logo_im, cx, cy, base_r, outline_col=c1, accent_col=c3)
 
-        if is_drop:
-            sw_r = base_r + int((t * 260.0) % (tw * 0.40))
-            draw.ellipse([cx - sw_r, cy - sw_r, cx + sw_r, cy + sw_r], outline=c1, width=3)
-            for l_idx in range(4):
-                l_ang = (l_idx * math.pi / 2.0) + (t * 3.0)
-                lx = cx + int(math.cos(l_ang) * (base_r + 15))
-                ly = cy + int(math.sin(l_ang) * (base_r + 15))
-                for seg_k in range(4):
-                    jitter = int(math.sin(t * 35.0 + l_idx * 4.0 + seg_k) * 16.0)
-                    nlx = lx + int(math.cos(l_ang) * 30) + jitter
-                    nly = ly + int(math.sin(l_ang) * 30) + jitter
-                    draw.line([(lx, ly), (nlx, nly)], fill=c3, width=2)
-                    lx, ly = nlx, nly
+        # H. Ruby Gem / Diamond Prism Facets
+        elif any(k in p_text for k in ("ruby", "gem", "diamond", "crystal", "prism", "amethyst")):
+            dr = int(base_r * (1.35 + 0.20 * b))
+            facet_pts = [
+                (cx, cy - dr), (cx + int(dr * 0.7), cy - int(dr * 0.4)),
+                (cx + dr, cy + int(dr * 0.2)), (cx, cy + dr),
+                (cx - dr, cy + int(dr * 0.2)), (cx - int(dr * 0.7), cy - int(dr * 0.4))
+            ]
+            draw.polygon(facet_pts, outline=c1, width=3)
+            for f_i in range(len(facet_pts)):
+                draw.line([(cx, cy), facet_pts[f_i]], fill=c2, width=1)
+                draw.line([facet_pts[f_i], facet_pts[(f_i + 2) % len(facet_pts)]], fill=c3, width=1)
+            _paste_circular_center_logo(im_frame, logo_im, cx, cy, base_r, outline_col=c1, accent_col=c3)
 
-        num_bars = 48
-        ang_off = t * 0.45
-        for i in range(num_bars):
-            ang = (i / num_bars) * (2.0 * math.pi) + ang_off
-            val = int((12.0 + 80.0 * b) * (0.35 + 0.65 * abs(math.sin(i * 0.45 + t * 5.0))))
-            x1 = cx + int(math.cos(ang) * (base_r + 8))
-            y1 = cy + int(math.sin(ang) * (base_r + 8))
-            x2 = cx + int(math.cos(ang) * (base_r + 8 + val))
-            y2 = cy + int(math.sin(ang) * (base_r + 8 + val))
-            draw.line([(x1, y1), (x2, y2)], fill=c1 if i % 2 == 0 else c2, width=3)
+        # I. Sakura Blossom Petal Drift
+        elif any(k in p_text for k in ("sakura", "cherry", "blossom")):
+            num_sakura = 20 + (p_hash % 8)
+            for sk_i in range(num_sakura):
+                sa = (sk_i * 0.63) + (t * 0.4)
+                sdist = base_r + int((sk_i * 23 + t * 40.0) % (tw * 0.45))
+                sx = cx + int(math.cos(sa) * sdist)
+                sy = cy + int(math.sin(sa) * sdist) - int((t * 25.0 + sk_i * 8.0) % 70.0)
+                for petal_k in range(5):
+                    pa = (petal_k * 2.0 * math.pi / 5.0) + (t * 1.5 + sk_i)
+                    px = sx + int(math.cos(pa) * (6 + 3 * b))
+                    py = sy + int(math.sin(pa) * (6 + 3 * b))
+                    draw.ellipse([px - 2, py - 2, px + 2, py + 2], fill=c1 if petal_k % 2 == 0 else c2)
+                draw.ellipse([sx - 1, sy - 1, sx + 1, sy + 1], fill=c3)
+            _paste_circular_center_logo(im_frame, logo_im, cx, cy, base_r, outline_col=c1, accent_col=c3)
 
-        _paste_circular_center_logo(im_frame, logo_im, cx, cy, base_r, outline_col=c1, accent_col=c3)
+        # J. Floating Hearts Fountain (Upward Geyser)
+        elif any(k in p_text for k in ("fountain", "floating", "stream")):
+            num_fount = 18
+            for ft_i in range(num_fount):
+                ft_y = th - int((t * 220.0 + ft_i * 40.0) % th)
+                prog = (th - ft_y) / max(1.0, float(th))
+                spread = int(math.sin(ft_i * 1.2 + t * 3.0) * (tw * 0.28 * prog))
+                ft_x = cx + spread
+                ft_sz = int(8 + 14 * b * prog)
+                _draw_heart_shape(draw, ft_x, ft_y, size=ft_sz, fill=c1 if ft_i % 2 == 0 else c2, outline=c3, width=1)
+            _paste_circular_center_logo(im_frame, logo_im, cx, cy, base_r, outline_col=c1, accent_col=c3)
 
-        wave_y = cy + base_r + 65
-        wave_w = int(tw * 0.60)
-        wave_pts = []
-        for w_i in range(0, wave_w, 8):
-            v_norm = math.sin(w_i * 0.08 + t * 8.0) * (18.0 * (0.3 + 0.7 * b))
-            wave_pts.append((cx - wave_w // 2 + w_i, int(wave_y + v_norm)))
-        if len(wave_pts) >= 2:
-            draw.line(wave_pts, fill=c1, width=2)
+        # K. Butterfly Wings Kiss
+        elif any(k in p_text for k in ("butterfly",)):
+            num_bf = 2 + (p_hash % 2)
+            for bf_i in range(num_bf):
+                bf_ang = (bf_i * math.pi) + (t * 1.1)
+                bf_dist = base_r + int(45 + 35 * b)
+                bx = cx + int(math.cos(bf_ang) * bf_dist)
+                by = cy + int(math.sin(bf_ang) * (bf_dist * 0.8))
+                wing_flap = math.sin(t * 12.0 + bf_i * 2.0) * (15 + 10 * b)
+                draw.polygon([(bx, by), (bx - int(18 + wing_flap), by - 14), (bx - int(24 + wing_flap), by + 8)], fill=c1, outline=c3)
+                draw.polygon([(bx, by), (bx + int(18 + wing_flap), by - 14), (bx + int(24 + wing_flap), by + 8)], fill=c2, outline=c3)
+                draw.line([(bx, by - 10), (bx, by + 10)], fill=c3, width=2)
+            _paste_circular_center_logo(im_frame, logo_im, cx, cy, base_r, outline_col=c1, accent_col=c3)
 
-    # 7. ⭕ Monstercat 360° Circular Ring
-    elif fam == "monstercat":
-        num_bars = 64
-        for i in range(num_bars):
-            ang = (i / num_bars) * (2.0 * math.pi)
-            h = int((10.0 + 95.0 * b) * (0.3 + 0.7 * abs(math.sin(i * 0.35 + t * 6.0))))
-            x1 = cx + int(math.cos(ang) * (base_r + 6))
-            y1 = cy + int(math.sin(ang) * (base_r + 6))
-            x2 = cx + int(math.cos(ang) * (base_r + 6 + h))
-            y2 = cy + int(math.sin(ang) * (base_r + 6 + h))
-            draw.line([(x1, y1), (x2, y2)], fill=c1 if i % 2 == 0 else c2, width=3)
-        outer_ring_r = base_r + int(35 * b)
-        draw.ellipse([cx - outer_ring_r, cy - outer_ring_r, cx + outer_ring_r, cy + outer_ring_r], outline=c3, width=2)
-        _paste_circular_center_logo(im_frame, logo_im, cx, cy, base_r, outline_col=c1, accent_col=c3)
+        # L. Procedural Unique Romantic Generator (Covers ALL remaining 80+ romantic presets!)
+        else:
+            num_elem = 6 + (p_hash % 10)
+            rot_spd = 0.20 + (p_hash % 6) * 0.12
+            shape_mode = (p_hash >> 3) % 4
+            for e_i in range(num_elem):
+                e_ang = (e_i / num_elem) * 2.0 * math.pi + (t * rot_spd)
+                e_dist = base_r + int((30 + 80 * b) * (0.8 + 0.4 * math.sin(e_i * 1.3 + t * 3.0)))
+                ex = cx + int(math.cos(e_ang) * e_dist)
+                ey = cy + int(math.sin(e_ang) * e_dist)
+                e_sz = int(12 + 10 * b)
+                if shape_mode == 0:
+                    _draw_heart_shape(draw, ex, ey, size=e_sz, fill=c1 if e_i % 2 == 0 else c2, outline=c3, width=1)
+                elif shape_mode == 1:
+                    _draw_star_shape(draw, ex, ey, size=e_sz, points=4 if e_i % 2 == 0 else 5, fill=c1, outline=c3)
+                elif shape_mode == 2:
+                    _draw_petal_shape(draw, cx, cy, base_r + int(30 + 40 * b), int(16 + 8 * b), e_ang, fill=c1, outline=c3)
+                else:
+                    draw.ellipse([ex - e_sz // 2, ey - e_sz // 2, ex + e_sz // 2, ey + e_sz // 2], fill=c1, outline=c3, width=2)
+            halo_r = base_r + int(20 + 25 * b)
+            draw.ellipse([cx - halo_r, cy - halo_r, cx + halo_r, cy + halo_r], outline=c2, width=max(1, int(1 + 3 * b)))
+            _paste_circular_center_logo(im_frame, logo_im, cx, cy, base_r, outline_col=c1, accent_col=c3)
 
-    # 8. 🔷 Cyber Hexagon Core
-    elif fam == "hexagon":
-        hex_r = int(base_r * (1.25 + 0.15 * b))
-        for layer, col in [(hex_r, c1), (int(hex_r * 0.75), c2)]:
-            h_pts = []
-            for h_idx in range(6):
-                ha = h_idx * math.pi / 3.0 + (t * 0.5 if col == c1 else -t * 0.5)
-                h_pts.append((cx + int(math.cos(ha) * layer), cy + int(math.sin(ha) * layer)))
-            draw.polygon(h_pts, outline=col, width=3)
-        _paste_circular_center_logo(im_frame, logo_im, cx, cy, base_r, outline_col=c1, accent_col=c3)
+    # =========================================================================
+    # 2. 💔 SAD / DARD SUITE (102 UNIQUE PRESETS)
+    # =========================================================================
+    elif eff_cat == "sad" or fam in ("sad", "sad_rain"):
+        if any(k in p_text for k in ("broken", "shatter", "glass", "crack", "bottle", "chandelier")):
+            num_shards = 14 + (p_hash % 6)
+            for s_i in range(num_shards):
+                sa = (s_i / num_shards) * 2.0 * math.pi + (t * 0.15)
+                s_dist = base_r + int((25 + 90 * b) * (0.8 + 0.4 * math.sin(s_i * 1.7)))
+                sx = cx + int(math.cos(sa) * s_dist)
+                sy = cy + int(math.sin(sa) * s_dist)
+                sz_w = int(12 + 10 * b)
+                sz_h = int(18 + 14 * b)
+                draw.polygon([(sx, sy - sz_h), (sx + sz_w, sy), (sx - sz_w // 2, sy + sz_h)], fill=c1, outline=c3)
+            for fr_k in range(6):
+                fra = fr_k * (math.pi / 3.0) + (p_hash % 10) * 0.1
+                draw.line([(cx, cy), (cx + int(math.cos(fra) * (base_r + 65)), cy + int(math.sin(fra) * (base_r + 65)))], fill=c3, width=2)
+            _paste_circular_center_logo(im_frame, logo_im, cx, cy, base_r, outline_col=c1, accent_col=c3)
 
-    # 9. 💠 Diamond Core Bass Prism
-    elif fam == "diamond":
-        dr = int(base_r * (1.3 + 0.2 * b))
-        d_pts = [(cx, cy - dr), (cx + dr, cy), (cx, cy + dr), (cx - dr, cy)]
-        draw.polygon(d_pts, outline=c1, width=4)
-        spike = int(25 * b)
-        draw.line([(cx - dr - spike, cy), (cx + dr + spike, cy)], fill=c2, width=2)
-        draw.line([(cx, cy - dr - spike), (cx, cy + dr + spike)], fill=c2, width=2)
-        _paste_circular_center_logo(im_frame, logo_im, cx, cy, base_r, outline_col=c1, accent_col=c3)
+        elif any(k in p_text for k in ("tear", "stream", "cry", "drip", "balcony drip", "cave drop")):
+            num_tears = 10 + (p_hash % 6)
+            pool_y = th - 50
+            for tr_i in range(num_tears):
+                trx = cx - int(base_r * 0.6) + int((tr_i / max(1, num_tears - 1)) * (base_r * 1.2))
+                try_pos = cy + int(base_r * 0.4) + int((t * 260.0 + tr_i * 65.0) % (pool_y - cy))
+                draw.line([(trx, try_pos), (trx, try_pos + int(15 + 20 * b))], fill=c1, width=2)
+            for rp_i in range(4):
+                rp_w = int((t * 120.0 + rp_i * 45.0) % (tw * 0.55))
+                draw.ellipse([cx - rp_w, pool_y - 8, cx + rp_w, pool_y + 8], outline=c2, width=2)
+            _paste_circular_center_logo(im_frame, logo_im, cx, cy, base_r, outline_col=c1, accent_col=c3)
 
-    # 10. 🛡️ Biohazard Radioactive Core
-    elif fam == "biohazard":
-        rotor_r = base_r + 35
-        for k in range(3):
-            ka = k * (2.0 * math.pi / 3.0) + t * 0.8
-            bx = cx + int(math.cos(ka) * rotor_r)
-            by = cy + int(math.sin(ka) * rotor_r)
-            draw.line([(cx, cy), (bx, by)], fill=c1, width=5)
-            draw.ellipse([bx - 12, by - 12, bx + 12, by + 12], outline=c2, width=3)
-        draw.ellipse([cx - rotor_r, cy - rotor_r, cx + rotor_r, cy + rotor_r], outline=c3, width=2)
-        _paste_circular_center_logo(im_frame, logo_im, cx, cy, base_r, outline_col=c1, accent_col=c3)
+        elif any(k in p_text for k in ("fog", "mist", "smog", "smoke", "chimney")):
+            num_bands = 8
+            for fg_i in range(num_bands):
+                fgy = int((fg_i / num_bands) * th) + int(math.sin(t * 1.5 + fg_i) * 20.0)
+                draw.line([(0, fgy), (tw, fgy)], fill=c1, width=max(1, int(3 + 4 * b)))
+            _paste_circular_center_logo(im_frame, logo_im, cx, cy, base_r, outline_col=c1, accent_col=c3)
 
-    # 11. ⚡ Electric Plasma Arc Reactor
-    elif fam == "plasma":
-        if b > 0.5:
+        elif any(k in p_text for k in ("ice", "frost", "frozen")):
+            num_spikes = 12 + ((p_hash % 3) * 2)
+            for sp_i in range(num_spikes):
+                spa = (sp_i / num_spikes) * 2.0 * math.pi
+                splen = base_r + int(35 + 85 * b)
+                spx = cx + int(math.cos(spa) * splen)
+                spy = cy + int(math.sin(spa) * splen)
+                draw.line([(cx, cy), (spx, spy)], fill=c1, width=2)
+                _draw_diamond_shape(draw, spx, spy, 6, 12, fill=c3)
+            _paste_circular_center_logo(im_frame, logo_im, cx, cy, base_r, outline_col=c1, accent_col=c3)
+
+        elif any(k in p_text for k in ("noir", "shadow", "blind", "mono")):
+            bar_gap = max(18, th // 18)
+            for bar_y in range(0, th, bar_gap):
+                draw.rectangle([0, bar_y, tw, bar_y + (bar_gap // 3)], fill=(8, 8, 12))
+            draw.ellipse([cx - base_r - 20, cy - base_r - 20, cx + base_r + 20, cy + base_r + 20], outline=c1, width=2)
+            _paste_circular_center_logo(im_frame, logo_im, cx, cy, base_r, outline_col=c1, accent_col=c3)
+
+        elif any(k in p_text for k in ("autumn", "withered", "leaf", "grass")):
+            for lf_i in range(16):
+                lfx = int((lf_i * 85 + t * 40.0) % tw)
+                lfy = int((lf_i * 95 + t * 140.0) % th)
+                lfang = t * 2.0 + lf_i
+                _draw_petal_shape(draw, lfx, lfy, length=18, width_p=10, angle=lfang, fill=c1, outline=c2)
+            _paste_circular_center_logo(im_frame, logo_im, cx, cy, base_r, outline_col=c1, accent_col=c3)
+
+        else:
+            num_rain = 32 + (p_hash % 20)
+            rain_angle = -0.15 + (p_hash % 5) * 0.08
+            sin_ra = math.sin(rain_angle)
+            cos_ra = math.cos(rain_angle)
+            for r_i in range(num_rain):
+                rx = int((r_i * 39 + t * 50.0) % tw)
+                ry = int((r_i * 73 + t * 520.0) % th)
+                rlen = int(22 + 35 * b)
+                draw.line([(rx, ry), (rx + int(sin_ra * rlen), ry + int(cos_ra * rlen))], fill=c1 if r_i % 3 == 0 else c2, width=2 if r_i % 4 == 0 else 1)
+            if is_drop:
+                draw.ellipse([cx - base_r - 25, cy - base_r - 25, cx + base_r + 25, cy + base_r + 25], outline=c3, width=3)
+            _paste_circular_center_logo(im_frame, logo_im, cx, cy, base_r, outline_col=c1, accent_col=c3)
+
+    # =========================================================================
+    # 3. 🪔 DEVOTIONAL / BHAKTI SUITE (102 UNIQUE PRESETS)
+    # =========================================================================
+    elif eff_cat == "devotional" or fam in ("devotional", "devotional_chakra"):
+        if any(k in p_text for k in ("sudarshan", "chakra", "chariot spikes")):
+            num_blades = 24
+            rot_b = t * 2.2
+            for b_i in range(num_blades):
+                ang = rot_b + (b_i / num_blades) * 2.0 * math.pi
+                p_len = base_r + int(35 + 50 * b)
+                _draw_petal_shape(draw, cx, cy, p_len, width_p=int(14 + 8 * b), angle=ang, fill=c1 if b_i % 2 == 0 else c2, outline=c3, width=1)
+            draw.ellipse([cx - base_r - 10, cy - base_r - 10, cx + base_r + 10, cy + base_r + 10], outline=c3, width=3)
+            _paste_circular_center_logo(im_frame, logo_im, cx, cy, base_r, outline_col=c1, accent_col=c3)
+
+        elif any(k in p_text for k in ("flame", "akhand", "jyoti", "diya", "bhasma")):
+            flame_h = int(base_r * 0.90 + 70 * b)
+            f_top = (cx, cy - base_r - flame_h)
+            f_l = (cx - int(base_r * 0.45), cy - base_r + 10)
+            f_r = (cx + int(base_r * 0.45), cy - base_r + 10)
+            f_mid_jitter = int(math.sin(t * 15.0) * 12.0)
+            draw.polygon([(cx, cy - base_r + 10), (f_l[0], f_l[1]), (f_top[0] + f_mid_jitter, f_top[1]), (f_r[0], f_r[1])], fill=c1, outline=c3)
+            inner_top = (f_top[0] + f_mid_jitter, cy - base_r - int(flame_h * 0.6))
+            draw.polygon([(cx, cy - base_r + 10), (cx - int(base_r * 0.25), cy - base_r + 10), inner_top, (cx + int(base_r * 0.25), cy - base_r + 10)], fill=c3)
+            _paste_circular_center_logo(im_frame, logo_im, cx, cy, base_r, outline_col=c1, accent_col=c3)
+
+        elif any(k in p_text for k in ("omkar", "om", "sunburst", "chandan", "brahma")):
+            num_spokes = 32
+            for sp_i in range(num_spokes):
+                sa = (sp_i / num_spokes) * 2.0 * math.pi + (t * 0.18)
+                slen = base_r + int((25 + 60 * b) * (1.2 if sp_i % 2 == 0 else 0.7))
+                x1 = cx + int(math.cos(sa) * (base_r + 4))
+                y1 = cy + int(math.sin(sa) * (base_r + 4))
+                x2 = cx + int(math.cos(sa) * slen)
+                y2 = cy + int(math.sin(sa) * slen)
+                draw.line([(x1, y1), (x2, y2)], fill=c1 if sp_i % 2 == 0 else c2, width=3 if sp_i % 2 == 0 else 1)
+            draw.ellipse([cx - base_r - 20, cy - base_r - 20, cx + base_r + 20, cy + base_r + 20], outline=c3, width=2)
+            _paste_circular_center_logo(im_frame, logo_im, cx, cy, base_r, outline_col=c1, accent_col=c3)
+
+        elif any(k in p_text for k in ("bell", "ghanta")):
+            swing = math.sin(t * 3.5) * 18.0
+            bell_cx = cx + int(swing)
+            for w_idx in range(4):
+                wr = int(base_r + ((t * 140.0 + w_idx * 50.0) % 160.0))
+                draw.ellipse([bell_cx - wr, cy - wr, bell_cx + wr, cy + wr], outline=c1, width=2)
+            _paste_circular_center_logo(im_frame, logo_im, bell_cx, cy, base_r, outline_col=c1, accent_col=c3)
+
+        elif any(k in p_text for k in ("aarti", "thali")):
+            num_diyas = 7
+            for dy_i in range(num_diyas):
+                da = (dy_i / num_diyas) * 2.0 * math.pi + (t * 0.8)
+                ddist = base_r + int(45 + 30 * b)
+                dx = cx + int(math.cos(da) * ddist)
+                dy = cy + int(math.sin(da) * ddist)
+                draw.ellipse([dx - 10, dy - 6, dx + 10, dy + 6], fill=c2, outline=c1, width=2)
+                draw.ellipse([dx - 4, dy - 14, dx + 4, dy - 4], fill=c3)
+            draw.ellipse([cx - base_r - 45, cy - base_r - 45, cx + base_r + 45, cy + base_r + 45], outline=c1, width=2)
+            _paste_circular_center_logo(im_frame, logo_im, cx, cy, base_r, outline_col=c1, accent_col=c3)
+
+        elif any(k in p_text for k in ("lotus", "sahasrara", "amrit")):
+            num_lotus = 16
+            for lt_i in range(num_lotus):
+                la = (lt_i / num_lotus) * 2.0 * math.pi + (t * 0.2)
+                _draw_petal_shape(draw, cx, cy, base_r + int(40 + 40 * b), int(22 + 10 * b), la, fill=c1, outline=c3)
+            draw.ellipse([cx - base_r - 12, cy - base_r - 12, cx + base_r + 12, cy + base_r + 12], outline=c3, width=2)
+            _paste_circular_center_logo(im_frame, logo_im, cx, cy, base_r, outline_col=c1, accent_col=c3)
+
+        elif any(k in p_text for k in ("trishul", "damru", "kailash")):
+            draw.line([(cx, cy - base_r - 90), (cx, cy + base_r + 90)], fill=c1, width=4)
+            draw.line([(cx - 40, cy - base_r - 70), (cx + 40, cy - base_r - 70)], fill=c2, width=3)
+            draw.line([(cx - 40, cy - base_r - 70), (cx - 40, cy - base_r - 90)], fill=c3, width=3)
+            draw.line([(cx + 40, cy - base_r - 70), (cx + 40, cy - base_r - 90)], fill=c3, width=3)
+            for dw in range(base_r + 15, base_r + int(50 + 60 * b), 12):
+                draw.ellipse([cx - dw, cy - dw, cx + dw, cy + dw], outline=c2, width=1)
+            _paste_circular_center_logo(im_frame, logo_im, cx, cy, base_r, outline_col=c1, accent_col=c3)
+
+        elif any(k in p_text for k in ("pushpa", "flower_shower")):
+            for fl_i in range(24):
+                fl_x = int((fl_i * 65 + t * 30.0) % tw)
+                fl_y = int((fl_i * 85 + t * 160.0) % th)
+                _draw_star_shape(draw, fl_x, fl_y, size=int(7 + 4 * b), points=6, fill=c1, outline=c3)
+            _paste_circular_center_logo(im_frame, logo_im, cx, cy, base_r, outline_col=c1, accent_col=c3)
+
+        else:
+            num_sp = 16 + (p_hash % 12)
+            rot_spd = 0.22 + (p_hash % 4) * 0.1
+            for i in range(num_sp):
+                ch_ang = (i / num_sp) * 2.0 * math.pi + (t * rot_spd)
+                cx1 = cx + int(math.cos(ch_ang) * (base_r + 8))
+                cy1 = cy + int(math.sin(ch_ang) * (base_r + 8))
+                cx2 = cx + int(math.cos(ch_ang) * (base_r + int(30 + 75 * b)))
+                cy2 = cy + int(math.sin(ch_ang) * (base_r + int(30 + 75 * b)))
+                draw.line([(cx1, cy1), (cx2, cy2)], fill=c1 if i % 2 == 0 else c2, width=3)
+            draw.ellipse([cx - base_r - 20, cy - base_r - 20, cx + base_r + 20, cy + base_r + 20], outline=c3, width=2)
+            _paste_circular_center_logo(im_frame, logo_im, cx, cy, base_r, outline_col=c1, accent_col=c3)
+
+    # =========================================================================
+    # 4. 🌙 LO-FI / CHILL SUITE (102 UNIQUE PRESETS)
+    # =========================================================================
+    elif eff_cat == "lofi" or fam in ("lofi", "lofi_vinyl"):
+        if any(k in p_text for k in ("cassette", "tape", "reel", "spool")):
+            spool_offset = int(base_r * 0.95)
+            draw.ellipse([cx - spool_offset - 25, cy - 25, cx - spool_offset + 25, cy + 25], outline=c1, width=3)
+            draw.ellipse([cx + spool_offset - 25, cy - 25, cx + spool_offset + 25, cy + 25], outline=c1, width=3)
+            draw.line([(cx - spool_offset, cy + 25), (cx + spool_offset, cy + 25)], fill=c2, width=3)
+            draw.line([(cx - spool_offset, cy - 25), (cx + spool_offset, cy - 25)], fill=c2, width=3)
+            rot_sp = t * 3.0
+            for sp_i in range(6):
+                ang = rot_sp + (sp_i * math.pi / 3.0)
+                draw.line([(cx - spool_offset, cy), (cx - spool_offset + int(math.cos(ang) * 20), cy + int(math.sin(ang) * 20))], fill=c3, width=2)
+                draw.line([(cx + spool_offset, cy), (cx + spool_offset + int(math.cos(ang) * 20), cy + int(math.sin(ang) * 20))], fill=c3, width=2)
+            _paste_circular_center_logo(im_frame, logo_im, cx, cy, base_r, outline_col=c1, accent_col=c3)
+
+        elif any(k in p_text for k in ("cloud", "pastel", "sunset_clouds")):
+            num_clouds = 5
+            for c_i in range(num_clouds):
+                c_x = int((c_i * (tw // num_clouds) + t * 25.0) % tw)
+                c_y = int(th * 0.25) + int(math.sin(t + c_i) * 15.0)
+                draw.ellipse([c_x - 45, c_y - 20, c_x + 45, c_y + 20], fill=c1)
+                draw.ellipse([c_x - 20, c_y - 35, c_x + 25, c_y + 15], fill=c2)
+            _paste_circular_center_logo(im_frame, logo_im, cx, cy, base_r, outline_col=c1, accent_col=c3)
+
+        elif any(k in p_text for k in ("steam", "tea", "vapor", "ceramic")):
+            for st_i in range(6):
+                stm_x = cx - 40 + st_i * 16
+                stm_pts = []
+                for stm_y in range(cy + base_r, cy - base_r - 80, -8):
+                    rel = (cy + base_r - stm_y) * 0.05
+                    sway = int(math.sin(stm_y * 0.04 + t * 4.0 + st_i) * (12.0 * rel * (0.5 + 0.5 * b)))
+                    stm_pts.append((stm_x + sway, stm_y))
+                if len(stm_pts) >= 2:
+                    draw.line(stm_pts, fill=c1, width=2)
+            _paste_circular_center_logo(im_frame, logo_im, cx, cy, base_r, outline_col=c1, accent_col=c3)
+
+        elif any(k in p_text for k in ("vhs", "glitch", "tracking", "crt")):
+            num_lines = 6
+            for v_i in range(num_lines):
+                vy = int((t * 180.0 + v_i * 110.0) % th)
+                draw.line([(0, vy), (tw, vy)], fill=c1, width=int(2 + 4 * b))
+            _paste_circular_center_logo(im_frame, logo_im, cx, cy, base_r, outline_col=c1, accent_col=c3)
+
+        else:
+            for vr in range(base_r + 8, base_r + int(45 + 35 * b), 6):
+                draw.ellipse([cx - vr, cy - vr, cx + vr, cy + vr], outline=c1, width=1)
+            for s_k in range(24):
+                st_x = int((s_k * 43 + t * 15.0) % tw)
+                st_y = int((s_k * 71) % (th // 2))
+                st_sz = max(1, int(abs(math.sin(t * 3.0 + s_k)) * 3))
+                draw.ellipse([st_x - st_sz, st_y - st_sz, st_x + st_sz, st_y + st_sz], fill=c3)
+            _paste_circular_center_logo(im_frame, logo_im, cx, cy, base_r, outline_col=c1, accent_col=c3)
+
+    # =========================================================================
+    # 5. ⚡ PARTY / HIGH ENERGY SUITE (102 UNIQUE PRESETS)
+    # =========================================================================
+    elif eff_cat == "party" or fam in ("laser", "party"):
+        if any(k in p_text for k in ("grid", "laser_grid", "deck")):
+            horizon = int(th * 0.60)
+            for i in range(-14, 15):
+                top_x = cx + int(i * (tw / 36.0))
+                bot_x = cx + int(i * (tw / 8.0))
+                draw.line([(top_x, horizon), (bot_x, th)], fill=c1, width=1)
+            offset = (t * 70.0 + b * 60.0) % 25.0
+            for y_s in range(horizon, th, 22):
+                py = y_s + int(offset * ((y_s - horizon) / max(1, th - horizon)))
+                if horizon < py < th:
+                    draw.line([(0, py), (tw, py)], fill=c2, width=1)
+            _paste_circular_center_logo(im_frame, logo_im, cx, cy, base_r, outline_col=c1, accent_col=c3)
+
+        elif any(k in p_text for k in ("shockwave", "quake", "cannon", "subwoofer", "cone")):
+            for idx in range(3):
+                sw_r = int((t * 260.0 + idx * (tw * 0.22)) % (tw * 0.65))
+                draw.ellipse([cx - sw_r, cy - sw_r, cx + sw_r, cy + sw_r], outline=c1 if idx % 2 == 0 else c2, width=max(2, int(2 + 4 * b)))
+            _paste_circular_center_logo(im_frame, logo_im, cx, cy, base_r, outline_col=c1, accent_col=c3)
+
+        elif any(k in p_text for k in ("plasma", "lightning", "arc")):
             for arc_i in range(6):
                 ang = (arc_i * math.pi / 3.0) + (t * 2.0)
                 px = cx + int(math.cos(ang) * (base_r + 10))
@@ -9868,126 +10217,208 @@ def render_phonk_visualizer_overlay(
                     npy = py + int(math.sin(ang) * 25) + int(math.cos(t * 50.0 + arc_i) * 15.0)
                     draw.line([(px, py), (npx, npy)], fill=c1, width=3)
                     px, py = npx, npy
-        _paste_circular_center_logo(im_frame, logo_im, cx, cy, base_r, outline_col=c1, accent_col=c3)
+            _paste_circular_center_logo(im_frame, logo_im, cx, cy, base_r, outline_col=c1, accent_col=c3)
 
-    # 12. 🔦 Cyber Laser Stage Strobes
-    elif fam in ("laser", "party") or (song_mood == "party" and fam in ("trap_nation", "all")):
-        for l_idx in range(6):
-            sweep = math.sin(t * 3.0 + l_idx * 1.2) * 0.7
-            ox = 0 if l_idx % 2 == 0 else tw
-            oy = int(th * 0.15) + (l_idx * 55)
-            tx = int(tw * (0.5 + sweep))
-            ty = th
-            draw.line([(ox, oy), (tx, ty)], fill=c1 if l_idx % 2 == 0 else c2, width=3 if b > 0.7 else 2)
+        elif any(k in p_text for k in ("equalizer", "acid", "303")):
+            num_eq = 24
+            bar_w = max(4, tw // (num_eq + 4))
+            start_x = (tw - (num_eq * bar_w)) // 2
+            base_y = th - 40
+            for i in range(num_eq):
+                val_h = int((20 + 200 * b) * (0.2 + 0.8 * abs(math.sin(i * 0.5 + t * 6.5))))
+                bx = start_x + (i * bar_w)
+                by1 = max(th // 2, base_y - val_h)
+                draw.rectangle([bx + 1, by1, bx + bar_w - 2, base_y], fill=c1 if i % 2 == 0 else c2)
+                draw.line([(bx, by1), (bx + bar_w - 1, by1)], fill=c3, width=2)
+            _paste_circular_center_logo(im_frame, logo_im, cx, cy, base_r, outline_col=c1, accent_col=c3)
 
-    # 13. 💥 Multi-Ring Sonic Shockwave Blast
-    elif fam == "shockwave":
-        for idx in range(3):
-            sw_r = int((t * 240.0 + idx * (tw * 0.22)) % (tw * 0.65))
-            draw.ellipse([cx - sw_r, cy - sw_r, cx + sw_r, cy + sw_r], outline=c1 if idx % 2 == 0 else c2, width=max(2, int(2 + 4 * b)))
-        cr = int(30 + 30 * b)
-        draw.ellipse([cx - cr, cy - cr, cx + cr, cy + cr], outline=c3, width=2)
-        draw.line([(cx - cr - 20, cy), (cx + cr + 20, cy)], fill=c1, width=2)
-        draw.line([(cx, cy - cr - 20), (cx, cy + cr + 20)], fill=c1, width=2)
+        else:
+            for l_idx in range(6):
+                sweep = math.sin(t * 3.0 + l_idx * 1.2) * 0.7
+                ox = 0 if l_idx % 2 == 0 else tw
+                oy = int(th * 0.15) + (l_idx * 55)
+                tx = int(tw * (0.5 + sweep))
+                ty = th
+                draw.line([(ox, oy), (tx, ty)], fill=c1 if l_idx % 2 == 0 else c2, width=3 if b > 0.7 else 2)
+            _paste_circular_center_logo(im_frame, logo_im, cx, cy, base_r, outline_col=c1, accent_col=c3)
 
-    # 14. 🚀 Light Speed Starfield Accelerator
-    elif fam == "starfield":
-        star_spd = 8.0 + b * 35.0
-        for s in range(50):
-            sa = s * (2.0 * math.pi / 50.0) + t * 0.2
-            sr1 = int((s * 15.0 + t * star_spd * 12.0) % (tw * 0.55))
-            sr2 = sr1 + (int(18 * b) if b > 0.6 else 4)
-            p1 = (cx + int(math.cos(sa) * sr1), cy + int(math.sin(sa) * sr1))
-            p2 = (cx + int(math.cos(sa) * sr2), cy + int(math.sin(sa) * sr2))
-            draw.line([p1, p2], fill=c1 if s % 2 == 0 else c3, width=2)
+    # =========================================================================
+    # 6. 🎸 ACOUSTIC / INDIE SUITE (102 UNIQUE PRESETS)
+    # =========================================================================
+    elif eff_cat == "acoustic" or fam in ("acoustic", "oscilloscope"):
+        if any(k in p_text for k in ("guitar", "string", "twang")):
+            num_str = 6
+            start_y = cy - int(base_r * 0.6)
+            gap_y = int((base_r * 1.2) / max(1, num_str - 1))
+            for s_i in range(num_str):
+                sy = start_y + (s_i * gap_y)
+                pts = []
+                freq = 0.02 + s_i * 0.005
+                amp = (8.0 + 25.0 * b) * math.sin(t * (10.0 + s_i * 2.0))
+                for wx in range(30, tw - 30, 10):
+                    pts.append((wx, int(sy + math.sin(wx * freq) * amp)))
+                if len(pts) >= 2:
+                    draw.line(pts, fill=c1 if s_i % 2 == 0 else c2, width=2)
+            _paste_circular_center_logo(im_frame, logo_im, cx, cy, base_r, outline_col=c1, accent_col=c3)
 
-    # 15. 🏎️ JDM Drift Tachometer & Boost
-    elif fam == "tachometer":
-        gauge_r = int(min(tw, th) * 0.24)
-        gcx, gcy = tw // 2, int(th * 0.72)
-        draw.arc([gcx - gauge_r, gcy - gauge_r, gcx + gauge_r, gcy + gauge_r], start=140, end=400, fill=c1, width=5)
-        draw.arc([gcx - gauge_r, gcy - gauge_r, gcx + gauge_r, gcy + gauge_r], start=340, end=400, fill=(239, 68, 68), width=6)
-        needle_deg = 140.0 + (260.0 * min(1.0, b * 1.15))
-        n_rad = math.radians(needle_deg)
-        nx = gcx + int(math.cos(n_rad) * (gauge_r - 12))
-        ny = gcy + int(math.sin(n_rad) * (gauge_r - 12))
-        draw.line([(gcx, gcy), (nx, ny)], fill=(239, 68, 68), width=4)
-        draw.ellipse([gcx - 8, gcy - 8, gcx + 8, gcy + 8], fill=c3)
-        if b > 0.80:
-            draw.ellipse([gcx - 18, gcy - gauge_r - 28, gcx + 18, gcy - gauge_r + 8], fill=(239, 68, 68), outline=c3, width=2)
+        elif any(k in p_text for k in ("campfire", "ember")):
+            for em_k in range(25):
+                em_x = cx + int(math.sin(em_k * 1.3 + t * 3.0) * (base_r + 40))
+                em_y = cy + base_r - int((t * 120.0 + em_k * 25.0) % 220.0)
+                em_sz = int(2 + abs(math.sin(t * 4.0 + em_k)) * 4)
+                draw.ellipse([em_x - em_sz, em_y - em_sz, em_x + em_sz, em_y + em_sz], fill=c1 if em_k % 2 == 0 else c3)
+            _paste_circular_center_logo(im_frame, logo_im, cx, cy, base_r, outline_col=c1, accent_col=c3)
 
-    # 16. 🌐 3D Synthwave Horizon & Sun
-    elif fam == "grid_3d":
-        horizon = int(th * 0.58) if is_vertical else int(th * 0.52)
-        sun_r = int(min(tw, th) * (0.16 + 0.10 * b))
-        draw.pieslice([cx - sun_r, horizon - sun_r, cx + sun_r, horizon + sun_r], 180, 360, fill=c1, outline=c2)
-        slice_gap = max(10, sun_r // 5)
-        for ys in range(horizon - sun_r + slice_gap, horizon, slice_gap):
-            draw.line([(cx - sun_r, ys), (cx + sun_r, ys)], fill=(12, 10, 20), width=3)
-        num_v = 12
-        for i in range(-num_v, num_v + 1):
-            top_x = cx + int(i * (tw / (num_v * 3.2)))
-            bot_x = cx + int(i * (tw / (num_v * 0.85)))
-            draw.line([(top_x, horizon), (bot_x, th)], fill=c1, width=2)
-        offset = (t * 75.0 + b * 90.0) % 35.0
-        for k in range(1, 14):
-            y_rel = (k * 24.0) + (offset * (k / 14.0))
-            py = horizon + int(y_rel * ((th - horizon) / 320.0))
-            if horizon < py < th:
-                draw.line([(0, py), (tw, py)], fill=c2, width=2)
+        elif any(k in p_text for k in ("dew", "dewdrop", "brook")):
+            for r_k in range(4):
+                rw = int((t * 80.0 + r_k * 60.0) % (tw * 0.40))
+                draw.ellipse([cx - rw, cy - rw // 2, cx + rw, cy + rw // 2], outline=c1, width=2)
+            _paste_circular_center_logo(im_frame, logo_im, cx, cy, base_r, outline_col=c1, accent_col=c3)
 
-    # 17. 🌀 Hyperspace Polygonal Tunnel
-    elif fam == "tunnel":
-        for layer in range(5):
-            scale = ((t * (1.2 + 2.5 * b) + layer * 0.20) % 1.0)
-            poly_r = int(scale * (tw * 0.65))
-            if poly_r > 15:
-                hex_pts = []
+        else:
+            wave_pts = []
+            for wx in range(40, tw - 40, 8):
+                wy = int(cy + 120 + math.sin(wx * 0.03 + t * 6.0) * math.cos(wx * 0.01 + t * 3.0) * (35.0 * (0.3 + 0.7 * b)))
+                wave_pts.append((wx, wy))
+            if len(wave_pts) >= 2:
+                draw.line(wave_pts, fill=c1, width=3)
+                draw.line([(x, y + 2) for x, y in wave_pts], fill=c2, width=1)
+            _paste_circular_center_logo(im_frame, logo_im, cx, cy, base_r, outline_col=c1, accent_col=c3)
+
+    # =========================================================================
+    # 7. 👑 PHONK / FUNK / DRIFT SUITE (103 UNIQUE PRESETS)
+    # =========================================================================
+    else:
+        if fam == "trap_nation" or any(k in p_text for k in ("trap_nation", "legend")):
+            num_pts = 64
+            pts_out = []
+            pts_in = []
+            for i in range(num_pts):
+                ang = (i / num_pts) * 2.0 * math.pi
+                lobe = 0.28 * math.cos(3 * ang - math.pi / 2.0)
+                audio_freq = 0.40 * abs(math.sin(i * 0.5 + t * 4.5)) * b
+                r_out = base_r * (1.28 + lobe + audio_freq)
+                r_in = base_r * (1.04 + lobe * 0.4)
+                pts_out.append((cx + int(math.cos(ang) * r_out), cy + int(math.sin(ang) * r_out)))
+                pts_in.append((cx + int(math.cos(ang) * r_in), cy + int(math.sin(ang) * r_in)))
+            draw.polygon(pts_out, outline=c1, width=4)
+            for i in range(0, num_pts, 2):
+                draw.line([pts_in[i], pts_out[i]], fill=c3, width=3)
+            if is_drop:
+                sw_r = int(base_r * 1.55 + ((t * 220.0) % 80.0))
+                draw.ellipse([cx - sw_r, cy - sw_r, cx + sw_r, cy + sw_r], outline=c2, width=3)
+            _paste_circular_center_logo(im_frame, logo_im, cx, cy, base_r, outline_col=c2, accent_col=c3)
+
+        elif fam == "reactor" or any(k in p_text for k in ("reactor", "overdrive")):
+            for s_idx in range(35):
+                seed_x = ((s_idx * 173 + 47) % 1000) - 500
+                seed_y = ((s_idx * 281 + 83) % 1000) - 500
+                z_pos = (s_idx * 28.0 - t * (5.0 + b * 22.0) * 12.0) % 800.0 + 20.0
+                scale_fac = 300.0 / max(10.0, z_pos)
+                sx = int(cx + seed_x * scale_fac * 0.7)
+                sy = int(cy + seed_y * scale_fac * 0.7)
+                if 0 <= sx < tw and 0 <= sy < th:
+                    draw.ellipse([sx - 1, sy - 1, sx + 1, sy + 1], fill=c1 if s_idx % 2 == 0 else c2)
+            horizon = int(th * (0.72 if is_vertical else 0.68))
+            terrain_offset = (t * 70.0 + b * 60.0) % 28.0
+            for i in range(-12, 13):
+                top_x = cx + int(i * (tw / 34.0))
+                bot_x = cx + int(i * (tw / 8.5))
+                draw.line([(top_x, horizon), (bot_x, th)], fill=c2, width=1)
+            for y_step in range(horizon, th, 24):
+                py = y_step + int(terrain_offset * ((y_step - horizon) / max(1, th - horizon)))
+                if horizon < py < th:
+                    draw.line([(0, py), (tw, py)], fill=c2, width=1)
+            num_bars = 48
+            ang_off = t * 0.45
+            for i in range(num_bars):
+                ang = (i / num_bars) * (2.0 * math.pi) + ang_off
+                val = int((12.0 + 80.0 * b) * (0.35 + 0.65 * abs(math.sin(i * 0.45 + t * 5.0))))
+                x1 = cx + int(math.cos(ang) * (base_r + 8))
+                y1 = cy + int(math.sin(ang) * (base_r + 8))
+                x2 = cx + int(math.cos(ang) * (base_r + 8 + val))
+                y2 = cy + int(math.sin(ang) * (base_r + 8 + val))
+                draw.line([(x1, y1), (x2, y2)], fill=c1 if i % 2 == 0 else c2, width=3)
+            _paste_circular_center_logo(im_frame, logo_im, cx, cy, base_r, outline_col=c1, accent_col=c3)
+
+        elif fam == "monstercat" or any(k in p_text for k in ("monstercat", "360 ring")):
+            num_bars = 64
+            for i in range(num_bars):
+                ang = (i / num_bars) * (2.0 * math.pi)
+                h = int((10.0 + 95.0 * b) * (0.3 + 0.7 * abs(math.sin(i * 0.35 + t * 6.0))))
+                x1 = cx + int(math.cos(ang) * (base_r + 6))
+                y1 = cy + int(math.sin(ang) * (base_r + 6))
+                x2 = cx + int(math.cos(ang) * (base_r + 6 + h))
+                y2 = cy + int(math.sin(ang) * (base_r + 6 + h))
+                draw.line([(x1, y1), (x2, y2)], fill=c1 if i % 2 == 0 else c2, width=3)
+            outer_ring_r = base_r + int(35 * b)
+            draw.ellipse([cx - outer_ring_r, cy - outer_ring_r, cx + outer_ring_r, cy + outer_ring_r], outline=c3, width=2)
+            _paste_circular_center_logo(im_frame, logo_im, cx, cy, base_r, outline_col=c1, accent_col=c3)
+
+        elif fam == "hexagon" or any(k in p_text for k in ("hexagon", "hex core")):
+            hex_r = int(base_r * (1.25 + 0.15 * b))
+            for layer, col in [(hex_r, c1), (int(hex_r * 0.75), c2)]:
+                h_pts = []
                 for h_idx in range(6):
-                    ha = h_idx * math.pi / 3.0 + (t * 0.5)
-                    hex_pts.append((cx + int(math.cos(ha) * poly_r), cy + int(math.sin(ha) * poly_r)))
-                draw.polygon(hex_pts, outline=c1 if layer % 2 == 0 else c2, width=3)
+                    ha = h_idx * math.pi / 3.0 + (t * 0.5 if col == c1 else -t * 0.5)
+                    h_pts.append((cx + int(math.cos(ha) * layer), cy + int(math.sin(ha) * layer)))
+                draw.polygon(h_pts, outline=col, width=3)
+            _paste_circular_center_logo(im_frame, logo_im, cx, cy, base_r, outline_col=c1, accent_col=c3)
 
-    # 18. 💨 Tokyo Drift HUD Telemetry
-    elif fam == "drift_hud":
-        bw = int(tw * 0.42)
-        bh = int(th * 0.28)
-        c_len = 35
-        draw.line([(cx - bw, cy - bh), (cx - bw + c_len, cy - bh)], fill=c1, width=3)
-        draw.line([(cx - bw, cy - bh), (cx - bw, cy - bh + c_len)], fill=c1, width=3)
-        draw.line([(cx + bw, cy + bh), (cx + bw - c_len, cy + bh)], fill=c2, width=3)
-        draw.line([(cx + bw, cy + bh), (cx + bw, cy + bh - c_len)], fill=c2, width=3)
-        if b > 0.72:
-            for s_idx in range(16):
-                sa = (s_idx * 2.0 * math.pi) / 16.0
-                p1_x = cx + int(math.cos(sa) * (tw * 0.35))
-                p1_y = cy + int(math.sin(sa) * (th * 0.35))
-                p2_x = cx + int(math.cos(sa) * (tw * 0.48))
-                p2_y = cy + int(math.sin(sa) * (th * 0.48))
-                draw.line([(p1_x, p1_y), (p2_x, p2_y)], fill=c3, width=2)
+        elif fam == "diamond" or any(k in p_text for k in ("diamond",)):
+            dr = int(base_r * (1.3 + 0.2 * b))
+            d_pts = [(cx, cy - dr), (cx + dr, cy), (cx, cy + dr), (cx - dr, cy)]
+            draw.polygon(d_pts, outline=c1, width=4)
+            spike = int(25 * b)
+            draw.line([(cx - dr - spike, cy), (cx + dr + spike, cy)], fill=c2, width=2)
+            draw.line([(cx, cy - dr - spike), (cx, cy + dr + spike)], fill=c2, width=2)
+            _paste_circular_center_logo(im_frame, logo_im, cx, cy, base_r, outline_col=c1, accent_col=c3)
 
-    # 19. 📊 Dual-Horizon Equalizer Bars
-    elif fam == "equalizer":
-        num_eq = 28
-        bar_w = max(4, tw // (num_eq + 4))
-        start_x = (tw - (num_eq * bar_w)) // 2
-        base_y = th - 40
-        for i in range(num_eq):
-            val_h = int((20 + 220 * b) * (0.2 + 0.8 * abs(math.sin(i * 0.5 + t * 6.5))))
-            bx = start_x + (i * bar_w)
-            by1 = max(th // 2, base_y - val_h)
-            draw.rectangle([bx + 1, by1, bx + bar_w - 2, base_y], fill=c1 if i % 2 == 0 else c2)
-            draw.line([(bx, by1), (bx + bar_w - 1, by1)], fill=c3, width=2)
+        elif fam == "biohazard" or any(k in p_text for k in ("biohazard",)):
+            rotor_r = base_r + 35
+            for k in range(3):
+                ka = k * (2.0 * math.pi / 3.0) + t * 0.8
+                bx = cx + int(math.cos(ka) * rotor_r)
+                by = cy + int(math.sin(ka) * rotor_r)
+                draw.line([(cx, cy), (bx, by)], fill=c1, width=5)
+                draw.ellipse([bx - 12, by - 12, bx + 12, by + 12], outline=c2, width=3)
+            draw.ellipse([cx - rotor_r, cy - rotor_r, cx + rotor_r, cy + rotor_r], outline=c3, width=2)
+            _paste_circular_center_logo(im_frame, logo_im, cx, cy, base_r, outline_col=c1, accent_col=c3)
 
-    # 20. 🌊 Analog Sine Oscilloscope Ribbon
-    elif fam in ("oscilloscope", "acoustic") or (song_mood == "acoustic" and fam in ("trap_nation", "all")):
-        wave_pts = []
-        for wx in range(40, tw - 40, 8):
-            wy = int(cy + 120 + math.sin(wx * 0.03 + t * 6.0) * math.cos(wx * 0.01 + t * 3.0) * (35.0 * (0.3 + 0.7 * b)))
-            wave_pts.append((wx, wy))
-        if len(wave_pts) >= 2:
-            draw.line(wave_pts, fill=c1, width=3)
-            draw.line([(x, y + 2) for x, y in wave_pts], fill=c2, width=1)
+        elif fam == "tachometer" or any(k in p_text for k in ("tachometer", "radar", "speed")):
+            gauge_r = int(min(tw, th) * 0.24)
+            gcx, gcy = tw // 2, int(th * 0.72)
+            draw.arc([gcx - gauge_r, gcy - gauge_r, gcx + gauge_r, gcy + gauge_r], start=140, end=400, fill=c1, width=5)
+            draw.arc([gcx - gauge_r, gcy - gauge_r, gcx + gauge_r, gcy + gauge_r], start=340, end=400, fill=(239, 68, 68), width=6)
+            needle_deg = 140.0 + (260.0 * min(1.0, b * 1.15))
+            n_rad = math.radians(needle_deg)
+            nx = gcx + int(math.cos(n_rad) * (gauge_r - 12))
+            ny = gcy + int(math.sin(n_rad) * (gauge_r - 12))
+            draw.line([(gcx, gcy), (nx, ny)], fill=(239, 68, 68), width=4)
+            draw.ellipse([gcx - 8, gcy - 8, gcx + 8, gcy + 8], fill=c3)
+            _paste_circular_center_logo(im_frame, logo_im, cx, cy, base_r, outline_col=c1, accent_col=c3)
+
+        elif fam == "drift_hud" or any(k in p_text for k in ("drift_hud", "syndicate", "hud")):
+            bw_b = int(tw * 0.42)
+            bh_b = int(th * 0.28)
+            c_len = 35
+            draw.line([(cx - bw_b, cy - bh_b), (cx - bw_b + c_len, cy - bh_b)], fill=c1, width=3)
+            draw.line([(cx - bw_b, cy - bh_b), (cx - bw_b, cy - bh_b + c_len)], fill=c1, width=3)
+            draw.line([(cx + bw_b, cy + bh_b), (cx + bw_b - c_len, cy + bh_b)], fill=c2, width=3)
+            draw.line([(cx + bw_b, cy + bh_b), (cx + bw_b, cy + bh_b - c_len)], fill=c2, width=3)
+            _paste_circular_center_logo(im_frame, logo_im, cx, cy, base_r, outline_col=c1, accent_col=c3)
+
+        else:
+            num_spikes = 8 + (p_hash % 8)
+            for s_i in range(num_spikes):
+                sa = (s_i / num_spikes) * 2.0 * math.pi + (t * 0.7)
+                slen = base_r + int(20 + 70 * b)
+                sx = cx + int(math.cos(sa) * slen)
+                sy = cy + int(math.sin(sa) * slen)
+                draw.line([(cx, cy), (sx, sy)], fill=c1 if s_i % 2 == 0 else c2, width=max(1, int(2 + 2 * b)))
+                _draw_diamond_shape(draw, sx, sy, 5, 8, fill=c3)
+            draw.ellipse([cx - base_r - 10, cy - base_r - 10, cx + base_r + 10, cy + base_r + 10], outline=c1, width=2)
+            _paste_circular_center_logo(im_frame, logo_im, cx, cy, base_r, outline_col=c1, accent_col=c3)
 
     return im_frame
 
