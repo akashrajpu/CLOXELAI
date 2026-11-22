@@ -538,6 +538,7 @@ def translate_to_visual_english(text: str, topic: str = "") -> str:
             src_words = [w.lower().strip('.,!?:;"\'()[]{}') for w in src.split()]
             src_hing = any(w in HINDI_STOPWORDS for w in src_words)
             if src_dev or src_hing:
+                # 1. Primary Live Dynamic Translation API: MyMemory (Translates arbitrary new words/sentences)
                 try:
                     url = 'https://api.mymemory.translated.net/get'
                     params = {'q': src[:250], 'langpair': 'hi|en'}
@@ -551,6 +552,24 @@ def translate_to_visual_english(text: str, topic: str = "") -> str:
                                 translated_text = tr.strip()
                 except Exception:
                     pass
+
+                # 2. Secondary Live Dynamic Translation Fallback: Google Translate (For any brand new Hindi/Hinglish phrase)
+                if (target == 'topic' and translated_topic == topic_raw) or (target == 'text' and translated_text == raw):
+                    try:
+                        g_url = 'https://translate.googleapis.com/translate_a/single'
+                        g_params = {'client': 'gtx', 'sl': 'auto', 'tl': 'en', 'dt': 't', 'q': src[:250]}
+                        g_headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}
+                        g_resp = requests.get(g_url, params=g_params, headers=g_headers, timeout=3.0)
+                        if g_resp.status_code == 200:
+                            g_data = g_resp.json()
+                            g_tr = "".join([segment[0] for segment in g_data[0] if segment and segment[0]])
+                            if g_tr and g_tr.strip():
+                                if target == 'topic':
+                                    translated_topic = g_tr.strip()
+                                else:
+                                    translated_text = g_tr.strip()
+                    except Exception:
+                        pass
 
     # 2. Extract concepts from tokens BEFORE stripping non-ASCII (so Devanagari and Hinglish match CONCEPT_MAP)
     combined = f'{translated_topic} {translated_text}'

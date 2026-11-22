@@ -813,8 +813,12 @@ def sanitize_lyrics_text(text: str) -> str:
 def apply_cinematic_photo_filter(im: Image.Image, filter_name: str) -> Image.Image:
     """
     Applies professional cinematic color grading and subtle edge vignette to a photo.
+    Optimized for Render 512MB RAM: Downsamples before matrix math and frees all float arrays.
     """
     im = im.convert("RGB")
+    # Downsample immediately if image is larger than 1280x1280 to save 200MB+ RAM on 4K/8K images
+    if im.width > 1280 or im.height > 1280:
+        im.thumbnail((1280, 1280), Image.Resampling.BILINEAR)
     w, h = im.size
 
     if filter_name == "teal_orange":
@@ -822,6 +826,7 @@ def apply_cinematic_photo_filter(im: Image.Image, filter_name: str) -> Image.Ima
         arr[:, :, 0] = np.clip(arr[:, :, 0] * 1.15, 0, 255)
         arr[:, :, 2] = np.clip(arr[:, :, 2] * 1.1 - arr[:, :, 0] * 0.1, 0, 255)
         im = Image.fromarray(arr.astype(np.uint8))
+        del arr
         im = ImageEnhance.Contrast(im).enhance(1.15)
     elif filter_name == "moody_noir":
         im = ImageOps.grayscale(im).convert("RGB")
@@ -829,12 +834,14 @@ def apply_cinematic_photo_filter(im: Image.Image, filter_name: str) -> Image.Ima
         arr = np.array(im, dtype=np.float32)
         arr[:, :, 2] = np.clip(arr[:, :, 2] * 1.15, 0, 255)
         im = Image.fromarray(arr.astype(np.uint8))
+        del arr
     elif filter_name == "golden_dream":
         arr = np.array(im, dtype=np.float32)
         arr[:, :, 0] = np.clip(arr[:, :, 0] * 1.2, 0, 255)
         arr[:, :, 1] = np.clip(arr[:, :, 1] * 1.08, 0, 255)
         arr[:, :, 2] = np.clip(arr[:, :, 2] * 0.85, 0, 255)
         im = Image.fromarray(arr.astype(np.uint8))
+        del arr
         im = ImageEnhance.Color(im).enhance(1.2)
     elif filter_name == "cyber_neon":
         im = ImageEnhance.Color(im).enhance(1.4)
@@ -843,11 +850,13 @@ def apply_cinematic_photo_filter(im: Image.Image, filter_name: str) -> Image.Ima
         arr[:, :, 0] = np.clip(arr[:, :, 0] * 1.15, 0, 255)
         arr[:, :, 2] = np.clip(arr[:, :, 2] * 1.25, 0, 255)
         im = Image.fromarray(arr.astype(np.uint8))
+        del arr
     elif filter_name == "emerald_cinema":
         arr = np.array(im, dtype=np.float32)
         arr[:, :, 1] = np.clip(arr[:, :, 1] * 1.18, 0, 255)
         arr[:, :, 0] = np.clip(arr[:, :, 0] * 0.95, 0, 255)
         im = Image.fromarray(arr.astype(np.uint8))
+        del arr
         im = ImageEnhance.Contrast(im).enhance(1.15)
     else:  # vintage_film
         im = ImageEnhance.Color(im).enhance(0.9)
@@ -855,18 +864,23 @@ def apply_cinematic_photo_filter(im: Image.Image, filter_name: str) -> Image.Ima
         arr[:, :, 0] = np.clip(arr[:, :, 0] * 1.08, 0, 255)
         arr[:, :, 1] = np.clip(arr[:, :, 1] * 1.04, 0, 255)
         im = Image.fromarray(arr.astype(np.uint8))
+        del arr
         im = ImageEnhance.Contrast(im).enhance(1.1)
 
     # Cinematic Vignette (darkened edges for high subtitle contrast)
-    X = np.linspace(-1, 1, w)[None, :]
-    Y = np.linspace(-1, 1, h)[:, None]
+    X = np.linspace(-1, 1, w, dtype=np.float32)[None, :]
+    Y = np.linspace(-1, 1, h, dtype=np.float32)[:, None]
     radius = np.sqrt(X**2 + Y**2)
     vignette = np.clip(1.0 - (radius - 0.45) * 0.8, 0.25, 1.0)
+    del X, Y, radius
     arr_out = np.array(im, dtype=np.float32)
     for c in range(3):
         arr_out[:, :, c] = np.clip(arr_out[:, :, c] * vignette, 0, 255)
+    del vignette
     
-    return Image.fromarray(arr_out.astype(np.uint8))
+    filtered_res = Image.fromarray(arr_out.astype(np.uint8))
+    del arr_out
+    return filtered_res
 
 
 def extract_audio_beat_and_bass_envelope(audio_path: str, target_fps: int = 20, max_dur: float = 300.0) -> np.ndarray:
@@ -967,6 +981,16 @@ def extract_audio_beat_and_bass_envelope(audio_path: str, target_fps: int = 20, 
         norm_beat = np.zeros(1)
 
     combined = np.clip(0.70 * norm_bass + 0.30 * norm_beat, 0.0, 1.0)
+    
+    # Immediately release massive audio arrays & garbage collect
+    try:
+        del data, bass_energies, beat_energies, bass_arr, beat_arr, window_fn
+        if 'raw_data' in locals():
+            del raw_data
+    except Exception:
+        pass
+    release_system_memory()
+
     return combined
 
 
@@ -9599,6 +9623,12 @@ def _paste_circular_center_logo(
             mask = Image.new("L", (diam, diam), 0)
             ImageDraw.Draw(mask).ellipse([0, 0, diam, diam], fill=255)
             im_frame.paste(resized, (cx - radius, cy - radius), mask)
+            try:
+                resized.close()
+                mask.close()
+            except Exception:
+                pass
+            del resized, mask
         except Exception:
             pass
     else:
@@ -12246,15 +12276,24 @@ def build_full_song_video(
         bg_none_count = sum(1 for lyr in all_lyrics if lyr.get("bg_style") == "none")
         print(f"📝 [Song Engine] Prepared {len(all_lyrics)} Hinglish/English dual-font lyrics (Bold + Random pairs) strictly at Side/Bottom positions ({bg_none_count} floating lines).")
 
-    # 3. Background Visual Segments (Simple Beat & Phonk: exactly 1 single continuous visual!)
+    # 3. Background Visual Segments (Render 512MB RAM Memory-Safe Streaming Chunks)
     if is_beat_visualizer:
-        num_segments = 1
-        seg_dur = float(target_duration)
-        print(f"🔥 [Beat & Bass Engine Active] Single visual continuous beat-reactive loop mode (Mood: {song_mood}, Target: {target_duration}s)...")
+        # Render 512MB RAM Safety:
+        # Instead of 1 massive 60s/90s chunk (1200+ frames) that causes Render OOM crashes,
+        # chunk into 6.5s slices that all share the EXACT SAME continuous background media & continuous global audio sync!
+        chunk_target = 6.5
+        num_segments = max(1, int(math.ceil(target_duration / chunk_target)))
+        seg_dur = round(target_duration / num_segments, 2)
+        print(f"🔥 [Beat & Bass Engine Active] Continuous beat-reactive loop mode (Mood: {song_mood}, Target: {target_duration}s, Memory-Safe {num_segments} chunks of {seg_dur}s)...")
     else:
         num_segments = max(2, min(8, int(math.ceil(target_duration / 10.0))))
         seg_dur = round(target_duration / num_segments, 2)
         print(f"🎬 [Song Engine] Segmenting video into {num_segments} cinematic background visual scenes ({seg_dur}s per scene)...")
+
+    # Shared background cache for Beat Visualizer mode so it is fetched/prepped ONCE and reused across all chunks
+    beat_shared_bg_photo = None
+    beat_shared_bg_video = None
+    beat_shared_base_np = None
 
     # In Beat Visualizer mode, determine if background is video or photo:
     user_bg_file = getattr(req, "phonk_bg_image_path", None) if is_beat_visualizer else None
@@ -12498,11 +12537,21 @@ def build_full_song_video(
                         v_base = VideoFileClip(prep_clip_path, audio=False)
 
                         def make_video_frame(t):
+                            abs_t = seg_start + t
+                            # Memory-Safe: Periodic C-heap trim & GC every 25 frames
+                            if int(t * 20) % 25 == 0:
+                                gc.collect()
+                                try:
+                                    import ctypes
+                                    ctypes.CDLL('libc.so.6').malloc_trim(0)
+                                except Exception:
+                                    pass
+
                             orig_frame = v_base.get_frame(t)
                             if phonk_bass_envelope is not None and len(phonk_bass_envelope) > 0:
                                 bw = orig_frame.shape[1]
                                 bh = orig_frame.shape[0]
-                                frame_idx = min(len(phonk_bass_envelope) - 1, max(0, int(t * 20)))
+                                frame_idx = min(len(phonk_bass_envelope) - 1, max(0, int(abs_t * 20)))
                                 bass_val = float(phonk_bass_envelope[frame_idx])
 
                                 # Beat & Bass reactive zoom pump
@@ -12512,8 +12561,8 @@ def build_full_song_video(
 
                                 # Camera shake driven by bass power ("jha base he bha hilegi, vha kam he vha kam hilegi")
                                 shake_amp = 22.0 * (bass_val ** 1.5)
-                                shake_x = int(math.sin(t * 68.0) * shake_amp * 0.7 + math.cos(t * 115.0) * shake_amp * 0.3)
-                                shake_y = int(math.cos(t * 62.0) * shake_amp * 0.7 + math.sin(t * 128.0) * shake_amp * 0.3)
+                                shake_x = int(math.sin(abs_t * 68.0) * shake_amp * 0.7 + math.cos(abs_t * 115.0) * shake_amp * 0.3)
+                                shake_y = int(math.cos(abs_t * 62.0) * shake_amp * 0.7 + math.sin(abs_t * 128.0) * shake_amp * 0.3)
 
                                 cx = bw // 2 + shake_x
                                 cy = bh // 2 + shake_y
@@ -12531,18 +12580,19 @@ def build_full_song_video(
                                     shift = int(2 + 4 * bass_val)
                                     arr[:, shift:, 0] = arr[:, :-shift, 0]
                                     arr[:, :-shift, 2] = arr[:, shift:, 2]
+                                    im_f.close()
                                     im_f = Image.fromarray(arr)
+                                    del arr
 
                                 if active_visualizer_preset_id and active_visualizer_preset_id != "primary":
                                     im_f = render_phonk_visualizer_overlay(
-                                        im_f, t, bass_val, active_visualizer_preset_id, tw, th,
+                                        im_f, abs_t, bass_val, active_visualizer_preset_id, tw, th,
                                         logo_im=phonk_logo_im, track_title=effective_title or "BEAT REACTOR",
                                         song_mood=song_mood
                                     )
                             else:
                                 im_f = Image.fromarray(orig_frame)
 
-                            abs_t = seg_start + t
                             active_line = None
                             if not is_beat_visualizer:
                                 for l in lines_in_seg:
@@ -12561,114 +12611,133 @@ def build_full_song_video(
                     print(f"⚠️ Stock video clip load note: {e_v}")
 
         if not seg_clip:
-            # ⚡ Ultra 3D Photo Motion with Filter & Typewriter Lyrics
-            # First Priority: Pinterest HD Photos with cinematic animation & aspect ratio
-            img_path = os.path.join(job_dir, f"bg_photo_{seg_idx}.jpg")
-            user_bg_file = getattr(req, "phonk_bg_image_path", None) if is_beat_visualizer else None
-            got_pinterest_photo = False
-
-            if user_bg_file and os.path.exists(user_bg_file) and os.path.getsize(user_bg_file) > 1000:
-                try:
-                    shutil.copy2(user_bg_file, img_path)
-                    got_pinterest_photo = True
-                    print(f"🌄 [Beat Studio] Using custom user-uploaded Background Photo: {os.path.basename(user_bg_file)}")
-                except Exception as e_bg:
-                    print(f"⚠️ User background photo copy note: {e_bg}")
-
-            if not got_pinterest_photo:
-                if is_beat_visualizer:
-                    if song_mood == "romantic":
-                        photo_query = f"{chosen_scene} graphic cartoon anime romantic couple love cute golden hour aesthetic wallpaper 4k".strip()
-                    elif song_mood == "sad":
-                        photo_query = f"{chosen_scene} graphic cartoon anime melancholy rain dark noir aesthetic wallpaper 4k".strip()
-                    elif song_mood == "devotional":
-                        photo_query = f"{chosen_scene} graphic cartoon divine temple sacred golden light spiritual aesthetic wallpaper 4k".strip()
-                    elif song_mood == "lofi":
-                        photo_query = f"{chosen_scene} graphic cartoon anime cozy lofi room night stars purple neon aesthetic wallpaper 4k".strip()
-                    elif song_mood == "party":
-                        photo_query = f"{chosen_scene} graphic cartoon anime neon club laser stage rave concert aesthetic wallpaper 4k".strip()
-                    elif song_mood == "acoustic":
-                        photo_query = f"{chosen_scene} graphic cartoon anime acoustic guitar campfire misty forest road nature aesthetic wallpaper 4k".strip()
-                    else:
-                        photo_query = f"{chosen_scene} graphic cartoon anime jdm drift car neon cyberpunk aggressive aesthetic wallpaper 4k".strip()
-                else:
-                    photo_query = f"{chosen_scene} aesthetic anime background wallpaper cinematic 4k".strip()
-
-                print(f"📸 [Ultra Song Visual] Fetching HD Pinterest {orientation.upper()} Photo: '{photo_query}' (Cinematic Animation, No API)...")
-
-                p_files = fetch_pinterest_photos_via_gallery_dl(
-                    query=photo_query,
-                    limit=1,
-                    output_dir=job_dir,
-                    used_media_ids=used_media_ids,
-                    orientation=orientation
-                )
-
-            # Fallback 1 on Pinterest: Shorter query
-            if not got_pinterest_photo and (not p_files or not os.path.exists(p_files[0]) or os.path.getsize(p_files[0]) < 1000):
-                fb_photo_query = f"{song_mood} cinematic animation".strip()
-                print(f"🔄 [Ultra Song Visual] Fallback Pinterest Photo query: '{fb_photo_query}'...")
-                p_files = fetch_pinterest_photos_via_gallery_dl(
-                    query=fb_photo_query,
-                    limit=1,
-                    output_dir=job_dir,
-                    used_media_ids=used_media_ids,
-                    orientation=orientation
-                )
-
-            if not got_pinterest_photo and p_files and os.path.exists(p_files[0]) and os.path.getsize(p_files[0]) > 1000:
-                try:
-                    shutil.copy2(p_files[0], img_path)
-                    got_pinterest_photo = True
-                    f_hash = get_media_fingerprint(img_path)
-                    if f_hash: used_media_ids.add(f_hash)
-                    used_media_ids.add(f"size_{os.path.getsize(img_path)}")
-                    used_media_ids.add(os.path.basename(img_path))
-                    print(f"✅ [Ultra Song Visual] Successfully loaded Pinterest Photo for Segment {seg_idx+1}: {os.path.basename(p_files[0])}")
-                except Exception as e_cp:
-                    print(f"⚠️ Pinterest photo copy note: {e_cp}")
-
-            # Fallback 2: Web Image API (Bing/Pexels)
-            if not got_pinterest_photo or not os.path.exists(img_path) or os.path.getsize(img_path) < 1000:
-                print(f"🔄 [Ultra Song Visual] Fallback to Web Image API: '{photo_query}'...")
-                fetch_web_image(photo_query, img_path, prefer_source="bing", orientation=orientation)
-
-            try:
-                with Image.open(img_path) as raw_im:
-                    filtered_im = apply_cinematic_photo_filter(raw_im, chosen_filter)
-                    filtered_im.thumbnail((1280, 1280), Image.Resampling.LANCZOS)
-                    filtered_im.save(img_path, quality=88)
-            except Exception as e_im:
-                print(f"⚠️ Filter apply note: {e_im}")
-
             tw, th = target_size
             MARGIN = 1.30
-            try:
-                orig = Image.open(img_path).convert("RGB")
-                aspect_orig = orig.width / orig.height
-                aspect_target = tw / th
-                if aspect_orig > aspect_target:
-                    new_h = int(th * MARGIN)
-                    new_w = int(new_h * aspect_orig)
-                else:
-                    new_w = int(tw * MARGIN)
-                    new_h = int(new_w / aspect_orig)
-                orig_resized = orig.resize((new_w, new_h), Image.Resampling.LANCZOS)
-                base_np = np.array(orig_resized)
-                try: orig.close(); orig_resized.close()
-                except Exception: pass
-                del orig, orig_resized
-            except Exception as e_base:
-                print(f"⚠️ Base image load note: {e_base}")
-                base_np = np.zeros((int(th * MARGIN), int(tw * MARGIN), 3), dtype=np.uint8)
-                base_np[:] = (20, 15, 30)
 
-            bw = base_np.shape[1]
-            bh = base_np.shape[0]
+            if is_beat_visualizer and beat_shared_base_np is not None:
+                base_np = beat_shared_base_np
+                bw = base_np.shape[1]
+                bh = base_np.shape[0]
+            else:
+                # ⚡ Ultra 3D Photo Motion with Filter & Typewriter Lyrics
+                # First Priority: Pinterest HD Photos with cinematic animation & aspect ratio
+                img_path = os.path.join(job_dir, f"bg_photo_{seg_idx}.jpg")
+                user_bg_file = getattr(req, "phonk_bg_image_path", None) if is_beat_visualizer else None
+                got_pinterest_photo = False
+
+                if user_bg_file and os.path.exists(user_bg_file) and os.path.getsize(user_bg_file) > 1000:
+                    try:
+                        shutil.copy2(user_bg_file, img_path)
+                        got_pinterest_photo = True
+                        print(f"🌄 [Beat Studio] Using custom user-uploaded Background Photo: {os.path.basename(user_bg_file)}")
+                    except Exception as e_bg:
+                        print(f"⚠️ User background photo copy note: {e_bg}")
+
+                if not got_pinterest_photo:
+                    if is_beat_visualizer:
+                        if song_mood == "romantic":
+                            photo_query = f"{chosen_scene} graphic cartoon anime romantic couple love cute golden hour aesthetic wallpaper 4k".strip()
+                        elif song_mood == "sad":
+                            photo_query = f"{chosen_scene} graphic cartoon anime melancholy rain dark noir aesthetic wallpaper 4k".strip()
+                        elif song_mood == "devotional":
+                            photo_query = f"{chosen_scene} graphic cartoon divine temple sacred golden light spiritual aesthetic wallpaper 4k".strip()
+                        elif song_mood == "lofi":
+                            photo_query = f"{chosen_scene} graphic cartoon anime cozy lofi room night stars purple neon aesthetic wallpaper 4k".strip()
+                        elif song_mood == "party":
+                            photo_query = f"{chosen_scene} graphic cartoon anime neon club laser stage rave concert aesthetic wallpaper 4k".strip()
+                        elif song_mood == "acoustic":
+                            photo_query = f"{chosen_scene} graphic cartoon anime acoustic guitar campfire misty forest road nature aesthetic wallpaper 4k".strip()
+                        else:
+                            photo_query = f"{chosen_scene} graphic cartoon anime jdm drift car neon cyberpunk aggressive aesthetic wallpaper 4k".strip()
+                    else:
+                        photo_query = f"{chosen_scene} aesthetic anime background wallpaper cinematic 4k".strip()
+
+                    print(f"📸 [Ultra Song Visual] Fetching HD Pinterest {orientation.upper()} Photo: '{photo_query}' (Cinematic Animation, No API)...")
+
+                    p_files = fetch_pinterest_photos_via_gallery_dl(
+                        query=photo_query,
+                        limit=1,
+                        output_dir=job_dir,
+                        used_media_ids=used_media_ids,
+                        orientation=orientation
+                    )
+
+                # Fallback 1 on Pinterest: Shorter query
+                if not got_pinterest_photo and (not p_files or not os.path.exists(p_files[0]) or os.path.getsize(p_files[0]) < 1000):
+                    fb_photo_query = f"{song_mood} cinematic animation".strip()
+                    print(f"🔄 [Ultra Song Visual] Fallback Pinterest Photo query: '{fb_photo_query}'...")
+                    p_files = fetch_pinterest_photos_via_gallery_dl(
+                        query=fb_photo_query,
+                        limit=1,
+                        output_dir=job_dir,
+                        used_media_ids=used_media_ids,
+                        orientation=orientation
+                    )
+
+                if not got_pinterest_photo and p_files and os.path.exists(p_files[0]) and os.path.getsize(p_files[0]) > 1000:
+                    try:
+                        shutil.copy2(p_files[0], img_path)
+                        got_pinterest_photo = True
+                        f_hash = get_media_fingerprint(img_path)
+                        if f_hash: used_media_ids.add(f_hash)
+                        used_media_ids.add(f"size_{os.path.getsize(img_path)}")
+                        used_media_ids.add(os.path.basename(img_path))
+                        print(f"✅ [Ultra Song Visual] Successfully loaded Pinterest Photo for Segment {seg_idx+1}: {os.path.basename(p_files[0])}")
+                    except Exception as e_cp:
+                        print(f"⚠️ Pinterest photo copy note: {e_cp}")
+
+                # Fallback 2: Web Image API (Bing/Pexels)
+                if not got_pinterest_photo or not os.path.exists(img_path) or os.path.getsize(img_path) < 1000:
+                    print(f"🔄 [Ultra Song Visual] Fallback to Web Image API: '{photo_query}'...")
+                    fetch_web_image(photo_query, img_path, prefer_source="bing", orientation=orientation)
+
+                try:
+                    with Image.open(img_path) as raw_im:
+                        if raw_im.width > 1280 or raw_im.height > 1280:
+                            raw_im.thumbnail((1280, 1280), Image.Resampling.BILINEAR)
+                        filtered_im = apply_cinematic_photo_filter(raw_im, chosen_filter)
+                        filtered_im.save(img_path, quality=88)
+                except Exception as e_im:
+                    print(f"⚠️ Filter apply note: {e_im}")
+
+                try:
+                    orig = Image.open(img_path).convert("RGB")
+                    aspect_orig = orig.width / orig.height
+                    aspect_target = tw / th
+                    if aspect_orig > aspect_target:
+                        new_h = int(th * MARGIN)
+                        new_w = int(new_h * aspect_orig)
+                    else:
+                        new_w = int(tw * MARGIN)
+                        new_h = int(new_w / aspect_orig)
+                    orig_resized = orig.resize((new_w, new_h), Image.Resampling.LANCZOS)
+                    base_np = np.array(orig_resized)
+                    try: orig.close(); orig_resized.close()
+                    except Exception: pass
+                    del orig, orig_resized
+                except Exception as e_base:
+                    print(f"⚠️ Base image load note: {e_base}")
+                    base_np = np.zeros((int(th * MARGIN), int(tw * MARGIN), 3), dtype=np.uint8)
+                    base_np[:] = (20, 15, 30)
+
+                bw = base_np.shape[1]
+                bh = base_np.shape[0]
+                if is_beat_visualizer:
+                    beat_shared_base_np = base_np
 
             def make_motion_frame(t):
+                abs_t = seg_start + t
+                # Memory-Safe: Periodic C-heap trim & GC every 25 frames
+                if int(t * 20) % 25 == 0:
+                    gc.collect()
+                    try:
+                        import ctypes
+                        ctypes.CDLL('libc.so.6').malloc_trim(0)
+                    except Exception:
+                        pass
+
                 if phonk_bass_envelope is not None and len(phonk_bass_envelope) > 0:
-                    frame_idx = min(len(phonk_bass_envelope) - 1, max(0, int(t * 20)))
+                    frame_idx = min(len(phonk_bass_envelope) - 1, max(0, int(abs_t * 20)))
                     bass_val = float(phonk_bass_envelope[frame_idx])
 
                     # Bass pulse zoom pump
@@ -12678,8 +12747,8 @@ def build_full_song_video(
 
                     # Beat & Bass reactive shake ("jha base he bha hilegi, vha kam he vha kam hilegi")
                     shake_amp = 22.0 * (bass_val ** 1.5)
-                    shake_x = int(math.sin(t * 68.0) * shake_amp * 0.7 + math.cos(t * 115.0) * shake_amp * 0.3)
-                    shake_y = int(math.cos(t * 62.0) * shake_amp * 0.7 + math.sin(t * 128.0) * shake_amp * 0.3)
+                    shake_x = int(math.sin(abs_t * 68.0) * shake_amp * 0.7 + math.cos(abs_t * 115.0) * shake_amp * 0.3)
+                    shake_y = int(math.cos(abs_t * 62.0) * shake_amp * 0.7 + math.sin(abs_t * 128.0) * shake_amp * 0.3)
 
                     cx = bw // 2 + shake_x
                     cy = bh // 2 + shake_y
@@ -12697,11 +12766,13 @@ def build_full_song_video(
                         shift = int(2 + 4 * bass_val)
                         arr[:, shift:, 0] = arr[:, :-shift, 0]
                         arr[:, :-shift, 2] = arr[:, shift:, 2]
+                        im_crop.close()
                         im_crop = Image.fromarray(arr)
+                        del arr
 
                     if active_visualizer_preset_id and active_visualizer_preset_id != "primary":
                         im_crop = render_phonk_visualizer_overlay(
-                            im_crop, t, bass_val, active_visualizer_preset_id, tw, th,
+                            im_crop, abs_t, bass_val, active_visualizer_preset_id, tw, th,
                             logo_im=phonk_logo_im, track_title=effective_title or "BEAT REACTOR",
                             song_mood=song_mood
                         )
@@ -12810,7 +12881,7 @@ def build_full_song_video(
             pass
 
         # Free disk and RAM immediately to prevent Render 512MB RAM OOM crashes
-        if is_stock_video:
+        if is_stock_video and not is_beat_visualizer:
             if v_paths and os.path.exists(v_paths[0]):
                 try: os.remove(v_paths[0])
                 except Exception: pass
@@ -12819,7 +12890,8 @@ def build_full_song_video(
                 except Exception: pass
 
         del seg_clip
-        del v_base
+        if not is_beat_visualizer:
+            del v_base
         release_system_memory()
 
         if os.path.exists(scene_mp4) and os.path.getsize(scene_mp4) > 1000:
@@ -12843,7 +12915,7 @@ def build_full_song_video(
     glsl_sfx_events = []
     concat_list_file = None
 
-    if len(rendered_scene_files) > 1:
+    if len(rendered_scene_files) > 1 and not is_beat_visualizer:
         try:
             from glsl_transitions import apply_glsl_transitions_to_segments
             rendered_scene_files, glsl_temps, glsl_sfx_events = apply_glsl_transitions_to_segments(
@@ -12967,6 +13039,11 @@ def build_full_song_video(
 
     # 7. Clean up intermediate segment files to free disk space immediately
     try:
+        if beat_shared_base_np is not None:
+            del beat_shared_base_np
+        if beat_shared_bg_video and os.path.exists(beat_shared_bg_video):
+            try: os.remove(beat_shared_bg_video)
+            except Exception: pass
         if concat_list_file and os.path.exists(concat_list_file):
             os.remove(concat_list_file)
         if temp_video_no_audio and os.path.exists(temp_video_no_audio):
