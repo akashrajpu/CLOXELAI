@@ -126,6 +126,84 @@ CONCEPT_MAP = {
     "अंग्रेज": "colonial historical era",
     "british": "colonial historical era",
     
+    # Country Names, Territories & Geographical Maps
+    "भारत": "India country territory heritage",
+    "हिन्दुस्तान": "India country territory heritage",
+    "हिंदुस्तान": "India country territory heritage",
+    "india": "India country territory heritage",
+    "bharat": "India country territory heritage",
+    "पाकिस्तान": "Pakistan country territory map",
+    "pakistan": "Pakistan country territory map",
+    "चीन": "China country territory map",
+    "china": "China country territory map",
+    "रूस": "Russia country territory map",
+    "russia": "Russia country territory map",
+    "अमेरिका": "United States America Washington",
+    "america": "United States America Washington",
+    "usa": "United States America Washington",
+    "ब्रिटेन": "United Kingdom Great Britain colonial",
+    "britain": "United Kingdom Great Britain colonial",
+    "अंग्रेज": "British colonial empire East India",
+    "british": "British colonial empire East India",
+    "अंग्रेजी शासन": "British Raj colonial rule in India",
+    "ब्रिटिश शासन": "British Raj colonial rule in India",
+    "बांग्लादेश": "Bangladesh country territory",
+    "नेपाल": "Nepal country territory Himalayas",
+    "श्रीलंका": "Sri Lanka country territory island",
+    "जापान": "Japan country territory Tokyo",
+    "जर्मनी": "Germany country territory Berlin",
+    "फ्रांस": "France country territory Paris",
+    "इजराइल": "Israel country territory Jerusalem",
+    "फिलिस्तीन": "Palestine territory Middle East",
+    "यूक्रेन": "Ukraine country territory Kyiv",
+    "ईरान": "Iran country territory Tehran",
+    "नक्शा": "geographical map border territory outline",
+    "मैप": "geographical map border territory outline",
+    "map": "geographical map border territory outline",
+
+    # Historical Dates & Specific Milestones
+    "1757": "1757 Battle of Plassey historical painting",
+    "प्लासी": "Battle of Plassey 1757 historical painting",
+    "plassey": "Battle of Plassey 1757 historical painting",
+    "ईस्ट इंडिया कंपनी": "British East India Company historical colonial raj",
+    "ईस्ट इंडिया": "East India Company coat of arms seal historical",
+    "east india": "British East India Company historical colonial raj",
+    "1857": "1857 Indian rebellion sepoy mutiny freedom struggle",
+    "विद्रोह": "1857 rebellion freedom struggle mutiny",
+    "rebellion": "1857 rebellion freedom struggle mutiny",
+    "प्रथम स्वतंत्रता संग्राम": "first war of Indian independence 1857",
+    "स्वतंत्रता संग्राम": "Indian freedom struggle independence movement",
+    "1947": "15 August 1947 Indian independence day British raj",
+    "15 अगस्त": "15 August 1947 Indian independence day British raj",
+    "आजादी": "Indian independence freedom struggle tricolor",
+    "विभाजन": "Partition of India 1947 refugee migration border line",
+    "partition": "Partition of India 1947 refugee migration border line",
+    "1950": "26 January 1950 Constitution of India republic day",
+    "26 जनवरी": "26 January 1950 Constitution of India republic day",
+    "संविधान": "Constitution of India preamble book emblem",
+    "constitution": "Constitution of India preamble book emblem",
+    "गणराज्य": "sovereign democratic republic India parliament",
+    "संप्रभु": "sovereign democratic republic India parliament Ashoka emblem",
+    "republic": "sovereign democratic republic India parliament",
+    "संसद": "Indian Parliament building New Delhi democracy",
+    "parliament": "Indian Parliament building New Delhi democracy",
+    "सुप्रीम कोर्ट": "Supreme Court of India judiciary scales of justice",
+    "अदालत": "Supreme Court judiciary scales of justice gavel",
+    "न्याय": "Supreme Court judiciary scales of justice law",
+    "नागरिक": "citizens of India democracy human rights",
+    "संस्थाएं": "democratic institutions parliament judiciary law",
+    "विज्ञान": "scientific research innovation laboratory technology",
+    "science": "scientific research innovation laboratory technology",
+    "तकनीक": "modern technology digital innovation engineering",
+    "technology": "modern technology digital innovation engineering",
+    "अंतरिक्ष": "ISRO space exploration rocket satellite launch galaxy",
+    "space": "ISRO space exploration rocket satellite launch galaxy",
+    "isro": "ISRO space exploration rocket satellite launch galaxy",
+    "अर्थव्यवस्था": "modern economy GDP financial growth stock market city",
+    "economy": "modern economy GDP financial growth stock market city",
+    "सैन्य शक्ति": "Indian army military armed forces defense soldiers",
+    "आर्थिक विकास": "economic development financial growth industry stock market",
+    
     # Mythology & Divine
     "शिव": "Lord Shiva cosmic meditation Himalayas",
     "shiva": "Lord Shiva cosmic meditation Himalayas",
@@ -798,7 +876,7 @@ def translate_to_visual_english(text: str, topic: str = "") -> str:
     Translates Hindi and Hinglish script/scene text into rich, highly descriptive English visual keywords (8-12 words)
     for Pinterest and web media search in Ultra After Effects mode.
     Guarantees detailed, scene-specific English visual phrases covering micro-details,
-    without generic topic overshadowing.
+    dates (1757, 1857, 1947, 1950, etc.), and accurate country map resolution.
     """
     raw = (text or '').strip()
     topic_raw = (topic or '').strip()
@@ -823,10 +901,54 @@ def translate_to_visual_english(text: str, topic: str = "") -> str:
         if tr and tr.strip() and tr.lower() != raw_lower:
             translated_scene_text = tr.strip()
 
-    # 2. Extract concepts directly from the scene text (sorted longest key first)
     extracted_visual_words = []
     seen = set()
 
+    # 2.a Extract explicit historical dates/years (e.g. 1757, 1857, 1947, 1950, 2002) directly
+    years_found = re.findall(r'\b(?:1[5-9]\d{2}|20\d{2})\b', raw)
+    for yr in years_found:
+        if yr not in seen:
+            seen.add(yr)
+            extracted_visual_words.append(yr)
+
+    # 2.b Country & Map Specific Resolution (Guaranteed: NEVER take wrong country map!)
+    has_map_kw = any(mk in raw_lower for mk in ["नक्शा", "मैप", "map", "border", "सीमा", "देश", "राष्ट्र"])
+    country_in_text = None
+    if any(k in raw_lower for k in ["भारत", "india", "bharat", "hindustan"]):
+        country_in_text = "India"
+    elif any(k in raw_lower for k in ["पाकिस्तान", "pakistan"]):
+        country_in_text = "Pakistan"
+    elif any(k in raw_lower for k in ["चीन", "china"]):
+        country_in_text = "China"
+    elif any(k in raw_lower for k in ["रूस", "russia"]):
+        country_in_text = "Russia"
+    elif any(k in raw_lower for k in ["अमेरिका", "america", "usa"]):
+        country_in_text = "United States"
+    elif any(k in raw_lower for k in ["ब्रिटेन", "britain", "uk", "अंग्रेज", "british"]):
+        country_in_text = "Great Britain"
+    elif any(k in raw_lower for k in ["यूक्रेन", "ukraine"]):
+        country_in_text = "Ukraine"
+
+    # If no country in text, check if main_topic specifies a country (e.g. 'भारत का इतिहास')
+    if not country_in_text and topic_raw:
+        top_low = topic_raw.lower()
+        if any(k in top_low for k in ["भारत", "india", "bharat"]):
+            country_in_text = "India"
+        elif any(k in top_low for k in ["पाकिस्तान", "pakistan"]):
+            country_in_text = "Pakistan"
+
+    if has_map_kw and country_in_text:
+        map_phrase = f"{country_in_text} map territory outline border"
+        for mw in map_phrase.split():
+            mw_l = mw.lower()
+            if mw_l not in seen:
+                seen.add(mw_l)
+                extracted_visual_words.append(mw)
+    elif country_in_text and country_in_text.lower() not in seen:
+        seen.add(country_in_text.lower())
+        extracted_visual_words.append(country_in_text)
+
+    # 2.c Extract concepts directly from the scene text (sorted longest key first)
     sorted_concept_keys = sorted(CONCEPT_MAP.keys(), key=lambda x: len(x), reverse=True)
     for ck in sorted_concept_keys:
         if ck in raw_lower:
@@ -851,8 +973,8 @@ def translate_to_visual_english(text: str, topic: str = "") -> str:
         extracted_visual_words.append("India")
         seen.add("india")
 
-    # Retain up to 10-12 rich, descriptive words (instead of previous 5 words)
-    res = ' '.join(extracted_visual_words[:11]).strip()
+    # Retain up to 10-12 rich, descriptive words (covering micro-details)
+    res = ' '.join(extracted_visual_words[:12]).strip()
     return res or (re.sub(r'[^a-zA-Z0-9\s]', '', translated_scene_text).strip() or "cinematic animation")
 
 

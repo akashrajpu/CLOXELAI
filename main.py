@@ -1912,22 +1912,25 @@ class ScriptRequest(BaseModel):
 
 jobs = {}
 
-def smart_split_script_to_scenes(script_text: str, max_words: int = 14) -> list:
+def smart_split_script_to_scenes(script_text: str, max_words: int = 12, min_words: int = 4) -> list:
     """
     Intelligently splits Hindi, Hinglish, or English scripts into dynamic visual scenes.
     - Handles Hindi Purna Viram (। = \u0964), Double Danda (॥ = \u0965), ASCII . ! ?, pipe |, Arabic ? (؟ = \u061F), and newlines.
-    - Breaks long compound sentences (> max_words) on commas, semicolons, or conjunctions (बल्कि, लेकिन, aur, etc.) while keeping 100% of the original words intact.
+    - Splits on strong topic transitions & conjunctions (बल्कि, लेकिन, परंतु, मगर, ताकि, जिसने, जब भारत ने, etc.).
+    - Balances scene lengths between min_words and max_words for natural pacing ("patience" & dynamic responsiveness).
     - Guarantees multi-clip dynamic generation for long scripts.
     """
     if not script_text or not script_text.strip():
         return []
     clean_text = script_text.strip()
     
-    # 1. Primary Split on Sentence Terminators:
+    # 1. Primary Split on Sentence Terminators and Newlines:
     sentence_delimiters = r'(?<=[.!?।॥|؟])\s*|\n+'
     raw_sentences = [s.strip() for s in re.split(sentence_delimiters, clean_text) if len(s.strip()) > 0]
     
     final_scenes = []
+    transitional_split = r'(?<=\S)\s+(?=(?:बल्कि|लेकिन|परंतु|मगर|ताकि|जिसने|जब भारत ने)\b)'
+    
     for sent in raw_sentences:
         words = sent.split()
         if len(words) <= max_words:
@@ -1935,34 +1938,46 @@ def smart_split_script_to_scenes(script_text: str, max_words: int = 14) -> list:
                 final_scenes.append(sent.strip())
             continue
             
-        # 2. Overly long sentence (> max_words words): Split at natural commas or semicolons
-        clauses = [c.strip() for c in re.split(r'[,;—–]\s*', sent) if len(c.strip()) > 0]
-        expanded_clauses = []
-        for cl in clauses:
-            if len(cl.split()) > max_words:
-                sub_parts = re.split(r'(?<=\S)\s+(?=(?:बल्कि|लेकिन|ताकि|aur|lekin|balki|because|while|whereas)\b)', cl)
-                expanded_clauses.extend([sp.strip() for sp in sub_parts if sp.strip()])
-            else:
-                expanded_clauses.append(cl)
-                
-        curr = ''
-        for c in expanded_clauses:
-            if not curr:
-                curr = c
-            else:
-                combined_words = len((curr + ' ' + c).split())
-                if combined_words <= max_words:
-                    curr = curr + ', ' + c
-                else:
-                    if len(curr.strip(' ,;:-—')) > 1:
-                        final_scenes.append(curr.strip())
-                    curr = c
-        if curr and len(curr.strip(' ,;:-—')) > 1:
-            final_scenes.append(curr.strip())
+        # 2. Sentences > max_words: Split on strong conjunctions or natural commas
+        if re.search(transitional_split, sent):
+            t_parts = [p.strip() for p in re.split(transitional_split, sent) if p.strip()]
+        else:
+            t_parts = [sent]
             
-    # 3. Fallback: If still any chunk is massive (> 18 words without punctuation), split by word count
-    ultra_final = []
+        for tp in t_parts:
+            tp_words = tp.split()
+            if len(tp_words) <= max_words:
+                if len(tp.strip(' ,;:-—')) > 1:
+                    final_scenes.append(tp.strip())
+                continue
+                
+            clauses = [c.strip() for c in re.split(r'[,;—–]\s*', tp) if len(c.strip()) > 0]
+            curr = ''
+            for c in clauses:
+                if not curr:
+                    curr = c
+                else:
+                    combined_words = len((curr + ' ' + c).split())
+                    if combined_words <= max_words or len(c.split()) < min_words:
+                        curr = curr + ', ' + c
+                    else:
+                        if len(curr.strip(' ,;:-—')) > 1:
+                            final_scenes.append(curr.strip())
+                        curr = c
+            if curr and len(curr.strip(' ,;:-—')) > 1:
+                final_scenes.append(curr.strip())
+                
+    # 3. Balance scenes: merge any trailing tiny fragment (< min_words) with previous scene
+    balanced = []
     for sc in final_scenes:
+        if balanced and len(sc.split()) < min_words:
+            balanced[-1] = balanced[-1] + ', ' + sc
+        else:
+            balanced.append(sc)
+            
+    # 4. Fallback: If still any chunk is massive (> 18 words without punctuation), split by word count
+    ultra_final = []
+    for sc in balanced:
         w = sc.split()
         if len(w) > 18:
             for i in range(0, len(w), 12):
@@ -2358,6 +2373,18 @@ def full_process(req: VideoRequest, job_id: str):
                                 v_paths.append(p_files[0])
                         elif p_files and os.path.exists(p_files[0]) and os.path.getsize(p_files[0]) > 1000:
                             v_paths.append(p_files[0])
+
+                        # Multi-topic rapid visual cut support for changing topics in single sentence
+                        if len(v_paths) < 2 and (',' in scene_text or ' और ' in scene_text or ' and ' in scene_text):
+                            sub_parts = [sp.strip() for sp in re.split(r'[,;]\s*|\s+(?:और|and)\s+', scene_text) if len(sp.strip().split()) >= 1]
+                            if len(sub_parts) >= 2:
+                                p2_clean = translate_to_visual_english(sub_parts[-1], main_topic) if translate_to_visual_english else sub_parts[-1]
+                                if p2_clean and p2_clean != en_visual_phrase:
+                                    p2_term = f"{p2_clean} cinematic animation photo".strip()
+                                    p2_files = fetch_pinterest_photos_via_gallery_dl(p2_term, limit=1, output_dir=job_dir, used_media_ids=used_media_ids, orientation=orientation)
+                                    if p2_files and os.path.exists(p2_files[0]) and os.path.getsize(p2_files[0]) > 1000:
+                                        v_paths.append(p2_files[0])
+                                        print(f"🎬 [After Effects Scene {i+1}] Multi-Topic Secondary Asset Added for Rapid Topic Switching: '{p2_term}'")
 
                     # Guaranteed Quality Fallback 1: Pinterest Photo with full visual phrase
                     if not v_paths or not os.path.exists(v_paths[0]) or os.path.getsize(v_paths[0]) < 1000:

@@ -753,6 +753,241 @@ def draw_falling_rain_fx(
 
 
 # ---------------------------------------------------------------------------
+# Country & Geographical Map Registry (Accurate Nation-Specific Cutouts)
+# ---------------------------------------------------------------------------
+COUNTRY_MAP_REGISTRY = {
+    "india": {
+        "aliases": ["भारत", "हिन्दुस्तान", "हिंदुस्तान", "india", "bharat", "hindustan", "भारतीय", "indian"],
+        "en": "India map outline territory",
+        "label": "INDIA",
+        "search": "India map outline territory transparent png cutout isolated",
+        "flag_colors": [(255, 153, 51), (255, 255, 255), (19, 136, 8)],
+        "type": "map"
+    },
+    "pakistan": {
+        "aliases": ["पाकिस्तान", "pakistan", "pakistani", "पाकिस्तानी"],
+        "en": "Pakistan map outline territory",
+        "label": "PAKISTAN",
+        "search": "Pakistan map outline territory transparent png cutout isolated",
+        "flag_colors": [(1, 65, 28), (255, 255, 255)],
+        "type": "map"
+    },
+    "china": {
+        "aliases": ["चीन", "चाइना", "china", "chinese", "चीनी"],
+        "en": "China map outline territory",
+        "label": "CHINA",
+        "search": "China map outline territory transparent png cutout isolated",
+        "flag_colors": [(222, 41, 16), (255, 222, 0)],
+        "type": "map"
+    },
+    "russia": {
+        "aliases": ["रूस", "रशिया", "russia", "russian", "रूसी"],
+        "en": "Russia map outline territory",
+        "label": "RUSSIA",
+        "search": "Russia map outline territory transparent png cutout isolated",
+        "flag_colors": [(255, 255, 255), (0, 57, 166), (213, 43, 30)],
+        "type": "map"
+    },
+    "usa": {
+        "aliases": ["अमेरिका", "यूएसए", "united states", "usa", "america", "american", "अमेरिकी"],
+        "en": "United States America map outline territory",
+        "label": "UNITED STATES",
+        "search": "United States America map outline territory transparent png cutout isolated",
+        "flag_colors": [(179, 25, 66), (255, 255, 255), (10, 49, 97)],
+        "type": "map"
+    },
+    "britain": {
+        "aliases": ["ब्रिटेन", "इंग्लैंड", "अंग्रेज", "ब्रिटिश", "यूके", "britain", "uk", "england", "british", "अंग्रेजों", "ईस्ट इंडिया"],
+        "en": "United Kingdom Great Britain map outline territory",
+        "label": "BRITAIN",
+        "search": "United Kingdom Great Britain map outline territory transparent png cutout isolated",
+        "flag_colors": [(1, 33, 105), (255, 255, 255), (200, 16, 46)],
+        "type": "map"
+    },
+    "bangladesh": {
+        "aliases": ["बांग्लादेश", "बंगलादेश", "bangladesh", "bangladeshi"],
+        "en": "Bangladesh map outline territory",
+        "label": "BANGLADESH",
+        "search": "Bangladesh map outline territory transparent png cutout isolated",
+        "flag_colors": [(0, 106, 78), (244, 42, 65)],
+        "type": "map"
+    },
+    "nepal": {
+        "aliases": ["नेपाल", "nepal", "nepali", "नेपाली"],
+        "en": "Nepal map outline territory",
+        "label": "NEPAL",
+        "search": "Nepal map outline territory transparent png cutout isolated",
+        "flag_colors": [(220, 20, 60), (0, 56, 147)],
+        "type": "map"
+    },
+    "sri_lanka": {
+        "aliases": ["श्रीलंका", "sri lanka", "srilanka"],
+        "en": "Sri Lanka map outline territory",
+        "label": "SRI LANKA",
+        "search": "Sri Lanka map outline territory transparent png cutout isolated",
+        "flag_colors": [(141, 21, 58), (255, 190, 0)],
+        "type": "map"
+    },
+    "afghanistan": {
+        "aliases": ["अफगानिस्तान", "अफ़ग़ानिस्तान", "afghanistan"],
+        "en": "Afghanistan map outline territory",
+        "label": "AFGHANISTAN",
+        "search": "Afghanistan map outline territory transparent png cutout isolated",
+        "flag_colors": [(0, 0, 0), (211, 32, 40), (0, 122, 54)],
+        "type": "map"
+    },
+    "japan": {
+        "aliases": ["जापान", "japan", "japanese", "जापानी"],
+        "en": "Japan map outline territory",
+        "label": "JAPAN",
+        "search": "Japan map outline territory transparent png cutout isolated",
+        "flag_colors": [(255, 255, 255), (188, 0, 45)],
+        "type": "map"
+    },
+    "germany": {
+        "aliases": ["जर्मनी", "germany", "german", "जर्मन"],
+        "en": "Germany map outline territory",
+        "label": "GERMANY",
+        "search": "Germany map outline territory transparent png cutout isolated",
+        "flag_colors": [(0, 0, 0), (221, 0, 0), (255, 204, 0)],
+        "type": "map"
+    },
+    "france": {
+        "aliases": ["फ्रांस", "फ़्रांस", "france", "french", "फ्रांसीसी"],
+        "en": "France map outline territory",
+        "label": "FRANCE",
+        "search": "France map outline territory transparent png cutout isolated",
+        "flag_colors": [(0, 38, 84), (255, 255, 255), (237, 41, 57)],
+        "type": "map"
+    },
+    "israel": {
+        "aliases": ["इजराइल", "इज़राइल", "इस्राइल", "israel", "israeli"],
+        "en": "Israel map outline territory",
+        "label": "ISRAEL",
+        "search": "Israel map outline territory transparent png cutout isolated",
+        "flag_colors": [(0, 56, 184), (255, 255, 255)],
+        "type": "map"
+    },
+    "palestine": {
+        "aliases": ["फिलिस्तीन", "फ़िलिस्तीन", "palestine", "palestinian"],
+        "en": "Palestine map outline territory",
+        "label": "PALESTINE",
+        "search": "Palestine map outline territory transparent png cutout isolated",
+        "flag_colors": [(0, 0, 0), (255, 255, 255), (0, 122, 61), (238, 42, 53)],
+        "type": "map"
+    },
+    "ukraine": {
+        "aliases": ["यूक्रेन", "ukraine", "ukrainian"],
+        "en": "Ukraine map outline territory",
+        "label": "UKRAINE",
+        "search": "Ukraine map outline territory transparent png cutout isolated",
+        "flag_colors": [(0, 87, 183), (255, 215, 0)],
+        "type": "map"
+    },
+    "iran": {
+        "aliases": ["ईरान", "iran", "iranian", "ईरानी"],
+        "en": "Iran map outline territory",
+        "label": "IRAN",
+        "search": "Iran map outline territory transparent png cutout isolated",
+        "flag_colors": [(35, 159, 64), (255, 255, 255), (218, 0, 0)],
+        "type": "map"
+    },
+    "saudi_arabia": {
+        "aliases": ["सऊदी अरब", "सऊदी", "saudi arabia", "saudi"],
+        "en": "Saudi Arabia map outline territory",
+        "label": "SAUDI ARABIA",
+        "search": "Saudi Arabia map outline territory transparent png cutout isolated",
+        "flag_colors": [(0, 108, 53), (255, 255, 255)],
+        "type": "map"
+    },
+    "canada": {
+        "aliases": ["कनाडा", "canada", "canadian"],
+        "en": "Canada map outline territory",
+        "label": "CANADA",
+        "search": "Canada map outline territory transparent png cutout isolated",
+        "flag_colors": [(255, 0, 0), (255, 255, 255)],
+        "type": "map"
+    },
+    "australia": {
+        "aliases": ["ऑस्ट्रेलिया", "australia", "australian"],
+        "en": "Australia map outline territory",
+        "label": "AUSTRALIA",
+        "search": "Australia map outline territory transparent png cutout isolated",
+        "flag_colors": [(0, 0, 139), (255, 255, 255), (255, 0, 0)],
+        "type": "map"
+    },
+    "italy": {
+        "aliases": ["इटली", "italy", "italian"],
+        "en": "Italy map outline territory",
+        "label": "ITALY",
+        "search": "Italy map outline territory transparent png cutout isolated",
+        "flag_colors": [(0, 146, 70), (255, 255, 255), (206, 43, 55)],
+        "type": "map"
+    },
+    "turkey": {
+        "aliases": ["तुर्की", "तुर्किये", "turkey", "turkiye"],
+        "en": "Turkey map outline territory",
+        "label": "TURKEY",
+        "search": "Turkey map outline territory transparent png cutout isolated",
+        "flag_colors": [(227, 10, 23), (255, 255, 255)],
+        "type": "map"
+    },
+    "egypt": {
+        "aliases": ["मिस्र", "इजिप्ट", "egypt", "egyptian"],
+        "en": "Egypt map outline territory",
+        "label": "EGYPT",
+        "search": "Egypt map outline territory transparent png cutout isolated",
+        "flag_colors": [(206, 17, 38), (255, 255, 255), (0, 0, 0)],
+        "type": "map"
+    },
+    "south_korea": {
+        "aliases": ["दक्षिण कोरिया", "south korea", "korean"],
+        "en": "South Korea map outline territory",
+        "label": "SOUTH KOREA",
+        "search": "South Korea map outline territory transparent png cutout isolated",
+        "flag_colors": [(255, 255, 255), (205, 46, 58), (0, 71, 160)],
+        "type": "map"
+    },
+    "north_korea": {
+        "aliases": ["उत्तर कोरिया", "north korea"],
+        "en": "North Korea map outline territory",
+        "label": "NORTH KOREA",
+        "search": "North Korea map outline territory transparent png cutout isolated",
+        "flag_colors": [(237, 28, 36), (2, 79, 162), (255, 255, 255)],
+        "type": "map"
+    }
+}
+
+
+def detect_country_in_text(text: str) -> List[Dict[str, Any]]:
+    """Identifies exact countries mentioned in Hindi, Hinglish, or English text."""
+    if not text:
+        return []
+    t_low = text.lower()
+    found_countries = []
+    seen_keys = set()
+    
+    for c_key, c_data in COUNTRY_MAP_REGISTRY.items():
+        aliases = sorted(c_data["aliases"], key=lambda a: len(a), reverse=True)
+        for al in aliases:
+            pattern = r'(?:\b|[\s,।॥!?—–-]|^)' + re.escape(al.lower()) + r'(?:\b|[\s,।॥!?—–-]|$)'
+            if re.search(pattern, t_low) or al.lower() in t_low:
+                if c_key not in seen_keys:
+                    seen_keys.add(c_key)
+                    found_countries.append({
+                        "key": c_key,
+                        "raw": al,
+                        "clean_en": c_data["en"],
+                        "label": c_data["label"],
+                        "search": c_data["search"],
+                        "flag_colors": c_data.get("flag_colors", [(200, 200, 200)]),
+                        "type": "map"
+                    })
+                break
+    return found_countries
+
+
+# ---------------------------------------------------------------------------
 # Semantic Entity Spatial Mapping (Sky Elements vs Ground Elements)
 # ---------------------------------------------------------------------------
 HISTORICAL_ENTITY_MAP = {
@@ -760,23 +995,46 @@ HISTORICAL_ENTITY_MAP = {
     "भारत का नक्शा": {"en": "India map outline territory", "label": "INDIA MAP", "type": "map"},
     "भारत का मैप": {"en": "India map outline territory", "label": "INDIA MAP", "type": "map"},
     "india map": {"en": "India map outline territory", "label": "INDIA MAP", "type": "map"},
-    "पाकिस्तान का नक्शा": {"en": "Pakistan map outline", "label": "PAKISTAN MAP", "type": "map"},
-    "pakistan map": {"en": "Pakistan map outline", "label": "PAKISTAN MAP", "type": "map"},
-    "नक्शा": {"en": "historical world map territory border", "label": "GEOGRAPHICAL MAP", "type": "map"},
-    "मैप": {"en": "historical world map territory border", "label": "GEOGRAPHICAL MAP", "type": "map"},
-    "map": {"en": "historical world map territory border", "label": "GEOGRAPHICAL MAP", "type": "map"},
-    "सीमा": {"en": "border line boundary checkpoint", "label": "BORDER", "type": "map"},
+    "पाकिस्तान का नक्शा": {"en": "Pakistan map outline territory", "label": "PAKISTAN MAP", "type": "map"},
+    "pakistan map": {"en": "Pakistan map outline territory", "label": "PAKISTAN MAP", "type": "map"},
+    "नक्शा": {"en": "geographical map border territory outline", "label": "GEOGRAPHICAL MAP", "type": "map"},
+    "मैप": {"en": "geographical map border territory outline", "label": "GEOGRAPHICAL MAP", "type": "map"},
+    "map": {"en": "geographical map border territory outline", "label": "GEOGRAPHICAL MAP", "type": "map"},
+    "सीमा": {"en": "international border boundary checkpoint", "label": "BORDER", "type": "map"},
 
-    # Documentary Artifacts & Historical Emblems
-    "ईस्ट इंडिया": {"en": "East India Company coat of arms seal", "label": "EAST INDIA CO.", "type": "seal"},
+    # Battles, Historical Dates & Colonial Milestones
     "प्लासी": {"en": "Battle of Plassey 1757 historical painting", "label": "BATTLE OF PLASSEY", "type": "event"},
-    "संविधान": {"en": "Constitution of India preamble book", "label": "CONSTITUTION OF INDIA", "type": "book"},
-    "लोकतंत्र": {"en": "Indian parliament democracy voting", "label": "DEMOCRACY", "type": "concept"},
-    "संसद": {"en": "Indian Parliament building New Delhi", "label": "PARLIAMENT", "type": "building"},
-    "सुप्रीम कोर्ट": {"en": "Supreme Court of India judiciary", "label": "SUPREME COURT", "type": "building"},
+    "1757": {"en": "Battle of Plassey 1757 historical painting", "label": "YEAR 1757", "type": "event"},
+    "1857": {"en": "1857 Indian rebellion sepoy mutiny freedom struggle", "label": "1857 REBELLION", "type": "event"},
+    "विद्रोह": {"en": "1857 Indian rebellion freedom revolt historical", "label": "REVOLT 1857", "type": "event"},
+    "प्रथम स्वतंत्रता संग्राम": {"en": "first war of Indian independence 1857", "label": "FIRST WAR OF INDEPENDENCE", "type": "event"},
+    "स्वतंत्रता संग्राम": {"en": "Indian freedom struggle independence movement", "label": "FREEDOM STRUGGLE", "type": "event"},
+    "ईस्ट इंडिया": {"en": "East India Company coat of arms seal historical", "label": "EAST INDIA CO.", "type": "seal"},
+    "ब्रिटिश शासन": {"en": "British Raj colonial empire royal emblem", "label": "BRITISH RAJ", "type": "seal"},
+    "अंग्रेजी शासन": {"en": "British Raj colonial empire royal emblem", "label": "BRITISH RULE", "type": "seal"},
+    "1947": {"en": "15 August 1947 Indian independence day national flag", "label": "1947 INDEPENDENCE", "type": "event"},
+    "15 अगस्त": {"en": "15 August 1947 Indian independence celebration tricolor", "label": "INDEPENDENCE DAY", "type": "event"},
+    "आजादी": {"en": "Indian independence freedom struggle tricolor", "label": "INDEPENDENCE", "type": "event"},
+    "विभाजन": {"en": "Partition of India 1947 historical migration refugee border line", "label": "PARTITION 1947", "type": "event"},
+    "1950": {"en": "26 January 1950 Constitution of India republic day", "label": "REPUBLIC 1950", "type": "event"},
+    "26 जनवरी": {"en": "26 January 1950 Constitution of India republic day", "label": "26 JANUARY 1950", "type": "event"},
+    "संविधान": {"en": "Constitution of India preamble book emblem", "label": "CONSTITUTION", "type": "book"},
+    "लोकतंत्र": {"en": "Indian parliament democracy voting ballot", "label": "DEMOCRACY", "type": "concept"},
+    "गणराज्य": {"en": "sovereign republic India Ashoka lion pillar emblem", "label": "REPUBLIC OF INDIA", "type": "seal"},
+    "संप्रभु": {"en": "sovereign republic India Ashoka lion pillar emblem", "label": "SOVEREIGN REPUBLIC", "type": "seal"},
+    "संसद": {"en": "Indian Parliament building New Delhi facade", "label": "PARLIAMENT", "type": "building"},
+    "सुप्रीम कोर्ट": {"en": "Supreme Court of India judiciary scales of justice", "label": "SUPREME COURT", "type": "building"},
     "अदालत": {"en": "Supreme Court judiciary gavel justice scales", "label": "JUSTICE & LAW", "type": "concept"},
-    "न्याय": {"en": "scales of justice law order", "label": "JUSTICE SYSTEM", "type": "concept"},
-    "अधिकार": {"en": "fundamental human rights constitution book", "label": "CITIZEN RIGHTS", "type": "concept"},
+    "न्याय": {"en": "scales of justice law order constitution", "label": "JUSTICE SYSTEM", "type": "concept"},
+    "अधिकार": {"en": "fundamental citizen rights constitution book", "label": "CITIZEN RIGHTS", "type": "concept"},
+    "नागरिक": {"en": "citizens of democracy united people rights", "label": "CITIZENS", "type": "concept"},
+    "संस्थाएं": {"en": "democratic institutions parliament judiciary law", "label": "INSTITUTIONS", "type": "concept"},
+    "सैन्य शक्ति": {"en": "Indian military armed forces army defense soldiers", "label": "MILITARY POWER", "type": "concept"},
+    "आर्थिक विकास": {"en": "economic development GDP financial growth skyline", "label": "ECONOMIC GROWTH", "type": "finance"},
+    "विज्ञान": {"en": "scientific research innovation laboratory technology", "label": "SCIENCE & TECH", "type": "concept"},
+    "तकनीक": {"en": "high technology digital innovation futuristic", "label": "TECHNOLOGY", "type": "concept"},
+    "अंतरिक्ष": {"en": "ISRO space exploration rocket satellite launch mission", "label": "SPACE & ISRO", "type": "concept"},
+    "अर्थव्यवस्था": {"en": "modern economy GDP stock market financial growth", "label": "INDIAN ECONOMY", "type": "finance"},
 
     # Economic & Currency Elements (User Screenshot: Businessman eating cash!)
     "businessman": {"en": "rich greedy businessman eating money cash", "label": "GREED & MONEY", "type": "person"},
@@ -814,21 +1072,22 @@ GROUND_KEYWORDS = {"ladki", "लड़की", "girl", "woman", "ladka", "लड
 
 
 def detect_collage_entities(scene_text: str, main_topic: str = "") -> Dict[str, Any]:
-    """Analyzes scene text to detect entities and their spatial / transition role."""
+    """Analyzes scene text to detect entities and their spatial / transition role with exact country mapping."""
     text_lower = (scene_text or "").lower()
     topic_lower = (main_topic or "").lower()
     combined = f"{text_lower} {topic_lower}"
 
-    # 1. Direct mention of high-priority geographical & geopolitical pairs
-    if ("bharat" in text_lower or "भारत" in text_lower or "india" in text_lower) and ("pakistan" in text_lower or "पाकिस्तान" in text_lower):
+    # 1. Exact Country & Map Detection (Guaranteed: NEVER use wrong country or generic world map!)
+    countries_in_scene = detect_country_in_text(scene_text)
+
+    # 1.a Multi-country scene (e.g. India & Pakistan, Russia & Ukraine, USA & China, Britain & India)
+    if len(countries_in_scene) >= 2:
+        c1, c2 = countries_in_scene[0], countries_in_scene[1]
         return {
             "is_detected": True,
             "is_multi_entity": True,
-            "entities": [
-                {"raw": "भारत", "clean_en": "India map outline", "label": "INDIA", "search": "India map outline transparent png cutout isolated", "type": "map"},
-                {"raw": "पाकिस्तान", "clean_en": "Pakistan map outline", "label": "PAKISTAN", "search": "Pakistan map outline transparent png cutout isolated", "type": "map"}
-            ],
-            "transition_label": "INDIA & PAKISTAN"
+            "entities": [c1, c2],
+            "transition_label": f"{c1['label']} & {c2['label']}"
         }
 
     # 2. Check for Cloud & Girl / Person spatial pair (User explicit example: "badel aa gye ladki bhigne lagi")
@@ -845,7 +1104,51 @@ def detect_collage_entities(scene_text: str, main_topic: str = "") -> Dict[str, 
             "transition_label": "CLOUDS & GIRL"
         }
 
-    # 3. Check for two-entity patterns: "X और Y", "X तथा Y", "X vs Y", "X and Y", "X या Y"
+    # 3. Explicit Map/Nation Context (नक्शा, मैप, map, देश, सीमा, border, राष्ट्र, गणराज्य, विभाजन)
+    map_context_keywords = ["नक्शा", "मैप", "map", "देश", "सीमा", "border", "विभाजन", "गणराज्य", "territory", "राष्ट्र", "पहचान", "ताकत"]
+    has_map_context = any(k in text_lower for k in map_context_keywords)
+
+    if len(countries_in_scene) == 1:
+        c = countries_in_scene[0]
+        # Check if a specific milestone artifact is also in this scene (e.g. संविधान, ईस्ट इंडिया, संसद, आदि)
+        milestone = None
+        for mk, mv in HISTORICAL_ENTITY_MAP.items():
+            if mk in text_lower and mk not in c["raw"].lower() and mv.get("type") != "map":
+                milestone = {
+                    "raw": mk,
+                    "clean_en": mv["en"],
+                    "label": mv["label"],
+                    "search": f"{mv['en']} transparent png cutout isolated",
+                    "type": mv.get("type", "concept")
+                }
+                break
+        if milestone:
+            return {
+                "is_detected": True,
+                "is_multi_entity": True,
+                "entities": [c, milestone],
+                "transition_label": f"{c['label']} & {milestone['label']}"
+            }
+        return {
+            "is_detected": True,
+            "is_multi_entity": False,
+            "entities": [c],
+            "transition_label": f"{c['label']} MAP"
+        }
+
+    if has_map_context and not countries_in_scene:
+        # Check if main_topic specifies a country (e.g. 'भारत का इतिहास' -> India map!)
+        topic_countries = detect_country_in_text(main_topic)
+        if topic_countries:
+            tc = topic_countries[0]
+            return {
+                "is_detected": True,
+                "is_multi_entity": False,
+                "entities": [tc],
+                "transition_label": f"{tc['label']} MAP"
+            }
+
+    # 4. Check for two-entity patterns: "X और Y", "X तथा Y", "X vs Y", "X and Y", "X या Y"
     two_entity_regexes = [
         r'([A-Za-z\u0900-\u097F0-9\s]{2,25})\s+(?:और|तथा|vs|बनाम|and|या)\s+([A-Za-z\u0900-\u097F0-9\s]{2,25})',
         r'क(?:भी|हा)\s+([A-Za-z\u0900-\u097F0-9\s]{2,20})\s+तो\s+क(?:भी|हा)\s+([A-Za-z\u0900-\u097F0-9\s]{2,20})',
@@ -887,7 +1190,7 @@ def detect_collage_entities(scene_text: str, main_topic: str = "") -> Dict[str, 
                         "transition_label": f"{e1['label']} vs {e2['label']}"
                     }
 
-    # 4. Single entity milestone detection (Strictly in scene text)
+    # 5. Single entity milestone detection (Strictly in scene text)
     for key, val in HISTORICAL_ENTITY_MAP.items():
         if key in text_lower:
             return {
@@ -921,6 +1224,21 @@ def detect_collage_entities(scene_text: str, main_topic: str = "") -> Dict[str, 
 def _resolve_entity(raw_text: str, main_topic: str = "") -> Optional[Dict[str, str]]:
     """Helper to resolve a raw Hindi/English phrase to a searchable cutout entity."""
     t_low = raw_text.lower().strip()
+
+    # Priority 1: Check if raw_text mentions a country
+    c_list = detect_country_in_text(raw_text)
+    if c_list:
+        c = c_list[0]
+        return {
+            "raw": raw_text,
+            "clean_en": c["clean_en"],
+            "label": c["label"],
+            "search": c["search"],
+            "flag_colors": c.get("flag_colors", [(200, 200, 200)]),
+            "type": "map"
+        }
+
+    # Priority 2: Historical milestone map
     for k, v in HISTORICAL_ENTITY_MAP.items():
         if k in t_low:
             return {
@@ -939,7 +1257,7 @@ def _resolve_entity(raw_text: str, main_topic: str = "") -> Optional[Dict[str, s
 
     clean_en = en_phrase or raw_text
     label = " ".join(clean_en.split()[:2]).upper()
-    
+
     # Infer type
     ent_type = "sky" if any(w in t_low for w in SKY_KEYWORDS) else ("person" if any(w in t_low for w in GROUND_KEYWORDS) else "concept")
     return {
@@ -999,14 +1317,38 @@ def fetch_and_prepare_cutouts(
             except Exception as e_proc:
                 print(f"⚠️ [Cutout Processing warning]: {e_proc}")
 
-        # 4. Stylized Graphical Fallback
+        # 4. Stylized Graphical Fallback (Territory Map Badge for Maps, Emblems for Artifacts)
         fallback_img = Image.new("RGBA", (600, 600), (0, 0, 0, 0))
         fb_draw = ImageDraw.Draw(fallback_img)
-        fb_color = (210, 60, 45, 240) if idx == 0 else (40, 110, 200, 240)
-        fb_draw.rounded_rectangle([(40, 40), (560, 560)], radius=80, fill=fb_color, outline=(255, 255, 255, 200), width=8)
-        fb_draw.ellipse([(100, 100), (500, 500)], outline=(255, 255, 255, 160), width=5)
-        f_fb = get_font(size=40, font_type="bold")
-        fb_draw.text((300, 300), label[:14], fill=(255, 255, 255, 255), font=f_fb, anchor="mm")
+        ent_type = ent.get("type", "concept")
+
+        if ent_type == "map":
+            flag_colors = ent.get("flag_colors", [(255, 153, 51), (255, 255, 255), (19, 136, 8)])
+            # Draw sophisticated geographic emblem/badge with flag bands
+            fb_draw.ellipse([(30, 30), (570, 570)], fill=(20, 24, 38, 245), outline=(255, 255, 255, 220), width=6)
+            fb_draw.ellipse([(50, 50), (550, 550)], outline=(255, 215, 0, 180), width=3)
+            # Flag accent arc / stripes
+            for b_idx, col in enumerate(flag_colors[:3]):
+                arc_inset = 65 + b_idx * 16
+                fb_draw.arc([(arc_inset, arc_inset), (600 - arc_inset, 600 - arc_inset)], start=140, end=40, fill=col + (220,), width=8)
+            # Stylized territory map diamond / continent polygon
+            poly_pts = [(300, 110), (450, 210), (490, 380), (370, 490), (300, 510), (220, 480), (140, 360), (160, 200)]
+            fb_draw.polygon(poly_pts, fill=(35, 45, 65, 230), outline=(255, 255, 255, 160))
+            # Inner territory grid
+            fb_draw.line([(300, 110), (300, 510)], fill=(255, 255, 255, 80), width=2)
+            fb_draw.line([(150, 310), (470, 310)], fill=(255, 255, 255, 80), width=2)
+            # Center country name
+            f_fb = get_font(size=44, font_type="bold")
+            fb_draw.text((300, 290), label[:12], fill=(255, 255, 255, 255), font=f_fb, anchor="mm")
+            # Sub-pill
+            f_sub = get_font(size=20, font_type="bold")
+            fb_draw.text((300, 335), "TERRITORY MAP", fill=(255, 215, 0, 240), font=f_sub, anchor="mm")
+        else:
+            fb_color = (210, 60, 45, 240) if idx == 0 else (40, 110, 200, 240)
+            fb_draw.rounded_rectangle([(40, 40), (560, 560)], radius=80, fill=fb_color, outline=(255, 255, 255, 200), width=8)
+            fb_draw.ellipse([(100, 100), (500, 500)], outline=(255, 255, 255, 160), width=5)
+            f_fb = get_font(size=40, font_type="bold")
+            fb_draw.text((300, 300), label[:14], fill=(255, 255, 255, 255), font=f_fb, anchor="mm")
         fallback_img.save(target_png, format="PNG")
         prepared_cutouts.append(target_png)
 

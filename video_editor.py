@@ -2191,9 +2191,11 @@ def merge_and_export(
                     ]
                     motions = ["zoom_in", "zoom_out", "pan_right", "pan_left", "diagonal_fast", "spiral_zoom"]
                 is_bg_video = bg_path and str(bg_path).lower().endswith(('.mp4', '.mov', '.avi', '.webm', '.mkv')) and has_video_stream(bg_path)
-                # Case 1: After Effects Dual Photo/Asset Rapid Contrast Cut (e.g. 2 contrasting photos like Modi dictator vs real hero)
-                if is_after_effects_cat and len(valid_paths) >= 2 and all(not str(p).lower().endswith(('.mp4', '.mov', '.avi', '.webm', '.mkv')) for p in valid_paths[:2]):
-                    print(f"🎬 Scene {i+1}: Ultra After Effects Mode - Rapid Dual Photo Contrast Cut ({valid_paths[0]} & {valid_paths[1]})...")
+                # Case 1: After Effects Dual Asset Rapid Topic Cut (e.g. 2 contrasting photos or video + photo rapid cut)
+                if is_after_effects_cat and len(valid_paths) >= 2:
+                    p0_name = os.path.basename(valid_paths[0])
+                    p1_name = os.path.basename(valid_paths[1])
+                    print(f"🎬 Scene {i+1}: Ultra After Effects Mode - Rapid Dual Asset Topic Cut ({p0_name} & {p1_name})...")
                     try:
                         rendered_successfully = render_scene_native_ffmpeg(
                             scene_output=scene_output,
@@ -2265,7 +2267,11 @@ def merge_and_export(
                     except Exception as e_um:
                         print(f"⚠️ Ultra motion render notice: {e_um}")
         else:
-            video_path = scene['video'][0] if isinstance(scene['video'], list) else scene['video']
+            if is_after_effects_cat and isinstance(scene['video'], list) and len(scene['video']) >= 2:
+                valid_paths_std = [p for p in scene['video'][:2] if p and os.path.exists(p) and os.path.getsize(p) > 1000]
+                video_path = valid_paths_std if len(valid_paths_std) >= 2 else scene['video'][0]
+            else:
+                video_path = scene['video'][0] if isinstance(scene['video'], list) else scene['video']
             rendered_successfully = render_scene_native_ffmpeg(
                 scene_output=scene_output,
                 video_path=video_path,
