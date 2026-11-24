@@ -94,31 +94,33 @@ MARKER_STYLES = [
 ]
 
 def get_font(size: int = 28, font_type: str = "bold") -> ImageFont.ImageFont:
-    """Loads appropriate system/local font with fallback."""
+    """Loads clean, modern system/local typography without cursive distortion."""
     fonts_dir = "fonts"
     candidates = []
     if font_type == "bold":
         candidates = [
-            os.path.join(fonts_dir, "bebas.ttf"),
-            os.path.join(fonts_dir, "anton.ttf"),
-            os.path.join(fonts_dir, "NotoSansDevanagari-Bold.ttf"),
-            os.path.join(fonts_dir, "Mukta-Bold.ttf"),
             "/System/Library/Fonts/HelveticaNeue.ttc",
+            "/System/Library/Fonts/Helvetica.ttc",
+            os.path.join(fonts_dir, "Mukta-Bold.ttf"),
+            os.path.join(fonts_dir, "NotoSansDevanagari-Bold.ttf"),
+            os.path.join(fonts_dir, "BroadcastTitling.ttf"),
             "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+            os.path.join(fonts_dir, "Arial.ttf"),
         ]
     elif font_type == "serif":
         candidates = [
-            os.path.join(fonts_dir, "RozhaOne-Regular.ttf"),
-            os.path.join(fonts_dir, "TiroDevanagariHindi-Regular.ttf"),
             "/System/Library/Fonts/Times.ttc",
+            "/Library/Fonts/Times New Roman.ttf",
+            os.path.join(fonts_dir, "TiroDevanagariHindi-Regular.ttf"),
             "/usr/share/fonts/truetype/dejavu/DejaVuSerif.ttf",
         ]
     else:
         candidates = [
-            os.path.join(fonts_dir, "roboto.ttf"),
+            "/System/Library/Fonts/Helvetica.ttc",
+            "/System/Library/Fonts/HelveticaNeue.ttc",
             os.path.join(fonts_dir, "NotoSansDevanagari-Regular.ttf"),
             os.path.join(fonts_dir, "Arial.ttf"),
-            "/System/Library/Fonts/Helvetica.ttc",
+            "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
         ]
     
     for c in candidates:
@@ -715,6 +717,86 @@ def draw_procedural_marker(
             draw_sharp_badge_label(draw, label, (cx, lbl_y), label_font, anchor="mm", is_dark_bg=is_dark_bg, canvas_bounds=canvas_bounds)
 
 
+def draw_concentric_framing_arcs(
+    draw: ImageDraw.ImageDraw,
+    center: Tuple[int, int],
+    base_radius: int,
+    scale_factor: float = 1.0,
+    is_dark_bg: bool = False
+):
+    """
+    Draws iconic Bauhaus / Vox modernist concentric framing arcs behind cutouts.
+    Directly matches user reference screenshots 4 & 5 (Bauhaus yellow & orange discs).
+    """
+    cx, cy = center
+    r_outer = int(base_radius * 1.18 * scale_factor)
+    r_inner = int(base_radius * 0.88 * scale_factor)
+
+    # Outer Bauhaus Yellow Band
+    yellow_c = (245, 190, 25, 230) if not is_dark_bg else (255, 215, 40, 220)
+    draw.ellipse([cx - r_outer, cy - r_outer, cx + r_outer, cy + r_outer], fill=yellow_c)
+
+    # Inner Bauhaus Orange Disc
+    orange_c = (235, 85, 25, 235) if not is_dark_bg else (240, 95, 30, 225)
+    draw.ellipse([cx - r_inner, cy - r_inner, cx + r_inner, cy + r_inner], fill=orange_c)
+
+
+def draw_curved_callout_arrow(
+    draw: ImageDraw.ImageDraw,
+    start_pt: Tuple[int, int],
+    end_pt: Tuple[int, int],
+    color: Tuple[int, int, int, int] = (245, 180, 20, 245),
+    width: int = 4,
+    curvature: float = 0.28,
+    has_head: bool = True,
+    has_bead: bool = False
+):
+    """
+    Draws a smooth, organic curved pointer arrow matching Bauhaus/Vox infographic callouts.
+    Directly matches user reference screenshots 2, 3 & 6 ('curves', 'details', 'decoration' callout arrows).
+    """
+    sx, sy = start_pt
+    ex, ey = end_pt
+    dx = ex - sx
+    dy = ey - sy
+    dist = math.hypot(dx, dy)
+    if dist < 8:
+        return
+
+    mid_x = (sx + ex) / 2.0
+    mid_y = (sy + ey) / 2.0
+    nx = -dy / dist
+    ny = dx / dist
+    ctrl_x = mid_x + nx * dist * curvature
+    ctrl_y = mid_y + ny * dist * curvature
+
+    steps = 22
+    pts = []
+    for i in range(steps + 1):
+        t = i / float(steps)
+        bx = (1 - t)**2 * sx + 2 * (1 - t) * t * ctrl_x + t**2 * ex
+        by = (1 - t)**2 * sy + 2 * (1 - t) * t * ctrl_y + t**2 * ey
+        pts.append((int(bx), int(by)))
+    draw.line(pts, fill=color, width=width)
+
+    if has_bead:
+        bead_r = width + 3
+        draw.ellipse([sx - bead_r, sy - bead_r, sx + bead_r, sy + bead_r], fill=color)
+
+    if has_head:
+        tx = ex - ctrl_x
+        ty = ey - ctrl_y
+        td = math.hypot(tx, ty)
+        if td > 1:
+            tx /= td
+            ty /= td
+            hl = width * 3.6
+            hw = width * 2.2
+            p1 = (ex - tx * hl - ty * hw, ey - ty * hl + tx * hw)
+            p2 = (ex - tx * hl + ty * hw, ey - ty * hl - tx * hw)
+            draw.polygon([(ex, ey), (int(p1[0]), int(p1[1])), (int(p2[0]), int(p2[1]))], fill=color)
+
+
 def draw_falling_rain_fx(
     draw: ImageDraw.ImageDraw,
     cloud_bbox: Tuple[int, int, int, int],
@@ -1148,21 +1230,52 @@ def detect_collage_entities(scene_text: str, main_topic: str = "") -> Dict[str, 
                 "transition_label": f"{tc['label']} MAP"
             }
 
-    # 4. Check for two-entity patterns: "X और Y", "X तथा Y", "X vs Y", "X and Y", "X या Y"
+    # 4. Check for Paired Concepts and Explicit Contrasts / Comparisons
+    PAIRED_CONCEPTS_MAP = [
+        ("विज्ञान", "तकनीक", "SCIENCE", "TECHNOLOGY", "science technology research transparent png cutout"),
+        ("science", "technology", "SCIENCE", "TECHNOLOGY", "science technology research transparent png cutout"),
+        ("हार्डवेयर", "सॉफ्टवेयर", "HARDWARE", "SOFTWARE", "computer hardware software engineering transparent png cutout"),
+        ("इंसान", "मशीन", "HUMAN", "MACHINE", "human portrait silhouette modern robot transparent png cutout"),
+        ("अतीत", "भविष्य", "PAST", "FUTURE", "ancient hourglass futuristic technology transparent png cutout"),
+        ("धनी", "गरीब", "RICH", "POOR", "wealthy business money poverty struggle transparent png cutout"),
+        ("सफलता", "असफलता", "SUCCESS", "FAILURE", "success trophy failure broken target transparent png cutout"),
+        ("शेयर मार्केट", "क्रिप्टो", "STOCK MARKET", "CRYPTO", "stock market trading bull bitcoin transparent png cutout"),
+        ("पुरानी तकनीक", "आधुनिक एआई", "OLD TECH", "MODERN AI", "vintage typewriter modern artificial intelligence transparent png cutout"),
+    ]
+
+    for c1_word, c2_word, l1, l2, search_query in PAIRED_CONCEPTS_MAP:
+        if c1_word in text_lower and c2_word in text_lower:
+            is_conflict = any(k in text_lower for k in [" vs ", "versus", "बनाम", " या ", "ya phir", "मुकाबला", "टक्कर", "युद्ध", "clash", "rivalry", "विवाद"])
+            conn_symbol = "vs" if is_conflict else "&"
+            return {
+                "is_detected": True,
+                "is_multi_entity": True,
+                "is_vs": is_conflict,
+                "entities": [
+                    {"raw": c1_word, "clean_en": l1.lower(), "label": l1, "search": f"{l1.lower()} transparent png cutout isolated"},
+                    {"raw": c2_word, "clean_en": l2.lower(), "label": l2, "search": f"{l2.lower()} transparent png cutout isolated"}
+                ],
+                "transition_label": f"{l1} {conn_symbol} {l2}"
+            }
+
+    # Narrative action words: Sequential actions/storytelling (e.g. मेहनत की और कंपनी बनाई, सायरन बजी और जांच शुरू हुई)
+    # MUST NOT be hijacked into 2D collages - they must play real cinematic HD videos!
+    NARRATIVE_STORY_WORDS = {
+        'की', 'किया', 'किए', 'लगा', 'लगी', 'लगे', 'हुई', 'हुआ', 'हुए', 'था', 'थी', 'थे',
+        'आया', 'आई', 'आए', 'गया', 'गई', 'गए', 'चला', 'चली', 'चले', 'बनाई', 'बनाया',
+        'देखा', 'देखी', 'देखे', 'सोचा', 'सोची', 'पहुंचा', 'पहुंची', 'मिला', 'मिली', 'मिले',
+        'टूटा', 'टूटी', 'सपना', 'सपने', 'कहानी', 'बात', 'शुरू', 'खत्म', 'जाना', 'आना',
+        'रहना', 'सोना', 'उठना', 'बैठना', 'रोना', 'हंसना', 'करना', 'होने', 'करने', 'रात-दिन', 'दिन',
+        'अचानक', 'फिर', 'लेकिन', 'तभी', 'जब', 'तब', 'जिसने', 'जिसका', 'जिसके', 'जिसकी',
+        'सायरन', 'बजी', 'बजा', 'शुरुआत', 'कदम', 'रास्ता', 'मंजिल', 'हासिल', 'सकता', 'सकती', 'सकते'
+    }
+
+    # Explicit contrast & comparison regexes
     two_entity_regexes = [
-        r'([A-Za-z\u0900-\u097F0-9\s]{2,25})\s+(?:और|तथा|vs|बनाम|and|या)\s+([A-Za-z\u0900-\u097F0-9\s]{2,25})',
+        r'([A-Za-z\u0900-\u097F0-9\s]{2,20})\s+(?:vs|versus|बनाम|या फिर|ya phir|मुकाबला)\s+([A-Za-z\u0900-\u097F0-9\s]{2,20})',
         r'क(?:भी|हा)\s+([A-Za-z\u0900-\u097F0-9\s]{2,20})\s+तो\s+क(?:भी|हा)\s+([A-Za-z\u0900-\u097F0-9\s]{2,20})',
         r'सिर्फ\s+([A-Za-z\u0900-\u097F0-9\s]{2,20})\s+नहीं.*?बल्कि\s+([A-Za-z\u0900-\u097F0-9\s]{2,20})',
     ]
-
-    STOP_VERBS = {
-        'बदलीं', 'बदला', 'बदले', 'गया', 'गई', 'गए', 'रहा', 'रही', 'रहे',
-        'धीरे-धीरे', 'धीरे', 'लिखी', 'लिखा', 'लिखे', 'हुआ', 'हुई', 'हुए',
-        'था', 'थी', 'थे', 'होगा', 'होगी', 'होंगे', 'कहा', 'देखा', 'पड़ा',
-        'पड़ी', 'पड़े', 'चला', 'चली', 'चले', 'आया', 'आई', 'आए', 'जाता',
-        'जाती', 'जाते', 'करता', 'करती', 'करते', 'होना', 'करना', 'होने',
-        'करने', 'सकता', 'सकती', 'सकते', 'लगातार', 'बढ़ता', 'घटता', 'नहीं'
-    }
 
     for pat in two_entity_regexes:
         m = re.search(pat, text_lower)
@@ -1176,18 +1289,21 @@ def detect_collage_entities(scene_text: str, main_topic: str = "") -> Dict[str, 
             w2 = clean_p2.split()
             if not w1 or not w2:
                 continue
-            if w1[-1] in STOP_VERBS or w2[-1] in STOP_VERBS or any(w in STOP_VERBS for w in w1 + w2):
+            if any(w in NARRATIVE_STORY_WORDS for w in w1 + w2):
                 continue
 
             if len(clean_p1) >= 2 and len(clean_p2) >= 2:
                 e1 = _resolve_entity(clean_p1, main_topic)
                 e2 = _resolve_entity(clean_p2, main_topic)
                 if e1 and e2 and e1["clean_en"] != e2["clean_en"]:
+                    is_conflict = any(k in text_lower for k in [" vs ", "versus", "बनाम", " या ", "ya phir", "तनाव", "युद्ध", "clash", "rivalry", "लड़ाई", "विवाद", "मुकाबला"])
+                    conn_symbol = "vs" if is_conflict else "&"
                     return {
                         "is_detected": True,
                         "is_multi_entity": True,
+                        "is_vs": is_conflict,
                         "entities": [e1, e2],
-                        "transition_label": f"{e1['label']} vs {e2['label']}"
+                        "transition_label": f"{e1['label']} {conn_symbol} {e2['label']}"
                     }
 
     # 5. Single entity milestone detection (Strictly in scene text)
@@ -1446,8 +1562,8 @@ def render_collage_motion_clip(
         max_c1_w, max_c1_h = int(w * 0.72), int(h * 0.22) # Cloud: wider banner on top
         max_c2_w, max_c2_h = int(w * 0.48), int(h * 0.45) # Girl/Person: standing below
     elif is_multi:
-        max_c1_w, max_c1_h = int(w * 0.40), int(h * 0.36) # Balanced symmetrical columns
-        max_c2_w, max_c2_h = int(w * 0.40), int(h * 0.36)
+        max_c1_w, max_c1_h = int(w * 0.35), int(h * 0.35) # Balanced symmetrical columns with ample center breathing room
+        max_c2_w, max_c2_h = int(w * 0.35), int(h * 0.35)
     else:
         max_c1_w, max_c1_h = int(w * 0.62), int(h * 0.52) # Rule of thirds balanced framing
         max_c2_w, max_c2_h = int(w * 0.62), int(h * 0.52)
@@ -1624,8 +1740,8 @@ def render_collage_motion_clip(
             lbl2 = entities[1]["label"] if len(entities) > 1 else "ENTITY 2"
 
             cy_fixed = int(h * 0.50)
-            col1_cx = int(w * 0.28)
-            col2_cx = int(w * 0.72)
+            col1_cx = int(w * 0.26)
+            col2_cx = int(w * 0.74)
 
             if frame_idx < t_trans_start:
                 # Phase 1: Entity 1 starts centered with zoom
@@ -1656,7 +1772,7 @@ def render_collage_motion_clip(
 
                 if transition_mode == "slide_bottom_up":
                     # Entity 1 moves to left, Entity 2 RISES UP FROM BOTTOM!
-                    pos1_x = int(w * (0.50 - 0.22 * ease_val))
+                    pos1_x = int(w * (0.50 - 0.24 * ease_val))
                     x1 = int(pos1_x - c1.width / 2)
                     y1 = int(cy_fixed - c1.height / 2)
                     frame.paste(sh1, (x1 + off1[0], y1 + off1[1]), mask=sh1)
@@ -1670,13 +1786,13 @@ def render_collage_motion_clip(
 
                 elif transition_mode == "slide_right_then_left_enters":
                     # Reverse Horizontal: Entity 1 slides right, Entity 2 enters from left!
-                    pos1_x = int(w * (0.50 + 0.22 * ease_val))
+                    pos1_x = int(w * (0.50 + 0.24 * ease_val))
                     x1 = int(pos1_x - c1.width / 2)
                     y1 = int(cy_fixed - c1.height / 2)
                     frame.paste(sh1, (x1 + off1[0], y1 + off1[1]), mask=sh1)
                     frame.paste(c1, (x1, y1), mask=c1)
 
-                    pos2_x = int(w * (-0.25 + 0.53 * ease_val))
+                    pos2_x = int(w * (-0.25 + 0.51 * ease_val))
                     x2 = int(pos2_x - c2.width / 2)
                     y2 = int(cy_fixed - c2.height / 2)
                     frame.paste(sh2, (x2 + off2[0], y2 + off2[1]), mask=sh2)
@@ -1684,13 +1800,13 @@ def render_collage_motion_clip(
 
                 else:
                     # Standard Horizontal: Entity 1 slides left, Entity 2 enters from right
-                    pos1_x = int(w * (0.50 - 0.22 * ease_val))
+                    pos1_x = int(w * (0.50 - 0.24 * ease_val))
                     x1 = int(pos1_x - c1.width / 2)
                     y1 = int(cy_fixed - c1.height / 2)
                     frame.paste(sh1, (x1 + off1[0], y1 + off1[1]), mask=sh1)
                     frame.paste(c1, (x1, y1), mask=c1)
 
-                    pos2_x = int(w * (1.25 - 0.53 * ease_val))
+                    pos2_x = int(w * (1.25 - 0.51 * ease_val))
                     x2 = int(pos2_x - c2.width / 2)
                     y2 = int(cy_fixed - c2.height / 2)
                     frame.paste(sh2, (x2 + off2[0], y2 + off2[1]), mask=sh2)
@@ -1704,12 +1820,38 @@ def render_collage_motion_clip(
                 target_x1 = col2_cx if transition_mode == "slide_right_then_left_enters" else col1_cx
                 target_x2 = col1_cx if transition_mode == "slide_right_then_left_enters" else col2_cx
 
-                # 1. Central VS Badge
-                vs_r = int(min(w, h) * 0.034)
-                vs_bg = (255, 255, 255, 220) if is_dark_bg else (24, 24, 28, 220)
-                vs_txt = (20, 20, 24, 255) if is_dark_bg else (255, 255, 255, 255)
-                draw.ellipse([w // 2 - vs_r, cy_fixed - vs_r, w // 2 + vs_r, cy_fixed + vs_r], fill=vs_bg, outline=(255, 255, 255, 120), width=2)
-                draw.text((w // 2, cy_fixed), "VS", fill=vs_txt, font=font_vs, anchor="mm")
+                # 1. Central Badge: Only show "VS" when it is a true conflict/rivalry! Otherwise show "&" or neutral connector.
+                is_vs_context = bool(
+                    entity_metadata.get("is_vs") or
+                    any(k in scene_text.lower() for k in [
+                        " vs ", "vs.", "versus", "बनाम", " या ", "ya phir", "ya fir", " or ",
+                        "तनाव", "युद्ध", "conflict", "clash", "rivalry", "दुश्मनी", "लड़ाई", "विवाद"
+                    ]) or
+                    (" vs " in scene_tag.lower() or "versus" in scene_tag.lower())
+                )
+                is_and_context = bool(
+                    any(k in scene_text.lower() for k in [" और ", " तथा ", " & ", " and ", "साथ"]) or
+                    (" & " in scene_tag or " and " in scene_tag.lower())
+                )
+
+                if is_vs_context:
+                    # True Rivalry/Clash: Draw prominent "VS" Badge in crimson
+                    vs_r = int(min(w, h) * 0.034)
+                    vs_bg = (210, 40, 40, 240) if is_dark_bg else (190, 30, 30, 240)
+                    draw.ellipse([w // 2 - vs_r, cy_fixed - vs_r, w // 2 + vs_r, cy_fixed + vs_r], fill=vs_bg, outline=(255, 255, 255, 220), width=3)
+                    draw.text((w // 2, cy_fixed), "VS", fill=(255, 255, 255, 255), font=font_vs, anchor="mm")
+                elif is_and_context:
+                    # Cooperative/Associated Pair: Draw elegant "&" Badge with gold accent
+                    vs_r = int(min(w, h) * 0.030)
+                    vs_bg = (30, 40, 58, 230) if is_dark_bg else (235, 240, 250, 230)
+                    vs_txt = (255, 215, 0, 255) if is_dark_bg else (30, 45, 75, 255)
+                    draw.ellipse([w // 2 - vs_r, cy_fixed - vs_r, w // 2 + vs_r, cy_fixed + vs_r], fill=vs_bg, outline=(255, 215, 0, 180), width=2)
+                    draw.text((w // 2, cy_fixed), "&", fill=vs_txt, font=font_vs, anchor="mm")
+                else:
+                    # Neutral clean separation - subtle connector dot
+                    dot_r = int(min(w, h) * 0.012)
+                    dot_col = (255, 255, 255, 120) if is_dark_bg else (40, 40, 45, 120)
+                    draw.ellipse([w // 2 - dot_r, cy_fixed - dot_r, w // 2 + dot_r, cy_fixed + dot_r], fill=dot_col)
 
                 # 2. Entity 1 (Balanced Column)
                 x1 = int(target_x1 - c1.width / 2)
@@ -1770,6 +1912,17 @@ def render_collage_motion_clip(
             x1 = int(w * 0.44 - curr_w / 2)
             y1 = int(curr_cy - curr_h / 2)
 
+            # Iconic Bauhaus / Vox Modernist Framing Arcs (matching user screenshots 4 & 5)
+            # Drawn BEHIND the cutout with smooth expansion motion!
+            arc_scale = 1.0 + zoom_norm * 0.08
+            arc_cx = int(w * 0.50)
+            draw_concentric_framing_arcs(
+                draw, (arc_cx, curr_cy),
+                base_radius=int(max(curr_w, curr_h) * 0.52),
+                scale_factor=arc_scale,
+                is_dark_bg=is_dark_bg
+            )
+
             # Paste Shadow + Cutout
             frame.paste(sh1_dyn, (x1 + off1_dyn[0], y1 + off1_dyn[1]), mask=sh1_dyn)
             frame.paste(c1_dyn, (x1, y1), mask=c1_dyn)
@@ -1783,6 +1936,15 @@ def render_collage_motion_clip(
                 label=lbl1, label_font=font_title, quadrant="top_right",
                 canvas_size=(w, h), is_dark_bg=is_dark_bg
             )
+
+            # Curved Callout Arrow pointing to detail (matching user screenshots 2, 3 & 6)
+            callout_tag = "DETAILS" if len(lbl1) > 10 else lbl1
+            arr_sx = min(safe_r - 30, x1 + curr_w + 25)
+            arr_sy = max(safe_t + 35, y1 - 25)
+            arr_ex = x1 + int(curr_w * 0.72)
+            arr_ey = y1 + int(curr_h * 0.28)
+            draw_curved_callout_arrow(draw, (arr_sx, arr_sy), (arr_ex, arr_ey), color=(245, 185, 20, 245), width=4, curvature=0.25)
+            draw_sharp_badge_label(draw, callout_tag, (arr_sx, arr_sy - 16), font_pill, anchor="mm", is_dark_bg=is_dark_bg, canvas_bounds=canvas_bounds)
 
         # Write frame to FFmpeg stdin
         raw_bytes = frame.tobytes()

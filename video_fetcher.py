@@ -572,7 +572,7 @@ def fetch_videos(keyword, job_id, count=1, orientation="portrait", category="Ran
             queries_to_try.append(q.strip())
 
     if is_after_effects:
-        # User Rule: For After Effects, ONLY fetch from Pinterest (no Pexels/Pixabay)
+        # Priority 1: Pinterest HD Videos via gallery-dl
         for q_item in queries_to_try:
             try:
                 clips = fetch_pinterest_videos(q_item, job_id, count=count, orientation=orientation, used_media_ids=used_media_ids)
@@ -580,6 +580,17 @@ def fetch_videos(keyword, job_id, count=1, orientation="portrait", category="Ran
                     return clips
             except Exception as e_pv:
                 print(f"⚠️ [Pinterest Video Query Skip]: {e_pv}")
+        # Priority 2: Real Topic HD Video fallback from Pexels (Guarantees cool cinematic footage for any topic!)
+        for q_item in queries_to_try:
+            clean_pex = " ".join([w for w in q_item.split() if w.lower() not in ["graphics", "video", "particles", "vfx", "motion"]][:4])
+            if clean_pex:
+                try:
+                    clips = fetch_pexels_videos(clean_pex, job_id, count=count, orientation=orientation, used_media_ids=used_media_ids)
+                    if clips:
+                        print(f"✅ [Pexels Video Success] Found real topic video for '{clean_pex}'")
+                        return clips
+                except Exception as e_px:
+                    pass
     else:
         for q_item in queries_to_try:
             try:

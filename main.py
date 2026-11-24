@@ -2298,10 +2298,13 @@ def full_process(req: VideoRequest, job_id: str):
                             render_collage_motion_clip
                         )
                         collage_meta = detect_collage_entities(scene_text, main_topic)
+                        # Vox Motion Collage (Paper Cutout & Map Breakdown) ONLY for true contrasts, dual entity comparisons, clouds & girl, or explicit map requests
+                        has_explicit_map_request = any(mk in scene_text.lower() for mk in ["नक्शा", "मैप", "map", "सीमा", "border", "diagram"])
                         is_collage_eligible = bool(
-                            collage_meta.get("is_multi_entity") or
                             (is_contrast and len(contrast_parts) == 2) or
-                            (collage_meta.get("is_detected") and len(collage_meta.get("entities", [])) > 0)
+                            (collage_meta.get("is_multi_entity") and len(collage_meta.get("entities", [])) >= 2) or
+                            (collage_meta.get("transition_label") == "CLOUDS & GIRL") or
+                            (has_explicit_map_request and len(collage_meta.get("entities", [])) > 0)
                         )
 
                         if is_collage_eligible:
@@ -2364,6 +2367,20 @@ def full_process(req: VideoRequest, job_id: str):
 
                         # 1. Fetch Pinterest Video for cinematic motion
                         vid_files = fetch_pinterest_videos_via_gallery_dl(vid_term, limit=1, output_dir=job_dir, used_media_ids=used_media_ids, orientation=orientation)
+
+                        # 1.b Multi-Source Real Topic Video Fallback: Search Pexels HD Stock Videos if Pinterest video was not found
+                        if not vid_files:
+                            try:
+                                from video_fetcher import fetch_pexels_videos
+                                clean_pex_q = " ".join([w for w in en_visual_phrase.split() if w.lower() not in ["cinematic", "animation", "photo", "video", "transparent", "cutout", "isolated", "hd"]][:4])
+                                if clean_pex_q:
+                                    print(f"🎬 [After Effects Scene {i+1} Pexels Video Search] Real HD Topic Video for '{clean_pex_q}'...")
+                                    pex_files = fetch_pexels_videos(clean_pex_q, os.path.join(job_dir, f"pex_vid_{i}"), count=1, orientation=orientation, used_media_ids=used_media_ids)
+                                    if pex_files and os.path.exists(pex_files[0]) and os.path.getsize(pex_files[0]) > 5000:
+                                        vid_files = pex_files
+                            except Exception as e_pex:
+                                print(f"⚠️ [Pexels Video fetch notice]: {e_pex}")
+
                         # 2. Fetch Pinterest HD Photo for micro-detail clarity
                         p_files = fetch_pinterest_photos_via_gallery_dl(photo_term, limit=1, output_dir=job_dir, used_media_ids=used_media_ids, orientation=orientation)
 
