@@ -48,16 +48,16 @@ def release_system_memory():
 # Aesthetic Canvas Studio Palettes (Warm Paper, Studio Off-White, Parchment, Bauhaus)
 # ---------------------------------------------------------------------------
 STUDIO_PALETTES = [
-    {"name": "parchment_warm", "bg": (246, 244, 238), "grid": (185, 180, 172, 130), "text": (24, 24, 24)},
-    {"name": "studio_cream",   "bg": (250, 248, 242), "grid": (195, 190, 182, 120), "text": (20, 20, 20)},
-    {"name": "editorial_red",   "bg": (205, 36, 36),   "grid": (255, 255, 255, 80),  "text": (255, 255, 255)}, # Match user reference screenshot!
-    {"name": "drafting_kraft", "bg": (241, 236, 226), "grid": (180, 175, 165, 140), "text": (30, 28, 25)},
-    {"name": "blueprint_slate","bg": (234, 238, 242), "grid": (175, 185, 195, 130), "text": (20, 25, 30)},
-    {"name": "muted_sage",     "bg": (236, 241, 236), "grid": (175, 188, 175, 130), "text": (20, 30, 20)},
-    {"name": "vintage_peach",  "bg": (248, 241, 237), "grid": (195, 180, 175, 125), "text": (35, 25, 20)},
-    {"name": "bauhaus_cream",  "bg": (244, 242, 235), "grid": (180, 178, 170, 135), "text": (18, 18, 18)},
-    {"name": "bauhaus_navy",   "bg": (28, 48, 92),     "grid": (255, 255, 255, 60),  "text": (250, 250, 250)},
-    {"name": "terracotta",     "bg": (212, 92, 70),    "grid": (255, 255, 255, 75),  "text": (255, 255, 255)},
+    {"name": "parchment_warm", "bg": (246, 244, 238), "grid": (185, 180, 172, 130), "text": (24, 24, 24), "is_dark": False},
+    {"name": "studio_cream",   "bg": (250, 248, 242), "grid": (195, 190, 182, 120), "text": (20, 20, 20), "is_dark": False},
+    {"name": "editorial_red",  "bg": (205, 36, 36),   "grid": (255, 255, 255, 80),  "text": (255, 255, 255), "is_dark": True}, # Match user reference screenshot!
+    {"name": "drafting_kraft", "bg": (241, 236, 226), "grid": (180, 175, 165, 140), "text": (30, 28, 25), "is_dark": False},
+    {"name": "blueprint_slate","bg": (234, 238, 242), "grid": (175, 185, 195, 130), "text": (20, 25, 30), "is_dark": False},
+    {"name": "muted_sage",     "bg": (236, 241, 236), "grid": (175, 188, 175, 130), "text": (20, 30, 20), "is_dark": False},
+    {"name": "vintage_peach",  "bg": (248, 241, 237), "grid": (195, 180, 175, 125), "text": (35, 25, 20), "is_dark": False},
+    {"name": "bauhaus_cream",  "bg": (244, 242, 235), "grid": (180, 178, 170, 135), "text": (18, 18, 18), "is_dark": False},
+    {"name": "bauhaus_navy",   "bg": (28, 48, 92),     "grid": (255, 255, 255, 60),  "text": (250, 250, 250), "is_dark": True},
+    {"name": "terracotta",     "bg": (212, 92, 70),    "grid": (255, 255, 255, 75),  "text": (255, 255, 255), "is_dark": True},
 ]
 
 # Washi tape colors (red, cobalt blue, kraft beige, deep green)
@@ -223,7 +223,22 @@ def create_collage_canvas(
         vig_img = Image.fromarray(vig_np, "RGBA")
         base = Image.alpha_composite(base, vig_img)
 
-    return base
+    return base, palette
+
+
+def sharpen_cutout(img: Image.Image, amount: float = 1.35) -> Image.Image:
+    """
+    Applies high-clarity edge and micro-texture sharpening to cutouts.
+    Sharpens RGB color channels while preserving clean alpha transparency.
+    Fulfills user request: 'hr ditelsh ko shrp kro jisse ache se smj aye'!
+    """
+    if img.mode != "RGBA":
+        img = img.convert("RGBA")
+    r, g, b, a = img.split()
+    rgb = Image.merge("RGB", (r, g, b))
+    crisp_rgb = rgb.filter(ImageFilter.UnsharpMask(radius=1.8, percent=int(amount * 100), threshold=2))
+    crisp_rgb.putalpha(a)
+    return crisp_rgb
 
 
 def make_transparent_cutout(
@@ -349,7 +364,111 @@ def create_cutout_drop_shadow(
 
 
 # ---------------------------------------------------------------------------
-# 1,000+ Procedural Marker & Annotation Engine
+# High-Contrast Label & Chapter Badge Utilities (Pro-Level Alignment & Clarity)
+# ---------------------------------------------------------------------------
+def draw_sharp_badge_label(
+    draw: ImageDraw.ImageDraw,
+    label: str,
+    pos: Tuple[int, int],
+    font: ImageFont.ImageFont,
+    anchor: str = "mm",
+    is_dark_bg: bool = False,
+    accent_color: Optional[Tuple[int, int, int, int]] = None,
+    canvas_bounds: Optional[Tuple[int, int, int, int]] = None
+) -> Tuple[int, int]:
+    """
+    Renders high-contrast, razor-sharp documentary labels with boundary safety clamping.
+    Draws a subtle contrast halo / backing so text is legible and crisp on any canvas.
+    Returns the final clamped (x, y) coordinates.
+    """
+    if not label or not font:
+        return pos
+    x, y = pos
+    tb = font.getbbox(label)
+    tw = tb[2] - tb[0]
+    th = tb[3] - tb[1]
+
+    # Boundary clamping if canvas bounds are provided (safe_l, safe_t, safe_r, safe_b)
+    if canvas_bounds:
+        sl, st, sr, sb = canvas_bounds
+        # Compute bounding box based on anchor
+        if "l" in anchor:
+            lx1, lx2 = x, x + tw
+        elif "r" in anchor:
+            lx1, lx2 = x - tw, x
+        else:
+            lx1, lx2 = x - tw // 2, x + tw // 2
+
+        if "a" in anchor or "t" in anchor:
+            ly1, ly2 = y, y + th
+        elif "d" in anchor or "b" in anchor:
+            ly1, ly2 = y - th, y
+        else:
+            ly1, ly2 = y - th // 2, y + th // 2
+
+        if lx1 < sl:
+            x += (sl - lx1)
+        elif lx2 > sr:
+            x -= (lx2 - sr)
+
+        if ly1 < st:
+            y += (st - ly1)
+        elif ly2 > sb:
+            y -= (ly2 - sb)
+
+    # Sharp rendering with contrast halo / drop shadow
+    if is_dark_bg:
+        shadow_c = (10, 10, 12, 230)
+        draw.text((x + 2, y + 2), label, fill=shadow_c, font=font, anchor=anchor)
+        draw.text((x, y), label, fill=(255, 255, 255, 255), font=font, anchor=anchor)
+    else:
+        halo_c = (255, 255, 255, 240)
+        for ox, oy in [(-1, 0), (1, 0), (0, -1), (0, 1), (-1, -1), (1, 1), (-1, 1), (1, -1)]:
+            draw.text((x + ox, y + oy), label, fill=halo_c, font=font, anchor=anchor)
+        draw.text((x, y), label, fill=(18, 18, 22, 255), font=font, anchor=anchor)
+
+    return (x, y)
+
+
+def draw_scene_anchor_pill(
+    draw: ImageDraw.ImageDraw,
+    text: str,
+    canvas_w: int,
+    y_pos: int,
+    font: ImageFont.ImageFont,
+    is_dark_bg: bool = False
+):
+    """Draws a clean Vox-style chapter pill banner at top center."""
+    if not text:
+        return
+    text_clean = text.upper().strip()[:28]
+    tb = font.getbbox(text_clean)
+    tw = tb[2] - tb[0]
+    th = tb[3] - tb[1]
+
+    pad_x = 22
+    pad_y = 8
+    cx = canvas_w // 2
+    x1 = cx - tw // 2 - pad_x
+    x2 = cx + tw // 2 + pad_x
+    y1 = y_pos - th // 2 - pad_y
+    y2 = y_pos + th // 2 + pad_y
+
+    if is_dark_bg:
+        badge_bg = (255, 255, 255, 225)
+        badge_text = (20, 20, 24, 255)
+        border_c = (255, 255, 255, 255)
+    else:
+        badge_bg = (24, 24, 28, 225)
+        badge_text = (255, 255, 255, 255)
+        border_c = (255, 255, 255, 90)
+
+    draw.rounded_rectangle([(x1, y1), (x2, y2)], radius=16, fill=badge_bg, outline=border_c, width=1)
+    draw.text((cx, y_pos), text_clean, fill=badge_text, font=font, anchor="mm")
+
+
+# ---------------------------------------------------------------------------
+# 1,000+ Procedural Marker & Annotation Engine (With Safe Margin Clamping)
 # ---------------------------------------------------------------------------
 def draw_procedural_marker(
     draw: ImageDraw.ImageDraw,
@@ -360,26 +479,27 @@ def draw_procedural_marker(
     label: Optional[str] = None,
     label_font: Optional[ImageFont.ImageFont] = None,
     quadrant: str = "top_right",
-    text_color: Tuple[int, int, int, int] = (255, 255, 255, 255)
+    text_color: Optional[Tuple[int, int, int, int]] = None,
+    canvas_size: Tuple[int, int] = (1080, 1920),
+    is_dark_bg: bool = False
 ):
     """
-    Draws one of 1,000+ procedural documentary markers matching the exact Johnny Harris /
-    Vox aesthetic shown in the user's reference image (media_1795366325956_4d32d6a6.png):
+    Draws one of 1,000+ procedural documentary markers with mathematical boundary clamping:
     - 'bead_pointer_ring': Yellow marker circle around detail + S-curve pointer line
       terminating in a solid orange/gold accent bead dot pointing to the bold label!
-    - 'arrow_pointer_ring': Circle + curved pointer terminating in sharp arrowhead.
-    - 'double_sketch_loop': Dual sketched organic marker circles.
-    - 'architectural_viewfinder': Corner brackets framing the subject.
-    - 'hand_drawn_box': Organic sketched bounding box.
-    - 'highlighter_wash_strip': Translucent chisel marker wash.
-    - 'concentric_pulse_waves': Radar pulse waves.
+    - Guaranteed zero text clipping: automatically clamps within safe screen margins.
     """
     cx, cy = center
+    cw, ch = canvas_size
+    safe_l, safe_r = int(cw * 0.06), int(cw * 0.94)
+    safe_t, safe_b = int(ch * 0.08), int(ch * 0.90)
+    canvas_bounds = (safe_l, safe_t, safe_r, safe_b)
+
     if not color_scheme:
         color_scheme = random.choice(MARKER_COLORWAYS)
     if not style:
-        # 45% probability of the exact bead_pointer_ring from user screenshot
-        if random.random() < 0.45:
+        # 55% probability of the exact bead_pointer_ring from user screenshot
+        if random.random() < 0.55:
             style = "bead_pointer_ring"
         else:
             style = random.choice(MARKER_STYLES)
@@ -392,31 +512,82 @@ def draw_procedural_marker(
     dx = 1 if "right" in quadrant else -1
     dy = -1 if "top" in quadrant else 1
 
+    # Measure label if present
+    tw, th = (0, 0)
+    if label and label_font:
+        tb = label_font.getbbox(label)
+        tw = tb[2] - tb[0]
+        th = tb[3] - tb[1]
+
+    # Auto-flip dx if text would overflow horizontally
+    if dx > 0 and (cx + radius + tw + 30 > safe_r) and (cx - radius - tw - 30 >= safe_l):
+        dx = -1
+    elif dx < 0 and (cx - radius - tw - 30 < safe_l) and (cx + radius + tw + 30 <= safe_r):
+        dx = 1
+
+    # Auto-flip dy if text would overflow vertically
+    if dy < 0 and (cy - radius - th - 30 < safe_t):
+        dy = 1
+    elif dy > 0 and (cy + radius + th + 30 > safe_b):
+        dy = -1
+
     if style == "bead_pointer_ring":
         # -------------------------------------------------------------------
         # EXACT STYLE FROM USER SCREENSHOT:
         # Circle + curved squiggly pointer arc + terminal accent bead dot!
         # -------------------------------------------------------------------
-        # 1. Focus circle with slight hand-drawn micro-jitter
+        # 1. Focus circle with inner glow
         bbox = [cx - radius, cy - radius, cx + radius, cy + radius]
         draw.ellipse(bbox, outline=main_c, width=5)
-        # Inner glow line
         draw.ellipse([cx - radius + 2, cy - radius + 2, cx + radius - 2, cy + radius - 2], outline=glow_c, width=2)
 
-        # 2. Start of pointer on circle perimeter
-        start_angle = math.radians(-45 if ("right" in quadrant and "top" in quadrant) else (-135 if "top" in quadrant else 45))
-        sx = int(cx + radius * math.cos(start_angle))
-        sy = int(cy + radius * math.sin(start_angle))
+        # 2. Check if label fits to the right, to the left, or needs to go above/below
+        fits_right = (cx + radius + tw + 30 <= safe_r)
+        fits_left = (cx - radius - tw - 30 >= safe_l)
 
-        # End of pointer line
-        ex = sx + dx * int(radius * 1.1)
-        ey = sy + dy * int(radius * 0.9)
+        if fits_right and ("right" in quadrant or not fits_left):
+            ex = cx + radius + 20
+            ey = cy + dy * int(radius * 0.7)
+            ey = max(safe_t + 20, min(safe_b - 20, ey))
+            bead_pos = (ex, ey)
+            label_pos = (ex + 16, ey)
+            anchor = "la"
 
-        # Bezier control point for smooth organic curve
-        ctrl_x = (sx + ex) // 2 + dx * int(radius * 0.35)
-        ctrl_y = (sy + ey) // 2 - dy * int(radius * 0.25)
+            start_angle = math.atan2(ey - cy, ex - cx)
+            sx = int(cx + radius * math.cos(start_angle))
+            sy = int(cy + radius * math.sin(start_angle))
+            ctrl_x = (sx + ex) // 2 + int(radius * 0.25)
+            ctrl_y = (sy + ey) // 2 - dy * int(radius * 0.20)
 
-        # Draw bezier arc
+        elif fits_left:
+            ex = cx - radius - 20
+            ey = cy + dy * int(radius * 0.7)
+            ey = max(safe_t + 20, min(safe_b - 20, ey))
+            bead_pos = (ex, ey)
+            label_pos = (ex - 16, ey)
+            anchor = "ra"
+
+            start_angle = math.atan2(ey - cy, ex - cx)
+            sx = int(cx + radius * math.cos(start_angle))
+            sy = int(cy + radius * math.sin(start_angle))
+            ctrl_x = (sx + ex) // 2 - int(radius * 0.25)
+            ctrl_y = (sy + ey) // 2 - dy * int(radius * 0.20)
+
+        else:
+            # Squeeze: Place ABOVE circle, perfectly centered! (Like Bauhaus screenshots 2 & 3!)
+            ey = cy - radius - 22 if cy - radius - 60 >= safe_t else cy + radius + 22
+            ex = cx
+            bead_pos = (ex, ey)
+            lbl_y = ey - 22 if ey < cy else ey + 22
+            label_pos = (cx, lbl_y)
+            anchor = "mm"
+
+            sx = cx
+            sy = cy - radius if ey < cy else cy + radius
+            ctrl_x = cx + int(radius * 0.15)
+            ctrl_y = (sy + ey) // 2
+
+        # Draw smooth bezier pointer curve
         steps = 22
         pts = []
         for i in range(steps + 1):
@@ -426,30 +597,56 @@ def draw_procedural_marker(
             pts.append((int(bx), int(by)))
         draw.line(pts, fill=main_c, width=4)
 
-        # 3. Terminal Accent Bead (Solid accent dot, like the orange dot in user's image!)
+        # 3. Terminal Accent Bead (Solid accent dot at bead_pos)
         bead_r = 7
-        draw.ellipse([ex - bead_r, ey - bead_r, ex + bead_r, ey + bead_r], fill=accent_c, outline=main_c, width=2)
+        bx, by = bead_pos
+        draw.ellipse([bx - bead_r, by - bead_r, bx + bead_r, by + bead_r], fill=accent_c, outline=main_c, width=2)
 
-        # 4. Label Typography right beside the bead
+        # 4. Sharp Label Typography right beside the bead
         if label and label_font:
-            lx = ex + (15 if dx > 0 else -15)
-            ly = ey - 18
-            # Text shadow for clarity
-            draw.text((lx + 2, ly + 2), label, fill=(10, 10, 10, 200), font=label_font, anchor=("la" if dx > 0 else "ra"))
-            draw.text((lx, ly), label, fill=text_color, font=label_font, anchor=("la" if dx > 0 else "ra"))
+            draw_sharp_badge_label(draw, label, label_pos, label_font, anchor=anchor, is_dark_bg=is_dark_bg, canvas_bounds=canvas_bounds)
 
     elif style == "arrow_pointer_ring":
         # Circle + curved arrow with sharp triangular head
         bbox = [cx - radius, cy - radius, cx + radius, cy + radius]
         draw.ellipse(bbox, outline=main_c, width=4)
-        
-        sx = cx + dx * radius
-        sy = cy + dy * int(radius * 0.5)
-        ex = sx + dx * int(radius * 0.9)
-        ey = sy + dy * int(radius * 0.7)
 
-        ctrl_x = (sx + ex) // 2 + dx * 20
-        ctrl_y = (sy + ey) // 2 - dy * 20
+        fits_right = (cx + radius + tw + 30 <= safe_r)
+        fits_left = (cx - radius - tw - 30 >= safe_l)
+
+        if fits_right and ("right" in quadrant or not fits_left):
+            ex = cx + radius + 20
+            ey = max(safe_t + 20, min(safe_b - 20, cy + dy * int(radius * 0.7)))
+            label_pos = (ex + 16, ey)
+            anchor = "la"
+            dx_arr = 1
+            start_angle = math.atan2(ey - cy, ex - cx)
+            sx = int(cx + radius * math.cos(start_angle))
+            sy = int(cy + radius * math.sin(start_angle))
+            ctrl_x = (sx + ex) // 2 + 15
+            ctrl_y = (sy + ey) // 2 - dy * 15
+        elif fits_left:
+            ex = cx - radius - 20
+            ey = max(safe_t + 20, min(safe_b - 20, cy + dy * int(radius * 0.7)))
+            label_pos = (ex - 16, ey)
+            anchor = "ra"
+            dx_arr = -1
+            start_angle = math.atan2(ey - cy, ex - cx)
+            sx = int(cx + radius * math.cos(start_angle))
+            sy = int(cy + radius * math.sin(start_angle))
+            ctrl_x = (sx + ex) // 2 - 15
+            ctrl_y = (sy + ey) // 2 - dy * 15
+        else:
+            ey = cy - radius - 20 if cy - radius - 50 >= safe_t else cy + radius + 20
+            ex = cx
+            lbl_y = ey - 20 if ey < cy else ey + 20
+            label_pos = (cx, lbl_y)
+            anchor = "mm"
+            dx_arr = 0
+            sx = cx
+            sy = cy - radius if ey < cy else cy + radius
+            ctrl_x = cx + 15
+            ctrl_y = (sy + ey) // 2
 
         pts = []
         for i in range(20):
@@ -458,61 +655,64 @@ def draw_procedural_marker(
             by = (1 - t)**2 * sy + 2 * (1 - t) * t * ctrl_y + t**2 * ey
             pts.append((int(bx), int(by)))
         draw.line(pts, fill=main_c, width=4)
-        
-        # Arrowhead
-        draw.polygon([(ex, ey), (ex - dx * 14, ey - 7), (ex - dx * 14, ey + 7)], fill=accent_c)
+
+        if dx_arr != 0:
+            draw.polygon([(ex, ey), (ex - dx_arr * 14, ey - 7), (ex - dx_arr * 14, ey + 7)], fill=accent_c)
+        else:
+            arr_dy = -1 if ey < cy else 1
+            draw.polygon([(ex, ey), (ex - 7, ey - arr_dy * 14), (ex + 7, ey - arr_dy * 14)], fill=accent_c)
+
         if label and label_font:
-            draw.text((ex + dx * 12, ey - 15), label, fill=text_color, font=label_font, anchor=("la" if dx > 0 else "ra"))
+            draw_sharp_badge_label(draw, label, label_pos, label_font, anchor=anchor, is_dark_bg=is_dark_bg, canvas_bounds=canvas_bounds)
 
     elif style == "double_sketch_loop":
-        # Two sketchy marker loops
         draw.ellipse([cx - radius, cy - radius, cx + radius, cy + radius], outline=main_c, width=4)
         draw.ellipse([cx - radius + 4, cy - radius - 3, cx + radius - 2, cy + radius + 5], outline=glow_c, width=3)
         if label and label_font:
-            draw.text((cx, cy - radius - 35), label, fill=text_color, font=label_font, anchor="mm")
+            lbl_y = cy - radius - 30 if dy < 0 else cy + radius + 30
+            draw_sharp_badge_label(draw, label, (cx, lbl_y), label_font, anchor="mm", is_dark_bg=is_dark_bg, canvas_bounds=canvas_bounds)
 
     elif style == "architectural_viewfinder":
-        # Technical 4 corner brackets
         b = radius + 15
         arm = int(radius * 0.35)
-        # Top-left
+        # 4 Corner brackets
         draw.line([(cx - b, cy - b), (cx - b + arm, cy - b)], fill=main_c, width=4)
         draw.line([(cx - b, cy - b), (cx - b, cy - b + arm)], fill=main_c, width=4)
-        # Top-right
         draw.line([(cx + b, cy - b), (cx + b - arm, cy - b)], fill=main_c, width=4)
         draw.line([(cx + b, cy - b), (cx + b, cy - b + arm)], fill=main_c, width=4)
-        # Bottom-left
         draw.line([(cx - b, cy + b), (cx - b + arm, cy + b)], fill=main_c, width=4)
         draw.line([(cx - b, cy + b), (cx - b, cy + b - arm)], fill=main_c, width=4)
-        # Bottom-right
         draw.line([(cx + b, cy + b), (cx + b - arm, cy + b)], fill=main_c, width=4)
         draw.line([(cx + b, cy + b), (cx + b, cy + b - arm)], fill=main_c, width=4)
-        # Center target
+        # Center target crosshair
         draw.line([(cx - 8, cy), (cx + 8, cy)], fill=accent_c, width=2)
         draw.line([(cx, cy - 8), (cx, cy + 8)], fill=accent_c, width=2)
         if label and label_font:
-            draw.text((cx, cy + b + 20), label, fill=text_color, font=label_font, anchor="mm")
+            draw_sharp_badge_label(draw, label, (cx, cy + b + 25), label_font, anchor="mm", is_dark_bg=is_dark_bg, canvas_bounds=canvas_bounds)
 
     elif style == "hand_drawn_box":
         b = radius + 10
         draw.rounded_rectangle([(cx - b, cy - b), (cx + b, cy + b)], radius=16, outline=main_c, width=4)
-        draw.line([(cx + b - 15, cy + b), (cx + b + 12, cy + b)], fill=glow_c, width=3) # Sketch tail
+        draw.line([(cx + b - 15, cy + b), (cx + b + 12, cy + b)], fill=glow_c, width=3)
         if label and label_font:
-            draw.text((cx, cy - b - 25), label, fill=text_color, font=label_font, anchor="mm")
+            lbl_y = cy - b - 25 if dy < 0 else cy + b + 25
+            draw_sharp_badge_label(draw, label, (cx, lbl_y), label_font, anchor="mm", is_dark_bg=is_dark_bg, canvas_bounds=canvas_bounds)
 
     elif style == "concentric_pulse_waves":
         for i, rad in enumerate([radius, int(radius * 1.35), int(radius * 1.7)]):
             c = main_c if i == 0 else (glow_c[0], glow_c[1], glow_c[2], max(40, 160 - i * 60))
             draw.arc([cx - rad, cy - rad, cx + rad, cy + rad], start=-60, end=140, fill=c, width=3)
         if label and label_font:
-            draw.text((cx + radius + 20, cy - radius), label, fill=text_color, font=label_font, anchor="lm")
+            lbl_x = cx + radius + 25 if dx > 0 else cx - radius - 25
+            draw_sharp_badge_label(draw, label, (lbl_x, cy - radius), label_font, anchor=("la" if dx > 0 else "ra"), is_dark_bg=is_dark_bg, canvas_bounds=canvas_bounds)
 
     else:
         # Fallback to high-visibility focus ring
         bbox = [cx - radius, cy - radius, cx + radius, cy + radius]
         draw.ellipse(bbox, outline=main_c, width=5)
         if label and label_font:
-            draw.text((cx, cy - radius - 25), label, fill=text_color, font=label_font, anchor="mm")
+            lbl_y = cy - radius - 25 if dy < 0 else cy + radius + 25
+            draw_sharp_badge_label(draw, label, (cx, lbl_y), label_font, anchor="mm", is_dark_bg=is_dark_bg, canvas_bounds=canvas_bounds)
 
 
 def draw_falling_rain_fx(
@@ -523,32 +723,33 @@ def draw_falling_rain_fx(
     total_frames: int
 ):
     """
-    Animates falling monsoon rain streaks descending from cloud towards person/ground.
-    Fulfills user request: 'badal aa gye ladki bhigne lagi to badal nikle fir ladki to same esa lage badel ke niche hi he ladki'!
+    Animates smooth, continuous falling monsoon rain streaks descending from cloud towards ground.
+    Deterministic particle paths ensure continuous flow without frame-to-frame jumping or flicker!
+    Fulfills user request: 'badal aa gye ladki bhigne lagi to badal ke niche hi he ladki'!
     """
     c_x1, c_y1, c_x2, c_y2 = cloud_bbox
     g_x1, g_y1, g_x2, g_y2 = ground_bbox
 
-    cloud_bottom = c_y2 - 15
-    ground_top = g_y1 + 40
-    rain_w = max(100, c_x2 - c_x1)
+    cloud_bottom = c_y2 - 10
+    ground_bottom = g_y2 + 20
+    fall_dist = max(80, ground_bottom - cloud_bottom)
+    rain_span = max(60, (c_x2 - c_x1) - 40)
 
-    random.seed(frame_idx // 2)
-    num_streaks = 28
-    streak_len = 24
-    
-    # Blue water tint
-    rain_color = (180, 220, 255, 185)
+    num_streaks = 36
+    streak_len = 28
+    rain_color = (180, 225, 255, 195)
+    rain_glow = (255, 255, 255, 120)
 
-    for _ in range(num_streaks):
-        rx = random.randint(c_x1 + 10, c_x2 - 10)
-        # Animate vertical downward drop
-        speed_offset = (frame_idx * 16 + random.randint(0, 500)) % max(50, (ground_top - cloud_bottom))
-        ry = cloud_bottom + speed_offset
+    for i in range(num_streaks):
+        rx = c_x1 + 20 + int(((i * 79 + 17) % 100) / 100.0 * rain_span)
+        speed = 18 + (i % 5) * 4
+        y_offset = (frame_idx * speed + i * 83) % fall_dist
+        ry = cloud_bottom + y_offset
 
-        if ry + streak_len < ground_top + 100:
-            # Slight diagonal slant (wind)
-            draw.line([(rx, ry), (rx - 4, ry + streak_len)], fill=rain_color, width=2)
+        # Smooth fall with slight natural diagonal wind angle
+        draw.line([(rx, ry), (rx - 3, ry + streak_len)], fill=rain_color, width=2)
+        # Bright head sparkle
+        draw.line([(rx, ry), (rx - 1, ry + 6)], fill=rain_glow, width=2)
 
 
 # ---------------------------------------------------------------------------
@@ -834,7 +1035,6 @@ def render_collage_motion_clip(
     duration = max(3.5, float(duration))
     total_frames = int(duration * fps)
 
-    is_multi = len(cutout_paths) >= 2
     entities = entity_metadata.get("entities", [])
     scene_text = entity_metadata.get("scene_text", "")
 
@@ -850,7 +1050,9 @@ def render_collage_motion_clip(
     
     if not loaded_cutouts:
         # Fallback to elegant procedural cutouts so render never fails
-        ents = entities if entities else [{"label": "ARTIFACT", "clean_en": "artifact"}]
+        ents = list(entities) if entities else [{"label": "ARTIFACT 1", "clean_en": "artifact"}, {"label": "ARTIFACT 2", "clean_en": "artifact"}]
+        if len(ents) < 2 and entity_metadata.get("is_multi_entity"):
+            ents.append({"label": "ENTITY 2", "clean_en": "concept"})
         for idx, ent in enumerate(ents[:2]):
             fallback_img = Image.new("RGBA", (600, 600), (0, 0, 0, 0))
             fb_draw = ImageDraw.Draw(fallback_img)
@@ -862,14 +1064,18 @@ def render_collage_motion_clip(
             fb_draw.text((300, 300), lbl_text, fill=(255, 255, 255, 255), font=f_fb, anchor="mm")
             loaded_cutouts.append(fallback_img)
 
-    # 2. Canvas Base
-    canvas_base = create_collage_canvas(w, h, draw_grid=None, draw_tape=True, draw_vignette=True)
+    # Multi-entity detection based on loaded cutouts and metadata
+    is_multi = bool((entity_metadata.get("is_multi_entity") or len(entities) >= 2) and len(loaded_cutouts) >= 2)
+
+    # 2. Canvas Base & Palette Metadata
+    canvas_base, palette_info = create_collage_canvas(w, h, draw_grid=None, draw_tape=True, draw_vignette=True)
+    is_dark_bg = palette_info.get("is_dark", False)
 
     # 3. Determine Spatial Staging & Directional Transition Mode
     # Check if Sky + Ground relationship exists (e.g. Clouds above, Person/Girl below!)
     e1_type = entities[0].get("type", "concept") if len(entities) > 0 else "concept"
     e2_type = entities[1].get("type", "concept") if len(entities) > 1 else "concept"
-    
+
     is_sky_ground_scene = (
         is_multi and (
             (e1_type == "sky" and e2_type in ["person", "building", "ground", "concept"]) or
@@ -884,8 +1090,7 @@ def render_collage_motion_clip(
         transition_mode = random.choice([
             "slide_left_then_right_enters",
             "slide_right_then_left_enters",
-            "slide_bottom_up",
-            "pop_bounce"
+            "slide_bottom_up"
         ])
     else:
         transition_mode = random.choice([
@@ -894,16 +1099,16 @@ def render_collage_motion_clip(
             "ken_burns_zoom"
         ])
 
-    # 4. Scale and size cutouts
+    # 4. Scale and size cutouts with Pro-level Sharpening and Balanced Margins
     if is_sky_ground_scene:
-        max_c1_w, max_c1_h = int(w * 0.75), int(h * 0.28) # Cloud: wider banner on top
-        max_c2_w, max_c2_h = int(w * 0.55), int(h * 0.44) # Girl/Person: standing below
+        max_c1_w, max_c1_h = int(w * 0.72), int(h * 0.22) # Cloud: wider banner on top
+        max_c2_w, max_c2_h = int(w * 0.48), int(h * 0.45) # Girl/Person: standing below
     elif is_multi:
-        max_c1_w, max_c1_h = int(w * 0.44), int(h * 0.42)
-        max_c2_w, max_c2_h = int(w * 0.44), int(h * 0.42)
+        max_c1_w, max_c1_h = int(w * 0.40), int(h * 0.36) # Balanced symmetrical columns
+        max_c2_w, max_c2_h = int(w * 0.40), int(h * 0.36)
     else:
-        max_c1_w, max_c1_h = int(w * 0.68), int(h * 0.55)
-        max_c2_w, max_c2_h = int(w * 0.68), int(h * 0.55)
+        max_c1_w, max_c1_h = int(w * 0.62), int(h * 0.52) # Rule of thirds balanced framing
+        max_c2_w, max_c2_h = int(w * 0.62), int(h * 0.52)
 
     scaled_cutouts = []
     shadows = []
@@ -913,13 +1118,23 @@ def render_collage_motion_clip(
         mh = max_c1_h if idx == 0 else max_c2_h
         scale = min(mw / cw, mh / ch)
         nw, nh = max(60, int(cw * scale)), max(60, int(ch * scale))
-        res_c = c.resize((nw, nh), Image.BICUBIC)
-        sh_img, sh_offset = create_cutout_drop_shadow(res_c, blur_radius=12)
+        # Ultra-sharp downsampling with LANCZOS + unsharp mask sharpening
+        c_sharp = sharpen_cutout(c, amount=1.35)
+        res_c = c_sharp.resize((nw, nh), Image.LANCZOS)
+        res_c = sharpen_cutout(res_c, amount=1.15)
+        sh_img, sh_offset = create_cutout_drop_shadow(res_c, blur_radius=14, offset=(8, 14), shadow_opacity=0.35)
         scaled_cutouts.append(res_c)
         shadows.append((sh_img, sh_offset))
 
-    font_title = get_font(size=int(w * 0.046), font_type="bold")
+    font_title = get_font(size=int(w * 0.044), font_type="bold")
     font_callout = get_font(size=int(w * 0.030), font_type="serif")
+    font_pill = get_font(size=int(w * 0.026), font_type="bold")
+    font_vs = get_font(size=int(w * 0.028), font_type="bold")
+
+    safe_l, safe_r = int(w * 0.06), int(w * 0.94)
+    safe_t, safe_b = int(h * 0.08), int(h * 0.90)
+    canvas_bounds = (safe_l, safe_t, safe_r, safe_b)
+    scene_tag = entity_metadata.get("transition_label", "")
 
     # Pick procedural marker colorways & styles
     marker_color_1 = random.choice(MARKER_COLORWAYS)
@@ -927,7 +1142,7 @@ def render_collage_motion_clip(
     marker_style_1 = "bead_pointer_ring" if random.random() < 0.60 else random.choice(MARKER_STYLES)
     marker_style_2 = "bead_pointer_ring" if random.random() < 0.60 else random.choice(MARKER_STYLES)
 
-    # 5. FFmpeg subprocess
+    # 5. FFmpeg subprocess with High-Clarity CRF 18
     ffmpeg_cmd = [
         "ffmpeg", "-y",
         "-f", "rawvideo",
@@ -937,8 +1152,8 @@ def render_collage_motion_clip(
         "-r", str(fps),
         "-i", "-",
         "-c:v", "libx264",
-        "-preset", "ultrafast",
-        "-crf", "22",
+        "-preset", "veryfast",
+        "-crf", "18",
         "-pix_fmt", "yuv420p",
         "-threads", "1",
         os.path.abspath(output_mp4)
@@ -958,10 +1173,13 @@ def render_collage_motion_clip(
         frame = canvas_base.copy()
         draw = ImageDraw.Draw(frame, "RGBA")
 
+        # Top Scene Anchor Pill (Consistent Vox-style chapter tag)
+        if scene_tag:
+            draw_scene_anchor_pill(draw, scene_tag, w, int(h * 0.075), font_pill, is_dark_bg=is_dark_bg)
+
         if is_sky_ground_scene:
             # ===============================================================
             # SPATIAL HIERARCHY: SKY (CLOUDS) ON TOP, GROUND (GIRL) BELOW!
-            # "badel aa gye ladki bhigne lagi to badal ke niche hi he ladki"
             # ===============================================================
             c1 = scaled_cutouts[0] # Cloud
             sh1, off1 = shadows[0]
@@ -971,8 +1189,8 @@ def render_collage_motion_clip(
             lbl1 = entities[0]["label"] if len(entities) > 0 else "CLOUDS"
             lbl2 = entities[1]["label"] if len(entities) > 1 else "GIRL"
 
-            target_c1_y = int(h * 0.22)
-            target_c2_y = int(h * 0.68)
+            target_c1_y = int(h * 0.24)
+            target_c2_y = int(h * 0.72)
 
             # Phase 1: Cloud descends from top of screen
             if frame_idx < t_trans_start:
@@ -985,13 +1203,14 @@ def render_collage_motion_clip(
                 frame.paste(sh1, (x1 + off1[0], y1 + off1[1]), mask=sh1)
                 frame.paste(c1, (x1, y1), mask=c1)
 
-                # Procedural Marker on Cloud
+                # Procedural Marker on Cloud (Clamped)
                 ring_cx = x1 + int(c1.width * 0.5)
                 ring_cy = y1 + int(c1.height * 0.45)
                 draw_procedural_marker(
                     draw, (ring_cx, ring_cy), int(c1.width * 0.22),
                     style=marker_style_1, color_scheme=marker_color_1,
-                    label=lbl1, label_font=font_title, quadrant="top_right"
+                    label=lbl1, label_font=font_title, quadrant="top_right",
+                    canvas_size=(w, h), is_dark_bg=is_dark_bg
                 )
 
             # Phase 2: Cloud stays at top, Girl rises up from bottom under the cloud!
@@ -1012,7 +1231,7 @@ def render_collage_motion_clip(
                 frame.paste(sh2, (x2 + off2[0], y2 + off2[1]), mask=sh2)
                 frame.paste(c2, (x2, y2), mask=c2)
 
-                # Animate rain streaks between cloud and girl!
+                # Smooth continuous rain streaks
                 draw_falling_rain_fx(
                     draw,
                     (x1, y1, x1 + c1.width, y1 + c1.height),
@@ -1032,7 +1251,7 @@ def render_collage_motion_clip(
                 frame.paste(sh2, (x2 + off2[0], y2 + off2[1]), mask=sh2)
                 frame.paste(c2, (x2, y2), mask=c2)
 
-                # Continuous falling rain effect
+                # Smooth continuous rain streaks
                 draw_falling_rain_fx(
                     draw,
                     (x1, y1, x1 + c1.width, y1 + c1.height),
@@ -1040,18 +1259,19 @@ def render_collage_motion_clip(
                     frame_idx, total_frames
                 )
 
-                # Procedural Marker on Girl (Under the clouds!)
+                # Procedural Marker on Girl (Under the clouds, safely clamped)
                 ring2_cx = x2 + int(c2.width * 0.5)
                 ring2_cy = y2 + int(c2.height * 0.35)
                 draw_procedural_marker(
                     draw, (ring2_cx, ring2_cy), int(c2.width * 0.32),
                     style=marker_style_2, color_scheme=marker_color_2,
-                    label=lbl2, label_font=font_title, quadrant="top_right"
+                    label=lbl2, label_font=font_title, quadrant="top_right",
+                    canvas_size=(w, h), is_dark_bg=is_dark_bg
                 )
 
         elif is_multi:
             # ===============================================================
-            # DYNAMIC MULTI-DIRECTIONAL TRANSITIONS (Horizontal / Vertical / Bottom-Rise)
+            # DYNAMIC MULTI-DIRECTIONAL TRANSITIONS (Symmetrical Balanced Layout)
             # ===============================================================
             c1 = scaled_cutouts[0]
             sh1, off1 = shadows[0]
@@ -1062,14 +1282,16 @@ def render_collage_motion_clip(
             lbl2 = entities[1]["label"] if len(entities) > 1 else "ENTITY 2"
 
             cy_fixed = int(h * 0.50)
+            col1_cx = int(w * 0.28)
+            col2_cx = int(w * 0.72)
 
             if frame_idx < t_trans_start:
                 # Phase 1: Entity 1 starts centered with zoom
                 zoom_scale = 1.0 + (frame_idx / t_trans_start) * 0.08
                 curr_w = int(c1.width * zoom_scale)
                 curr_h = int(c1.height * zoom_scale)
-                c1_dyn = c1.resize((curr_w, curr_h), Image.BICUBIC)
-                sh1_dyn, off1_dyn = create_cutout_drop_shadow(c1_dyn, blur_radius=12)
+                c1_dyn = sharpen_cutout(c1.resize((curr_w, curr_h), Image.LANCZOS), amount=1.15)
+                sh1_dyn, off1_dyn = create_cutout_drop_shadow(c1_dyn, blur_radius=14, offset=(8, 14), shadow_opacity=0.35)
 
                 x1 = int(w * 0.50 - curr_w / 2)
                 y1 = int(cy_fixed - curr_h / 2)
@@ -1081,7 +1303,8 @@ def render_collage_motion_clip(
                 draw_procedural_marker(
                     draw, (ring_cx, ring_cy), int(min(curr_w, curr_h) * 0.35),
                     style=marker_style_1, color_scheme=marker_color_1,
-                    label=lbl1, label_font=font_title, quadrant="top_right"
+                    label=lbl1, label_font=font_title, quadrant="top_right",
+                    canvas_size=(w, h), is_dark_bg=is_dark_bg
                 )
 
             elif t_trans_start <= frame_idx < t_trans_end:
@@ -1091,28 +1314,27 @@ def render_collage_motion_clip(
 
                 if transition_mode == "slide_bottom_up":
                     # Entity 1 moves to left, Entity 2 RISES UP FROM BOTTOM!
-                    pos1_x = w * (0.50 - 0.22 * ease_val)
+                    pos1_x = int(w * (0.50 - 0.22 * ease_val))
                     x1 = int(pos1_x - c1.width / 2)
                     y1 = int(cy_fixed - c1.height / 2)
                     frame.paste(sh1, (x1 + off1[0], y1 + off1[1]), mask=sh1)
                     frame.paste(c1, (x1, y1), mask=c1)
 
-                    # Rising from bottom
                     pos2_y = int((h + c2.height) - (h + c2.height - cy_fixed) * ease_val)
-                    x2 = int(w * 0.72 - c2.width / 2)
+                    x2 = int(col2_cx - c2.width / 2)
                     y2 = int(pos2_y - c2.height / 2)
                     frame.paste(sh2, (x2 + off2[0], y2 + off2[1]), mask=sh2)
                     frame.paste(c2, (x2, y2), mask=c2)
 
                 elif transition_mode == "slide_right_then_left_enters":
                     # Reverse Horizontal: Entity 1 slides right, Entity 2 enters from left!
-                    pos1_x = w * (0.50 + 0.22 * ease_val)
+                    pos1_x = int(w * (0.50 + 0.22 * ease_val))
                     x1 = int(pos1_x - c1.width / 2)
                     y1 = int(cy_fixed - c1.height / 2)
                     frame.paste(sh1, (x1 + off1[0], y1 + off1[1]), mask=sh1)
                     frame.paste(c1, (x1, y1), mask=c1)
 
-                    pos2_x = w * (-0.25 + 0.53 * ease_val)
+                    pos2_x = int(w * (-0.25 + 0.53 * ease_val))
                     x2 = int(pos2_x - c2.width / 2)
                     y2 = int(cy_fixed - c2.height / 2)
                     frame.paste(sh2, (x2 + off2[0], y2 + off2[1]), mask=sh2)
@@ -1120,86 +1342,104 @@ def render_collage_motion_clip(
 
                 else:
                     # Standard Horizontal: Entity 1 slides left, Entity 2 enters from right
-                    pos1_x = w * (0.50 - 0.22 * ease_val)
+                    pos1_x = int(w * (0.50 - 0.22 * ease_val))
                     x1 = int(pos1_x - c1.width / 2)
                     y1 = int(cy_fixed - c1.height / 2)
                     frame.paste(sh1, (x1 + off1[0], y1 + off1[1]), mask=sh1)
                     frame.paste(c1, (x1, y1), mask=c1)
 
-                    pos2_x = w * (1.25 - 0.53 * ease_val)
+                    pos2_x = int(w * (1.25 - 0.53 * ease_val))
                     x2 = int(pos2_x - c2.width / 2)
                     y2 = int(cy_fixed - c2.height / 2)
                     frame.paste(sh2, (x2 + off2[0], y2 + off2[1]), mask=sh2)
                     frame.paste(c2, (x2, y2), mask=c2)
 
             else:
-                # Phase 3: Both entities rest, active focus & procedural marker on Entity 2!
+                # Phase 3: Both entities rest with Symmetrical Alignment & Center VS Badge!
                 phase3_norm = (frame_idx - t_trans_end) / max(1, (total_frames - t_trans_end))
-                zoom2_scale = 1.0 + phase3_norm * 0.10
+                zoom2_scale = 1.0 + phase3_norm * 0.08
 
-                target_x1 = int(w * 0.72) if transition_mode == "slide_right_then_left_enters" else int(w * 0.28)
-                target_x2 = int(w * 0.28) if transition_mode == "slide_right_then_left_enters" else int(w * 0.72)
+                target_x1 = col2_cx if transition_mode == "slide_right_then_left_enters" else col1_cx
+                target_x2 = col1_cx if transition_mode == "slide_right_then_left_enters" else col2_cx
 
+                # 1. Central VS Badge
+                vs_r = int(min(w, h) * 0.034)
+                vs_bg = (255, 255, 255, 220) if is_dark_bg else (24, 24, 28, 220)
+                vs_txt = (20, 20, 24, 255) if is_dark_bg else (255, 255, 255, 255)
+                draw.ellipse([w // 2 - vs_r, cy_fixed - vs_r, w // 2 + vs_r, cy_fixed + vs_r], fill=vs_bg, outline=(255, 255, 255, 120), width=2)
+                draw.text((w // 2, cy_fixed), "VS", fill=vs_txt, font=font_vs, anchor="mm")
+
+                # 2. Entity 1 (Balanced Column)
                 x1 = int(target_x1 - c1.width / 2)
                 y1 = int(cy_fixed - c1.height / 2)
                 frame.paste(sh1, (x1 + off1[0], y1 + off1[1]), mask=sh1)
                 frame.paste(c1, (x1, y1), mask=c1)
-                draw.text((x1 + 10, y1 + c1.height + 15), lbl1, fill=(180, 180, 180, 220), font=font_callout)
 
+                # Entity 1 Symmetrical Badge Label below
+                lbl1_y = min(safe_b - 20, y1 + c1.height + 25)
+                draw_sharp_badge_label(draw, lbl1, (target_x1, lbl1_y), font_title, anchor="mm", is_dark_bg=is_dark_bg, canvas_bounds=canvas_bounds)
+
+                # 3. Entity 2 (Active Focus Column with Ken Burns & Symmetrical Focus)
                 curr2_w = int(c2.width * zoom2_scale)
                 curr2_h = int(c2.height * zoom2_scale)
-                c2_dyn = c2.resize((curr2_w, curr2_h), Image.BICUBIC)
-                sh2_dyn, off2_dyn = create_cutout_drop_shadow(c2_dyn, blur_radius=14)
+                c2_dyn = sharpen_cutout(c2.resize((curr2_w, curr2_h), Image.LANCZOS), amount=1.2)
+                sh2_dyn, off2_dyn = create_cutout_drop_shadow(c2_dyn, blur_radius=14, offset=(8, 14), shadow_opacity=0.35)
 
                 x2 = int(target_x2 - curr2_w / 2)
                 y2 = int(cy_fixed - curr2_h / 2)
                 frame.paste(sh2_dyn, (x2 + off2_dyn[0], y2 + off2_dyn[1]), mask=sh2_dyn)
                 frame.paste(c2_dyn, (x2, y2), mask=c2_dyn)
 
+                # Entity 2 Symmetrical Badge Label below matching Entity 1
+                lbl2_y = min(safe_b - 20, y2 + curr2_h + 25)
+                draw_sharp_badge_label(draw, lbl2, (target_x2, lbl2_y), font_title, anchor="mm", is_dark_bg=is_dark_bg, canvas_bounds=canvas_bounds)
+
+                # Active Focus Ring highlighting Entity 2 detail
                 ring2_cx = x2 + int(curr2_w * 0.5)
                 ring2_cy = y2 + int(curr2_h * 0.38)
                 draw_procedural_marker(
-                    draw, (ring2_cx, ring2_cy), int(min(curr2_w, curr2_h) * 0.36),
+                    draw, (ring2_cx, ring2_cy), int(min(curr2_w, curr2_h) * 0.35),
                     style=marker_style_2, color_scheme=marker_color_2,
-                    label=lbl2, label_font=font_title, quadrant=("top_left" if target_x2 > w * 0.5 else "top_right")
+                    label=None, label_font=font_title, quadrant="top_right",
+                    canvas_size=(w, h), is_dark_bg=is_dark_bg
                 )
 
         else:
             # ===============================================================
-            # SINGLE ENTITY PROCEDURAL MOTION (Rise from bottom or Ken Burns)
+            # SINGLE ENTITY PROCEDURAL MOTION (Rule of Thirds & Clamped Detail Marker)
             # ===============================================================
             c1 = scaled_cutouts[0]
             lbl1 = entities[0]["label"] if len(entities) > 0 else "ARTIFACT"
 
             zoom_norm = frame_idx / max(1, total_frames)
-            scale_now = 1.0 + zoom_norm * 0.12
+            scale_now = 1.0 + zoom_norm * 0.10
             curr_w = int(c1.width * scale_now)
             curr_h = int(c1.height * scale_now)
-            c1_dyn = c1.resize((curr_w, curr_h), Image.BICUBIC)
-            sh1_dyn, off1_dyn = create_cutout_drop_shadow(c1_dyn, blur_radius=14)
+            c1_dyn = sharpen_cutout(c1.resize((curr_w, curr_h), Image.LANCZOS), amount=1.2)
+            sh1_dyn, off1_dyn = create_cutout_drop_shadow(c1_dyn, blur_radius=14, offset=(8, 14), shadow_opacity=0.35)
 
             if transition_mode == "rise_from_bottom":
-                # Rises from bottom up to center!
                 t_rise = min(1.0, frame_idx / (fps * 0.7))
                 e_rise = ease_out_cubic(t_rise)
-                curr_cy = int((h + curr_h / 2) - (h + curr_h / 2 - h * 0.50) * e_rise)
+                curr_cy = int((h + curr_h / 2) - (h + curr_h / 2 - h * 0.52) * e_rise)
             else:
-                curr_cy = int(h * 0.50)
+                curr_cy = int(h * 0.52)
 
-            x1 = int(w * 0.50 - curr_w / 2)
+            x1 = int(w * 0.44 - curr_w / 2)
             y1 = int(curr_cy - curr_h / 2)
 
             # Paste Shadow + Cutout
             frame.paste(sh1_dyn, (x1 + off1_dyn[0], y1 + off1_dyn[1]), mask=sh1_dyn)
             frame.paste(c1_dyn, (x1, y1), mask=c1_dyn)
 
-            # Procedural Marker on Key Detail (Exact match for user screenshot!)
+            # Procedural Marker on Key Detail (Exact match for user screenshot, safely clamped!)
             ring_cx = x1 + int(curr_w * 0.48)
             ring_cy = y1 + int(curr_h * 0.32)
             draw_procedural_marker(
                 draw, (ring_cx, ring_cy), int(min(curr_w, curr_h) * 0.32),
                 style=marker_style_1, color_scheme=marker_color_1,
-                label=lbl1, label_font=font_title, quadrant="top_right"
+                label=lbl1, label_font=font_title, quadrant="top_right",
+                canvas_size=(w, h), is_dark_bg=is_dark_bg
             )
 
         # Write frame to FFmpeg stdin
@@ -1214,5 +1454,5 @@ def render_collage_motion_clip(
     proc.wait()
 
     release_system_memory()
-    print(f"🎬 [Collage Cutout Engine V2] Successfully rendered multi-directional clip: {os.path.basename(output_mp4)} ({duration:.1f}s)")
+    print(f"🎬 [Collage Cutout Engine V2] Successfully rendered ultra-sharp multi-directional clip: {os.path.basename(output_mp4)} ({duration:.1f}s)")
     return output_mp4
