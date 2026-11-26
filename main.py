@@ -2235,8 +2235,11 @@ def full_process(req: VideoRequest, job_id: str):
                 shutil.copy2(custom_news_audio, a_path)
             else:
                 try:
-                    make_audio(sc["text"], a_path, req.voice_id)
-                    print(f"   🔊 Voice generated -> {a_path}")
+                    if not (os.path.exists(a_path) and os.path.getsize(a_path) > 1000):
+                        make_audio(sc["text"], a_path, req.voice_id)
+                        print(f"   🔊 Voice generated -> {a_path}")
+                    else:
+                        print(f"   🔊 Voice cached -> {a_path}")
                 except Exception as e_aud:
                     print(f"   ⚠️ Voice synthesis warning (Scene {i+1}): {e_aud}")
 
@@ -2279,16 +2282,18 @@ def full_process(req: VideoRequest, job_id: str):
                         print(f"🎨 [Color Anime Scene {i+1}] Downloading Transparent Cutout for '{entity_term}' & rendering 2.5D Dark Cosmic Motion Clip...")
                         cutout_pngs = fetch_and_prepare_cutouts(ent_obj, output_dir=job_dir, used_media_ids=used_media_ids)
                         color_anime_clip = os.path.join(job_dir, f"color_anime_clip_{i}.mp4")
-
-                        render_color_anime_motion_clip(
-                            cutout_paths=cutout_pngs,
-                            output_mp4=color_anime_clip,
-                            duration=sc_a_dur,
-                            scene_text=scene_text,
-                            main_topic=main_topic,
-                            target_size=(target_w, target_h),
-                            fps=24
-                        )
+                        if not (os.path.exists(color_anime_clip) and os.path.getsize(color_anime_clip) > 1000):
+                            render_color_anime_motion_clip(
+                                cutout_paths=cutout_pngs,
+                                output_mp4=color_anime_clip,
+                                duration=sc_a_dur,
+                                scene_text=scene_text,
+                                main_topic=main_topic,
+                                target_size=(target_w, target_h),
+                                fps=24
+                            )
+                        else:
+                            print(f"🎬 [Color Anime Scene {i+1}] Motion clip already cached: {os.path.basename(color_anime_clip)}")
 
                         if os.path.exists(color_anime_clip) and os.path.getsize(color_anime_clip) > 1000:
                             v_paths = [color_anime_clip]
@@ -2305,202 +2310,202 @@ def full_process(req: VideoRequest, job_id: str):
                     # 4. Web Image HD Fetch Fallbacks (NEVER random stock video!)
                     # -------------------------------------------------------------
                     try:
-                    main_topic = req.topic if req.topic else "motion graphics"
-                    scene_text = sc.get('text', '').strip()
-                    scene_kw = sc.get('keyword', '').strip()
-                    words = scene_text.split()
+                        main_topic = req.topic if req.topic else "motion graphics"
+                        scene_text = sc.get('text', '').strip()
+                        scene_kw = sc.get('keyword', '').strip()
+                        words = scene_text.split()
                     
-                    # 1. Detect contrasting punchline in the line (e.g. "modi dictator ya real hero", "sach ya jhooth", "hero ya villain")
-                    contrast_patterns = [
-                        r'\s+(?:ya\s+phir|ya\s+fir|ya)\s+',
-                        r'\s+or\s+',
-                        r'\s+vs\.?\s+',
-                        r'\s+versus\s+'
-                    ]
-                    is_contrast = False
-                    contrast_parts = []
-                    for pat in contrast_patterns:
-                        parts = re.split(pat, scene_text, maxsplit=1, flags=re.IGNORECASE)
-                        if len(parts) == 2 and len(parts[0].split()) >= 1 and len(parts[1].split()) >= 1 and len(words) <= 14:
-                            is_contrast = True
-                            contrast_parts = [parts[0].strip(), parts[1].strip()]
-                            break
+                        # 1. Detect contrasting punchline in the line (e.g. "modi dictator ya real hero", "sach ya jhooth", "hero ya villain")
+                        contrast_patterns = [
+                            r'\s+(?:ya\s+phir|ya\s+fir|ya)\s+',
+                            r'\s+or\s+',
+                            r'\s+vs\.?\s+',
+                            r'\s+versus\s+'
+                        ]
+                        is_contrast = False
+                        contrast_parts = []
+                        for pat in contrast_patterns:
+                            parts = re.split(pat, scene_text, maxsplit=1, flags=re.IGNORECASE)
+                            if len(parts) == 2 and len(parts[0].split()) >= 1 and len(parts[1].split()) >= 1 and len(words) <= 14:
+                                is_contrast = True
+                                contrast_parts = [parts[0].strip(), parts[1].strip()]
+                                break
                             
-                    v_paths = []
+                        v_paths = []
                     
-                    # 0. Check for Documentary Evidence / Wikipedia / Official Report Scene (with Fluorescent Yellow Highlighter)
-                    from after_effects_evidence import (
-                        detect_evidence_scene,
-                        generate_newspaper_evidence_image,
-                        generate_documentary_evidence_clip
-                    )
-                    is_evidence, ev_meta = detect_evidence_scene(scene_text, main_topic)
-                    if is_evidence:
-                        print(f"📰 [After Effects Documentary Scene {i+1}] Historical Date/Report Detected (Year/Type: {ev_meta.get('year')})! Generating Authentic Newspaper/Wikipedia Clipping with Fluorescent Yellow Highlighter...")
-                        ev_img_path = os.path.join(job_dir, f"evidence_clipping_{i}.jpg")
-                        generate_newspaper_evidence_image(ev_meta, ev_img_path, target_size=(target_w, target_h))
+                        # 0. Check for Documentary Evidence / Wikipedia / Official Report Scene (with Fluorescent Yellow Highlighter)
+                        from after_effects_evidence import (
+                            detect_evidence_scene,
+                            generate_newspaper_evidence_image,
+                            generate_documentary_evidence_clip
+                        )
+                        is_evidence, ev_meta = detect_evidence_scene(scene_text, main_topic)
+                        if is_evidence:
+                            print(f"📰 [After Effects Documentary Scene {i+1}] Historical Date/Report Detected (Year/Type: {ev_meta.get('year')})! Generating Authentic Newspaper/Wikipedia Clipping with Fluorescent Yellow Highlighter...")
+                            ev_img_path = os.path.join(job_dir, f"evidence_clipping_{i}.jpg")
+                            generate_newspaper_evidence_image(ev_meta, ev_img_path, target_size=(target_w, target_h))
                         
-                        try:
-                            sc_a_dur = get_audio_duration_fast(a_path, fallback=5.0)
-                        except Exception:
-                            sc_a_dur = 5.0
-                            
-                        ev_clip_path = os.path.join(job_dir, f"evidence_zoom_{i}.mp4")
-                        generate_documentary_evidence_clip(ev_img_path, ev_clip_path, duration=sc_a_dur, target_size=(target_w, target_h))
-                        if os.path.exists(ev_clip_path) and os.path.getsize(ev_clip_path) > 1000:
-                            v_paths = [ev_clip_path]
-                            print(f"✅ [After Effects Documentary Scene {i+1}] Zoom Video ready: {os.path.basename(ev_clip_path)} (Duration: {sc_a_dur:.1f}s)")
-                        elif os.path.exists(ev_img_path):
-                            v_paths = [ev_img_path]
-
-                    if not v_paths:
-                        # 0.b Vox / Johnny Harris Style Documentary Collage Cutout Engine (Maps, Contrasts & Entities with Sliding & Focused Zoom)
-                        from collage_cutout_engine import (
-                            detect_collage_entities,
-                            fetch_and_prepare_cutouts,
-                            render_collage_motion_clip
-                        )
-                        collage_meta = detect_collage_entities(scene_text, main_topic)
-                        # Vox Motion Collage (Paper Cutout & Map Breakdown) ONLY for true contrasts, dual entity comparisons, clouds & girl, or explicit map requests
-                        has_explicit_map_request = any(mk in scene_text.lower() for mk in ["नक्शा", "मैप", "map", "सीमा", "border", "diagram"])
-                        is_collage_eligible = bool(
-                            (is_contrast and len(contrast_parts) == 2) or
-                            (collage_meta.get("is_multi_entity") and len(collage_meta.get("entities", [])) >= 2) or
-                            (collage_meta.get("transition_label") == "CLOUDS & GIRL") or
-                            (has_explicit_map_request and len(collage_meta.get("entities", [])) > 0)
-                        )
-
-                        if is_collage_eligible:
-                            ent_list = collage_meta.get("entities", [])
-                            if is_contrast and len(contrast_parts) == 2 and not collage_meta.get("is_multi_entity"):
-                                ent_list = [
-                                    {"raw": contrast_parts[0], "clean_en": translate_to_visual_english(contrast_parts[0], main_topic) if translate_to_visual_english else contrast_parts[0], "label": contrast_parts[0].upper()[:15], "search": f"{contrast_parts[0]} transparent png cutout isolated"},
-                                    {"raw": contrast_parts[1], "clean_en": translate_to_visual_english(contrast_parts[1], main_topic) if translate_to_visual_english else contrast_parts[1], "label": contrast_parts[1].upper()[:15], "search": f"{contrast_parts[1]} transparent png cutout isolated"}
-                                ]
-                                collage_meta["entities"] = ent_list
-                                collage_meta["is_multi_entity"] = True
-
                             try:
                                 sc_a_dur = get_audio_duration_fast(a_path, fallback=5.0)
                             except Exception:
                                 sc_a_dur = 5.0
-
-                            print(f"🗺️ [After Effects Collage Scene {i+1}] Multi-Entity Cutout & Sliding Motion Active ({len(ent_list)} entities: {[e['label'] for e in ent_list]})! Downloading transparent cutouts & rendering paper canvas slide clip...")
-                            cutout_pngs = fetch_and_prepare_cutouts(ent_list, output_dir=job_dir, used_media_ids=used_media_ids)
-                            if cutout_pngs:
-                                collage_clip_path = os.path.join(job_dir, f"collage_slide_{i}.mp4")
-                                render_collage_motion_clip(
-                                    cutout_paths=cutout_pngs,
-                                    output_mp4=collage_clip_path,
-                                    duration=sc_a_dur,
-                                    entity_metadata=collage_meta,
-                                    target_size=(target_w, target_h),
-                                    fps=20
-                                )
-                                if os.path.exists(collage_clip_path) and os.path.getsize(collage_clip_path) > 1000:
-                                    v_paths = [collage_clip_path]
-                                    print(f"✅ [After Effects Collage Scene {i+1}] Motion clip ready: {os.path.basename(collage_clip_path)} (Duration: {sc_a_dur:.1f}s)")
-
-                    if not v_paths and is_contrast and len(contrast_parts) == 2:
-                        p1_clean = translate_to_visual_english(contrast_parts[0], main_topic) if translate_to_visual_english else contrast_parts[0]
-                        p2_clean = translate_to_visual_english(contrast_parts[1], main_topic) if translate_to_visual_english else contrast_parts[1]
-                        p1_term = f"{p1_clean} cinematic animation photo".strip()
-                        p2_term = f"{p2_clean} cinematic animation photo".strip()
-                        print(f"🎬 [After Effects Scene {i+1} Contrast] Fetching 2 Pinterest Photos: '{p1_term}' & '{p2_term}'...")
-                        
-                        p1_files = fetch_pinterest_photos_via_gallery_dl(p1_term, limit=1, output_dir=job_dir, used_media_ids=used_media_ids, orientation=orientation)
-                        p2_files = fetch_pinterest_photos_via_gallery_dl(p2_term, limit=1, output_dir=job_dir, used_media_ids=used_media_ids, orientation=orientation)
-                        
-                        if p1_files and os.path.exists(p1_files[0]):
-                            v_paths.append(p1_files[0])
-                        if p2_files and os.path.exists(p2_files[0]):
-                            v_paths.append(p2_files[0])
                             
-                    elif not v_paths:
-                        # Rich Script-Driven Detail Mode (Both Video & Photo fetched for micro-detail coverage)
-                        en_visual_phrase = translate_to_visual_english(scene_text or scene_kw, main_topic) if translate_to_visual_english else ""
-                        if not en_visual_phrase:
-                            clean_t = " ".join([w for w in (req.topic or main_topic).split() if w.lower() not in ["ancient", "historical", "deep", "outer"]][:3]) or main_topic
-                            clean_p = scene_kw or main_topic
-                            en_visual_phrase = f"{clean_t} {clean_p}".strip()
+                            ev_clip_path = os.path.join(job_dir, f"evidence_zoom_{i}.mp4")
+                            generate_documentary_evidence_clip(ev_img_path, ev_clip_path, duration=sc_a_dur, target_size=(target_w, target_h))
+                            if os.path.exists(ev_clip_path) and os.path.getsize(ev_clip_path) > 1000:
+                                v_paths = [ev_clip_path]
+                                print(f"✅ [After Effects Documentary Scene {i+1}] Zoom Video ready: {os.path.basename(ev_clip_path)} (Duration: {sc_a_dur:.1f}s)")
+                            elif os.path.exists(ev_img_path):
+                                v_paths = [ev_img_path]
 
-                        vid_term = f"{en_visual_phrase} cinematic animation video".strip()
-                        photo_term = f"{en_visual_phrase} cinematic animation photo".strip()
-                        print(f"🎬 [After Effects Scene {i+1}] Micro-Detail Dual Search (Video & Photo) with Rich Script Keywords ({len(en_visual_phrase.split())} words): '{en_visual_phrase}'...")
+                        if not v_paths:
+                            # 0.b Vox / Johnny Harris Style Documentary Collage Cutout Engine (Maps, Contrasts & Entities with Sliding & Focused Zoom)
+                            from collage_cutout_engine import (
+                                detect_collage_entities,
+                                fetch_and_prepare_cutouts,
+                                render_collage_motion_clip
+                            )
+                            collage_meta = detect_collage_entities(scene_text, main_topic)
+                            # Vox Motion Collage (Paper Cutout & Map Breakdown) ONLY for true contrasts, dual entity comparisons, clouds & girl, or explicit map requests
+                            has_explicit_map_request = any(mk in scene_text.lower() for mk in ["नक्शा", "मैप", "map", "सीमा", "border", "diagram"])
+                            is_collage_eligible = bool(
+                                (is_contrast and len(contrast_parts) == 2) or
+                                (collage_meta.get("is_multi_entity") and len(collage_meta.get("entities", [])) >= 2) or
+                                (collage_meta.get("transition_label") == "CLOUDS & GIRL") or
+                                (has_explicit_map_request and len(collage_meta.get("entities", [])) > 0)
+                            )
 
-                        # 1. Fetch Pinterest Video for cinematic motion
-                        vid_files = fetch_pinterest_videos_via_gallery_dl(vid_term, limit=1, output_dir=job_dir, used_media_ids=used_media_ids, orientation=orientation)
+                            if is_collage_eligible:
+                                ent_list = collage_meta.get("entities", [])
+                                if is_contrast and len(contrast_parts) == 2 and not collage_meta.get("is_multi_entity"):
+                                    ent_list = [
+                                        {"raw": contrast_parts[0], "clean_en": translate_to_visual_english(contrast_parts[0], main_topic) if translate_to_visual_english else contrast_parts[0], "label": contrast_parts[0].upper()[:15], "search": f"{contrast_parts[0]} transparent png cutout isolated"},
+                                        {"raw": contrast_parts[1], "clean_en": translate_to_visual_english(contrast_parts[1], main_topic) if translate_to_visual_english else contrast_parts[1], "label": contrast_parts[1].upper()[:15], "search": f"{contrast_parts[1]} transparent png cutout isolated"}
+                                    ]
+                                    collage_meta["entities"] = ent_list
+                                    collage_meta["is_multi_entity"] = True
 
-                        # 1.b Multi-Source Real Topic Video Fallback: Search Pexels HD Stock Videos if Pinterest video was not found
-                        if not vid_files:
-                            try:
-                                from video_fetcher import fetch_pexels_videos
-                                clean_pex_q = " ".join([w for w in en_visual_phrase.split() if w.lower() not in ["cinematic", "animation", "photo", "video", "transparent", "cutout", "isolated", "hd"]][:4])
-                                if clean_pex_q:
-                                    print(f"🎬 [After Effects Scene {i+1} Pexels Video Search] Real HD Topic Video for '{clean_pex_q}'...")
-                                    pex_files = fetch_pexels_videos(clean_pex_q, os.path.join(job_dir, f"pex_vid_{i}"), count=1, orientation=orientation, used_media_ids=used_media_ids)
-                                    if pex_files and os.path.exists(pex_files[0]) and os.path.getsize(pex_files[0]) > 5000:
-                                        vid_files = pex_files
-                            except Exception as e_pex:
-                                print(f"⚠️ [Pexels Video fetch notice]: {e_pex}")
+                                try:
+                                    sc_a_dur = get_audio_duration_fast(a_path, fallback=5.0)
+                                except Exception:
+                                    sc_a_dur = 5.0
 
-                        # 2. Fetch Pinterest HD Photo for micro-detail clarity
-                        p_files = fetch_pinterest_photos_via_gallery_dl(photo_term, limit=1, output_dir=job_dir, used_media_ids=used_media_ids, orientation=orientation)
+                                print(f"🗺️ [After Effects Collage Scene {i+1}] Multi-Entity Cutout & Sliding Motion Active ({len(ent_list)} entities: {[e['label'] for e in ent_list]})! Downloading transparent cutouts & rendering paper canvas slide clip...")
+                                cutout_pngs = fetch_and_prepare_cutouts(ent_list, output_dir=job_dir, used_media_ids=used_media_ids)
+                                if cutout_pngs:
+                                    collage_clip_path = os.path.join(job_dir, f"collage_slide_{i}.mp4")
+                                    render_collage_motion_clip(
+                                        cutout_paths=cutout_pngs,
+                                        output_mp4=collage_clip_path,
+                                        duration=sc_a_dur,
+                                        entity_metadata=collage_meta,
+                                        target_size=(target_w, target_h),
+                                        fps=20
+                                    )
+                                    if os.path.exists(collage_clip_path) and os.path.getsize(collage_clip_path) > 1000:
+                                        v_paths = [collage_clip_path]
+                                        print(f"✅ [After Effects Collage Scene {i+1}] Motion clip ready: {os.path.basename(collage_clip_path)} (Duration: {sc_a_dur:.1f}s)")
 
-                        if vid_files and os.path.exists(vid_files[0]) and os.path.getsize(vid_files[0]) > 5000:
-                            v_paths.append(vid_files[0])
-                            if p_files and os.path.exists(p_files[0]) and os.path.getsize(p_files[0]) > 1000:
+                        if not v_paths and is_contrast and len(contrast_parts) == 2:
+                            p1_clean = translate_to_visual_english(contrast_parts[0], main_topic) if translate_to_visual_english else contrast_parts[0]
+                            p2_clean = translate_to_visual_english(contrast_parts[1], main_topic) if translate_to_visual_english else contrast_parts[1]
+                            p1_term = f"{p1_clean} cinematic animation photo".strip()
+                            p2_term = f"{p2_clean} cinematic animation photo".strip()
+                            print(f"🎬 [After Effects Scene {i+1} Contrast] Fetching 2 Pinterest Photos: '{p1_term}' & '{p2_term}'...")
+                        
+                            p1_files = fetch_pinterest_photos_via_gallery_dl(p1_term, limit=1, output_dir=job_dir, used_media_ids=used_media_ids, orientation=orientation)
+                            p2_files = fetch_pinterest_photos_via_gallery_dl(p2_term, limit=1, output_dir=job_dir, used_media_ids=used_media_ids, orientation=orientation)
+                        
+                            if p1_files and os.path.exists(p1_files[0]):
+                                v_paths.append(p1_files[0])
+                            if p2_files and os.path.exists(p2_files[0]):
+                                v_paths.append(p2_files[0])
+                            
+                        elif not v_paths:
+                            # Rich Script-Driven Detail Mode (Both Video & Photo fetched for micro-detail coverage)
+                            en_visual_phrase = translate_to_visual_english(scene_text or scene_kw, main_topic) if translate_to_visual_english else ""
+                            if not en_visual_phrase:
+                                clean_t = " ".join([w for w in (req.topic or main_topic).split() if w.lower() not in ["ancient", "historical", "deep", "outer"]][:3]) or main_topic
+                                clean_p = scene_kw or main_topic
+                                en_visual_phrase = f"{clean_t} {clean_p}".strip()
+
+                            vid_term = f"{en_visual_phrase} cinematic animation video".strip()
+                            photo_term = f"{en_visual_phrase} cinematic animation photo".strip()
+                            print(f"🎬 [After Effects Scene {i+1}] Micro-Detail Dual Search (Video & Photo) with Rich Script Keywords ({len(en_visual_phrase.split())} words): '{en_visual_phrase}'...")
+
+                            # 1. Fetch Pinterest Video for cinematic motion
+                            vid_files = fetch_pinterest_videos_via_gallery_dl(vid_term, limit=1, output_dir=job_dir, used_media_ids=used_media_ids, orientation=orientation)
+
+                            # 1.b Multi-Source Real Topic Video Fallback: Search Pexels HD Stock Videos if Pinterest video was not found
+                            if not vid_files:
+                                try:
+                                    from video_fetcher import fetch_pexels_videos
+                                    clean_pex_q = " ".join([w for w in en_visual_phrase.split() if w.lower() not in ["cinematic", "animation", "photo", "video", "transparent", "cutout", "isolated", "hd"]][:4])
+                                    if clean_pex_q:
+                                        print(f"🎬 [After Effects Scene {i+1} Pexels Video Search] Real HD Topic Video for '{clean_pex_q}'...")
+                                        pex_files = fetch_pexels_videos(clean_pex_q, os.path.join(job_dir, f"pex_vid_{i}"), count=1, orientation=orientation, used_media_ids=used_media_ids)
+                                        if pex_files and os.path.exists(pex_files[0]) and os.path.getsize(pex_files[0]) > 5000:
+                                            vid_files = pex_files
+                                except Exception as e_pex:
+                                    print(f"⚠️ [Pexels Video fetch notice]: {e_pex}")
+
+                            # 2. Fetch Pinterest HD Photo for micro-detail clarity
+                            p_files = fetch_pinterest_photos_via_gallery_dl(photo_term, limit=1, output_dir=job_dir, used_media_ids=used_media_ids, orientation=orientation)
+
+                            if vid_files and os.path.exists(vid_files[0]) and os.path.getsize(vid_files[0]) > 5000:
+                                v_paths.append(vid_files[0])
+                                if p_files and os.path.exists(p_files[0]) and os.path.getsize(p_files[0]) > 1000:
+                                    v_paths.append(p_files[0])
+                            elif p_files and os.path.exists(p_files[0]) and os.path.getsize(p_files[0]) > 1000:
                                 v_paths.append(p_files[0])
-                        elif p_files and os.path.exists(p_files[0]) and os.path.getsize(p_files[0]) > 1000:
-                            v_paths.append(p_files[0])
 
-                        # Multi-topic rapid visual cut support for changing topics in single sentence
-                        if len(v_paths) < 2 and (',' in scene_text or ' और ' in scene_text or ' and ' in scene_text):
-                            sub_parts = [sp.strip() for sp in re.split(r'[,;]\s*|\s+(?:और|and)\s+', scene_text) if len(sp.strip().split()) >= 1]
-                            if len(sub_parts) >= 2:
-                                p2_clean = translate_to_visual_english(sub_parts[-1], main_topic) if translate_to_visual_english else sub_parts[-1]
-                                if p2_clean and p2_clean != en_visual_phrase:
-                                    p2_term = f"{p2_clean} cinematic animation photo".strip()
-                                    p2_files = fetch_pinterest_photos_via_gallery_dl(p2_term, limit=1, output_dir=job_dir, used_media_ids=used_media_ids, orientation=orientation)
-                                    if p2_files and os.path.exists(p2_files[0]) and os.path.getsize(p2_files[0]) > 1000:
-                                        v_paths.append(p2_files[0])
-                                        print(f"🎬 [After Effects Scene {i+1}] Multi-Topic Secondary Asset Added for Rapid Topic Switching: '{p2_term}'")
+                            # Multi-topic rapid visual cut support for changing topics in single sentence
+                            if len(v_paths) < 2 and (',' in scene_text or ' और ' in scene_text or ' and ' in scene_text):
+                                sub_parts = [sp.strip() for sp in re.split(r'[,;]\s*|\s+(?:और|and)\s+', scene_text) if len(sp.strip().split()) >= 1]
+                                if len(sub_parts) >= 2:
+                                    p2_clean = translate_to_visual_english(sub_parts[-1], main_topic) if translate_to_visual_english else sub_parts[-1]
+                                    if p2_clean and p2_clean != en_visual_phrase:
+                                        p2_term = f"{p2_clean} cinematic animation photo".strip()
+                                        p2_files = fetch_pinterest_photos_via_gallery_dl(p2_term, limit=1, output_dir=job_dir, used_media_ids=used_media_ids, orientation=orientation)
+                                        if p2_files and os.path.exists(p2_files[0]) and os.path.getsize(p2_files[0]) > 1000:
+                                            v_paths.append(p2_files[0])
+                                            print(f"🎬 [After Effects Scene {i+1}] Multi-Topic Secondary Asset Added for Rapid Topic Switching: '{p2_term}'")
 
-                    # Guaranteed Quality Fallback 1: Pinterest Photo with full visual phrase
-                    if not v_paths or not os.path.exists(v_paths[0]) or os.path.getsize(v_paths[0]) < 1000:
-                        fb_photo_term = f"{en_visual_phrase} cinematic animation photo".strip()
-                        print(f"🔄 [After Effects Scene {i+1} Fallback 1] -> Fetching Pinterest {orientation.upper()} Photo: '{fb_photo_term}'...")
-                        p_fb_files = fetch_pinterest_photos_via_gallery_dl(fb_photo_term, limit=1, output_dir=job_dir, used_media_ids=used_media_ids, orientation=orientation)
-                        if p_fb_files and os.path.exists(p_fb_files[0]):
-                            v_paths = [p_fb_files[0]]
+                        # Guaranteed Quality Fallback 1: Pinterest Photo with full visual phrase
+                        if not v_paths or not os.path.exists(v_paths[0]) or os.path.getsize(v_paths[0]) < 1000:
+                            fb_photo_term = f"{en_visual_phrase} cinematic animation photo".strip()
+                            print(f"🔄 [After Effects Scene {i+1} Fallback 1] -> Fetching Pinterest {orientation.upper()} Photo: '{fb_photo_term}'...")
+                            p_fb_files = fetch_pinterest_photos_via_gallery_dl(fb_photo_term, limit=1, output_dir=job_dir, used_media_ids=used_media_ids, orientation=orientation)
+                            if p_fb_files and os.path.exists(p_fb_files[0]):
+                                v_paths = [p_fb_files[0]]
 
-                    # Guaranteed Quality Fallback 2: High-Resolution Web Image (fetch_web_image) with exact phrase
-                    if not v_paths or not os.path.exists(v_paths[0]) or os.path.getsize(v_paths[0]) < 1000:
-                        try:
-                            web_img_path = os.path.join(job_dir, f"web_asset_{i}.jpg")
-                            if fetch_web_image and fetch_web_image(photo_term, web_img_path, orientation=orientation):
-                                if os.path.exists(web_img_path) and os.path.getsize(web_img_path) > 1000:
-                                    v_paths = [web_img_path]
-                        except Exception as e_web:
-                            print(f"⚠️ [After Effects Scene {i+1} Web Fetch Fallback]: {e_web}")
+                        # Guaranteed Quality Fallback 2: High-Resolution Web Image (fetch_web_image) with exact phrase
+                        if not v_paths or not os.path.exists(v_paths[0]) or os.path.getsize(v_paths[0]) < 1000:
+                            try:
+                                web_img_path = os.path.join(job_dir, f"web_asset_{i}.jpg")
+                                if fetch_web_image and fetch_web_image(photo_term, web_img_path, orientation=orientation):
+                                    if os.path.exists(web_img_path) and os.path.getsize(web_img_path) > 1000:
+                                        v_paths = [web_img_path]
+                            except Exception as e_web:
+                                print(f"⚠️ [After Effects Scene {i+1} Web Fetch Fallback]: {e_web}")
 
-                    # Guaranteed Safety Fallback 3: Top core keywords on Pinterest
-                    if not v_paths or not os.path.exists(v_paths[0]) or os.path.getsize(v_paths[0]) < 1000:
-                        top_words = " ".join([w for w in en_visual_phrase.split() if w.lower() not in ["cinematic", "animation", "photo", "video"]][:4]) or main_topic
-                        ult_term = f"{top_words} cinematic animation photo".strip()
-                        print(f"🔄 [After Effects Scene {i+1} Fallback 3] -> Fetching Top Keywords Pinterest Photo: '{ult_term}'...")
-                        ult_p = fetch_pinterest_photos_via_gallery_dl(ult_term, limit=1, output_dir=job_dir, used_media_ids=used_media_ids, orientation=orientation)
-                        if ult_p and os.path.exists(ult_p[0]):
-                            v_paths = [ult_p[0]]
+                        # Guaranteed Safety Fallback 3: Top core keywords on Pinterest
+                        if not v_paths or not os.path.exists(v_paths[0]) or os.path.getsize(v_paths[0]) < 1000:
+                            top_words = " ".join([w for w in en_visual_phrase.split() if w.lower() not in ["cinematic", "animation", "photo", "video"]][:4]) or main_topic
+                            ult_term = f"{top_words} cinematic animation photo".strip()
+                            print(f"🔄 [After Effects Scene {i+1} Fallback 3] -> Fetching Top Keywords Pinterest Photo: '{ult_term}'...")
+                            ult_p = fetch_pinterest_photos_via_gallery_dl(ult_term, limit=1, output_dir=job_dir, used_media_ids=used_media_ids, orientation=orientation)
+                            if ult_p and os.path.exists(ult_p[0]):
+                                v_paths = [ult_p[0]]
                             
-                except Exception as e_scene_media:
-                    print(f"⚠️ [Scene {i+1} After Effects Media Warning]: {e_scene_media}")
-                    try:
-                        en_topic = translate_to_visual_english(req.topic or "cinematic", "") if translate_to_visual_english else (req.topic or "cinematic")
-                        fb = fetch_pinterest_photos_via_gallery_dl(f"{en_topic} cinematic animation photo", limit=1, output_dir=job_dir, used_media_ids=used_media_ids, orientation=orientation)
-                        v_paths = fb if fb else []
-                    except Exception:
-                        v_paths = []
+                    except Exception as e_scene_media:
+                        print(f"⚠️ [Scene {i+1} After Effects Media Warning]: {e_scene_media}")
+                        try:
+                            en_topic = translate_to_visual_english(req.topic or "cinematic", "") if translate_to_visual_english else (req.topic or "cinematic")
+                            fb = fetch_pinterest_photos_via_gallery_dl(f"{en_topic} cinematic animation photo", limit=1, output_dir=job_dir, used_media_ids=used_media_ids, orientation=orientation)
+                            v_paths = fb if fb else []
+                        except Exception:
+                            v_paths = []
             elif is_ultra and fetch_web_image:
                 # ---------------------------------------------------------
                 # STANDARD ULTRA 3D PHOTO MOTION FOR OTHER CATEGORIES

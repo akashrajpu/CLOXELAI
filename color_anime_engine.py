@@ -91,11 +91,25 @@ COLOR_ANIME_THEMES = {
     }
 }
 
-def get_clean_font(size: int = 40, font_type: str = "bold") -> ImageFont.ImageFont:
-    """Loads ultra-clean modern typography without cursive distortion."""
+def has_devanagari(text: str) -> bool:
+    """Checks whether the text contains Devanagari (Hindi) unicode codepoints."""
+    if not text:
+        return False
+    return any(ord(c) >= 0x0900 and ord(c) <= 0x097F for c in text)
+
+def get_clean_font(size: int = 40, font_type: str = "bold", is_devanagari: bool = False) -> ImageFont.ImageFont:
+    """Loads ultra-clean modern typography without cursive distortion or Devanagari tofu blocks."""
     fonts_dir = "fonts"
     candidates = []
-    if font_type == "giant":
+    if is_devanagari:
+        candidates = [
+            os.path.join(fonts_dir, "NotoSansDevanagari-Bold.ttf"),
+            os.path.join(fonts_dir, "Mukta-Bold.ttf"),
+            os.path.join(fonts_dir, "NotoSansDevanagari-Regular.ttf"),
+            "/System/Library/Fonts/KohinoorBangla.ttc",
+            os.path.join(fonts_dir, "Arial.ttf"),
+        ]
+    elif font_type == "giant":
         candidates = [
             "/System/Library/Fonts/HelveticaNeue.ttc",
             "/System/Library/Fonts/Helvetica.ttc",
@@ -304,7 +318,8 @@ def draw_glassmorphism_pill_badge(
     if not text:
         return
 
-    font_badge = get_clean_font(int(width * 0.038), font_type="bold")
+    is_dev = has_devanagari(text)
+    font_badge = get_clean_font(int(width * 0.038), font_type="bold", is_devanagari=is_dev)
     tb = font_badge.getbbox(text)
     tw = tb[2] - tb[0]
     th = tb[3] - tb[1]
@@ -344,7 +359,8 @@ def draw_stacked_checklist_cards(
     if not items:
         return
 
-    font_item = get_clean_font(int(width * 0.034), font_type="bold")
+    is_dev = any(has_devanagari(it) for it in items)
+    font_item = get_clean_font(int(width * 0.034), font_type="bold", is_devanagari=is_dev)
     card_w = int(width * 0.78)
     card_h = 56
     cx = width // 2
@@ -407,7 +423,8 @@ def draw_scam_alert_card(
 
     # Title & Subtitle
     font_title = get_clean_font(int(width * 0.038), font_type="bold")
-    font_sub = get_clean_font(int(width * 0.030), font_type="sans")
+    is_dev = has_devanagari(subtitle)
+    font_sub = get_clean_font(int(width * 0.030), font_type="sans", is_devanagari=is_dev)
     draw.text((cx, y1 + 42), title.upper()[:25], fill=(255, 255, 255, 255), font=font_title, anchor="mm")
     draw.text((cx, y1 + 76), subtitle[:35], fill=(244, 150, 160, 240), font=font_sub, anchor="mm")
 
@@ -669,7 +686,9 @@ def render_color_anime_motion_clip(
             )
         else:
             # Clean Glassmorphism Pill Banner (Screenshot 6 panel 1)
-            pill_text = scene_text[:30] if len(scene_text) < 30 else (meta["intro_phrase"].upper() + " " + meta["giant_word"])
+            pill_text = (meta["intro_phrase"].upper() + " " + meta["giant_word"]).strip()
+            if not pill_text:
+                pill_text = "FOCUS & DISCIPLINE"
             draw_glassmorphism_pill_badge(
                 draw,
                 text=pill_text,

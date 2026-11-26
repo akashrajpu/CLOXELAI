@@ -1840,7 +1840,9 @@ def merge_and_export(
     job_dir = os.path.dirname(output_name) if os.path.dirname(output_name) else "."
 
     cat_lower = str(category).lower()
-    is_cartoon_cat = any(k in cat_lower for k in ["cartoon", "anime", "animation", "character", "comic"])
+    is_color_anime = any(k in cat_lower for k in ["color anime", "color animation", "neon motion"])
+    is_after_effects_cat = any(k in cat_lower for k in ["after effect", "after iffect", "after effects", "vfx", "motion graphic", "documentary"]) or is_color_anime
+    is_cartoon_cat = any(k in cat_lower for k in ["cartoon", "character", "comic"]) or (("anime" in cat_lower or "animation" in cat_lower) and not is_color_anime and not is_after_effects_cat)
     is_world_news_cat = any(k in cat_lower for k in ["world news", "geopolitics", "news"])
 
     if mode == "ultra" and (is_cartoon_cat or is_world_news_cat):
