@@ -44,11 +44,15 @@ const STANDARD_CATEGORIES = [
 const ULTRA_CATEGORIES = [
   '🎵 Song Video',
   '✨ After Effect Video',
+  '🎨 Color Anime (After Effects)',
+  '📜 Documentary (After Effects)',
   ...STANDARD_CATEGORIES
 ];
 
 const CATEGORIES = [
   '✨ After Effect Video',
+  '🎨 Color Anime (After Effects)',
+  '📜 Documentary (After Effects)',
   ...STANDARD_CATEGORIES
 ];
 
@@ -485,6 +489,7 @@ function App() {
   const [bgMusicList, setBgMusicList] = useState(['cool.mp3', 'cool1.mp3', 'cool2.mp3', 'cool3.mp3', 'cool4.mp3', 'cool5.mp3', 'random', 'none']);
 
   const [category, setCategory] = useState('✨ After Effect Video');
+  const [afterEffectsSubstyle, setAfterEffectsSubstyle] = useState('documentary'); // 'documentary' | 'color_anime'
   const [customCategory, setCustomCategory] = useState('');
 
   const [generationMode, setGenerationMode] = useState('ultra');
@@ -1566,6 +1571,9 @@ function App() {
             ? `${singerName} ${songTitle || 'Hit Song'}`.trim()
             : topic,
           category: getEffectiveCategory(),
+          after_effects_substyle: (category && category.includes('Color Anime')) 
+            ? 'color_anime' 
+            : (category && category.includes('Documentary') ? 'documentary' : afterEffectsSubstyle),
           scenes: scenes,
           font_name: fontName,
           font_color: fontColor,
@@ -3034,7 +3042,14 @@ function App() {
                     <CustomSelect 
                       theme={theme}
                       value={category} 
-                      onChange={(val) => setCategory(val)}
+                      onChange={(val) => {
+                        setCategory(val);
+                        if (val.includes('Color Anime')) {
+                          setAfterEffectsSubstyle('color_anime');
+                        } else if (val.includes('Documentary')) {
+                          setAfterEffectsSubstyle('documentary');
+                        }
+                      }}
                       options={ULTRA_CATEGORIES.map(cat => ({
                         value: cat,
                         label: <span style={{display: 'flex', alignItems: 'center', gap: '6px'}}><Hash size={16} /> {cat.substring(cat.indexOf(' ') + 1)}</span>
@@ -3042,6 +3057,82 @@ function App() {
                     />
                   </div>
                 </div>
+
+                {/* Dedicated Ultra / After Effects Substyle Toggle Buttons */}
+                {((category && (category.includes('After Effect') || category.includes('Color Anime') || category.includes('Documentary'))) || videoType === 'ultra') && (
+                  <div style={{
+                    marginTop: '10px',
+                    marginBottom: '14px',
+                    padding: '14px 16px',
+                    background: 'linear-gradient(135deg, rgba(30, 27, 75, 0.7) 0%, rgba(15, 23, 42, 0.85) 100%)',
+                    borderRadius: '16px',
+                    border: '1.5px solid rgba(168, 85, 247, 0.35)',
+                    boxShadow: '0 6px 20px rgba(0, 0, 0, 0.3)'
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
+                      <label style={{ margin: 0, fontWeight: '800', fontSize: '0.9rem', color: '#f1f5f9', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <Sparkles size={18} color="#a855f7" /> Ultra / After Effects Visual Mode
+                      </label>
+                      <span style={{ fontSize: '0.74rem', padding: '3px 8px', borderRadius: '6px', background: afterEffectsSubstyle === 'color_anime' ? 'rgba(0, 230, 118, 0.2)' : 'rgba(234, 179, 8, 0.2)', color: afterEffectsSubstyle === 'color_anime' ? '#00e676' : '#facc15', fontWeight: 'bold' }}>
+                        {afterEffectsSubstyle === 'color_anime' ? '🎨 100% Pure Photos • Dark Cosmic' : '📜 Vox Documentary • Paper Canvas'}
+                      </span>
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setAfterEffectsSubstyle('documentary');
+                          setCategory('📜 Documentary (After Effects)');
+                        }}
+                        style={{
+                          padding: '12px 14px',
+                          borderRadius: '12px',
+                          border: afterEffectsSubstyle === 'documentary' ? '2px solid #eab308' : '1px solid rgba(255, 255, 255, 0.12)',
+                          background: afterEffectsSubstyle === 'documentary' ? 'linear-gradient(135deg, rgba(234, 179, 8, 0.25) 0%, rgba(202, 138, 4, 0.15) 100%)' : 'rgba(15, 23, 42, 0.6)',
+                          color: afterEffectsSubstyle === 'documentary' ? '#fef08a' : '#94a3b8',
+                          cursor: 'pointer',
+                          textAlign: 'left',
+                          transition: 'all 0.2s ease',
+                          boxShadow: afterEffectsSubstyle === 'documentary' ? '0 4px 16px rgba(234, 179, 8, 0.25)' : 'none'
+                        }}
+                      >
+                        <div style={{ fontWeight: '800', fontSize: '0.92rem', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          📜 Documentary
+                        </div>
+                        <div style={{ fontSize: '0.74rem', opacity: 0.85, lineHeight: 1.3 }}>
+                          Paper canvas, evidence, yellow highlighter, newspaper clips & maps.
+                        </div>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setAfterEffectsSubstyle('color_anime');
+                          setCategory('🎨 Color Anime (After Effects)');
+                        }}
+                        style={{
+                          padding: '12px 14px',
+                          borderRadius: '12px',
+                          border: afterEffectsSubstyle === 'color_anime' ? '2px solid #00e676' : '1px solid rgba(255, 255, 255, 0.12)',
+                          background: afterEffectsSubstyle === 'color_anime' ? 'linear-gradient(135deg, rgba(0, 230, 118, 0.22) 0%, rgba(5, 150, 105, 0.15) 100%)' : 'rgba(15, 23, 42, 0.6)',
+                          color: afterEffectsSubstyle === 'color_anime' ? '#a7f3d0' : '#94a3b8',
+                          cursor: 'pointer',
+                          textAlign: 'left',
+                          transition: 'all 0.2s ease',
+                          boxShadow: afterEffectsSubstyle === 'color_anime' ? '0 4px 16px rgba(0, 230, 118, 0.25)' : 'none'
+                        }}
+                      >
+                        <div style={{ fontWeight: '800', fontSize: '0.92rem', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          🎨 Color Anime
+                        </div>
+                        <div style={{ fontSize: '0.74rem', opacity: 0.85, lineHeight: 1.3 }}>
+                          100% Photos (Zero video clips), dark cosmic space, emerald neon glow, giant 3D text & halo rings.
+                        </div>
+                      </button>
+                    </div>
+                  </div>
+                )}
 
                 {category === '✍️ Custom Category (Type Below)' && (
                   <div className="form-group">
@@ -3130,6 +3221,63 @@ function App() {
 
           {videoType === 'ultra' ? (
             <>
+              {((category && (category.includes('After Effect') || category.includes('Color Anime') || category.includes('Documentary'))) || videoType === 'ultra') && (
+                <div className="form-group" style={{ marginBottom: '1.2rem' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontWeight: '800' }}>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Sparkles size={16} color="#a855f7" /> After Effects Visual Style</span>
+                    <span style={{ fontSize: '0.72rem', color: afterEffectsSubstyle === 'color_anime' ? '#00e676' : '#eab308', fontWeight: 'bold' }}>
+                      {afterEffectsSubstyle === 'color_anime' ? '🎨 100% Photos' : '📜 Documentary'}
+                    </span>
+                  </label>
+                  <div className="responsive-grid-2" style={{ gap: '8px', marginTop: '6px' }}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAfterEffectsSubstyle('documentary');
+                        setCategory('📜 Documentary (After Effects)');
+                      }}
+                      style={{
+                        padding: '10px 12px',
+                        borderRadius: '14px',
+                        border: afterEffectsSubstyle === 'documentary' ? '2px solid #eab308' : '1px solid rgba(255,255,255,0.12)',
+                        background: afterEffectsSubstyle === 'documentary' ? 'linear-gradient(135deg, #eab308 0%, #ca8a04 100%)' : 'rgba(15, 23, 42, 0.6)',
+                        color: afterEffectsSubstyle === 'documentary' ? '#ffffff' : '#94a3b8',
+                        fontSize: '0.82rem',
+                        fontWeight: '800',
+                        cursor: 'pointer',
+                        textAlign: 'center',
+                        boxShadow: afterEffectsSubstyle === 'documentary' ? '0 4px 15px rgba(234, 179, 8, 0.4)' : 'none',
+                        transition: 'all 0.2s ease'
+                      }}
+                    >
+                      📜 Documentary
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAfterEffectsSubstyle('color_anime');
+                        setCategory('🎨 Color Anime (After Effects)');
+                      }}
+                      style={{
+                        padding: '10px 12px',
+                        borderRadius: '14px',
+                        border: afterEffectsSubstyle === 'color_anime' ? '2px solid #00e676' : '1px solid rgba(255,255,255,0.12)',
+                        background: afterEffectsSubstyle === 'color_anime' ? 'linear-gradient(135deg, #00e676 0%, #059669 100%)' : 'rgba(15, 23, 42, 0.6)',
+                        color: afterEffectsSubstyle === 'color_anime' ? '#ffffff' : '#94a3b8',
+                        fontSize: '0.82rem',
+                        fontWeight: '800',
+                        cursor: 'pointer',
+                        textAlign: 'center',
+                        boxShadow: afterEffectsSubstyle === 'color_anime' ? '0 4px 15px rgba(0, 230, 118, 0.4)' : 'none',
+                        transition: 'all 0.2s ease'
+                      }}
+                    >
+                      🎨 Color Anime
+                    </button>
+                  </div>
+                </div>
+              )}
+
               <div className="form-group" style={{ marginBottom: '1.2rem' }}>
                 <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: '800' }}>
                   <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Sparkles size={16} /> Engine Generation Mode</span>

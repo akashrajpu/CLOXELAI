@@ -1900,6 +1900,7 @@ class VideoRequest(BaseModel):
     phonk_logo_image_path: Optional[str] = None
     phonk_bg_image_path: Optional[str] = None
     beat_bg_type: Optional[str] = "photo"
+    after_effects_substyle: Optional[str] = "documentary"
 
 class ScriptRequest(BaseModel):
     topic: str
@@ -2211,13 +2212,23 @@ def full_process(req: VideoRequest, job_id: str):
             custom_news_audio = sc.get("news_audio_path") or sc.get("news_audio")
             cat_lower_req = str(req.category).lower()
             clean_cat = re.sub(r'[^\w\s]', '', cat_lower_req).strip()
-            is_cartoon_req = any(k in cat_lower_req for k in ["cartoon", "anime", "animation", "character", "comic"])
+            substyle_req = getattr(req, 'after_effects_substyle', '') or ''
+            is_color_anime = (
+                substyle_req == 'color_anime' or
+                any(k in cat_lower_req for k in ["color anime", "color animation", "anime motion", "neon motion"])
+            )
+            is_after_effects_req = (
+                is_color_anime or
+                any(k in cat_lower_req or k in clean_cat for k in [
+                    "after effect", "aftereffect", "after iffect", "afteriffect", 
+                    "after effects", "aftereffects", "after-effect", "after-effects", 
+                    "vfx", "motion graphic", "motion graphics", "documentary collage",
+                    "documentary"
+                ]) or
+                substyle_req in ['documentary', 'color_anime']
+            )
+            is_cartoon_req = not is_color_anime and (any(k in cat_lower_req for k in ["cartoon", "character", "comic"]) or (("anime" in cat_lower_req or "animation" in cat_lower_req) and not is_after_effects_req))
             is_world_news_req = any(k in cat_lower_req for k in ["world news", "geopolitics", "news"])
-            is_after_effects_req = any(k in cat_lower_req or k in clean_cat for k in [
-                "after effect", "aftereffect", "after iffect", "afteriffect", 
-                "after effects", "aftereffects", "after-effect", "after-effects", 
-                "vfx", "motion graphic", "motion graphics", "documentary collage"
-            ])
 
             if is_after_effects_req and custom_news_audio and os.path.exists(custom_news_audio) and os.path.getsize(custom_news_audio) > 500:
                 print(f"🎙️ [After Effects Scene {i+1}] News Broadcast Soundbite Active: Using authentic news soundbite directly ({os.path.basename(custom_news_audio)}) - AI narrator stays silent!")
@@ -2233,15 +2244,67 @@ def full_process(req: VideoRequest, job_id: str):
                 print(f"🎨 [Ultra Scene {i+1}] Pure AI Render Mode (Cartoon/WebGL). Skipping web photo downloads; Cloxel AI Director will generate scene directly from script!")
                 v_paths = []
             elif is_after_effects_req:
-                # -------------------------------------------------------------
-                # DEDICATED PRO AFTER EFFECTS PIPELINE (EXCLUSIVE)
-                # Guaranteed: Works for Short (9:16), Long (16:9), and Ultra!
-                # 1. Newspaper/Wikipedia Evidence with Fluorescent Yellow Highlighter
-                # 2. Vox/Johnny Harris Documentary Collage with Transparent Cutouts & Sliding Zoom
-                # 3. Pinterest HD Video & Photo Dual Fetch with Script Visual Translation
-                # 4. Web Image HD Fetch Fallbacks (NEVER random stock video!)
-                # -------------------------------------------------------------
-                try:
+                if is_color_anime:
+                    # -------------------------------------------------------------
+                    # 🎨 COLOR ANIME / DARK COSMIC CUTOUT MOTION PIPELINE (EXCLUSIVE)
+                    # User requirement: 100% PURE PHOTOS (ZERO STOCK VIDEOS!),
+                    # Deep Space / Emerald Neon Glow, Giant Typography behind Cutout,
+                    # and Sleek Glassmorphism UI Badges / Checklists / Alert Cards!
+                    # -------------------------------------------------------------
+                    try:
+                        main_topic = req.topic if req.topic else "visionary"
+                        scene_text = sc.get('text', '').strip()
+                        scene_kw = sc.get('keyword', '').strip()
+
+                        try:
+                            sc_a_dur = get_audio_duration_fast(a_path, fallback=4.5)
+                        except Exception:
+                            sc_a_dur = 4.5
+
+                        from collage_cutout_engine import fetch_and_prepare_cutouts
+                        from color_anime_engine import render_color_anime_motion_clip
+
+                        # Resolve entity visual phrase for transparent cutout
+                        en_entity = translate_to_visual_english(scene_kw or scene_text, main_topic) if translate_to_visual_english else (scene_kw or main_topic)
+                        clean_entity_words = [w for w in en_entity.split() if w.lower() not in ["cinematic", "animation", "photo", "video", "4k", "hd", "isolated", "transparent"]][:3]
+                        entity_term = " ".join(clean_entity_words) or main_topic
+
+                        ent_obj = [{
+                            "raw": scene_kw or scene_text,
+                            "clean_en": entity_term,
+                            "label": entity_term.upper()[:15],
+                            "search": f"{entity_term} transparent png cutout isolated"
+                        }]
+
+                        print(f"🎨 [Color Anime Scene {i+1}] Downloading Transparent Cutout for '{entity_term}' & rendering 2.5D Dark Cosmic Motion Clip...")
+                        cutout_pngs = fetch_and_prepare_cutouts(ent_obj, output_dir=job_dir, used_media_ids=used_media_ids)
+                        color_anime_clip = os.path.join(job_dir, f"color_anime_clip_{i}.mp4")
+
+                        render_color_anime_motion_clip(
+                            cutout_paths=cutout_pngs,
+                            output_mp4=color_anime_clip,
+                            duration=sc_a_dur,
+                            scene_text=scene_text,
+                            main_topic=main_topic,
+                            target_size=(target_w, target_h),
+                            fps=24
+                        )
+
+                        if os.path.exists(color_anime_clip) and os.path.getsize(color_anime_clip) > 1000:
+                            v_paths = [color_anime_clip]
+                            print(f"✅ [Color Anime Scene {i+1}] Motion clip ready: {os.path.basename(color_anime_clip)} (Duration: {sc_a_dur:.1f}s)")
+                    except Exception as e_ca:
+                        print(f"⚠️ [Color Anime Scene {i+1} Exception]: {e_ca}")
+                else:
+                    # -------------------------------------------------------------
+                    # 📜 DEDICATED PRO DOCUMENTARY AFTER EFFECTS PIPELINE (EXCLUSIVE)
+                    # Guaranteed: Works for Short (9:16), Long (16:9), and Ultra!
+                    # 1. Newspaper/Wikipedia Evidence with Fluorescent Yellow Highlighter
+                    # 2. Vox/Johnny Harris Documentary Collage with Transparent Cutouts & Sliding Zoom
+                    # 3. Pinterest HD Video & Photo Dual Fetch with Script Visual Translation
+                    # 4. Web Image HD Fetch Fallbacks (NEVER random stock video!)
+                    # -------------------------------------------------------------
+                    try:
                     main_topic = req.topic if req.topic else "motion graphics"
                     scene_text = sc.get('text', '').strip()
                     scene_kw = sc.get('keyword', '').strip()
@@ -5362,7 +5425,7 @@ def generate_ai_script_core(topic: str, duration: int, video_type: str = "short"
     elif video_type == "long":
         instruction_topic = f"{topic} [{lang_prompt} Write a complete, detailed {duration}-second documentary script. MUST be approximately {word_count} spoken words across {scene_count} progressive scenes to cover the entire {duration} seconds without stopping early.]"
     elif video_type == "ultra":
-        is_after_effects_cat = any(k in cat_lower for k in ["after effect", "after iffect", "after effects", "vfx", "motion graphic"])
+        is_after_effects_cat = any(k in cat_lower for k in ["after effect", "after iffect", "after effects", "vfx", "motion graphic", "color anime", "color animation", "documentary"])
         if is_cartoon_cat:
             instruction_topic = f"{topic} [{lang_prompt} Write an entertaining cartoon story script of approximately {word_count} spoken words across {scene_count} scenes for {duration} seconds.]"
         elif is_after_effects_cat:

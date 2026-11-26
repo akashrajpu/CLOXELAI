@@ -2063,8 +2063,9 @@ def merge_and_export(
         clip_duration = get_audio_duration_fast(audio_path, fallback=5.0)
         
         cat_lower = str(category).lower()
-        is_cartoon_cat = any(k in cat_lower for k in ["cartoon", "anime", "animation", "character", "comic"])
-        is_after_effects_cat = any(k in cat_lower for k in ["after effect", "after iffect", "after effects", "vfx", "motion graphic"])
+        is_color_anime = any(k in cat_lower for k in ["color anime", "color animation", "neon motion"])
+        is_after_effects_cat = any(k in cat_lower for k in ["after effect", "after iffect", "after effects", "vfx", "motion graphic", "documentary"]) or is_color_anime
+        is_cartoon_cat = any(k in cat_lower for k in ["cartoon", "character", "comic"]) or (("anime" in cat_lower or "animation" in cat_lower) and not is_color_anime and not is_after_effects_cat)
 
         if any(k in cat_lower for k in ["history", "mythology", "ancient", "historical", "purana", "epic", "warrior"]):
             cat_style = "history"
