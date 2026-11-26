@@ -1087,6 +1087,89 @@ def detect_color_anime_scene_elements(scene_text: str, main_topic: str = "") -> 
 
 
 # ---------------------------------------------------------------------------
+# Specialized Background & Card Layout Elements
+# ---------------------------------------------------------------------------
+def draw_spotlight_horizon_bg(
+    draw: ImageDraw.ImageDraw,
+    width: int,
+    height: int,
+    theme: Dict[str, Any],
+    t: float = 0.0
+):
+    """Sleek horizontal cinematic laser line & soft center spotlight (NO cheesy circle ring)."""
+    glow_c = theme.get("glow_rgb", (0, 230, 118))
+    cy = int(height * 0.44)
+    pulse = 0.85 + 0.15 * math.sin(t * math.pi * 2)
+    alpha_line = int(110 * pulse)
+    # Sleek horizontal neon flare line
+    draw.line([(int(width * 0.08), cy), (int(width * 0.92), cy)], fill=(glow_c[0], glow_c[1], glow_c[2], alpha_line), width=2)
+    # Center bright flare
+    flare_w = int(width * 0.28)
+    draw.ellipse([(width // 2 - flare_w, cy - 6), (width // 2 + flare_w, cy + 6)], fill=(glow_c[0], glow_c[1], glow_c[2], int(140 * pulse)))
+    draw.ellipse([(width // 2 - flare_w // 2, cy - 3), (width // 2 + flare_w // 2, cy + 3)], fill=(255, 255, 255, int(190 * pulse)))
+
+
+def draw_heritage_pedestal_bg(
+    draw: ImageDraw.ImageDraw,
+    width: int,
+    height: int,
+    t: float = 0.0
+):
+    """Soft warm golden radial pedestal glow beneath architectural heritage cutouts."""
+    base_y = int(height * 0.68)
+    r_ped = int(width * 0.36)
+    pulse = 0.90 + 0.10 * math.sin(t * math.pi * 1.5)
+    # Outer diffused gold glow
+    draw.ellipse([
+        (width // 2 - int(r_ped * 1.15), base_y - 25),
+        (width // 2 + int(r_ped * 1.15), base_y + 35)
+    ], fill=(212, 175, 55, int(45 * pulse)))
+    # Core warm amber reflection
+    draw.ellipse([
+        (width // 2 - int(r_ped * 0.70), base_y - 12),
+        (width // 2 + int(r_ped * 0.70), base_y + 18)
+    ], fill=(255, 215, 0, int(80 * pulse)))
+
+
+def draw_sleek_floating_topic_card(
+    draw: ImageDraw.ImageDraw,
+    title: str,
+    subtitle: str,
+    width: int,
+    y_pos: int,
+    theme: Dict[str, Any],
+    t: float = 0.0
+):
+    """Sleek dark glassmorphism card with spring pop-in (matches reference screenshot 7)."""
+    slide_val = spring_bounce(max(0.0, t - 0.15), duration=0.35, overshoot=0.10)
+    card_w = int(width * 0.84)
+    card_h = int(width * 0.16)
+    cx = width // 2
+    offset_y = int(60 * (1.0 - slide_val))
+    cy = y_pos + offset_y
+
+    x0 = cx - card_w // 2
+    y0 = cy - card_h // 2
+    x1 = cx + card_w // 2
+    y1 = cy + card_h // 2
+
+    # Dark frosted card body with glowing neon border
+    draw.rounded_rectangle([(x0, y0), (x1, y1)], radius=16, fill=(12, 18, 30, 235), outline=theme["card_border"], width=2)
+    # Top accent line
+    draw.line([(x0 + 20, y0), (x0 + 100, y0)], fill=theme["primary_neon"], width=3)
+
+    # Sanitize subtitle to ensure clean Latin characters (avoid tofu rectangles)
+    if re.search(r'[\u0900-\u097F]', subtitle):
+        subtitle = "RECLAIMING ANCIENT STRENGTH & GLORY"
+
+    # Title & Subtitle inside card
+    font_title = get_clean_font(int(width * 0.038), font_type="bold")
+    font_sub = get_clean_font(int(width * 0.025), font_type="sans")
+    draw.text((x0 + 24, y0 + 16), title.upper()[:28], fill=theme["primary_neon"], font=font_title, anchor="lt")
+    draw.text((x0 + 24, y0 + 48), subtitle[:45], fill=(220, 230, 245, 230), font=font_sub, anchor="lt")
+
+
+# ---------------------------------------------------------------------------
 # Core Color Anime / After Effects Motion Clip Renderer
 # ---------------------------------------------------------------------------
 def render_color_anime_motion_clip(
@@ -1096,17 +1179,23 @@ def render_color_anime_motion_clip(
     scene_text: str = "",
     main_topic: str = "",
     target_size: Tuple[int, int] = (1080, 1920),
-    fps: int = 24
+    fps: int = 24,
+    scene_index: int = 0,
+    layout_style: str = "auto"
 ) -> str:
     """
     Renders an ultra-high production After Effects Kinetic Motion Clip:
-    1. Snappy Elastic Entrance (Bounce Script spring overshoot on character & text).
-    2. Dynamic Parallax Flying 3D Props (Tumbling Dollar Bills, Asteroids, Trophies, Cyber Nodes, Torn Tape).
-    3. Dynamic Camera Snap Punch (1.08 -> 1.00 snap + Ken Burns push-in + micro impact shake).
-    4. Giant Kinetic Typography layered BEHIND character cutouts with scale slam.
-    5. Snappy Viewfinder Reticles & Dynamic Tracking Brackets.
-    6. Animated Frosted Glass Badges / Stacked Checklists / Alert Cards.
-    7. 100% Pure Photo Cutouts (Zero stock video clips!).
+    1. Snappy Elastic Side Slide-In with zero wobble/shake (Rock solid placement).
+    2. Dynamic Parallax Flying 3D Props (Tumbling Dollar Bills, Asteroids, Trophies, Cyber Nodes).
+    3. Multi-Layout Scene Diversity (NO repetitive camera frames or identical circle rings!).
+       - portal_halo: Glowing circular celestial portal ring (Golden Bird)
+       - hero_typography: Huge kinetic typography across screen behind subject (Superpower / Innovation)
+       - spotlight_minimal: Horizontal laser horizon flare + clean modern framing (America map)
+       - floating_card: Sleek dark glassmorphism card sliding up beneath subject (Rising Bharat)
+       - heritage_pedestal: Soft warm golden pedestal base glow (Ancient temple)
+       - dual_vs: Side-by-side comparison with central glowing VS badge (India vs America)
+    4. 100% Pure Photo Cutouts (Zero stock video clips!).
+    5. Steady, rock-solid background: zero camera jitter/shaking or drift.
     """
     w, h = target_size
     duration = max(3.0, float(duration))
@@ -1126,27 +1215,6 @@ def render_color_anime_motion_clip(
     # 3. Initialize Flying 3D Props Engine
     props_engine = FlyingPropsEngine(theme_name=theme_name, width=w, height=h)
 
-    # 4. Load or generate character cutout
-    from collage_cutout_engine import make_transparent_cutout, sharpen_cutout, create_cutout_drop_shadow
-
-    loaded_cutouts = []
-    for p in cutout_paths:
-        if p and os.path.exists(p):
-            try:
-                c = make_transparent_cutout(p)
-                loaded_cutouts.append(c)
-            except Exception as e_c:
-                print(f"⚠️ [Color Anime Engine] Warning loading cutout {p}: {e_c}")
-
-    if not loaded_cutouts:
-        # High-aesthetic fallback astronaut hero silhouette
-        fallback_hero = Image.new("RGBA", (600, 750), (0, 0, 0, 0))
-        fb_draw = ImageDraw.Draw(fallback_hero)
-        fb_draw.ellipse([(180, 60), (420, 300)], fill=(225, 235, 245, 255), outline=(255, 255, 255, 240), width=6)
-        fb_draw.ellipse([(215, 100), (385, 250)], fill=(15, 20, 30, 255), outline=(0, 230, 118, 220), width=4)
-        fb_draw.rounded_rectangle([(100, 290), (500, 720)], radius=60, fill=(210, 225, 238, 255), outline=(255, 255, 255, 220), width=6)
-        loaded_cutouts.append(fallback_hero)
-
     # 4. Prepare and clean character/object cutouts
     from collage_cutout_engine import make_transparent_cutout, sharpen_cutout, create_cutout_drop_shadow
 
@@ -1161,7 +1229,7 @@ def render_color_anime_motion_clip(
                 print(f"⚠️ [Color Anime Engine] Warning loading cutout {p}: {e_c}")
 
     if not loaded_cutouts:
-        # High-aesthetic fallback hero emblem / silhouette
+        # High-aesthetic fallback hero silhouette
         fallback_hero = Image.new("RGBA", (600, 750), (0, 0, 0, 0))
         fb_draw = ImageDraw.Draw(fallback_hero)
         fb_draw.ellipse([(180, 60), (420, 300)], fill=(225, 235, 245, 255), outline=(255, 255, 255, 240), width=6)
@@ -1185,7 +1253,28 @@ def render_color_anime_motion_clip(
         c_ready = sharpen_cutout(c_ready, amount=1.20)
         processed_cutouts.append(c_ready)
 
-    # 5. Setup FFmpeg streaming pipe (< 35MB RAM)
+    # 5. Resolve Layout Mode for Visual Diversity
+    txt_lower = (scene_text or "").lower()
+    if is_multi or len(loaded_cutouts) >= 2 or " vs " in txt_lower:
+        layout_mode = "dual_vs"
+    elif layout_style and layout_style != "auto":
+        layout_mode = layout_style
+    else:
+        if any(k in txt_lower for k in ["चिड़िया", "bird", "gold"]):
+            layout_mode = "portal_halo"
+        elif any(k in txt_lower for k in ["superpower", "शक्ति", "तकनीक", "technology", "ai", "modern"]):
+            layout_mode = "hero_typography"
+        elif any(k in txt_lower for k in ["इतिहास", "heritage", "temple", "हजारों", "civilization"]):
+            layout_mode = "heritage_pedestal"
+        elif any(k in txt_lower for k in ["भारत", "bharat", "राह पर", "country"]):
+            layout_mode = "floating_card"
+        elif any(k in txt_lower for k in ["अमेरिका", "america", "अस्तित्व"]):
+            layout_mode = "spotlight_minimal"
+        else:
+            candidates = ["portal_halo", "spotlight_minimal", "hero_typography", "floating_card", "heritage_pedestal"]
+            layout_mode = candidates[scene_index % len(candidates)]
+
+    # 6. Setup FFmpeg streaming pipe (< 35MB RAM)
     ffmpeg_cmd = [
         "ffmpeg", "-y",
         "-f", "rawvideo",
@@ -1217,7 +1306,7 @@ def render_color_anime_motion_clip(
         ((int(w * 0.50), int(h * 0.62)), "structure")
     ]
 
-    # 6. Kinetic Frame Render Loop
+    # 7. Kinetic Frame Render Loop
     for frame_idx in range(total_frames):
         t = frame_idx / float(fps)
         t_norm = frame_idx / max(1, total_frames)
@@ -1226,13 +1315,20 @@ def render_color_anime_motion_clip(
         draw = ImageDraw.Draw(frame, "RGBA")
 
         # -------------------------------------------------------------------
-        # LAYER 1: Background Halo Rings or Bauhaus Concentric Sun Arcs
+        # LAYER 1: Background Layout Graphics (Dynamic Variety per Layout Mode)
         # -------------------------------------------------------------------
         if is_bauhaus:
             draw_bauhaus_concentric_arcs(draw, halo_center, halo_radius, t=t)
-        else:
+        elif layout_mode == "portal_halo":
             halo_pulse = 1.0 + 0.04 * math.sin(t * math.pi * 2)
             draw_planetary_halo_ring(draw, halo_center, halo_radius, theme, scale_factor=halo_pulse, t=t)
+        elif layout_mode == "spotlight_minimal":
+            draw_spotlight_horizon_bg(draw, w, h, theme, t=t)
+        elif layout_mode == "heritage_pedestal":
+            draw_heritage_pedestal_bg(draw, w, h, t=t)
+        elif layout_mode in ["floating_card", "hero_typography"]:
+            # Clean dark starry cosmic nebula - No cheesy ring, pure subject and kinetic text!
+            pass
 
         # -------------------------------------------------------------------
         # LAYER 2: Background Flying 3D Props (Distant Dollar Bills / Asteroids)
@@ -1240,30 +1336,48 @@ def render_color_anime_motion_clip(
         props_engine.render_layer(frame, t=t, plane="bg")
 
         # -------------------------------------------------------------------
-        # LAYER 3: Giant Kinetic Typography BEHIND Cutout (Scale Slam)
+        # LAYER 3: Kinetic Typography BEHIND Cutout
         # -------------------------------------------------------------------
-        draw_giant_kinetic_background_text(
-            draw=draw,
-            giant_word=meta["giant_word"],
-            intro_phrase=meta["intro_phrase"],
-            width=w,
-            center_y=text_center_y,
-            theme=theme,
-            t=t,
-            duration=duration
-        )
+        if layout_mode == "hero_typography":
+            draw_giant_kinetic_background_text(
+                draw=draw,
+                giant_word=meta["giant_word"],
+                intro_phrase=meta["intro_phrase"],
+                width=w,
+                center_y=text_center_y,
+                theme=theme,
+                t=t,
+                duration=duration
+            )
+        elif layout_mode in ["portal_halo", "heritage_pedestal", "spotlight_minimal"]:
+            intro_clean = meta.get("intro_phrase", "").strip()
+            title_clean = meta.get("giant_word", "").strip()
+            if title_clean:
+                font_title = get_clean_font(int(w * 0.12), font_type="giant")
+                f_intro = get_clean_font(int(w * 0.038), font_type="sans")
+                intro_y = text_center_y - int(w * 0.12)
+                if intro_clean:
+                    draw.text((w // 2, intro_y), intro_clean, fill=(240, 245, 255, 220), font=f_intro, anchor="mm")
+                draw.text((w // 2 + 4, text_center_y + 4), title_clean, fill=(0, 0, 0, 180), font=font_title, anchor="mm")
+                draw.text((w // 2, text_center_y), title_clean, fill=theme["primary_neon"], font=font_title, anchor="mm")
 
         # -------------------------------------------------------------------
         # LAYER 4: Foreground Character/Object Cutouts (Side Slide-in & Rock Solid Stability)
         # -------------------------------------------------------------------
         if not is_multi:
-            # Single Cutout: Snappy Slide-in from the side (Left or Right), then stays firmly locked in place
             c_main = processed_cutouts[0]
             slide_val = spring_bounce(t, duration=0.35, overshoot=0.08)
             offset_x = int(w * 0.80 * (1.0 - slide_val) * slide_dir)
             
             char_x = int(w // 2 - c_main.width // 2 + offset_x)
             char_y = int(h * 0.54 - c_main.height // 2)
+
+            if layout_mode == "heritage_pedestal":
+                # Place temple firmly on pedestal base
+                char_y = int(h * 0.68 - c_main.height)
+            elif layout_mode == "floating_card":
+                # Slightly higher to leave room for bottom floating card
+                char_y = int(h * 0.44 - c_main.height // 2)
 
             sh_main, sh_off = create_cutout_drop_shadow(c_main, blur_radius=18, offset=(8, 16), shadow_opacity=0.45)
             frame.paste(sh_main, (char_x + sh_off[0], char_y + sh_off[1]), mask=sh_main)
@@ -1311,76 +1425,33 @@ def render_color_anime_motion_clip(
         props_engine.render_layer(frame, t=t, plane="fg")
 
         # -------------------------------------------------------------------
-        # LAYER 6: Snappy Viewfinder Reticles & Dynamic Tracking Brackets
+        # LAYER 6: Viewfinder Brackets / Camera Reticles: COMPLETELY OMITTED
+        # (Zero cheesy camera REC frames per user mandate!)
         # -------------------------------------------------------------------
-        draw_dynamic_viewfinder_reticles(draw, w, h, theme, t=t, duration=duration)
 
         # -------------------------------------------------------------------
-        # LAYER 7: Sleek Glassmorphism Badges / Stacked Cards / Pointer Callouts
+        # LAYER 7: Sleek Glassmorphism Badges / Stacked Cards per Layout Mode
         # -------------------------------------------------------------------
-        if meta["is_alert"]:
-            draw_scam_alert_card(
-                draw,
-                title=meta.get("alert_title", "SCAM ALERT"),
-                subtitle=meta.get("alert_sub", scene_text),
-                width=w,
-                y_pos=int(h * 0.85),
-                theme=theme,
-                t=t
-            )
-        elif meta["is_checklist"] and meta["checklist_items"]:
-            draw_stacked_checklist_cards(
-                draw,
-                items=meta["checklist_items"],
-                width=w,
-                y_pos=int(h * 0.84),
-                theme=theme,
-                t=t
-            )
+        if layout_mode == "floating_card":
+            card_title = meta.get("giant_word", "KEY INSIGHT")
+            card_sub = "RECLAIMING ANCIENT STRENGTH & GLORY"
+            draw_sleek_floating_topic_card(draw, title=card_title, subtitle=card_sub, width=w, y_pos=int(h * 0.16), theme=theme, t=t)
+        elif layout_mode == "portal_halo":
+            pill_text = (meta["intro_phrase"].upper() + " " + meta["giant_word"]).strip() or "ANCIENT ERA"
+            draw_glassmorphism_pill_badge(draw, text=pill_text, width=w, y_pos=int(h * 0.86), theme=theme, t=t, badge_type="pill")
+        elif layout_mode == "heritage_pedestal":
+            draw_glassmorphism_pill_badge(draw, text="THOUSANDS OF YEARS OF HERITAGE", width=w, y_pos=int(h * 0.86), theme=theme, t=t, badge_type="pill")
+        elif meta.get("is_alert"):
+            draw_scam_alert_card(draw, title=meta.get("alert_title", "SCAM ALERT"), subtitle=meta.get("alert_sub", scene_text), width=w, y_pos=int(h * 0.85), theme=theme, t=t)
         elif is_bauhaus:
-            # Bauhaus Golden 'after' pill badge & curved pointer callouts
-            draw_glassmorphism_pill_badge(
-                draw,
-                text="after",
-                width=w,
-                y_pos=int(h * 0.12),
-                theme=theme,
-                t=t,
-                badge_type="after"
-            )
+            draw_glassmorphism_pill_badge(draw, text="after", width=w, y_pos=int(h * 0.12), theme=theme, t=t, badge_type="after")
             draw_curved_pointer_callouts(draw, w, h, bauhaus_callouts, theme, t=t)
-        else:
-            # Standard Frosted Glass Pill Badge ($150 Edit style)
-            pill_text = (meta["intro_phrase"].upper() + " " + meta["giant_word"]).strip()
-            if not pill_text:
-                pill_text = "FOCUS & DISCIPLINE"
-            draw_glassmorphism_pill_badge(
-                draw,
-                text=pill_text,
-                width=w,
-                y_pos=int(h * 0.86),
-                theme=theme,
-                t=t,
-                badge_type="pill"
-            )
 
         # -------------------------------------------------------------------
-        # LAYER 8: Camera Snap Punch & Ken Burns Transform
+        # LAYER 8: Camera transform -> LOCKED (No camera shaking, drifting or zooming!)
         # -------------------------------------------------------------------
-        cam_scale, cam_sx, cam_sy = get_camera_punch_transform(t, duration, w, h)
-        if abs(cam_scale - 1.0) > 0.005 or cam_sx != 0 or cam_sy != 0:
-            crop_w = int(w / cam_scale)
-            crop_h = int(h / cam_scale)
-            cx = w // 2 + cam_sx
-            cy = h // 2 + cam_sy
-            x1 = max(0, min(w - crop_w, cx - crop_w // 2))
-            y1 = max(0, min(h - crop_h, cy - crop_h // 2))
-            frame_cropped = frame.crop((x1, y1, x1 + crop_w, y1 + crop_h))
-            frame = frame_cropped.resize((w, h), Image.BILINEAR)
 
-        # -------------------------------------------------------------------
         # Stream frame to FFmpeg rawvideo pipe
-        # -------------------------------------------------------------------
         raw_bytes = frame.tobytes()
         proc.stdin.write(raw_bytes)
 

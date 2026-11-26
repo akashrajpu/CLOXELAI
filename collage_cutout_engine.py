@@ -249,8 +249,10 @@ def make_transparent_cutout(
 ) -> Image.Image:
     """
     Takes an input image and guarantees a clean transparent PNG cutout.
-    Eliminates fake checkerboard patterns, studio white/gray/black backgrounds,
-    trims borders and extracts silhouette with smooth anti-aliased alpha.
+    - If the input image ALREADY has real alpha transparency (>5% transparent pixels),
+      it is preserved 100% untouched so subject architecture/skin/edges are never degraded.
+    - If the image is opaque (JPG or flat PNG) and contains a fake checkerboard or studio
+      background, it carefully removes the perimeter background.
     """
     if isinstance(img_input, str):
         pil_img = Image.open(img_input).convert("RGBA")
@@ -259,13 +261,23 @@ def make_transparent_cutout(
 
     w, h = pil_img.size
     np_rgba = np.array(pil_img)
-    rgb = np_rgba[:, :, :3].astype(np.float32)
 
     # 1. Check existing alpha transparency
     alpha_existing = np_rgba[:, :, 3].copy()
-    existing_trans_ratio = np.count_nonzero(alpha_existing < 50) / max(1, w * h)
+    existing_trans_ratio = np.count_nonzero(alpha_existing < 128) / max(1, w * h)
 
-    # 2. Analyze perimeter borders (all 4 edges) for background candidates
+    # CRITICAL: If the image ALREADY has genuine alpha transparency (>5% of pixels transparent),
+    # IT IS ALREADY A TRANSPARENT PNG CUTOUT! Never flood fill or chew holes into the subject!
+    if existing_trans_ratio >= 0.05:
+        bbox = pil_img.getbbox()
+        if bbox:
+            pil_img = pil_img.crop(bbox)
+        if output_png:
+            pil_img.save(output_png, format="PNG")
+        return pil_img
+
+    # 2. For opaque images (trans_ratio < 0.05), detect fake checkerboards or studio backgrounds
+    rgb = np_rgba[:, :, :3].astype(np.float32)
     border_pixels = np.concatenate([
         rgb[0, :, :], rgb[h - 1, :, :],
         rgb[:, 0, :], rgb[:, w - 1, :]
@@ -275,9 +287,9 @@ def make_transparent_cutout(
     bright_b = np.mean(border_pixels, axis=1)
 
     # Detect fake checkerboard (alternating white/gray neutral tiles) or solid studio backgrounds
-    is_border_checkerboard = np.count_nonzero((spread_b <= 28) & (bright_b >= 155)) / max(1, len(border_pixels)) > 0.35
-    is_border_white = np.count_nonzero(bright_b >= 235) / max(1, len(border_pixels)) > 0.30
-    is_border_black = np.count_nonzero((bright_b <= 40) & (spread_b <= 20)) / max(1, len(border_pixels)) > 0.40
+    is_border_checkerboard = np.count_nonzero((spread_b <= 28) & (bright_b >= 155)) / max(1, len(border_pixels)) > 0.40
+    is_border_white = np.count_nonzero(bright_b >= 240) / max(1, len(border_pixels)) > 0.40
+    is_border_black = np.count_nonzero((bright_b <= 35) & (spread_b <= 15)) / max(1, len(border_pixels)) > 0.40
 
     corners = np.concatenate([
         rgb[0:15, 0:15], rgb[0:15, -15:],
@@ -285,28 +297,28 @@ def make_transparent_cutout(
     ], axis=0).reshape(-1, 3)
     mean_corner = np.mean(corners, axis=0)
     std_corner = np.std(corners, axis=0)
-    is_solid_corner = np.all(std_corner < 35)
+    is_solid_corner = np.all(std_corner < 25)
 
-    need_clean = is_border_checkerboard or is_border_white or is_border_black or is_solid_corner or (existing_trans_ratio < 0.05)
+    need_clean = is_border_checkerboard or is_border_white or is_border_black or is_solid_corner
 
     if need_clean:
         spread = np.max(rgb, axis=2) - np.min(rgb, axis=2)
         bright = np.mean(rgb, axis=2)
 
         if is_border_black:
-            is_bg = (bright <= 45) & (spread <= 22)
+            is_bg = (bright <= 40) & (spread <= 20)
         elif is_border_checkerboard or is_border_white:
             # Matches BOTH white studio AND checkerboard gray/white squares
             is_bg = (
                 ((spread <= 28) & (bright >= 155)) |
-                (bright >= 238)
+                (bright >= 240)
             )
         elif is_solid_corner:
             diff_corner = np.sqrt(np.sum((rgb - mean_corner)**2, axis=2))
-            is_bg = diff_corner < 42.0
+            is_bg = diff_corner < 35.0
         else:
             diff_corner = np.sqrt(np.sum((rgb - mean_corner)**2, axis=2))
-            is_bg = (diff_corner < 38.0) | ((spread <= 20) & (bright >= 180))
+            is_bg = diff_corner < 30.0
 
         from collections import deque
         visited = np.zeros((h, w), dtype=bool)
@@ -334,10 +346,6 @@ def make_transparent_cutout(
 
         # Set alpha: 0 for background, 255 for subject
         final_alpha = np.where(visited, 0, 255).astype(np.uint8)
-        if existing_trans_ratio > 0.05:
-            final_alpha = np.minimum(final_alpha, alpha_existing)
-
-        # Smooth alpha edge to eliminate pixelated fringes
         alpha_mask = Image.fromarray(final_alpha, "L").filter(ImageFilter.GaussianBlur(radius=0.7))
         pil_img.putalpha(alpha_mask)
 
@@ -1419,9 +1427,28 @@ def fetch_and_prepare_cutouts(
         try:
             from pinterest_downloader import fetch_pinterest_photos_via_gallery_dl
             print(f"📌 [Cutout Fetcher] Searching Pinterest for transparent cutout ({idx+1}/{len(entities)}): '{search_q}'...")
-            p_files = fetch_pinterest_photos_via_gallery_dl(search_q, limit=1, output_dir=output_dir, used_media_ids=used_ids, orientation="any")
-            if p_files and os.path.exists(p_files[0]) and os.path.getsize(p_files[0]) > 2000:
-                raw_downloaded = p_files[0]
+            p_files = fetch_pinterest_photos_via_gallery_dl(search_q, limit=5, output_dir=output_dir, used_media_ids=used_ids, orientation="any")
+            if p_files:
+                # Prioritize genuine transparent PNG cutouts with native alpha channel!
+                for pf in p_files:
+                    if os.path.exists(pf) and os.path.getsize(pf) > 2000:
+                        try:
+                            im_c = Image.open(pf)
+                            if 'A' in im_c.mode:
+                                arr_c = np.array(im_c)
+                                t_ratio = (arr_c[:, :, 3] < 128).sum() / max(1, arr_c[:, :, 3].size)
+                                if t_ratio >= 0.05:
+                                    raw_downloaded = pf
+                                    print(f"✅ [Cutout Fetcher] Picked genuine transparent PNG cutout ({t_ratio*100:.1f}% alpha): {os.path.basename(pf)}")
+                                    break
+                        except Exception:
+                            pass
+                if not raw_downloaded and p_files:
+                    # Pick first valid candidate
+                    for pf in p_files:
+                        if os.path.exists(pf) and os.path.getsize(pf) > 2000:
+                            raw_downloaded = pf
+                            break
         except Exception as e_pin:
             print(f"⚠️ [Cutout Fetcher Pinterest warning]: {e_pin}")
 

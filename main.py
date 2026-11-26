@@ -2311,7 +2311,7 @@ def full_process(req: VideoRequest, job_id: str):
                                 "raw": "futuristic modern ai technology microchip",
                                 "clean_en": "modern ai technology microchip",
                                 "label": "INNOVATION",
-                                "search": "modern ai technology microchip robotics transparent png cutout isolated"
+                                "search": "glowing neon circuit chip microchip transparent png cutout isolated"
                             })
                         elif any(k in txt_l or k in kw_l for k in ["हजारों साल", "इतिहास", "heritage", "temple"]):
                             ent_obj.append({
@@ -2343,7 +2343,8 @@ def full_process(req: VideoRequest, job_id: str):
                                 scene_text=scene_text,
                                 main_topic=main_topic,
                                 target_size=(target_w, target_h),
-                                fps=24
+                                fps=24,
+                                scene_index=i
                             )
                         else:
                             print(f"🎬 [Color Anime Scene {i+1}] Motion clip already cached: {os.path.basename(color_anime_clip)}")
