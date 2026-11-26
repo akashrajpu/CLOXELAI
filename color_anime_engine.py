@@ -963,6 +963,36 @@ def detect_color_anime_scene_elements(scene_text: str, main_topic: str = "") -> 
 
     # 5. Extract Giant Punchy Word for Kinetic Typography Layer
     PUNCHY_KEYWORDS = [
+        # Specific High-Drama Phrases (Check FIRST)
+        ("पीछे छोड़ पाएगा", "INDIA VS USA", "the ultimate question"),
+        ("पीछे छोड़", "SUPREMACY", "the race for"),
+        ("सवाल", "WHO WINS?", "the ultimate question"),
+        ("अस्तित्व", "UNEXPLORED", "back when america was"),
+        ("सोने की चिड़िया", "GOLDEN BIRD", "once known as"),
+        ("चिड़िया", "GOLDEN BIRD", "once known as"),
+        ("हजारों साल", "HERITAGE", "thousands of years of"),
+        ("आधुनिक तकनीक", "INNOVATION", "power of cutting edge"),
+        ("पुरानी ताकत", "RISING BHARAT", "reclaiming ancient"),
+        # Core Topical Words
+        ("तकनीक", "INNOVATION", "power of cutting edge"),
+        ("आधुनिक", "FUTURISTIC", "advancing through"),
+        ("technology", "TECHNOLOGY", "cutting edge"),
+        ("tech", "INNOVATION", "cutting edge"),
+        ("सोना", "GOLDEN ERA", "revisiting the"),
+        ("इतिहास", "HERITAGE", "thousands of years of"),
+        ("heritage", "HERITAGE", "rich ancient"),
+        ("ancient", "ANCIENT", "deep rooted in"),
+        ("संभावना", "POTENTIAL", "unlimited economic"),
+        ("अमेरिका", "SUPERPOWER", "rise of the modern"),
+        ("america", "SUPERPOWER", "rise of the modern"),
+        ("usa", "SUPERPOWER", "rise of the modern"),
+        ("शक्ति", "GLOBAL MIGHT", "the ultimate"),
+        ("ताकत", "GLOBAL POWER", "reclaiming the"),
+        ("superpower", "SUPERPOWER", "rise of the modern"),
+        ("भारत", "BHARAT", "the rise of"),
+        ("bharat", "BHARAT", "the rise of"),
+        ("india", "BHARAT", "the rise of"),
+        # Standard Motivation & Hustle
         ("practice", "PRACTICE", "so you can"),
         ("प्रैक्टिस", "PRACTICE", "so you can"),
         ("अनुशासन", "DISCIPLINE", "staying true to"),
@@ -1016,17 +1046,21 @@ def detect_color_anime_scene_elements(scene_text: str, main_topic: str = "") -> 
             selected_punchy = "DISCIPLINE"
             selected_intro = "so you can"
 
-    # 6. Resolve Theme
+    # 6. Resolve Theme based on scene context
     if is_alert:
         theme_name = "crimson_alert"
     elif is_bauhaus:
         theme_name = "bauhaus_minimal"
+    elif any(k in text_lower for k in ["चिड़िया", "सोना", "gold", "golden", "इतिहास", "heritage", "हजारों साल"]):
+        theme_name = "gold_luxury"
+    elif any(k in text_lower for k in ["तकनीक", "tech", "technology", "आधुनिक", "ai", "cyber", "digital", "microchip"]):
+        theme_name = "cyan_cyber"
+    elif any(k in text_lower for k in ["पीछे छोड़", "सवाल", "who wins", "clash", "vs", "race"]):
+        theme_name = "crimson_alert"
     elif is_wealth:
         theme_name = "emerald_space"
     elif any(k in text_lower for k in ["space", "अंतरिक्ष", "तारे", "galaxy", "moon", "ग्रह"]):
         theme_name = "space_cosmos"
-    elif any(k in text_lower for k in ["ai", "cyber", "hacker", "code", "tech", "computer"]):
-        theme_name = "cyan_cyber"
     else:
         theme_name = "emerald_space"
 
