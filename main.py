@@ -2268,18 +2268,71 @@ def full_process(req: VideoRequest, job_id: str):
                         from color_anime_engine import render_color_anime_motion_clip
 
                         # Resolve entity visual phrase for transparent cutout
-                        en_entity = translate_to_visual_english(scene_kw or scene_text, main_topic) if translate_to_visual_english else (scene_kw or main_topic)
-                        clean_entity_words = [w for w in en_entity.split() if w.lower() not in ["cinematic", "animation", "photo", "video", "4k", "hd", "isolated", "transparent"]][:3]
-                        entity_term = " ".join(clean_entity_words) or main_topic
+                        txt_l = (scene_text or "").lower()
+                        kw_l = (scene_kw or "").lower()
 
-                        ent_obj = [{
-                            "raw": scene_kw or scene_text,
-                            "clean_en": entity_term,
-                            "label": entity_term.upper()[:15],
-                            "search": f"{entity_term} transparent png cutout isolated"
-                        }]
+                        ent_obj = []
+                        # Check for specific dual-entity comparison or high-relevance themes
+                        has_india = any(k in txt_l or k in kw_l for k in ["भारत", "india", "bharat", "हिंदुस्तान"])
+                        has_america = any(k in txt_l or k in kw_l for k in ["अमेरिका", "america", "usa", "us "])
+                        has_gold_bird = any(k in txt_l or k in kw_l for k in ["चिड़िया", "सोने की चिड़िया", "golden bird"])
 
-                        print(f"🎨 [Color Anime Scene {i+1}] Downloading Transparent Cutout for '{entity_term}' & rendering 2.5D Dark Cosmic Motion Clip...")
+                        if has_gold_bird:
+                            ent_obj.append({
+                                "raw": "golden bird ancient india sparrow",
+                                "clean_en": "golden bird ancient india sparrow",
+                                "label": "GOLDEN BIRD",
+                                "search": "golden bird ancient india sparrow transparent png cutout isolated"
+                            })
+                            if has_america:
+                                ent_obj.append({
+                                    "raw": "america vintage map",
+                                    "clean_en": "United States vintage map",
+                                    "label": "AMERICA",
+                                    "search": "United States vintage map transparent png cutout isolated"
+                                })
+                        elif has_india and has_america:
+                            ent_obj = [
+                                {
+                                    "raw": "India map territory flag",
+                                    "clean_en": "India map territory flag",
+                                    "label": "INDIA",
+                                    "search": "India map territory flag transparent png cutout isolated"
+                                },
+                                {
+                                    "raw": "United States America flag map",
+                                    "clean_en": "United States America flag map",
+                                    "label": "AMERICA",
+                                    "search": "United States America flag map transparent png cutout isolated"
+                                }
+                            ]
+                        elif any(k in txt_l or k in kw_l for k in ["आधुनिक तकनीक", "तकनीक", "technology", "ai"]):
+                            ent_obj.append({
+                                "raw": "futuristic modern ai technology microchip",
+                                "clean_en": "modern ai technology microchip",
+                                "label": "INNOVATION",
+                                "search": "modern ai technology microchip robotics transparent png cutout isolated"
+                            })
+                        elif any(k in txt_l or k in kw_l for k in ["हजारों साल", "इतिहास", "heritage", "temple"]):
+                            ent_obj.append({
+                                "raw": "ancient indian heritage temple civilization",
+                                "clean_en": "ancient indian heritage temple history",
+                                "label": "HERITAGE",
+                                "search": "ancient indian heritage temple history transparent png cutout isolated"
+                            })
+                        else:
+                            en_entity = translate_to_visual_english(scene_kw or scene_text, main_topic) if translate_to_visual_english else (scene_kw or main_topic)
+                            clean_entity_words = [w for w in en_entity.split() if w.lower() not in ["cinematic", "animation", "photo", "video", "4k", "hd", "isolated", "transparent"]][:3]
+                            entity_term = " ".join(clean_entity_words) or main_topic
+                            ent_obj = [{
+                                "raw": scene_kw or scene_text,
+                                "clean_en": entity_term,
+                                "label": entity_term.upper()[:15],
+                                "search": f"{entity_term} transparent png cutout isolated"
+                            }]
+
+                        ent_terms_summary = " & ".join([e.get("clean_en", "") for e in ent_obj])
+                        print(f"🎨 [Color Anime Scene {i+1}] Downloading Transparent Cutouts for '{ent_terms_summary}' & rendering 2.5D Dark Cosmic Motion Clip...")
                         cutout_pngs = fetch_and_prepare_cutouts(ent_obj, output_dir=job_dir, used_media_ids=used_media_ids)
                         color_anime_clip = os.path.join(job_dir, f"color_anime_clip_{i}.mp4")
                         if not (os.path.exists(color_anime_clip) and os.path.getsize(color_anime_clip) > 1000):

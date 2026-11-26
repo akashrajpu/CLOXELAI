@@ -1147,15 +1147,43 @@ def render_color_anime_motion_clip(
         fb_draw.rounded_rectangle([(100, 290), (500, 720)], radius=60, fill=(210, 225, 238, 255), outline=(255, 255, 255, 220), width=6)
         loaded_cutouts.append(fallback_hero)
 
-    hero_cutout = loaded_cutouts[0]
-    cw, ch = hero_cutout.size
+    # 4. Prepare and clean character/object cutouts
+    from collage_cutout_engine import make_transparent_cutout, sharpen_cutout, create_cutout_drop_shadow
 
-    # Target scale: fill ~52% of vertical frame height
-    target_cutout_h = int(h * 0.52)
-    cutout_scale = target_cutout_h / max(1, ch)
-    target_cutout_w = int(cw * cutout_scale)
-    base_cutout = hero_cutout.resize((target_cutout_w, target_cutout_h), Image.LANCZOS)
-    base_cutout = sharpen_cutout(base_cutout, amount=1.20)
+    loaded_cutouts = []
+    for p in cutout_paths:
+        if p and os.path.exists(p):
+            try:
+                c = make_transparent_cutout(p)
+                if c and c.width > 20 and c.height > 20:
+                    loaded_cutouts.append(c)
+            except Exception as e_c:
+                print(f"⚠️ [Color Anime Engine] Warning loading cutout {p}: {e_c}")
+
+    if not loaded_cutouts:
+        # High-aesthetic fallback hero emblem / silhouette
+        fallback_hero = Image.new("RGBA", (600, 750), (0, 0, 0, 0))
+        fb_draw = ImageDraw.Draw(fallback_hero)
+        fb_draw.ellipse([(180, 60), (420, 300)], fill=(225, 235, 245, 255), outline=(255, 255, 255, 240), width=6)
+        fb_draw.ellipse([(215, 100), (385, 250)], fill=(15, 20, 30, 255), outline=(0, 230, 118, 220), width=4)
+        fb_draw.rounded_rectangle([(100, 290), (500, 720)], radius=60, fill=(210, 225, 238, 255), outline=(255, 255, 255, 220), width=6)
+        loaded_cutouts.append(fallback_hero)
+
+    is_multi = len(loaded_cutouts) >= 2
+    processed_cutouts = []
+
+    for c_raw in loaded_cutouts[:2]:
+        cw_r, ch_r = c_raw.size
+        target_ch = int(h * 0.42) if is_multi else int(h * 0.50)
+        c_scale = target_ch / max(1, ch_r)
+        target_cw = int(cw_r * c_scale)
+        max_cw = int(w * 0.44) if is_multi else int(w * 0.85)
+        if target_cw > max_cw:
+            target_cw = max_cw
+            target_ch = int(ch_r * (max_cw / cw_r))
+        c_ready = c_raw.resize((max(10, target_cw), max(10, target_ch)), Image.LANCZOS)
+        c_ready = sharpen_cutout(c_ready, amount=1.20)
+        processed_cutouts.append(c_ready)
 
     # 5. Setup FFmpeg streaming pipe (< 35MB RAM)
     ffmpeg_cmd = [
@@ -1178,6 +1206,9 @@ def render_color_anime_motion_clip(
     halo_center = (w // 2, int(h * 0.42))
     halo_radius = int(w * 0.28)
     text_center_y = int(h * 0.44)
+
+    # Alternate slide entrance direction for single cutouts (Left or Right)
+    slide_dir = -1 if (hash(scene_text) % 2 == 0) else 1
 
     # Bauhaus callout points of interest
     bauhaus_callouts = [
@@ -1223,33 +1254,56 @@ def render_color_anime_motion_clip(
         )
 
         # -------------------------------------------------------------------
-        # LAYER 4: Foreground Character Cutout (Elastic Bounce Pop-in & 3D Sway)
+        # LAYER 4: Foreground Character/Object Cutouts (Side Slide-in & Rock Solid Stability)
         # -------------------------------------------------------------------
-        # Elastic Entrance: rockets up from y + 320px with spring overshoot
-        bounce_char = spring_bounce(t, duration=0.38, overshoot=0.25)
-        offset_y = int(320 * (1.0 - bounce_char))
+        if not is_multi:
+            # Single Cutout: Snappy Slide-in from the side (Left or Right), then stays firmly locked in place
+            c_main = processed_cutouts[0]
+            slide_val = spring_bounce(t, duration=0.35, overshoot=0.08)
+            offset_x = int(w * 0.80 * (1.0 - slide_val) * slide_dir)
+            
+            char_x = int(w // 2 - c_main.width // 2 + offset_x)
+            char_y = int(h * 0.54 - c_main.height // 2)
 
-        # 3D Sway & Floating Physics
-        hover_y = int(28 * math.sin(t * math.pi * 2.2))
-        sway_deg = 3.0 * math.sin(t * math.pi * 1.8)
-        char_scale_dyn = 1.0 + (1.0 - bounce_char) * 0.20 + t_norm * 0.04
+            sh_main, sh_off = create_cutout_drop_shadow(c_main, blur_radius=18, offset=(8, 16), shadow_opacity=0.45)
+            frame.paste(sh_main, (char_x + sh_off[0], char_y + sh_off[1]), mask=sh_main)
+            frame.paste(c_main, (char_x, char_y), mask=c_main)
+        else:
+            # Multi-Cutout Narrative Layout (e.g. India on Left, America on Right)
+            c_left = processed_cutouts[0]
+            c_right = processed_cutouts[1]
 
-        curr_cw = max(10, int(base_cutout.width * char_scale_dyn))
-        curr_ch = max(10, int(base_cutout.height * char_scale_dyn))
+            # Cutout 1: Slides in from LEFT at t=0.0s
+            slide_1 = spring_bounce(t, duration=0.35, overshoot=0.08)
+            target_x1 = int(w * 0.28 - c_left.width // 2)
+            x1 = int(target_x1 - w * 0.60 * (1.0 - slide_1))
+            y1 = int(h * 0.54 - c_left.height // 2)
 
-        c_dyn = base_cutout.resize((curr_cw, curr_ch), Image.LANCZOS)
-        if abs(sway_deg) > 0.4:
-            c_dyn = c_dyn.rotate(sway_deg, expand=True, resample=Image.BICUBIC)
+            sh_l, sh_off_l = create_cutout_drop_shadow(c_left, blur_radius=16, offset=(6, 14), shadow_opacity=0.42)
+            frame.paste(sh_l, (x1 + sh_off_l[0], y1 + sh_off_l[1]), mask=sh_l)
+            frame.paste(c_left, (x1, y1), mask=c_left)
 
-        # Dynamic Drop Shadow following sway & hover
-        sh_dyn, sh_off = create_cutout_drop_shadow(c_dyn, blur_radius=20, offset=(int(sway_deg * 2), 20), shadow_opacity=0.45)
+            # Cutout 2: Slides in from RIGHT at t=0.7s (when the second subject is introduced in audio)
+            t_sub2 = max(0.0, t - 0.70)
+            if t >= 0.70:
+                slide_2 = spring_bounce(t_sub2, duration=0.35, overshoot=0.08)
+                target_x2 = int(w * 0.72 - c_right.width // 2)
+                x2 = int(target_x2 + w * 0.60 * (1.0 - slide_2))
+                y2 = int(h * 0.54 - c_right.height // 2)
 
-        char_x = int(w // 2 - c_dyn.width / 2)
-        char_y = int(h * 0.54 - c_dyn.height / 2 + hover_y + offset_y)
+                sh_r, sh_off_r = create_cutout_drop_shadow(c_right, blur_radius=16, offset=(6, 14), shadow_opacity=0.42)
+                frame.paste(sh_r, (x2 + sh_off_r[0], y2 + sh_off_r[1]), mask=sh_r)
+                frame.paste(c_right, (x2, y2), mask=c_right)
 
-        # Paste shadow then cutout over giant background text!
-        frame.paste(sh_dyn, (char_x + sh_off[0], char_y + sh_off[1]), mask=sh_dyn)
-        frame.paste(c_dyn, (char_x, char_y), mask=c_dyn)
+            # Glowing Center VS Badge between both cutouts
+            if t >= 0.75:
+                t_vs = max(0.0, t - 0.75)
+                bounce_vs = spring_bounce(t_vs, duration=0.30, overshoot=0.15)
+                r_vs = int(28 * bounce_vs)
+                cx_vs, cy_vs = w // 2, int(h * 0.54)
+                draw.ellipse([(cx_vs - r_vs, cy_vs - r_vs), (cx_vs + r_vs, cy_vs + r_vs)], fill=(15, 23, 42, 240), outline=theme["primary_neon"], width=3)
+                font_vs = get_clean_font(int(22 * bounce_vs), font_type="bold")
+                draw.text((cx_vs, cy_vs), "VS", fill=theme["primary_neon"], font=font_vs, anchor="mm")
 
         # -------------------------------------------------------------------
         # LAYER 5: Foreground Flying 3D Props (Close-up tumbling cash with motion blur)

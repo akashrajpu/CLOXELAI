@@ -249,7 +249,8 @@ def make_transparent_cutout(
 ) -> Image.Image:
     """
     Takes an input image and guarantees a clean transparent PNG cutout.
-    Trims borders and extracts silhouette.
+    Eliminates fake checkerboard patterns, studio white/gray/black backgrounds,
+    trims borders and extracts silhouette with smooth anti-aliased alpha.
     """
     if isinstance(img_input, str):
         pil_img = Image.open(img_input).convert("RGBA")
@@ -258,82 +259,94 @@ def make_transparent_cutout(
 
     w, h = pil_img.size
     np_rgba = np.array(pil_img)
+    rgb = np_rgba[:, :, :3].astype(np.float32)
 
-    # Check if already transparent RGBA
-    alpha_channel = np_rgba[:, :, 3]
-    transparent_ratio = np.count_nonzero(alpha_channel < 50) / (w * h)
-    
-    if transparent_ratio > 0.05:
-        bbox = pil_img.getbbox()
-        if bbox:
-            pil_img = pil_img.crop(bbox)
-        if output_png:
-            pil_img.save(output_png, format="PNG")
-        return pil_img
+    # 1. Check existing alpha transparency
+    alpha_existing = np_rgba[:, :, 3].copy()
+    existing_trans_ratio = np.count_nonzero(alpha_existing < 50) / max(1, w * h)
 
-    # Check outer corners for solid white/black/grey studio background
-    corners = [
-        np_rgba[0:15, 0:15, :3],
-        np_rgba[0:15, -15:, :3],
-        np_rgba[-15:, 0:15, :3],
-        np_rgba[-15:, -15:, :3]
-    ]
-    mean_corner = np.mean([c.mean(axis=(0, 1)) for c in corners], axis=0)
-    is_white_bg = np.all(mean_corner > 220)
-    is_black_bg = np.all(mean_corner < 35)
+    # 2. Analyze perimeter borders (all 4 edges) for background candidates
+    border_pixels = np.concatenate([
+        rgb[0, :, :], rgb[h - 1, :, :],
+        rgb[:, 0, :], rgb[:, w - 1, :]
+    ], axis=0)
 
-    if is_white_bg or is_black_bg:
-        rgb_data = np_rgba[:, :, :3].astype(np.float32)
-        diff = np.sqrt(np.sum((rgb_data - mean_corner)**2, axis=2))
-        thresh = 40.0 if is_white_bg else 35.0
-        mask = (diff < thresh).astype(np.uint8)
-        
+    spread_b = np.max(border_pixels, axis=1) - np.min(border_pixels, axis=1)
+    bright_b = np.mean(border_pixels, axis=1)
+
+    # Detect fake checkerboard (alternating white/gray neutral tiles) or solid studio backgrounds
+    is_border_checkerboard = np.count_nonzero((spread_b <= 28) & (bright_b >= 155)) / max(1, len(border_pixels)) > 0.35
+    is_border_white = np.count_nonzero(bright_b >= 235) / max(1, len(border_pixels)) > 0.30
+    is_border_black = np.count_nonzero((bright_b <= 40) & (spread_b <= 20)) / max(1, len(border_pixels)) > 0.40
+
+    corners = np.concatenate([
+        rgb[0:15, 0:15], rgb[0:15, -15:],
+        rgb[-15:, 0:15], rgb[-15:, -15:]
+    ], axis=0).reshape(-1, 3)
+    mean_corner = np.mean(corners, axis=0)
+    std_corner = np.std(corners, axis=0)
+    is_solid_corner = np.all(std_corner < 35)
+
+    need_clean = is_border_checkerboard or is_border_white or is_border_black or is_solid_corner or (existing_trans_ratio < 0.05)
+
+    if need_clean:
+        spread = np.max(rgb, axis=2) - np.min(rgb, axis=2)
+        bright = np.mean(rgb, axis=2)
+
+        if is_border_black:
+            is_bg = (bright <= 45) & (spread <= 22)
+        elif is_border_checkerboard or is_border_white:
+            # Matches BOTH white studio AND checkerboard gray/white squares
+            is_bg = (
+                ((spread <= 28) & (bright >= 155)) |
+                (bright >= 238)
+            )
+        elif is_solid_corner:
+            diff_corner = np.sqrt(np.sum((rgb - mean_corner)**2, axis=2))
+            is_bg = diff_corner < 42.0
+        else:
+            diff_corner = np.sqrt(np.sum((rgb - mean_corner)**2, axis=2))
+            is_bg = (diff_corner < 38.0) | ((spread <= 20) & (bright >= 180))
+
         from collections import deque
         visited = np.zeros((h, w), dtype=bool)
         queue = deque()
 
         for x in range(w):
-            if mask[0, x]: queue.append((0, x))
-            if mask[h - 1, x]: queue.append((h - 1, x))
+            if is_bg[0, x]: queue.append((0, x))
+            if is_bg[h - 1, x]: queue.append((h - 1, x))
         for y in range(h):
-            if mask[y, 0]: queue.append((y, 0))
-            if mask[y, w - 1]: queue.append((y, w - 1))
+            if is_bg[y, 0]: queue.append((y, 0))
+            if is_bg[y, w - 1]: queue.append((y, w - 1))
 
+        for cy, cx in queue:
+            visited[cy, cx] = True
+
+        neighbors = [(-1, 0), (1, 0), (0, -1), (0, 1)]
         while queue:
             cy, cx = queue.popleft()
-            if visited[cy, cx]:
-                continue
-            visited[cy, cx] = True
-            for dy, dx in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
+            for dy, dx in neighbors:
                 ny, nx = cy + dy, cx + dx
                 if 0 <= ny < h and 0 <= nx < w and not visited[ny, nx]:
-                    if mask[ny, nx]:
+                    if is_bg[ny, nx]:
+                        visited[ny, nx] = True
                         queue.append((ny, nx))
 
+        # Set alpha: 0 for background, 255 for subject
         final_alpha = np.where(visited, 0, 255).astype(np.uint8)
-        pil_alpha = Image.fromarray(final_alpha, "L").filter(ImageFilter.GaussianBlur(radius=0.8))
-        pil_img.putalpha(pil_alpha)
+        if existing_trans_ratio > 0.05:
+            final_alpha = np.minimum(final_alpha, alpha_existing)
 
-        bbox = pil_img.getbbox()
-        if bbox:
-            pil_img = pil_img.crop(bbox)
-        if output_png:
-            pil_img.save(output_png, format="PNG")
-        return pil_img
+        # Smooth alpha edge to eliminate pixelated fringes
+        alpha_mask = Image.fromarray(final_alpha, "L").filter(ImageFilter.GaussianBlur(radius=0.7))
+        pil_img.putalpha(alpha_mask)
 
-    try:
-        from bg_remover import remove_background_pro
-        cutout = remove_background_pro(pil_img)
-        bbox = cutout.getbbox()
-        if bbox:
-            cutout = cutout.crop(bbox)
-        if output_png:
-            cutout.save(output_png, format="PNG")
-        return cutout
-    except Exception:
-        if output_png:
-            pil_img.save(output_png, format="PNG")
-        return pil_img
+    bbox = pil_img.getbbox()
+    if bbox:
+        pil_img = pil_img.crop(bbox)
+    if output_png:
+        pil_img.save(output_png, format="PNG")
+    return pil_img
 
 
 def create_cutout_drop_shadow(
