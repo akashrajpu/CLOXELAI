@@ -164,8 +164,44 @@ def mix_sound_effects_into_audio(
 
 
 # ==============================================================================
-# DROP SHADOW & CUTOUT PREPARATION
+# AFTER EFFECTS SPRING BOUNCE & DROP SHADOW PREPARATION
 # ==============================================================================
+
+def spring_bounce(
+    t: float,
+    duration: float = 0.40,
+    overshoot: float = 0.12,
+    freq: float = 12.0,
+    decay: float = 7.0
+) -> float:
+    """
+    Standard After Effects Bounce Script expression (Dan Ebberts / MotionScript).
+    Returns smooth damped spring motion settling gracefully to 1.0.
+    """
+    if t <= 0.0:
+        return 0.0
+    if t >= duration:
+        return 1.0
+    t_n = t / duration
+    return 1.0 - math.exp(-decay * t_n) * math.cos(freq * t_n)
+
+
+def draw_vs_badge(
+    draw: ImageDraw.ImageDraw,
+    center: Tuple[int, int],
+    theme_name: str = "emerald",
+    scale: float = 1.0
+):
+    """Renders a sleek glowing After Effects VS comparison badge between dual entities."""
+    cx, cy = center
+    r = int(26 * scale)
+    if r < 8:
+        return
+    accent = (0, 230, 118) if theme_name == "emerald" else ((0, 229, 255) if theme_name == "cyan" else (255, 179, 0))
+    draw.ellipse([cx - r, cy - r, cx + r, cy + r], fill=(15, 20, 28, 240), outline=accent, width=2)
+    f_vs = get_clean_font(max(12, int(20 * scale)), "bold")
+    draw.text((cx, cy), "VS", fill=accent, font=f_vs, anchor="mm")
+
 
 def create_cutout_drop_shadow(
     cutout_img: Image.Image,
@@ -627,7 +663,16 @@ def detect_documentary_scene_archetype(
             "theme": "amber"
         }
 
-    # 3. Modern Power / Technology / Dramatic Question Cues -> Vane Motion Dark Studio
+    # 3. Geopolitical Dual Nation Comparison Cues -> Nitish Theatrical Window
+    if any(k in t_clean for k in ["एक तरफ", "दूसरी तरफ", "गुलामी", "आज़ादी", "rivalry", "versus", "clash"]):
+        return "nitish_theatrical_window", {
+            "giant_word": "GLOBAL POWERS",
+            "context": "the historic clash",
+            "ui_type": "none",
+            "theme": "amber"
+        }
+
+    # 4. Modern Power / Technology / Dramatic Question Cues -> Vane Motion Dark Studio
     modern_cues = [
         "तकनीक", "आधुनिक", "शक्ति", "सुपरपावर", "अमेरिका", "सवाल", "आगे", "पीछे", "भविष्य",
         "practice", "power", "superpower", "technology", "ai", "modern", "future", "system", "profit", "pass", "evaluation"
@@ -736,21 +781,29 @@ def render_nitish_documentary_motion_clip(
             except Exception:
                 pass
 
-    # 3. Load & Prepare Cutout Subject
+    # 3. Load & Prepare Cutout Subject (Multi-Entity & Side Entrances)
     valid_cutouts = [p for p in cutout_paths if p and os.path.exists(p) and os.path.getsize(p) > 500]
-    primary_cutout = None
+    processed_cutouts = []
+    from collage_cutout_engine import strip_fake_checkerboard
 
-    if valid_cutouts:
+    for p in valid_cutouts[:3]:
         try:
-            raw_c = Image.open(valid_cutouts[0]).convert("RGBA")
-            # Enforce clean alpha (strip any fake checkerboard)
-            from collage_cutout_engine import strip_fake_checkerboard
-            primary_cutout = strip_fake_checkerboard(raw_c)
+            raw_c = Image.open(p).convert("RGBA")
+            cleaned_c = strip_fake_checkerboard(raw_c)
+            cleaned_c = sharpen_cutout(cleaned_c, amount=1.20)
+            processed_cutouts.append(cleaned_c)
         except Exception as e_c:
             print(f"⚠️ [Documentary Cutout Notice]: {e_c}")
 
-    if not primary_cutout:
-        primary_cutout = Image.new("RGBA", (400, 400), (40, 160, 220, 220))
+    if not processed_cutouts:
+        processed_cutouts = [Image.new("RGBA", (400, 400), (40, 160, 220, 220))]
+
+    num_cutouts = len(processed_cutouts)
+    primary_cutout = processed_cutouts[0]
+
+    # If multiple cutouts exist (e.g. America & India), add second whoosh at t=0.40s
+    if num_cutouts >= 2 and os.path.exists(whoosh_path):
+        sfx_events.append({"file": whoosh_path, "time_sec": 0.40, "volume": 0.32})
 
     # Pre-render background bases depending on archetype
     if archetype == "vane_motion_dark_studio":
@@ -834,18 +887,67 @@ def render_nitish_documentary_motion_clip(
                 zoom_scale=text_zoom
             )
 
-            # Layer 3: MIDGROUND SUBJECT CUTOUT (Overlapping Text in Front)
-            cutout_zoom = 1.00 + ease_zoom * 0.16 + zoom_through_accel * 1.5
-            cw = int(cutout_hero.width * cutout_zoom)
-            ch = int(cutout_hero.height * cutout_zoom)
-            cx = (w - cw) // 2
-            cy = int(h * 0.54 - ch // 2)
+            # Layer 3: MIDGROUND SUBJECT CUTOUT(S) (Overlapping Text in Front)
+            if num_cutouts >= 2:
+                # DUAL SPLIT: Left entity slides in from Left, Right entity slides in from Right!
+                c_left = processed_cutouts[0]
+                c_right = processed_cutouts[1]
 
-            sub_scaled = cutout_hero.resize((cw, ch), Image.BILINEAR)
-            # Realistic directional drop shadow cast backwards onto text
-            sh_c, sh_off = create_cutout_drop_shadow(sub_scaled, blur_radius=22, offset=(8, 16), shadow_opacity=0.55)
-            frame_full.paste(sh_c, (cx + sh_off[0], cy + sh_off[1]), mask=sh_c)
-            frame_full.paste(sub_scaled, (cx, cy), mask=sub_scaled)
+                # Cutout 1 (Left - e.g. America): slides from Left
+                slide_1 = spring_bounce(t, duration=0.38, overshoot=0.10)
+                scale_1 = min((w * 0.44) / max(1, c_left.width), (h * 0.48) / max(1, c_left.height))
+                c1_w = int(c_left.width * scale_1 * (1.00 + ease_zoom * 0.12))
+                c1_h = int(c_left.height * scale_1 * (1.00 + ease_zoom * 0.12))
+                s1_scaled = c_left.resize((c1_w, c1_h), Image.BILINEAR)
+
+                target_x1 = int(w * 0.27 - c1_w // 2)
+                x1 = int(target_x1 - w * 0.55 * (1.0 - slide_1))
+                y1 = int(h * 0.54 - c1_h // 2)
+
+                sh_1, off_1 = create_cutout_drop_shadow(s1_scaled, blur_radius=18, offset=(6, 14), shadow_opacity=0.50)
+                frame_full.paste(sh_1, (x1 + off_1[0], y1 + off_1[1]), mask=sh_1)
+                frame_full.paste(s1_scaled, (x1, y1), mask=s1_scaled)
+
+                # Cutout 2 (Right - e.g. Bharat): slides from Right staggered at t >= 0.35s
+                if t >= 0.35:
+                    t_sub2 = max(0.0, t - 0.35)
+                    slide_2 = spring_bounce(t_sub2, duration=0.38, overshoot=0.10)
+                    scale_2 = min((w * 0.44) / max(1, c_right.width), (h * 0.48) / max(1, c_right.height))
+                    c2_w = int(c_right.width * scale_2 * (1.00 + ease_zoom * 0.12))
+                    c2_h = int(c_right.height * scale_2 * (1.00 + ease_zoom * 0.12))
+                    s2_scaled = c_right.resize((c2_w, c2_h), Image.BILINEAR)
+
+                    target_x2 = int(w * 0.73 - c2_w // 2)
+                    x2 = int(target_x2 + w * 0.55 * (1.0 - slide_2))
+                    y2 = int(h * 0.54 - c2_h // 2)
+
+                    sh_2, off_2 = create_cutout_drop_shadow(s2_scaled, blur_radius=18, offset=(6, 14), shadow_opacity=0.50)
+                    frame_full.paste(sh_2, (x2 + off_2[0], y2 + off_2[1]), mask=sh_2)
+                    frame_full.paste(s2_scaled, (x2, y2), mask=s2_scaled)
+
+                # Center VS comparison badge
+                if t >= 0.55:
+                    t_vs = max(0.0, t - 0.55)
+                    vs_b = spring_bounce(t_vs, duration=0.28, overshoot=0.15)
+                    draw_vs_badge(draw_full, (w // 2, int(h * 0.54)), theme_name=theme_name, scale=vs_b)
+
+            else:
+                # SINGLE CUTOUT: Dynamic entrance direction (Left or Right side slide with spring bounce!)
+                slide_dir = -1 if (scene_index % 2 == 0) else 1
+                slide_val = spring_bounce(t, duration=0.40, overshoot=0.10)
+
+                cutout_zoom = 1.00 + ease_zoom * 0.16 + zoom_through_accel * 1.5
+                cw = int(cutout_hero.width * cutout_zoom)
+                ch = int(cutout_hero.height * cutout_zoom)
+                target_cx = (w - cw) // 2
+                offset_x = int(w * 0.55 * (1.0 - slide_val) * slide_dir)
+                cx = target_cx + offset_x
+                cy = int(h * 0.54 - ch // 2)
+
+                sub_scaled = cutout_hero.resize((cw, ch), Image.BILINEAR)
+                sh_c, sh_off = create_cutout_drop_shadow(sub_scaled, blur_radius=22, offset=(8, 16), shadow_opacity=0.55)
+                frame_full.paste(sh_c, (cx + sh_off[0], cy + sh_off[1]), mask=sh_c)
+                frame_full.paste(sub_scaled, (cx, cy), mask=sub_scaled)
 
             # Layer 4: Modern UI Overlays (Checklists / Alert Cards)
             if meta.get("ui_type") in ["checklist", "scam_alert"]:
@@ -889,16 +991,63 @@ def render_nitish_documentary_motion_clip(
                 sky_bg = create_cinematic_sky_background(width=box_w, height=box_h, t=t)
                 frame_16_9 = sky_bg
 
-                m_zoom = 1.00 + ease_zoom * 0.14 + zoom_through_accel
-                mw = int(monument_ready.width * m_zoom)
-                mh = int(monument_ready.height * m_zoom)
-                mx = (box_w - mw) // 2
-                my = int(box_h * 0.90 - mh)
+                if num_cutouts >= 2:
+                    # Dual cutouts in 16:9 window: Left entity slides from Left, Right entity slides from Right!
+                    c_left = processed_cutouts[0]
+                    c_right = processed_cutouts[1]
 
-                monument_scaled = monument_ready.resize((mw, mh), Image.BILINEAR)
-                sh_m, sh_off_m = create_cutout_drop_shadow(monument_scaled, blur_radius=18, offset=(0, 12), shadow_opacity=0.45)
-                frame_16_9.paste(sh_m, (mx + sh_off_m[0], my + sh_off_m[1]), mask=sh_m)
-                frame_16_9.paste(monument_scaled, (mx, my), mask=monument_scaled)
+                    slide_1 = spring_bounce(t, duration=0.38, overshoot=0.10)
+                    scale_1 = min((box_w * 0.42) / max(1, c_left.width), (box_h * 0.72) / max(1, c_left.height))
+                    c1_w = int(c_left.width * scale_1 * (1.00 + ease_zoom * 0.10))
+                    c1_h = int(c_left.height * scale_1 * (1.00 + ease_zoom * 0.10))
+                    s1_scaled = c_left.resize((c1_w, c1_h), Image.BILINEAR)
+
+                    target_x1 = int(box_w * 0.26 - c1_w // 2)
+                    x1 = int(target_x1 - box_w * 0.50 * (1.0 - slide_1))
+                    y1 = int(box_h * 0.88 - c1_h)
+
+                    sh_1, off_1 = create_cutout_drop_shadow(s1_scaled, blur_radius=16, offset=(4, 10), shadow_opacity=0.45)
+                    frame_16_9.paste(sh_1, (x1 + off_1[0], y1 + off_1[1]), mask=sh_1)
+                    frame_16_9.paste(s1_scaled, (x1, y1), mask=s1_scaled)
+
+                    if t >= 0.35:
+                        t_sub2 = max(0.0, t - 0.35)
+                        slide_2 = spring_bounce(t_sub2, duration=0.38, overshoot=0.10)
+                        scale_2 = min((box_w * 0.42) / max(1, c_right.width), (box_h * 0.72) / max(1, c_right.height))
+                        c2_w = int(c_right.width * scale_2 * (1.00 + ease_zoom * 0.10))
+                        c2_h = int(c_right.height * scale_2 * (1.00 + ease_zoom * 0.10))
+                        s2_scaled = c_right.resize((c2_w, c2_h), Image.BILINEAR)
+
+                        target_x2 = int(box_w * 0.74 - c2_w // 2)
+                        x2 = int(target_x2 + box_w * 0.50 * (1.0 - slide_2))
+                        y2 = int(box_h * 0.88 - c2_h)
+
+                        sh_2, off_2 = create_cutout_drop_shadow(s2_scaled, blur_radius=16, offset=(4, 10), shadow_opacity=0.45)
+                        frame_16_9.paste(sh_2, (x2 + off_2[0], y2 + off_2[1]), mask=sh_2)
+                        frame_16_9.paste(s2_scaled, (x2, y2), mask=s2_scaled)
+
+                    if t >= 0.55:
+                        t_vs = max(0.0, t - 0.55)
+                        vs_b = spring_bounce(t_vs, duration=0.28, overshoot=0.15)
+                        d_169 = ImageDraw.Draw(frame_16_9, "RGBA")
+                        draw_vs_badge(d_169, (box_w // 2, int(box_h * 0.50)), theme_name=theme_name, scale=vs_b)
+
+                else:
+                    # Single cutout: Smooth entrance from side (Left or Right)
+                    slide_dir = -1 if (scene_index % 2 == 0) else 1
+                    slide_val = spring_bounce(t, duration=0.40, overshoot=0.09)
+
+                    m_zoom = 1.00 + ease_zoom * 0.14 + zoom_through_accel
+                    mw = int(monument_ready.width * m_zoom)
+                    mh = int(monument_ready.height * m_zoom)
+                    target_mx = (box_w - mw) // 2
+                    mx = int(target_mx + box_w * 0.45 * (1.0 - slide_val) * slide_dir)
+                    my = int(box_h * 0.90 - mh)
+
+                    monument_scaled = monument_ready.resize((mw, mh), Image.BILINEAR)
+                    sh_m, sh_off_m = create_cutout_drop_shadow(monument_scaled, blur_radius=18, offset=(0, 12), shadow_opacity=0.45)
+                    frame_16_9.paste(sh_m, (mx + sh_off_m[0], my + sh_off_m[1]), mask=sh_m)
+                    frame_16_9.paste(monument_scaled, (mx, my), mask=monument_scaled)
 
             # Ambient Mirror Blur into Vertical 9:16 Canvas
             final_frame = create_ambient_mirror_canvas(
