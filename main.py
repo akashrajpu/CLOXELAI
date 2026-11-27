@@ -2340,30 +2340,63 @@ def full_process(req: VideoRequest, job_id: str):
                             
                         v_paths = []
                     
-                        # 0. Check for Documentary Evidence / Wikipedia / Official Report Scene (with Fluorescent Yellow Highlighter)
-                        from after_effects_evidence import (
-                            detect_evidence_scene,
-                            generate_newspaper_evidence_image,
-                            generate_documentary_evidence_clip
-                        )
-                        is_evidence, ev_meta = detect_evidence_scene(scene_text, main_topic)
-                        if is_evidence:
-                            print(f"📰 [After Effects Documentary Scene {i+1}] Historical Date/Report Detected (Year/Type: {ev_meta.get('year')})! Generating Authentic Newspaper/Wikipedia Clipping with Fluorescent Yellow Highlighter...")
-                            ev_img_path = os.path.join(job_dir, f"evidence_clipping_{i}.jpg")
-                            generate_newspaper_evidence_image(ev_meta, ev_img_path, target_size=(target_w, target_h))
-                        
+                        # -------------------------------------------------------------
+                        # 📜 DEDICATED PRO 3D DOCUMENTARY PIPELINE (NITISH RAJPUT STYLE)
+                        # Inspired by user reference: https://youtube.com/shorts/51qaAlpsYBY
+                        # - 16:9 Central Box with Dynamic Ambient Mirror Blur (Top & Bottom)
+                        # - 2.5D Multi-Plane Parallax Depth (Pure Photo 3D Animation)
+                        # - Ornate Antique Gallery Frames for Portraits & Heritage
+                        # - Vintage Wanted / Investigation Newspapers with Yellow Highlight
+                        # - 100% Pure Photos & Transparent Cutouts (Zero Stock Videos!)
+                        # -------------------------------------------------------------
+                        try:
+                            main_topic = req.topic if req.topic else "investigation"
+                            scene_text = sc.get('text', '').strip()
+                            scene_kw = sc.get('keyword', '').strip()
+
                             try:
-                                sc_a_dur = get_audio_duration_fast(a_path, fallback=5.0)
+                                sc_a_dur = get_audio_duration_fast(a_path, fallback=4.5)
                             except Exception:
-                                sc_a_dur = 5.0
-                            
-                            ev_clip_path = os.path.join(job_dir, f"evidence_zoom_{i}.mp4")
-                            generate_documentary_evidence_clip(ev_img_path, ev_clip_path, duration=sc_a_dur, target_size=(target_w, target_h))
-                            if os.path.exists(ev_clip_path) and os.path.getsize(ev_clip_path) > 1000:
-                                v_paths = [ev_clip_path]
-                                print(f"✅ [After Effects Documentary Scene {i+1}] Zoom Video ready: {os.path.basename(ev_clip_path)} (Duration: {sc_a_dur:.1f}s)")
-                            elif os.path.exists(ev_img_path):
-                                v_paths = [ev_img_path]
+                                sc_a_dur = 4.5
+
+                            from collage_cutout_engine import fetch_and_prepare_cutouts, detect_multi_script_entities
+                            from nitish_documentary_engine import render_nitish_documentary_motion_clip
+
+                            ent_obj = detect_multi_script_entities(scene_text, main_topic)
+                            if not ent_obj:
+                                en_entity = translate_to_visual_english(scene_kw or scene_text, main_topic) if translate_to_visual_english else (scene_kw or main_topic)
+                                clean_entity_words = [w for w in en_entity.split() if w.lower() not in ["cinematic", "animation", "photo", "video", "4k", "hd", "isolated", "transparent"]][:3]
+                                entity_term = " ".join(clean_entity_words) or main_topic
+                                ent_obj = [{
+                                    "raw": scene_kw or scene_text,
+                                    "clean_en": entity_term,
+                                    "label": entity_term.upper()[:15],
+                                    "search": f"{entity_term} transparent png cutout isolated"
+                                }]
+
+                            ent_terms_summary = " & ".join([e.get("clean_en", "") for e in ent_obj])
+                            print(f"🎬 [3D Documentary Scene {i+1} (Nitish Rajput Style)] Fetching Cutouts for '{ent_terms_summary}'...")
+                            cutout_pngs = fetch_and_prepare_cutouts(ent_obj, output_dir=job_dir, used_media_ids=used_media_ids)
+
+                            nitish_doc_clip = os.path.join(job_dir, f"nitish_doc_clip_{i}.mp4")
+                            if not (os.path.exists(nitish_doc_clip) and os.path.getsize(nitish_doc_clip) > 1000):
+                                render_nitish_documentary_motion_clip(
+                                    cutout_paths=cutout_pngs,
+                                    output_mp4=nitish_doc_clip,
+                                    duration=sc_a_dur,
+                                    scene_text=scene_text,
+                                    main_topic=main_topic,
+                                    target_size=(target_w, target_h),
+                                    fps=24,
+                                    scene_index=i
+                                )
+                            if os.path.exists(nitish_doc_clip) and os.path.getsize(nitish_doc_clip) > 1000:
+                                v_paths = [nitish_doc_clip]
+                                print(f"✅ [3D Documentary Scene {i+1}] Motion clip ready: {os.path.basename(nitish_doc_clip)} (Duration: {sc_a_dur:.1f}s)")
+                        except Exception as e_nd:
+                            print(f"⚠️ [Nitish Documentary Scene {i+1} Exception]: {e_nd}")
+
+                        # Fallback for legacy documentary if clip was not generated
 
                         if not v_paths:
                             # 0.b Vox / Johnny Harris Style Documentary Collage Cutout Engine (Maps, Contrasts & Entities with Sliding & Focused Zoom)
