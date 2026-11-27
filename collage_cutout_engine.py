@@ -243,6 +243,40 @@ def sharpen_cutout(img: Image.Image, amount: float = 1.35) -> Image.Image:
     return crisp_rgb
 
 
+def strip_fake_checkerboard(pil_img: Image.Image) -> Image.Image:
+    """
+    Detects and eliminates fake checkerboard transparency artifacts (alternating
+    gray/white 8px-16px tiles baked into amateur cliparts/downloads).
+    """
+    im_rgba = pil_img.convert("RGBA")
+    arr = np.array(im_rgba)
+    h, w, _ = arr.shape
+    rgb = arr[:, :, :3].astype(np.float32)
+    alpha = arr[:, :, 3]
+
+    spread = np.max(rgb, axis=2) - np.min(rgb, axis=2)
+    bright = np.mean(rgb, axis=2)
+
+    # Neutral gray/white pixels with alpha > 30
+    is_neutral_light = (spread <= 14) & (bright >= 165) & (alpha > 30)
+
+    if np.count_nonzero(is_neutral_light) > (w * h * 0.02):
+        step = 8
+        if w > step * 2:
+            diff_x = np.abs(bright[:, step:] - bright[:, :-step])
+            check_mask = is_neutral_light[:, :-step] & is_neutral_light[:, step:]
+            if np.count_nonzero(check_mask) > 100:
+                mean_diff = np.mean(diff_x[check_mask])
+                if mean_diff > 25.0:  # High contrast between alternating gray/white tiles
+                    arr[is_neutral_light, 3] = 0
+
+    cleaned = Image.fromarray(arr)
+    bbox = cleaned.getbbox()
+    if bbox:
+        cleaned = cleaned.crop(bbox)
+    return cleaned
+
+
 def make_transparent_cutout(
     img_input: Any,
     output_png: Optional[str] = None
@@ -250,7 +284,8 @@ def make_transparent_cutout(
     """
     Takes an input image and guarantees a clean transparent PNG cutout.
     - If the input image ALREADY has real alpha transparency (>5% transparent pixels),
-      it is preserved 100% untouched so subject architecture/skin/edges are never degraded.
+      it is preserved 100% untouched so subject architecture/skin/edges are never degraded,
+      while stripping any baked-in fake checkerboards.
     - If the image is opaque (JPG or flat PNG) and contains a fake checkerboard or studio
       background, it carefully removes the perimeter background.
     """
@@ -267,8 +302,9 @@ def make_transparent_cutout(
     existing_trans_ratio = np.count_nonzero(alpha_existing < 128) / max(1, w * h)
 
     # CRITICAL: If the image ALREADY has genuine alpha transparency (>5% of pixels transparent),
-    # IT IS ALREADY A TRANSPARENT PNG CUTOUT! Never flood fill or chew holes into the subject!
+    # verify and strip any fake checkerboard tiles, then return directly!
     if existing_trans_ratio >= 0.05:
+        pil_img = strip_fake_checkerboard(pil_img)
         bbox = pil_img.getbbox()
         if bbox:
             pil_img = pil_img.crop(bbox)
@@ -349,6 +385,7 @@ def make_transparent_cutout(
         alpha_mask = Image.fromarray(final_alpha, "L").filter(ImageFilter.GaussianBlur(radius=0.7))
         pil_img.putalpha(alpha_mask)
 
+    pil_img = strip_fake_checkerboard(pil_img)
     bbox = pil_img.getbbox()
     if bbox:
         pil_img = pil_img.crop(bbox)

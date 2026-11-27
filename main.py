@@ -2388,7 +2388,8 @@ def full_process(req: VideoRequest, job_id: str):
                                     main_topic=main_topic,
                                     target_size=(target_w, target_h),
                                     fps=24,
-                                    scene_index=i
+                                    scene_index=i,
+                                    audio_path=a_path
                                 )
                             if os.path.exists(nitish_doc_clip) and os.path.getsize(nitish_doc_clip) > 1000:
                                 v_paths = [nitish_doc_clip]

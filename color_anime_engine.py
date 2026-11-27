@@ -668,15 +668,13 @@ def draw_planetary_halo_ring(
     cx, cy = center
     curr_r = int(radius * scale_factor)
     primary_c = theme["primary_neon"]
-    halo_c = theme["halo_color"]
+    halo_c = (255, 255, 255, 220)  # Clean celestial white core ring
 
-    # 1. Outer Soft Diffused Glow Corona
-    glow_alpha = int(80 + 30 * math.sin(t * math.pi * 3))
-    draw.ellipse([cx - curr_r - 10, cy - curr_r - 10, cx + curr_r + 10, cy + curr_r + 10], outline=(primary_c[0], primary_c[1], primary_c[2], glow_alpha), width=16)
-    # 2. Main High-Intensity Core Ring
-    draw.ellipse([cx - curr_r, cy - curr_r, cx + curr_r, cy + curr_r], outline=halo_c, width=9)
-    # 3. Inner Rim Accent
-    draw.ellipse([cx - curr_r + 4, cy - curr_r + 4, cx + curr_r - 4, cy + curr_r - 4], outline=(primary_c[0], primary_c[1], primary_c[2], 160), width=3)
+    # 1. Subtle Outer Glow
+    glow_alpha = int(45 + 15 * math.sin(t * math.pi * 2))
+    draw.ellipse([cx - curr_r - 4, cy - curr_r - 4, cx + curr_r + 4, cy + curr_r + 4], outline=(primary_c[0], primary_c[1], primary_c[2], glow_alpha), width=6)
+    # 2. Sleek Thin Core Ring (Vane Motion / Astronaut Reference)
+    draw.ellipse([cx - curr_r, cy - curr_r, cx + curr_r, cy + curr_r], outline=halo_c, width=2)
 
 
 def draw_bauhaus_concentric_arcs(
