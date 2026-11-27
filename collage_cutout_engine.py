@@ -1174,6 +1174,193 @@ SKY_KEYWORDS = {"badal", "बादल", "cloud", "clouds", "rain", "barish", "�
 GROUND_KEYWORDS = {"ladki", "लड़की", "girl", "woman", "ladka", "लड़का", "boy", "man", "person", "log", "people", "soldier", "army", "police", "car", "building", "house", "palace", "throne", "ground", "zameen"}
 
 
+# ---------------------------------------------------------------------------
+# Comprehensive Multi-Entity Narrative Registry
+# Supports arbitrary multi-character / multi-object narrative stacking in 1 frame
+# (e.g. "रोहन और उसकी माँ और उसका भाई साथ रहते थे" -> Rohan, Mother, Brother)
+# ---------------------------------------------------------------------------
+NARRATIVE_STORY_ENTITIES = {
+    # Characters, Family & Professions
+    "रोहन": {"en": "young Indian boy Rohan student character", "label": "ROHAN", "type": "person"},
+    "माँ": {"en": "loving Indian mother character", "label": "MOTHER", "type": "person"},
+    "माता": {"en": "loving Indian mother character", "label": "MOTHER", "type": "person"},
+    "मम्मी": {"en": "loving Indian mother character", "label": "MOTHER", "type": "person"},
+    "पिता": {"en": "Indian father businessman character", "label": "FATHER", "type": "person"},
+    "पापा": {"en": "Indian father businessman character", "label": "FATHER", "type": "person"},
+    "भाई": {"en": "young Indian brother boy character", "label": "BROTHER", "type": "person"},
+    "बहन": {"en": "young Indian sister girl character", "label": "SISTER", "type": "person"},
+    "दादा": {"en": "kind Indian grandfather elder character", "label": "GRANDFATHER", "type": "person"},
+    "दादी": {"en": "kind Indian grandmother elder character", "label": "GRANDMOTHER", "type": "person"},
+    "दोस्त": {"en": "Indian friends companion companions", "label": "FRIEND", "type": "person"},
+    "मित्र": {"en": "Indian friends companion companions", "label": "FRIEND", "type": "person"},
+    "राजा": {"en": "majestic royal ancient Indian king crown", "label": "KING", "type": "person"},
+    "रानी": {"en": "royal queen ancient crown jewelry", "label": "QUEEN", "type": "person"},
+    "सिपाही": {"en": "brave Indian soldier warrior armor", "label": "SOLDIER", "type": "person"},
+    "सैनिक": {"en": "brave Indian soldier army troops", "label": "SOLDIER", "type": "person"},
+    "योद्धा": {"en": "ancient legendary Indian warrior sword", "label": "WARRIOR", "type": "person"},
+    "किसान": {"en": "hardworking Indian farmer agriculture", "label": "FARMER", "type": "person"},
+    "वैज्ञानिक": {"en": "modern scientist researcher laboratory", "label": "SCIENTIST", "type": "person"},
+    "डॉक्टर": {"en": "professional doctor physician stethoscope", "label": "DOCTOR", "type": "person"},
+    "शिक्षक": {"en": "inspiring teacher educator professor classroom", "label": "TEACHER", "type": "person"},
+    "गुरु": {"en": "ancient Indian sage guru meditation wisdom", "label": "GURU", "type": "person"},
+    "छात्र": {"en": "dedicated student books education", "label": "STUDENT", "type": "person"},
+    "लड़का": {"en": "young Indian boy student", "label": "BOY", "type": "person"},
+    "लड़की": {"en": "young Indian girl student", "label": "GIRL", "type": "person"},
+    "बच्चा": {"en": "cute happy child kid playing", "label": "CHILD", "type": "person"},
+    "व्यापारी": {"en": "successful Indian businessman suit", "label": "BUSINESSMAN", "type": "person"},
+
+    # Countries, Sovereignty & Maps
+    "भारत": {"en": "India map territory flag emblem", "label": "INDIA", "type": "map"},
+    "हिंदुस्तान": {"en": "India map territory flag emblem", "label": "INDIA", "type": "map"},
+    "अमेरिका": {"en": "United States America map flag", "label": "AMERICA", "type": "map"},
+    "रूस": {"en": "Russia map flag Moscow Kremlin", "label": "RUSSIA", "type": "map"},
+    "चीन": {"en": "China map flag Beijing dragon", "label": "CHINA", "type": "map"},
+    "जापान": {"en": "Japan map flag Tokyo Mount Fuji", "label": "JAPAN", "type": "map"},
+    "जर्मनी": {"en": "Germany map flag Berlin Europe", "label": "GERMANY", "type": "map"},
+    "ब्रिटेन": {"en": "Great Britain UK flag London Big Ben", "label": "BRITAIN", "type": "map"},
+    "इंग्लैंड": {"en": "England Great Britain UK flag", "label": "ENGLAND", "type": "map"},
+    "पाकिस्तान": {"en": "Pakistan map flag", "label": "PAKISTAN", "type": "map"},
+
+    # Nature, Weather & Celestial
+    "सूरज": {"en": "glowing bright Sun star solar flare", "label": "SUN", "type": "sky"},
+    "सूर्य": {"en": "glowing bright Sun star solar flare", "label": "SUN", "type": "sky"},
+    "चाँद": {"en": "luminous Moon crescent lunar surface", "label": "MOON", "type": "sky"},
+    "चंद्रमा": {"en": "luminous Moon crescent lunar surface", "label": "MOON", "type": "sky"},
+    "चांद": {"en": "luminous Moon crescent lunar surface", "label": "MOON", "type": "sky"},
+    "तारे": {"en": "twinkling stars sparkle cosmic constellation", "label": "STARS", "type": "sky"},
+    "सितारे": {"en": "twinkling stars sparkle cosmic constellation", "label": "STARS", "type": "sky"},
+    "बादल": {"en": "dark stormy rain clouds storm", "label": "CLOUDS", "type": "sky"},
+    "बारिश": {"en": "monsoon rain water drops storm", "label": "RAIN", "type": "sky"},
+    "बिजली": {"en": "electric lightning bolt thunder storm", "label": "LIGHTNING", "type": "sky"},
+    "पहाड़": {"en": "grand snow mountain peak Himalaya", "label": "MOUNTAIN", "type": "ground"},
+    "पर्वत": {"en": "grand snow mountain peak Himalaya", "label": "MOUNTAIN", "type": "ground"},
+    "जंगल": {"en": "dense green nature forest trees", "label": "FOREST", "type": "ground"},
+    "नदी": {"en": "flowing holy river Ganga water", "label": "RIVER", "type": "ground"},
+    "समुद्र": {"en": "vast blue ocean waves water", "label": "OCEAN", "type": "ground"},
+    "पेड़": {"en": "large majestic banyan tree nature", "label": "TREE", "type": "ground"},
+
+    # Tech, Innovation & Modern Concept
+    "आधुनिक तकनीक": {"en": "futuristic modern AI technology microchip circuit neon", "label": "INNOVATION", "type": "concept"},
+    "तकनीक": {"en": "futuristic modern AI technology microchip circuit neon", "label": "TECHNOLOGY", "type": "concept"},
+    "एआई": {"en": "futuristic artificial intelligence cyber brain neon", "label": "AI BRAIN", "type": "concept"},
+    "रोबोट": {"en": "futuristic humanoid cyber robot AI", "label": "ROBOT", "type": "concept"},
+    "रॉकेट": {"en": "space launch rocket spaceship propulsion ISRO", "label": "ROCKET", "type": "concept"},
+    "कंप्यूटर": {"en": "modern computer workstation screen code", "label": "COMPUTER", "type": "concept"},
+    "मोबाइल": {"en": "modern smartphone mobile display screen", "label": "SMARTPHONE", "type": "concept"},
+    "फोन": {"en": "modern smartphone mobile display screen", "label": "PHONE", "type": "concept"},
+
+    # Historical, Cultural, Vehicles & Wealth
+    "चिड़िया": {"en": "golden bird ancient India sparrow statue", "label": "GOLDEN BIRD", "type": "concept"},
+    "सोने की चिड़िया": {"en": "golden bird ancient India sparrow statue", "label": "GOLDEN BIRD", "type": "concept"},
+    "हजारों साल का इतिहास": {"en": "ancient Indian heritage temple civilization stone carving", "label": "HERITAGE", "type": "concept"},
+    "इतिहास": {"en": "ancient Indian heritage temple civilization stone carving", "label": "HERITAGE", "type": "concept"},
+    "मंदिर": {"en": "ancient Indian stone temple heritage architecture", "label": "TEMPLE", "type": "ground"},
+    "महल": {"en": "grand royal Indian palace fortress architecture", "label": "PALACE", "type": "ground"},
+    "किला": {"en": "majestic ancient Indian fort bastion", "label": "FORTRESS", "type": "ground"},
+    "कार": {"en": "modern luxury sports car automobile vehicle", "label": "CAR", "type": "concept"},
+    "गाड़ी": {"en": "modern automobile car vehicle", "label": "VEHICLE", "type": "concept"},
+    "बाइक": {"en": "modern sports motorcycle bike vehicle", "label": "BIKE", "type": "concept"},
+    "साइकिल": {"en": "classic bicycle cycling vehicle", "label": "BICYCLE", "type": "concept"},
+    "पैसा": {"en": "stacks of banknotes money cash currency wealth", "label": "MONEY", "type": "concept"},
+    "रुपया": {"en": "Indian rupee notes cash currency stacks", "label": "RUPEE", "type": "concept"},
+    "दौलत": {"en": "gold bullion treasure money wealth assets", "label": "WEALTH", "type": "concept"},
+    "सोना": {"en": "pure gold bullion bars treasure glowing", "label": "GOLD", "type": "concept"},
+    "चांदी": {"en": "pure silver bullion bars treasure", "label": "SILVER", "type": "concept"},
+    "किताब": {"en": "vintage antique leather book knowledge", "label": "BOOK", "type": "concept"},
+    "संविधान": {"en": "Constitution of India preamble book emblem", "label": "CONSTITUTION", "type": "concept"},
+    "तलवार": {"en": "ancient warrior steel sword royal blade", "label": "SWORD", "type": "concept"},
+    "ताज": {"en": "royal golden king crown jewel diamond", "label": "CROWN", "type": "concept"},
+}
+
+
+def is_word_boundary_match(text: str, word: str, pos: int) -> bool:
+    """Checks whether the matched word in text is bounded by non-alphanumeric chars (prevents false substring hits)."""
+    end_pos = pos + len(word)
+    if pos > 0:
+        char_before = text[pos - 1]
+        if char_before.isalnum() or '\u0900' <= char_before <= '\u097F':
+            return False
+    if end_pos < len(text):
+        char_after = text[end_pos]
+        if char_after.isalnum() or '\u0900' <= char_after <= '\u097F':
+            return False
+    return True
+
+
+def detect_multi_script_entities(scene_text: str, main_topic: str = "") -> List[Dict[str, Any]]:
+    """
+    Extracts all distinct characters, objects, nations, and concepts mentioned in the script sentence.
+    Preserves exact chronological appearance order in the script.
+    Guarantees arbitrary multi-entity staggered stacking (N = 1, 2, 3, 4+) in 1 single frame!
+    Example: 'रोहन और उसकी माँ और उसका भाई साथ रहते थे' -> [ROHAN, MOTHER, BROTHER]
+    """
+    txt = scene_text or ""
+    txt_lower = txt.lower()
+
+    found_entities = []
+    # Sort keys by descending length so multi-word phrases match before individual words
+    sorted_keys = sorted(NARRATIVE_STORY_ENTITIES.keys(), key=lambda k: len(k), reverse=True)
+    matched_spans = []
+
+    for k in sorted_keys:
+        k_lower = k.lower()
+        idx = 0
+        while True:
+            pos = txt_lower.find(k_lower, idx)
+            if pos == -1:
+                break
+            if is_word_boundary_match(txt_lower, k_lower, pos):
+                overlaps = any(s <= pos < e or s < pos + len(k_lower) <= e for s, e in matched_spans)
+                if not overlaps:
+                    matched_spans.append((pos, pos + len(k_lower)))
+                    info = NARRATIVE_STORY_ENTITIES[k]
+                    found_entities.append({
+                        "pos": pos,
+                        "raw": k,
+                        "clean_en": info["en"],
+                        "label": info["label"],
+                        "search": f"{info['en']} transparent png cutout isolated",
+                        "type": info.get("type", "concept")
+                    })
+            idx = pos + len(k_lower)
+
+    # Sort in order of appearance in script sentence
+    found_entities.sort(key=lambda x: x["pos"])
+
+    # Fallback: If no dictionary entities matched, attempt splitting by conjunctions
+    if not found_entities:
+        conjunctions = [" और ", " व ", " तथा ", ", ", " ya ", " या ", " and ", " vs "]
+        parts = [txt]
+        for conj in conjunctions:
+            new_parts = []
+            for p in parts:
+                new_parts.extend(p.split(conj))
+            parts = new_parts
+        parts = [p.strip() for p in parts if len(p.strip()) > 2]
+        if len(parts) >= 2:
+            for p in parts[:4]:
+                found_entities.append({
+                    "pos": txt.find(p),
+                    "raw": p,
+                    "clean_en": p,
+                    "label": p.upper()[:15],
+                    "search": f"{p} transparent png cutout isolated",
+                    "type": "concept"
+                })
+
+    # Deduplicate while strictly preserving appearance order
+    unique_entities = []
+    seen = set()
+    for e in found_entities:
+        lbl = e["label"]
+        if lbl not in seen:
+            seen.add(lbl)
+            unique_entities.append(e)
+
+    # Cap at 4 entities max per scene so frame remains balanced and legible
+    return unique_entities[:4]
+
+
 def detect_collage_entities(scene_text: str, main_topic: str = "") -> Dict[str, Any]:
     """Analyzes scene text to detect entities and their spatial / transition role with exact country mapping."""
     text_lower = (scene_text or "").lower()

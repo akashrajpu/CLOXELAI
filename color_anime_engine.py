@@ -66,27 +66,51 @@ def spring_bounce(
     return val
 
 
-def get_camera_punch_transform(t: float, duration: float, w: int, h: int) -> Tuple[float, int, int]:
+def get_purposeful_camera_zoom(
+    t: float,
+    duration: float,
+    scene_text: str = "",
+    arrival_times: Optional[List[float]] = None
+) -> float:
     """
-    Simulates dynamic After Effects camera punch zoom & impact micro-shake:
-    1. Snap punch on entrance: scale snaps from 1.08 -> 1.00 with spring recoil in first 0.25s.
-    2. Impact micro-shake: subtle 3-4px jitter during the first 0.12s.
-    3. Continuous cinematic Ken Burns drift: 1.00 -> 1.06 over clip duration.
+    Computes purposeful, dynamic After Effects camera zoom (Zoom In / Zoom Out):
+    1. Focus Push-In (1.00 -> 1.075): Heightens tension for questions, climax, punchline ('सवाल', '?', 'रहस्य', 'क्या', 'क्यों').
+    2. Grand Reveal Pull-Out (1.055 -> 1.00): Reveals vast scale for historical heritage, universe, ancient eras ('हजारों साल', 'इतिहास', 'प्राचीन', 'ब्रह्मांड').
+    3. Cinematic Subtle Push-In (1.00 -> 1.045): For default storytelling and comparisons.
+    4. Optical Arrival Punch Scale Bump (+0.022 over 0.35s): Dynamic camera hit triggered whenever a new entity arrives!
+    5. Zero Shaking / Zero Jitter: Camera center is mathematically locked (shake_x=0, shake_y=0). Background never wobbles.
     """
-    punch_dur = 0.25
-    if t < punch_dur:
-        pn = t / punch_dur
-        punch_scale = 0.08 * math.exp(-6.0 * pn) * math.cos(8.0 * pn)
-        shake_x = int(3.5 * math.exp(-12.0 * pn) * math.sin(50.0 * pn))
-        shake_y = int(2.5 * math.exp(-12.0 * pn) * math.cos(50.0 * pn))
-    else:
-        punch_scale = 0.0
-        shake_x = 0
-        shake_y = 0
+    txt = (scene_text or "").lower()
+    is_climax_or_question = any(k in txt for k in ["सवाल", "?", "क्यों", "कैसे", "क्या", "कहाँ", "question", "who", "why", "how", "climax", "secret", "रहस्य", "लेकिन"])
+    is_grand_reveal = any(k in txt for k in ["हजारों साल", "इतिहास", "प्राचीन", "ancient", "heritage", "universe", "ब्रह्मांड", "संसार", "दुनिया", "सैकड़ों", "विशाल"])
 
-    drift_scale = 1.0 + (t / max(0.1, duration)) * 0.05
-    total_scale = drift_scale + punch_scale
-    return total_scale, shake_x, shake_y
+    t_norm = min(1.0, max(0.0, t / max(0.1, duration)))
+    # Smooth sinusoidal ease curve (zero abrupt starts/stops)
+    ease_t = 0.5 - 0.5 * math.cos(t_norm * math.pi)
+
+    if is_climax_or_question:
+        base_zoom = 1.00 + ease_t * 0.075
+    elif is_grand_reveal:
+        base_zoom = 1.055 - ease_t * 0.055
+    else:
+        base_zoom = 1.00 + ease_t * 0.045
+
+    arrival_bump = 0.0
+    if arrival_times:
+        for t_arr in arrival_times:
+            if t >= t_arr:
+                dt = t - t_arr
+                if dt < 0.35:
+                    p = dt / 0.35
+                    arrival_bump += 0.022 * math.exp(-6.0 * p) * math.cos(9.0 * p)
+
+    return base_zoom + arrival_bump
+
+
+def get_camera_punch_transform(t: float, duration: float, w: int, h: int) -> Tuple[float, int, int]:
+    """Backward compatibility wrapper returning (scale, shake_x, shake_y) with ZERO shake."""
+    z = get_purposeful_camera_zoom(t, duration)
+    return z, 0, 0
 
 
 # ---------------------------------------------------------------------------
@@ -1170,6 +1194,31 @@ def draw_sleek_floating_topic_card(
 
 
 # ---------------------------------------------------------------------------
+# Cutout Identifier Badge Helper
+# ---------------------------------------------------------------------------
+def draw_cutout_name_pill(draw: ImageDraw.ImageDraw, label: str, cx: int, bottom_y: int, theme: Dict[str, Any], alpha: float = 1.0):
+    """Draws a sleek frosted glassmorphism identifier badge beneath a cutout."""
+    if not label:
+        return
+    clean_lbl = label.upper().strip()
+    f_lbl = get_clean_font(20, font_type="bold")
+    tb = f_lbl.getbbox(clean_lbl)
+    tw = tb[2] - tb[0]
+    th = tb[3] - tb[1]
+    pad_x, pad_y = 14, 6
+    bx1 = cx - tw // 2 - pad_x
+    by1 = bottom_y + 12
+    bx2 = cx + tw // 2 + pad_x
+    by2 = by1 + th + pad_y * 2
+    p_a = int(220 * max(0.0, min(1.0, alpha)))
+    if p_a <= 0:
+        return
+    neon_c = theme["primary_neon"][:3] + (p_a,)
+    draw.rounded_rectangle([(bx1, by1), (bx2, by2)], radius=12, fill=(12, 18, 30, p_a), outline=neon_c, width=2)
+    draw.text((cx, (by1 + by2) // 2), clean_lbl, fill=(255, 255, 255, int(250 * max(0.0, min(1.0, alpha)))), font=f_lbl, anchor="mm")
+
+
+# ---------------------------------------------------------------------------
 # Core Color Anime / After Effects Motion Clip Renderer
 # ---------------------------------------------------------------------------
 def render_color_anime_motion_clip(
@@ -1181,21 +1230,16 @@ def render_color_anime_motion_clip(
     target_size: Tuple[int, int] = (1080, 1920),
     fps: int = 24,
     scene_index: int = 0,
-    layout_style: str = "auto"
+    layout_style: str = "auto",
+    entity_labels: Optional[List[str]] = None
 ) -> str:
     """
     Renders an ultra-high production After Effects Kinetic Motion Clip:
-    1. Snappy Elastic Side Slide-In with zero wobble/shake (Rock solid placement).
-    2. Dynamic Parallax Flying 3D Props (Tumbling Dollar Bills, Asteroids, Trophies, Cyber Nodes).
-    3. Multi-Layout Scene Diversity (NO repetitive camera frames or identical circle rings!).
-       - portal_halo: Glowing circular celestial portal ring (Golden Bird)
-       - hero_typography: Huge kinetic typography across screen behind subject (Superpower / Innovation)
-       - spotlight_minimal: Horizontal laser horizon flare + clean modern framing (America map)
-       - floating_card: Sleek dark glassmorphism card sliding up beneath subject (Rising Bharat)
-       - heritage_pedestal: Soft warm golden pedestal base glow (Ancient temple)
-       - dual_vs: Side-by-side comparison with central glowing VS badge (India vs America)
-    4. 100% Pure Photo Cutouts (Zero stock video clips!).
-    5. Steady, rock-solid background: zero camera jitter/shaking or drift.
+    1. Arbitrary Multi-Entity Staggered Entrance (N = 1, 2, 3, 4+) in ONE frame with smooth spring physics!
+    2. Dynamic Purposeful Camera Zoom In / Zoom Out (zero jitter/shake, focus zoom-in on climax, reveal zoom-out on heritage, scale arrival bumps).
+    3. Dynamic Parallax Flying 3D Props (Tumbling Dollar Bills, Asteroids, Trophies, Cyber Nodes).
+    4. Multi-Layout Scene Diversity (portal_halo, hero_typography, spotlight_minimal, floating_card, heritage_pedestal, dual_vs).
+    5. 100% Pure Photo Cutouts (Zero stock video clips!).
     """
     w, h = target_size
     duration = max(3.0, float(duration))
@@ -1237,15 +1281,27 @@ def render_color_anime_motion_clip(
         fb_draw.rounded_rectangle([(100, 290), (500, 720)], radius=60, fill=(210, 225, 238, 255), outline=(255, 255, 255, 220), width=6)
         loaded_cutouts.append(fallback_hero)
 
-    is_multi = len(loaded_cutouts) >= 2
+    num_cutouts = min(4, len(loaded_cutouts))
+    is_multi = num_cutouts >= 2
     processed_cutouts = []
 
-    for c_raw in loaded_cutouts[:2]:
+    for idx, c_raw in enumerate(loaded_cutouts[:num_cutouts]):
         cw_r, ch_r = c_raw.size
-        target_ch = int(h * 0.42) if is_multi else int(h * 0.50)
+        if num_cutouts == 1:
+            target_ch = int(h * 0.50)
+            max_cw = int(w * 0.85)
+        elif num_cutouts == 2:
+            target_ch = int(h * 0.42)
+            max_cw = int(w * 0.44)
+        elif num_cutouts == 3:
+            target_ch = int(h * 0.38)
+            max_cw = int(w * 0.30)
+        else:
+            target_ch = int(h * 0.28)
+            max_cw = int(w * 0.40)
+
         c_scale = target_ch / max(1, ch_r)
         target_cw = int(cw_r * c_scale)
-        max_cw = int(w * 0.44) if is_multi else int(w * 0.85)
         if target_cw > max_cw:
             target_cw = max_cw
             target_ch = int(ch_r * (max_cw / cw_r))
@@ -1253,9 +1309,19 @@ def render_color_anime_motion_clip(
         c_ready = sharpen_cutout(c_ready, amount=1.20)
         processed_cutouts.append(c_ready)
 
+    # Staggered entrance arrival times for each entity in the frame
+    if num_cutouts == 1:
+        arrival_times = [0.0]
+    elif num_cutouts == 2:
+        arrival_times = [0.0, 0.65]
+    elif num_cutouts == 3:
+        arrival_times = [0.0, 0.60, 1.20]
+    else:
+        arrival_times = [0.0, 0.45, 0.90, 1.35]
+
     # 5. Resolve Layout Mode for Visual Diversity
     txt_lower = (scene_text or "").lower()
-    if is_multi or len(loaded_cutouts) >= 2 or " vs " in txt_lower:
+    if is_multi or " vs " in txt_lower:
         layout_mode = "dual_vs"
     elif layout_style and layout_style != "auto":
         layout_mode = layout_style
@@ -1327,7 +1393,6 @@ def render_color_anime_motion_clip(
         elif layout_mode == "heritage_pedestal":
             draw_heritage_pedestal_bg(draw, w, h, t=t)
         elif layout_mode in ["floating_card", "hero_typography"]:
-            # Clean dark starry cosmic nebula - No cheesy ring, pure subject and kinetic text!
             pass
 
         # -------------------------------------------------------------------
@@ -1336,7 +1401,7 @@ def render_color_anime_motion_clip(
         props_engine.render_layer(frame, t=t, plane="bg")
 
         # -------------------------------------------------------------------
-        # LAYER 3: Kinetic Typography BEHIND Cutout
+        # LAYER 3: Kinetic Typography BEHIND Cutouts
         # -------------------------------------------------------------------
         if layout_mode == "hero_typography":
             draw_giant_kinetic_background_text(
@@ -1362,9 +1427,9 @@ def render_color_anime_motion_clip(
                 draw.text((w // 2, text_center_y), title_clean, fill=theme["primary_neon"], font=font_title, anchor="mm")
 
         # -------------------------------------------------------------------
-        # LAYER 4: Foreground Character/Object Cutouts (Side Slide-in & Rock Solid Stability)
+        # LAYER 4: Foreground Character/Object Cutouts (Arbitrary Multi-Entity Staggered Entrance)
         # -------------------------------------------------------------------
-        if not is_multi:
+        if num_cutouts == 1:
             c_main = processed_cutouts[0]
             slide_val = spring_bounce(t, duration=0.35, overshoot=0.08)
             offset_x = int(w * 0.80 * (1.0 - slide_val) * slide_dir)
@@ -1373,17 +1438,15 @@ def render_color_anime_motion_clip(
             char_y = int(h * 0.54 - c_main.height // 2)
 
             if layout_mode == "heritage_pedestal":
-                # Place temple firmly on pedestal base
                 char_y = int(h * 0.68 - c_main.height)
             elif layout_mode == "floating_card":
-                # Slightly higher to leave room for bottom floating card
                 char_y = int(h * 0.44 - c_main.height // 2)
 
             sh_main, sh_off = create_cutout_drop_shadow(c_main, blur_radius=18, offset=(8, 16), shadow_opacity=0.45)
             frame.paste(sh_main, (char_x + sh_off[0], char_y + sh_off[1]), mask=sh_main)
             frame.paste(c_main, (char_x, char_y), mask=c_main)
-        else:
-            # Multi-Cutout Narrative Layout (e.g. India on Left, America on Right)
+
+        elif num_cutouts == 2:
             c_left = processed_cutouts[0]
             c_right = processed_cutouts[1]
 
@@ -1396,10 +1459,13 @@ def render_color_anime_motion_clip(
             sh_l, sh_off_l = create_cutout_drop_shadow(c_left, blur_radius=16, offset=(6, 14), shadow_opacity=0.42)
             frame.paste(sh_l, (x1 + sh_off_l[0], y1 + sh_off_l[1]), mask=sh_l)
             frame.paste(c_left, (x1, y1), mask=c_left)
+            if entity_labels and len(entity_labels) > 0 and slide_1 > 0.5:
+                draw_cutout_name_pill(draw, entity_labels[0], int(w * 0.28), y1 + c_left.height, theme, alpha=slide_1)
 
-            # Cutout 2: Slides in from RIGHT at t=0.7s (when the second subject is introduced in audio)
-            t_sub2 = max(0.0, t - 0.70)
-            if t >= 0.70:
+            # Cutout 2: Slides in from RIGHT at staggered t_1
+            t_arr2 = arrival_times[1]
+            if t >= t_arr2:
+                t_sub2 = max(0.0, t - t_arr2)
                 slide_2 = spring_bounce(t_sub2, duration=0.35, overshoot=0.08)
                 target_x2 = int(w * 0.72 - c_right.width // 2)
                 x2 = int(target_x2 + w * 0.60 * (1.0 - slide_2))
@@ -1408,9 +1474,11 @@ def render_color_anime_motion_clip(
                 sh_r, sh_off_r = create_cutout_drop_shadow(c_right, blur_radius=16, offset=(6, 14), shadow_opacity=0.42)
                 frame.paste(sh_r, (x2 + sh_off_r[0], y2 + sh_off_r[1]), mask=sh_r)
                 frame.paste(c_right, (x2, y2), mask=c_right)
+                if entity_labels and len(entity_labels) > 1 and slide_2 > 0.5:
+                    draw_cutout_name_pill(draw, entity_labels[1], int(w * 0.72), y2 + c_right.height, theme, alpha=slide_2)
 
-            # Glowing Center VS Badge between both cutouts
-            if t >= 0.75:
+            # Center VS Badge if comparison / conflict
+            if t >= 0.75 and (" vs " in txt_lower or "बनाम" in txt_lower or "मुकाबला" in txt_lower or "पीछे" in txt_lower or "शक्तियों" in txt_lower):
                 t_vs = max(0.0, t - 0.75)
                 bounce_vs = spring_bounce(t_vs, duration=0.30, overshoot=0.15)
                 r_vs = int(28 * bounce_vs)
@@ -1419,6 +1487,71 @@ def render_color_anime_motion_clip(
                 font_vs = get_clean_font(int(22 * bounce_vs), font_type="bold")
                 draw.text((cx_vs, cy_vs), "VS", fill=theme["primary_neon"], font=font_vs, anchor="mm")
 
+        elif num_cutouts == 3:
+            # Trio Stage Lineup (e.g. Rohan on left, Mother in center hero, Brother on right)
+            c_1, c_2, c_3 = processed_cutouts[0], processed_cutouts[1], processed_cutouts[2]
+
+            # Entity 1 (Left): enters at t=0.0s
+            slide_1 = spring_bounce(t, duration=0.35, overshoot=0.08)
+            tx1 = int(w * 0.20 - c_1.width // 2)
+            x1 = int(tx1 - w * 0.50 * (1.0 - slide_1))
+            y1 = int(h * 0.54 - c_1.height // 2)
+            sh_1, off_1 = create_cutout_drop_shadow(c_1, blur_radius=14, offset=(5, 12), shadow_opacity=0.40)
+            frame.paste(sh_1, (x1 + off_1[0], y1 + off_1[1]), mask=sh_1)
+            frame.paste(c_1, (x1, y1), mask=c_1)
+            if entity_labels and len(entity_labels) > 0 and slide_1 > 0.5:
+                draw_cutout_name_pill(draw, entity_labels[0], int(w * 0.20), y1 + c_1.height, theme, alpha=slide_1)
+
+            # Entity 2 (Center Hero): enters at t=0.60s (staggered!)
+            t_arr2 = arrival_times[1]
+            if t >= t_arr2:
+                t_sub2 = max(0.0, t - t_arr2)
+                slide_2 = spring_bounce(t_sub2, duration=0.35, overshoot=0.08)
+                tx2 = int(w * 0.50 - c_2.width // 2)
+                x2 = tx2
+                y2 = int((h * 0.50 - c_2.height // 2) + h * 0.25 * (1.0 - slide_2))
+                sh_2, off_2 = create_cutout_drop_shadow(c_2, blur_radius=16, offset=(6, 14), shadow_opacity=0.45)
+                frame.paste(sh_2, (x2 + off_2[0], y2 + off_2[1]), mask=sh_2)
+                frame.paste(c_2, (x2, y2), mask=c_2)
+                if entity_labels and len(entity_labels) > 1 and slide_2 > 0.5:
+                    draw_cutout_name_pill(draw, entity_labels[1], int(w * 0.50), y2 + c_2.height, theme, alpha=slide_2)
+
+            # Entity 3 (Right): enters at t=1.20s (staggered!)
+            t_arr3 = arrival_times[2]
+            if t >= t_arr3:
+                t_sub3 = max(0.0, t - t_arr3)
+                slide_3 = spring_bounce(t_sub3, duration=0.35, overshoot=0.08)
+                tx3 = int(w * 0.80 - c_3.width // 2)
+                x3 = int(tx3 + w * 0.50 * (1.0 - slide_3))
+                y3 = int(h * 0.54 - c_3.height // 2)
+                sh_3, off_3 = create_cutout_drop_shadow(c_3, blur_radius=14, offset=(5, 12), shadow_opacity=0.40)
+                frame.paste(sh_3, (x3 + off_3[0], y3 + off_3[1]), mask=sh_3)
+                frame.paste(c_3, (x3, y3), mask=c_3)
+                if entity_labels and len(entity_labels) > 2 and slide_3 > 0.5:
+                    draw_cutout_name_pill(draw, entity_labels[2], int(w * 0.80), y3 + c_3.height, theme, alpha=slide_3)
+
+        else:
+            # 4 Entities: 2x2 Clean Staggered Grid
+            quad_positions = [
+                (int(w * 0.28), int(h * 0.38), -1),
+                (int(w * 0.72), int(h * 0.38), 1),
+                (int(w * 0.28), int(h * 0.64), -1),
+                (int(w * 0.72), int(h * 0.64), 1),
+            ]
+            for qi, (target_cx, target_cy, sdir) in enumerate(quad_positions[:num_cutouts]):
+                t_arr = arrival_times[qi]
+                if t >= t_arr:
+                    c_q = processed_cutouts[qi]
+                    t_sub = max(0.0, t - t_arr)
+                    s_val = spring_bounce(t_sub, duration=0.35, overshoot=0.08)
+                    qx = int((target_cx - c_q.width // 2) + sdir * w * 0.40 * (1.0 - s_val))
+                    qy = int(target_cy - c_q.height // 2)
+                    sh_q, off_q = create_cutout_drop_shadow(c_q, blur_radius=14, offset=(4, 10), shadow_opacity=0.40)
+                    frame.paste(sh_q, (qx + off_q[0], qy + off_q[1]), mask=sh_q)
+                    frame.paste(c_q, (qx, qy), mask=c_q)
+                    if entity_labels and len(entity_labels) > qi and s_val > 0.5:
+                        draw_cutout_name_pill(draw, entity_labels[qi], target_cx, qy + c_q.height, theme, alpha=s_val)
+
         # -------------------------------------------------------------------
         # LAYER 5: Foreground Flying 3D Props (Close-up tumbling cash with motion blur)
         # -------------------------------------------------------------------
@@ -1426,7 +1559,6 @@ def render_color_anime_motion_clip(
 
         # -------------------------------------------------------------------
         # LAYER 6: Viewfinder Brackets / Camera Reticles: COMPLETELY OMITTED
-        # (Zero cheesy camera REC frames per user mandate!)
         # -------------------------------------------------------------------
 
         # -------------------------------------------------------------------
@@ -1448,8 +1580,15 @@ def render_color_anime_motion_clip(
             draw_curved_pointer_callouts(draw, w, h, bauhaus_callouts, theme, t=t)
 
         # -------------------------------------------------------------------
-        # LAYER 8: Camera transform -> LOCKED (No camera shaking, drifting or zooming!)
+        # LAYER 8: Dynamic Purposeful Camera Zoom In / Zoom Out (Zero Jitter)
         # -------------------------------------------------------------------
+        cam_scale = get_purposeful_camera_zoom(t, duration, scene_text=scene_text, arrival_times=arrival_times)
+        if abs(cam_scale - 1.0) > 0.001:
+            crop_w = int(w / cam_scale)
+            crop_h = int(h / cam_scale)
+            crop_x = max(0, min(w - crop_w, (w - crop_w) // 2))
+            crop_y = max(0, min(h - crop_h, int((h - crop_h) * 0.50)))
+            frame = frame.crop((crop_x, crop_y, crop_x + crop_w, crop_y + crop_h)).resize((w, h), Image.BILINEAR)
 
         # Stream frame to FFmpeg rawvideo pipe
         raw_bytes = frame.tobytes()
@@ -1463,5 +1602,5 @@ def render_color_anime_motion_clip(
     proc.wait()
     release_system_memory()
 
-    print(f"🎬 [Color Anime Engine V2.0] Successfully rendered After Effects kinetic motion clip: {os.path.basename(output_mp4)} ({duration:.1f}s)")
+    print(f"🎬 [Color Anime Engine V2.5] Successfully rendered kinetic motion clip: {os.path.basename(output_mp4)} ({duration:.1f}s)")
     return output_mp4
