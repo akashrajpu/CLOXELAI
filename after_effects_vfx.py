@@ -1075,7 +1075,7 @@ def _compute_overlay_geometry(vfx_info: Dict[str, Any], target_size: Tuple[int, 
 
     if layout == "full_cover":
         return {
-            "scale_filter": f"scale={tw}:{th}:force_original_aspect_ratio=increase,crop={tw}:{th}",
+            "scale_filter": f"scale={tw}:{th}:force_original_aspect_ratio=increase:flags=fast_bilinear,crop={tw}:{th}",
             "x_expr": "0",
             "y_expr": "0",
             "ow": tw,
@@ -1087,7 +1087,7 @@ def _compute_overlay_geometry(vfx_info: Dict[str, Any], target_size: Tuple[int, 
             vfx_info.get("scale_frac_vert" if is_vertical else "scale_frac", 0.95)
             or vfx_info.get("scale_frac", 0.95)
         )
-        ow = max(64, int(round(tw * sf)) & ~1)
+        ow = max(64, min(1280, int(round(tw * sf)) & ~1))
         if layout == "full_bottom":
             y_expr = "H-h"
         elif layout == "mid_bottom":
@@ -1096,7 +1096,7 @@ def _compute_overlay_geometry(vfx_info: Dict[str, Any], target_size: Tuple[int, 
         else:
             y_expr = "(H-h)/2"
         return {
-            "scale_filter": f"scale={ow}:-2",
+            "scale_filter": f"scale={ow}:-2:flags=fast_bilinear",
             "x_expr": "(W-w)/2",
             "y_expr": y_expr,
             "ow": tw,
@@ -1212,30 +1212,35 @@ def apply_after_effects_vfx_overlay(
         if ow > max_w:
             ow = max_w
             oh = max(32, int(round(ow * (eff_h / max(1, eff_w)))) & ~1)
-        scale_filter = f"scale={ow}:{oh}:flags=lanczos"
+        scale_filter = f"scale={ow}:{oh}:flags=fast_bilinear"
     else:
         ow = oh = 0
         scale_filter = geom["scale_filter"]
 
     tmp_out = os.path.abspath(os.path.join(job_dir, f"tmp_vfx_out_{os.getpid()}_{id(vfx_info)}.mp4"))
+    release_system_memory()
 
     try:
         if key_mode == "pyramid_flood":
             fps = 15
             dec_cmd = [
-                "ffmpeg", "-y", "-ss", f"{clip_start:.3f}", "-t", f"{overlay_dur:.3f}",
+                "ffmpeg", "-y", "-threads", "1",
+                "-ss", f"{clip_start:.3f}", "-t", f"{overlay_dur:.3f}",
                 "-i", os.path.abspath(vfx_path),
-                "-vf", f"{crop_filter}scale={ow}:{oh}:flags=lanczos,fps={fps}",
+                "-vf", f"{crop_filter}scale={ow}:{oh}:flags=fast_bilinear,fps={fps}",
                 "-f", "rawvideo", "-pix_fmt", "rgb24", "pipe:1",
             ]
             enc_cmd = [
-                "ffmpeg", "-y",
+                "ffmpeg", "-y", "-threads", "1",
                 "-i", os.path.abspath(scene_mp4),
+                "-threads", "1",
                 "-f", "rawvideo", "-pix_fmt", "rgba", "-s", f"{ow}x{oh}", "-r", str(fps), "-i", "pipe:0",
+                "-filter_threads", "1", "-filter_complex_threads", "1",
                 "-filter_complex", f"[0:v][1:v]overlay=x={geom['x_expr']}:y={geom['y_expr']}:eof_action=pass[outv]",
                 "-map", "[outv]", "-map", "0:a?",
                 "-c:v", "libx264", "-preset", "ultrafast", "-crf", "24",
-                "-pix_fmt", "yuv420p", "-threads", "1", "-c:a", "copy",
+                "-x264opts", "sync-lookahead=0:rc-lookahead=0:b-adapt=0",
+                "-pix_fmt", "yuv420p", "-threads", "1", "-max_muxing_queue_size", "32", "-c:a", "copy",
                 "-t", f"{safe_dur:.3f}",
                 tmp_out,
             ]
@@ -1309,13 +1314,14 @@ def apply_after_effects_vfx_overlay(
 
             if enc_proc.returncode == 0 and os.path.exists(tmp_out) and os.path.getsize(tmp_out) > 1000:
                 os.replace(tmp_out, scene_mp4)
+                release_system_memory()
                 return True
             if enc_err:
                 print(f"⚠️ [Ultra VFX Overlay Notice]: {enc_err.decode(errors='ignore')[-250:]}")
             return False
 
         # Pure FFmpeg C filter chains (`native_alpha`, `split_track_matte`, `chromakey_despill`, `luma_screen`)
-        input_args = ["-i", os.path.abspath(scene_mp4)]
+        input_args = ["-threads", "1", "-i", os.path.abspath(scene_mp4)]
         fade_chain = (
             f"setpts=PTS-STARTPTS,"
             f"fade=t=in:st=0:d={fade_in:.3f}:alpha=1,"
@@ -1324,8 +1330,8 @@ def apply_after_effects_vfx_overlay(
 
         if key_mode == "split_track_matte":
             m_off = float(vfx_info.get("matte_offset", 6.0))
-            input_args.extend(["-ss", f"{clip_start:.3f}", "-t", f"{overlay_dur:.3f}", "-i", os.path.abspath(vfx_path)])
-            input_args.extend(["-ss", f"{clip_start + m_off:.3f}", "-t", f"{overlay_dur:.3f}", "-i", os.path.abspath(vfx_path)])
+            input_args.extend(["-threads", "1", "-ss", f"{clip_start:.3f}", "-t", f"{overlay_dur:.3f}", "-i", os.path.abspath(vfx_path)])
+            input_args.extend(["-threads", "1", "-ss", f"{clip_start + m_off:.3f}", "-t", f"{overlay_dur:.3f}", "-i", os.path.abspath(vfx_path)])
             fg_chain = (
                 f"[1:v]{crop_filter}setpts=PTS-STARTPTS,format=yuva420p[vfill];"
                 f"[2:v]{crop_filter}setpts=PTS-STARTPTS,format=gray[vmatte];"
@@ -1333,7 +1339,7 @@ def apply_after_effects_vfx_overlay(
                 f"[0:v][vfx]overlay=x={geom['x_expr']}:y={geom['y_expr']}:eof_action=pass[outv]"
             )
         elif key_mode == "native_alpha":
-            input_args.extend(["-ss", f"{clip_start:.3f}", "-t", f"{overlay_dur:.3f}", "-i", os.path.abspath(vfx_path)])
+            input_args.extend(["-threads", "1", "-ss", f"{clip_start:.3f}", "-t", f"{overlay_dur:.3f}", "-i", os.path.abspath(vfx_path)])
             op = float(vfx_info.get("opacity", 0.95))
             fg_chain = (
                 f"[1:v]{crop_filter}format=rgba,{scale_filter},colorchannelmixer=aa={op:.2f},"
@@ -1341,27 +1347,27 @@ def apply_after_effects_vfx_overlay(
                 f"[0:v][vfx]overlay=x={geom['x_expr']}:y={geom['y_expr']}:eof_action=pass[outv]"
             )
         elif key_mode == "luma_screen":
-            input_args.extend(["-ss", f"{clip_start:.3f}", "-t", f"{overlay_dur:.3f}", "-i", os.path.abspath(vfx_path)])
+            input_args.extend(["-threads", "1", "-ss", f"{clip_start:.3f}", "-t", f"{overlay_dur:.3f}", "-i", os.path.abspath(vfx_path)])
             op = float(vfx_info.get("opacity", 0.42))
             fg_chain = (
                 f"[1:v]lumakey=threshold=0.14:tolerance=0.20:softness=0.15,"
-                f"format=rgba,colorchannelmixer=aa={op:.2f},scale={tw}:{th}:force_original_aspect_ratio=increase,crop={tw}:{th},"
+                f"format=rgba,colorchannelmixer=aa={op:.2f},scale={tw}:{th}:force_original_aspect_ratio=increase:flags=fast_bilinear,crop={tw}:{th},"
                 f"{fade_chain}[vfx];"
                 f"[0:v][vfx]overlay=x=0:y=0:eof_action=pass[outv]"
             )
         elif key_mode == "luma_ink_matte":
-            input_args.extend(["-ss", f"{clip_start:.3f}", "-t", f"{overlay_dur:.3f}", "-i", os.path.abspath(vfx_path)])
+            input_args.extend(["-threads", "1", "-ss", f"{clip_start:.3f}", "-t", f"{overlay_dur:.3f}", "-i", os.path.abspath(vfx_path)])
             op = float(vfx_info.get("opacity", 0.78))
             fg_chain = (
                 f"[1:v]format=rgb24,negate,format=rgba,"
                 f"lumakey=threshold=0.06:tolerance=0.24:softness=0.22,"
                 f"lutrgb=r=10:g=10:b=16,colorchannelmixer=aa={op:.2f},"
-                f"scale={tw}:{th}:force_original_aspect_ratio=increase,crop={tw}:{th},"
+                f"scale={tw}:{th}:force_original_aspect_ratio=increase:flags=fast_bilinear,crop={tw}:{th},"
                 f"{fade_chain}[vfx];"
                 f"[0:v][vfx]overlay=x=0:y=0:eof_action=pass[outv]"
             )
         else:  # chromakey_despill
-            input_args.extend(["-ss", f"{clip_start:.3f}", "-t", f"{overlay_dur:.3f}", "-i", os.path.abspath(vfx_path)])
+            input_args.extend(["-threads", "1", "-ss", f"{clip_start:.3f}", "-t", f"{overlay_dur:.3f}", "-i", os.path.abspath(vfx_path)])
             chex = vfx_info.get("chroma_hex", "0x00FF00")
             sim = float(vfx_info.get("similarity", 0.20))
             bld = float(vfx_info.get("blend", 0.07))
@@ -1373,19 +1379,23 @@ def apply_after_effects_vfx_overlay(
                 f"[0:v][vfx]overlay=x={geom['x_expr']}:y={geom['y_expr']}:eof_action=pass[outv]"
             )
 
+        release_system_memory()
         cmd = [
             "ffmpeg", "-y",
             *input_args,
+            "-filter_threads", "1", "-filter_complex_threads", "1",
             "-filter_complex", fg_chain,
             "-map", "[outv]", "-map", "0:a?",
             "-c:v", "libx264", "-preset", "ultrafast", "-crf", "24",
-            "-pix_fmt", "yuv420p", "-threads", "1", "-max_muxing_queue_size", "128", "-c:a", "copy",
+            "-x264opts", "sync-lookahead=0:rc-lookahead=0:b-adapt=0",
+            "-pix_fmt", "yuv420p", "-threads", "1", "-max_muxing_queue_size", "32", "-c:a", "copy",
             "-t", f"{safe_dur:.3f}",
             tmp_out,
         ]
         res = subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, timeout=180)
         if res.returncode == 0 and os.path.exists(tmp_out) and os.path.getsize(tmp_out) > 1000:
             os.replace(tmp_out, scene_mp4)
+            release_system_memory()
             return True
         if res.stderr:
             print(f"⚠️ [Ultra VFX Overlay Notice]: {res.stderr.decode(errors='ignore')[-250:]}")
@@ -1397,4 +1407,5 @@ def apply_after_effects_vfx_overlay(
                 os.remove(tmp_out)
             except Exception:
                 pass
+        release_system_memory()
     return False

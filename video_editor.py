@@ -729,8 +729,9 @@ def create_ultra_photo_motion_clip(
             return np.array(bg_pil.convert("RGB"))
         return VideoClip(get_fallback_frame, duration=duration).set_fps(fps)
 
-    if orig_pil.width > 1280 or orig_pil.height > 1280:
-        orig_pil.thumbnail((1280, 1280), Image.LANCZOS)
+    max_dim = max(1080, int(max(w, h) * 1.1))
+    if orig_pil.width > max_dim or orig_pil.height > max_dim:
+        orig_pil.thumbnail((max_dim, max_dim), Image.BILINEAR)
 
     bg_pil = apply_color_filter(orig_pil.convert("RGB"), filter_style=filter_style)
     aspect_bg = bg_pil.width / bg_pil.height
@@ -741,7 +742,7 @@ def create_ultra_photo_motion_clip(
     else:
         bg_w_fit = w
         bg_h_fit = int(w / aspect_bg)
-    bg_pil = bg_pil.resize((bg_w_fit, bg_h_fit), Image.LANCZOS)
+    bg_pil = bg_pil.resize((bg_w_fit, bg_h_fit), Image.BILINEAR)
 
     has_cutout = False
     fg_resized = None
@@ -750,8 +751,8 @@ def create_ultra_photo_motion_clip(
     if remove_background and cutout_src_path:
         try:
             char_orig = Image.open(cutout_src_path).convert("RGBA")
-            if char_orig.width > 1280 or char_orig.height > 1280:
-                char_orig.thumbnail((1280, 1280), Image.LANCZOS)
+            if char_orig.width > 800 or char_orig.height > 800:
+                char_orig.thumbnail((800, 800), Image.BILINEAR)
             fg_pil = remove_background(char_orig)
             if fg_pil.mode == "RGBA" and fg_pil.getextrema()[3][0] < 255:
                 fg_filtered = apply_color_filter(fg_pil.convert("RGB"), filter_style=filter_style)
@@ -759,7 +760,7 @@ def create_ultra_photo_motion_clip(
                 target_fg_h = int(h * 0.85)
                 aspect_fg = fg_filtered.width / fg_filtered.height
                 target_fg_w = int(target_fg_h * aspect_fg)
-                fg_resized = fg_filtered.resize((target_fg_w, target_fg_h), Image.LANCZOS)
+                fg_resized = fg_filtered.resize((target_fg_w, target_fg_h), Image.BILINEAR)
                 
                 ink_mask = generate_ink_brush_mask((fg_resized.width, fg_resized.height))
                 cur_alpha = fg_resized.split()[3]
@@ -770,7 +771,7 @@ def create_ultra_photo_motion_clip(
             print(f"⚠️ Character cutout extraction skip: {e_cut}")
             has_cutout = False
 
-    bg_base_scaled = bg_pil.resize((int(bg_w_fit * 1.25), int(bg_h_fit * 1.25)), Image.LANCZOS)
+    bg_base_scaled = bg_pil.resize((int(bg_w_fit * 1.15), int(bg_h_fit * 1.15)), Image.BILINEAR)
     bg_w_scaled, bg_h_scaled = bg_base_scaled.size
 
     dark_bg_full = bg_base_scaled.convert("L").convert("RGB")
@@ -1027,46 +1028,46 @@ def render_scene_native_ffmpeg(
         half_dur = max(0.5, duration / 2.0)
         
         if str(p0).lower().endswith(('.jpg', '.jpeg', '.png', '.webp')):
-            input_args.extend(["-loop", "1", "-t", f"{half_dur:.2f}", "-i", os.path.abspath(p0)])
+            input_args.extend(["-threads", "1", "-loop", "1", "-t", f"{half_dur:.2f}", "-i", os.path.abspath(p0)])
         else:
-            input_args.extend(["-ss", "0", "-t", f"{half_dur:.2f}", "-i", os.path.abspath(p0)])
+            input_args.extend(["-threads", "1", "-ss", "0", "-t", f"{half_dur:.2f}", "-i", os.path.abspath(p0)])
             
         if str(p1).lower().endswith(('.jpg', '.jpeg', '.png', '.webp')):
-            input_args.extend(["-loop", "1", "-t", f"{half_dur:.2f}", "-i", os.path.abspath(p1)])
+            input_args.extend(["-threads", "1", "-loop", "1", "-t", f"{half_dur:.2f}", "-i", os.path.abspath(p1)])
         else:
-            input_args.extend(["-ss", "0", "-t", f"{half_dur:.2f}", "-i", os.path.abspath(p1)])
+            input_args.extend(["-threads", "1", "-ss", "0", "-t", f"{half_dur:.2f}", "-i", os.path.abspath(p1)])
             
-        input_args.extend(["-i", os.path.abspath(audio_path)])
+        input_args.extend(["-threads", "1", "-i", os.path.abspath(audio_path)])
         audio_input_idx = 2
         
         for sub_item in sub_overlay_files:
-            input_args.extend(["-i", sub_item[0]])
+            input_args.extend(["-threads", "1", "-i", sub_item[0]])
             
         filter_parts = [
-            f"[0:v]scale={w}:{h}:force_original_aspect_ratio=increase,crop={w}:{h},setsar=1,fps=25,trim=duration={half_dur:.2f}[v0]",
-            f"[1:v]scale={w}:{h}:force_original_aspect_ratio=increase,crop={w}:{h},setsar=1,fps=25,trim=duration={half_dur:.2f}[v1]",
+            f"[0:v]scale={w}:{h}:force_original_aspect_ratio=increase:flags=fast_bilinear,crop={w}:{h},setsar=1,fps=25,trim=duration={half_dur:.2f}[v0]",
+            f"[1:v]scale={w}:{h}:force_original_aspect_ratio=increase:flags=fast_bilinear,crop={w}:{h},setsar=1,fps=25,trim=duration={half_dur:.2f}[v1]",
             f"[v0][v1]concat=n=2:v=1:a=0[vbg]"
         ]
     else:
         v_single = video_path[0] if isinstance(video_path, (list, tuple)) and video_path else video_path
         if v_single and os.path.exists(v_single) and os.path.getsize(v_single) > 500 and has_video_stream(v_single):
             if str(v_single).lower().endswith(('.jpg', '.jpeg', '.png', '.webp')):
-                input_args.extend(["-loop", "1", "-i", os.path.abspath(v_single)])
+                input_args.extend(["-threads", "1", "-loop", "1", "-i", os.path.abspath(v_single)])
             else:
-                input_args.extend(["-stream_loop", "-1", "-fflags", "+genpts", "-i", os.path.abspath(v_single)])
+                input_args.extend(["-threads", "1", "-stream_loop", "-1", "-fflags", "+genpts", "-i", os.path.abspath(v_single)])
         else:
             fallback_created = os.path.abspath(os.path.join(job_dir, f"tmp_fallback_canvas_{random.randint(1000, 9999)}.png"))
             fb_img = Image.new("RGB", (w, h), (15, 10, 35))
             fb_img.save(fallback_created, "PNG")
-            input_args.extend(["-loop", "1", "-i", fallback_created])
+            input_args.extend(["-threads", "1", "-loop", "1", "-i", fallback_created])
             
-        input_args.extend(["-i", os.path.abspath(audio_path)])
+        input_args.extend(["-threads", "1", "-i", os.path.abspath(audio_path)])
         audio_input_idx = 1
         
         for sub_item in sub_overlay_files:
-            input_args.extend(["-i", sub_item[0]])
+            input_args.extend(["-threads", "1", "-i", sub_item[0]])
             
-        filter_parts = [f"[0:v]fps=25,scale={w}:{h}:force_original_aspect_ratio=increase,crop={w}:{h},setsar=1[vbg]"]
+        filter_parts = [f"[0:v]fps=25,scale={w}:{h}:force_original_aspect_ratio=increase:flags=fast_bilinear,crop={w}:{h},setsar=1[vbg]"]
         
     last_v = "vbg"
     for idx, (_, t_s, t_e, bx, by) in enumerate(sub_overlay_files):
@@ -1083,16 +1084,18 @@ def render_scene_native_ffmpeg(
     cmd = [
         "ffmpeg", "-y",
         *input_args,
+        "-filter_threads", "1", "-filter_complex_threads", "1",
         "-filter_complex", filter_complex,
         "-map", "[outv]",
         "-map", f"{audio_input_idx}:a",
         "-c:v", "libx264",
         "-preset", "ultrafast",
         "-crf", "26",
+        "-x264opts", "sync-lookahead=0:rc-lookahead=0:b-adapt=0",
         "-r", "25",
         "-g", "50",
         "-threads", "1",
-        "-max_muxing_queue_size", "128",
+        "-max_muxing_queue_size", "32",
         "-pix_fmt", "yuv420p",
         "-c:a", "aac",
         "-b:a", "128k",
@@ -2118,6 +2121,7 @@ def merge_and_export(
                     v_clip.write_videofile(temp_ultra_base, fps=15, preset="ultrafast", threads=1, logger=None)
                     try: v_clip.close()
                     except Exception: pass
+                    del v_clip
                     release_system_memory()
                     rendered_successfully = render_scene_native_ffmpeg(
                         scene_output=scene_output,
@@ -2135,6 +2139,7 @@ def merge_and_export(
                     if os.path.exists(temp_ultra_base):
                         try: os.remove(temp_ultra_base)
                         except Exception: pass
+                    release_system_memory()
                 except Exception as e_mc:
                     print(f"⚠️ Multi-char render notice: {e_mc}")
             elif is_cartoon_cat:
@@ -2250,6 +2255,7 @@ def merge_and_export(
                         v_clip.write_videofile(temp_ultra_base, fps=15, preset="ultrafast", threads=1, logger=None)
                         try: v_clip.close()
                         except Exception: pass
+                        del v_clip
                         release_system_memory()
                         rendered_successfully = render_scene_native_ffmpeg(
                             scene_output=scene_output,
@@ -2267,6 +2273,7 @@ def merge_and_export(
                         if os.path.exists(temp_ultra_base):
                             try: os.remove(temp_ultra_base)
                             except Exception: pass
+                        release_system_memory()
                     except Exception as e_um:
                         print(f"⚠️ Ultra motion render notice: {e_um}")
         else:
@@ -2354,6 +2361,7 @@ def merge_and_export(
             except Exception: pass
 
         if str(mode).strip().lower() == "ultra" and is_after_effects_cat and os.path.exists(scene_output):
+            release_system_memory()
             try:
                 from after_effects_vfx import apply_after_effects_vfx_overlay, select_after_effects_vfx
                 scene_kw_vfx = scene.get('keyword') or scene.get('keywords') or scene.get('visual_prompt') or ''
@@ -2369,16 +2377,19 @@ def merge_and_export(
                 if vfx_choice and apply_after_effects_vfx_overlay(scene_output, vfx_choice, clip_duration, target_size, job_dir=job_dir):
                     used_vfx_history.append(vfx_choice["file"])
                     last_vfx_scene_idx = i
-                    print(f"✨ [Ultra After Effects VFX] Scene {i+1}/{len(scene_list)}: Overlaid '{vfx_choice['file']}' (mode={vfx_choice['key_mode']}, trigger={vfx_choice['reason']})")
+                    print(f"✨ [Ultra After Effects VFX] Scene {i+1}/{len(scene_list)}: Overlaid '{vfx_choice['file']}' (mode={vfx_choice['key_mode']}, trigger={vfx_choice['reason']})", flush=True)
             except Exception as e_vfx:
-                print(f"⚠️ Ultra After Effects VFX overlay notice: {e_vfx}")
+                print(f"⚠️ Ultra After Effects VFX overlay notice: {e_vfx}", flush=True)
+            finally:
+                release_system_memory()
 
         temp_scene_files.append(scene_output)
         msg = f"✅ [Scene {i+1}/{len(scene_list)}] Encoded HD scene clip successfully!"
-        print(f"   {msg}")
+        print(f"   {msg}", flush=True)
         if log_callback:
             pct = 75 + int(((i + 1) / len(scene_list)) * 20)
             log_callback(msg, pct)
+        release_system_memory()
 
     print(f"\n🔗 [FFMPEG CONCAT] Merging all {len(temp_scene_files)} scenes + Background Music track...")
     valid_temp_files = [tf for tf in temp_scene_files if os.path.exists(tf) and os.path.getsize(tf) > 500]
