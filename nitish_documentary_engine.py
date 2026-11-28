@@ -4,11 +4,11 @@ nitish_documentary_engine.py - 3D Documentary & Pro Motion Graphics Engine
 Inspired directly by high-production Indian & international motion documentary creators
 (Vane Motion, MagnatesMedia, Vox, Nitish Rajput, Johnny Harris):
 
-1. Visual Archetypes (Script-Aware Intelligent Selection):
+1. Dynamic Visual Archetypes & Palette Randomization:
    - Archetype A (Vane Motion / MagnatesMedia Dark Studio):
-     Full-bleed vertical 9:16 dark cosmic studio canvas with emerald/cyan radial glow,
+     Full-bleed vertical 9:16 dark cosmic studio canvas with theme radial glow,
      GIANT KINETIC TYPOGRAPHY BEHIND THE SUBJECT CUTOUT ("PRACTICE", "SUPERPOWER", "AI"),
-     and sleek modern UI overlays (green checklists, red scam alerts, sleek folders, celestial rings).
+     and sleek modern UI overlays (green checklists, red scam alerts, celestial rings).
    - Archetype B (Nitish Rajput Theatrical Window):
      Theatrical 16:9 central cinematic window inside 9:16 vertical canvas with heavy
      ambient Gaussian mirror blur reflections top & bottom, thin divider lines, and 3D parallax.
@@ -18,13 +18,15 @@ Inspired directly by high-production Indian & international motion documentary c
    - Archetype D (Antique Museum Gallery Frame):
      Warm gallery wall with spotlight wash beam and heavy ornate carved gold frame.
 
-2. Purposeful Camera Motion & Zoom Dynamics:
-   - Smooth Cosine Ease Zoom: Parallax rates across layers (Background 1.04x, Text 1.08x, Cutout 1.16x, UI 1.20x).
-   - Dramatic Punch-In on Questions ("?") or Climaxes: Sudden acceleration with sound effect.
-   - Zoom-Through Transition: Fast camera push-through (1.15x -> 1.45x) in the final 0.35s.
+2. Randomized & Non-Repeating Motion Choreography:
+   - Diverse palette of 8 distinct entrance styles for single cutouts:
+     slide_left, pop_bottom, slide_right, scale_pop, diagonal_left, drop_top, diagonal_right, cinematic_dolly.
+   - Mathematical guarantee: No two adjacent scenes will ever use the same entrance style!
+   - 4 specialized dual-entity choreographies for clash/comparisons (dual_sides, dual_bottom_pop, etc.).
+   - After Effects damped harmonic spring physics + entry tilt + continuous organic breathing/drift.
 
 3. Sound Design Synchronization:
-   - Entrance Whoosh on subject entry.
+   - Entrance Whoosh on subject entry & staggered second entities.
    - Paper Rustle on newspaper reveals.
    - Dramatic Riser / Vacuum on question climaxes.
    - Typewriter / Clicks on tech / dates.
@@ -40,6 +42,7 @@ import math
 import random
 import re
 import subprocess
+import hashlib
 from typing import Dict, Any, Tuple, List, Optional
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont, ImageFilter, ImageEnhance
@@ -98,6 +101,53 @@ def get_clean_font(size: int = 40, font_type: str = "bold") -> ImageFont.ImageFo
             except Exception:
                 pass
     return ImageFont.load_default()
+
+
+# ==============================================================================
+# COLOR THEME PALETTES
+# ==============================================================================
+
+def get_theme_palette(theme_name: str) -> Dict[str, Any]:
+    """Provides curated broadcast color schemes for dynamic atmosphere."""
+    palettes = {
+        "emerald": {
+            "primary": (0, 230, 118),
+            "glow": (0, 210, 106),
+            "accent": (180, 255, 210),
+            "bg_tint": (10, 22, 16)
+        },
+        "cyan": {
+            "primary": (0, 229, 255),
+            "glow": (0, 200, 255),
+            "accent": (190, 245, 255),
+            "bg_tint": (8, 18, 28)
+        },
+        "amber": {
+            "primary": (255, 179, 0),
+            "glow": (255, 160, 0),
+            "accent": (255, 230, 150),
+            "bg_tint": (26, 18, 10)
+        },
+        "gold": {
+            "primary": (255, 215, 0),
+            "glow": (255, 195, 0),
+            "accent": (255, 245, 175),
+            "bg_tint": (28, 20, 10)
+        },
+        "crimson": {
+            "primary": (255, 68, 68),
+            "glow": (230, 45, 45),
+            "accent": (255, 180, 180),
+            "bg_tint": (28, 10, 12)
+        },
+        "violet": {
+            "primary": (186, 85, 255),
+            "glow": (165, 65, 245),
+            "accent": (230, 185, 255),
+            "bg_tint": (22, 10, 30)
+        }
+    }
+    return palettes.get(theme_name, palettes["emerald"])
 
 
 # ==============================================================================
@@ -197,7 +247,8 @@ def draw_vs_badge(
     r = int(26 * scale)
     if r < 8:
         return
-    accent = (0, 230, 118) if theme_name == "emerald" else ((0, 229, 255) if theme_name == "cyan" else (255, 179, 0))
+    pal = get_theme_palette(theme_name)
+    accent = pal["primary"]
     draw.ellipse([cx - r, cy - r, cx + r, cy + r], fill=(15, 20, 28, 240), outline=accent, width=2)
     f_vs = get_clean_font(max(12, int(20 * scale)), "bold")
     draw.text((cx, cy), "VS", fill=accent, font=f_vs, anchor="mm")
@@ -241,6 +292,268 @@ def sharpen_cutout(pil_img: Image.Image, amount: float = 1.25) -> Image.Image:
     return crisp_rgb
 
 
+def paste_transformed_cutout(
+    canvas: Image.Image,
+    cutout_img: Image.Image,
+    w: int,
+    h: int,
+    cx: int,
+    cy: int,
+    rot_deg: float = 0.0,
+    drop_shadow: bool = True,
+    shadow_opacity: float = 0.50
+):
+    """Resizes, rotates, generates realistic drop shadow, and pastes onto canvas centered at (cx, cy)."""
+    sub_scaled = cutout_img.resize((max(2, w), max(2, h)), Image.BILINEAR)
+    if abs(rot_deg) > 0.2:
+        sub_scaled = sub_scaled.rotate(rot_deg, resample=Image.BICUBIC, expand=True)
+
+    sw, sh = sub_scaled.size
+    px = cx - sw // 2
+    py = cy - sh // 2
+
+    if drop_shadow:
+        sh_img, sh_off = create_cutout_drop_shadow(sub_scaled, blur_radius=18, offset=(6, 14), shadow_opacity=shadow_opacity)
+        canvas.paste(sh_img, (px + sh_off[0], py + sh_off[1]), mask=sh_img)
+
+    canvas.paste(sub_scaled, (px, py), mask=sub_scaled)
+
+
+# ==============================================================================
+# DYNAMIC NON-REPEATING MOTION CHOREOGRAPHY SYSTEM
+# ==============================================================================
+
+SINGLE_MOTION_STYLES = [
+    "slide_left",
+    "pop_bottom",
+    "slide_right",
+    "scale_pop",
+    "diagonal_left",
+    "drop_top",
+    "diagonal_right",
+    "cinematic_dolly",
+]
+
+DUAL_MOTION_STYLES = [
+    "dual_sides",
+    "dual_bottom_pop",
+    "dual_diagonal",
+    "dual_stagger_expand"
+]
+
+
+def pick_scene_motion_style(
+    scene_index: int,
+    scene_text: str = "",
+    is_question: bool = False,
+    num_cutouts: int = 1,
+    main_topic: str = "",
+    prev_motion: Optional[str] = None
+) -> str:
+    """
+    Intelligently selects a non-repeating dynamic motion style for the scene:
+    - Guaranteed: no two adjacent scenes will share the same entrance style!
+    - High-energy styles (scale_pop, pop_bottom) prioritized on dramatic questions or climaxes.
+    - Deterministic pseudo-randomness ensures reproducibility while maximizing visual variety.
+    """
+    seed_str = f"{main_topic}_{scene_index}_{scene_text[:20]}"
+    seed_num = int(hashlib.md5(seed_str.encode()).hexdigest(), 16)
+
+    if num_cutouts >= 2:
+        return DUAL_MOTION_STYLES[(seed_num + scene_index * 7) % len(DUAL_MOTION_STYLES)]
+
+    if is_question:
+        q_pool = [s for s in ["scale_pop", "pop_bottom", "slide_left", "diagonal_left"] if s != prev_motion]
+        if q_pool:
+            return q_pool[seed_num % len(q_pool)]
+        return "scale_pop"
+
+    pool = [s for s in SINGLE_MOTION_STYLES if s != prev_motion]
+    if not pool:
+        pool = SINGLE_MOTION_STYLES
+    return pool[seed_num % len(pool)]
+
+
+def compute_single_cutout_motion(
+    t: float,
+    duration: float,
+    motion_style: str,
+    target_cx: int,
+    target_cy: int,
+    base_w: int,
+    base_h: int,
+    canvas_w: int,
+    canvas_h: int,
+    ease_zoom: float = 0.0,
+    zoom_through: float = 0.0,
+    seed: int = 0
+) -> Tuple[int, int, int, int, float]:
+    """
+    Computes (curr_w, curr_h, cx, cy, rot_deg) for a single cutout in any canvas.
+    Applies After Effects spring entrance, directional displacement, entry tilt,
+    and continuous organic breathing/drift after settling.
+    """
+    spring = spring_bounce(t, duration=0.40, overshoot=0.10, freq=12.0, decay=7.0)
+
+    # Post-settling organic floating drift (breathing effect)
+    drift_x = math.sin(t * 1.6 + seed * 1.5) * 4.5
+    drift_y = math.cos(t * 1.3 + seed * 2.1) * 3.5
+    drift_rot = math.sin(t * 1.1 + seed * 0.9) * 1.0
+
+    cam_scale = 1.00 + ease_zoom * 0.14 + zoom_through * 1.2
+
+    if motion_style == "slide_left":
+        off_x = -canvas_w * 0.60 * (1.0 - spring)
+        off_y = 0.0
+        entry_rot = -3.2 * (1.0 - spring)
+        scale_mult = 1.0
+    elif motion_style == "slide_right":
+        off_x = +canvas_w * 0.60 * (1.0 - spring)
+        off_y = 0.0
+        entry_rot = +3.2 * (1.0 - spring)
+        scale_mult = 1.0
+    elif motion_style == "pop_bottom":
+        off_x = 0.0
+        off_y = +canvas_h * 0.65 * (1.0 - spring)
+        entry_rot = 0.0
+        scale_mult = 1.0
+    elif motion_style == "drop_top":
+        off_x = 0.0
+        off_y = -canvas_h * 0.55 * (1.0 - spring)
+        entry_rot = 0.0
+        scale_mult = 1.0
+    elif motion_style == "scale_pop":
+        off_x = 0.0
+        off_y = 0.0
+        scale_mult = (0.10 + 0.90 * spring)
+        entry_rot = -2.5 * (1.0 - spring)
+    elif motion_style == "diagonal_left":
+        off_x = -canvas_w * 0.50 * (1.0 - spring)
+        off_y = +canvas_h * 0.40 * (1.0 - spring)
+        entry_rot = -3.8 * (1.0 - spring)
+        scale_mult = 1.0
+    elif motion_style == "diagonal_right":
+        off_x = +canvas_w * 0.50 * (1.0 - spring)
+        off_y = +canvas_h * 0.40 * (1.0 - spring)
+        entry_rot = +3.8 * (1.0 - spring)
+        scale_mult = 1.0
+    elif motion_style == "cinematic_dolly":
+        off_x = math.sin(t * 0.8 + seed) * (canvas_w * 0.03)
+        off_y = 0.0
+        entry_rot = 0.0
+        scale_mult = (0.92 + 0.08 * spring)
+    else:
+        off_x = 0.0
+        off_y = 0.0
+        entry_rot = 0.0
+        scale_mult = 1.0
+
+    total_scale = cam_scale * scale_mult
+    curr_w = max(4, int(base_w * total_scale))
+    curr_h = max(4, int(base_h * total_scale))
+    cx = int(target_cx + off_x + drift_x)
+    cy = int(target_cy + off_y + drift_y)
+    rot = entry_rot + drift_rot
+
+    return curr_w, curr_h, cx, cy, rot
+
+
+def compute_dual_cutout_motion(
+    t: float,
+    duration: float,
+    dual_style: str,
+    cutout_idx: int,
+    base_w: int,
+    base_h: int,
+    canvas_w: int,
+    canvas_h: int,
+    ease_zoom: float = 0.0,
+    zoom_through: float = 0.0
+) -> Tuple[int, int, int, int, float, bool]:
+    """
+    Computes (curr_w, curr_h, cx, cy, rot_deg, is_visible) for dual entities (0 = Left, 1 = Right).
+    """
+    cam_scale = 1.00 + ease_zoom * 0.12 + zoom_through * 1.0
+
+    if cutout_idx == 0:
+        target_cx = int(canvas_w * 0.27)
+        target_cy = int(canvas_h * 0.54)
+        spring = spring_bounce(t, duration=0.38, overshoot=0.10)
+        drift_x = math.sin(t * 1.6) * 3.5
+        drift_y = math.cos(t * 1.3) * 3.0
+        drift_rot = math.sin(t * 1.1) * 0.8
+
+        if dual_style == "dual_sides":
+            off_x = -canvas_w * 0.55 * (1.0 - spring)
+            off_y = 0.0
+            entry_rot = -2.5 * (1.0 - spring)
+        elif dual_style == "dual_bottom_pop":
+            off_x = 0.0
+            off_y = +canvas_h * 0.55 * (1.0 - spring)
+            entry_rot = 0.0
+        elif dual_style == "dual_diagonal":
+            off_x = -canvas_w * 0.45 * (1.0 - spring)
+            off_y = +canvas_h * 0.35 * (1.0 - spring)
+            entry_rot = -3.0 * (1.0 - spring)
+        else:  # dual_stagger_expand
+            if t < 0.28:
+                off_x = 0.0
+                off_y = 0.0
+                entry_rot = 0.0
+                target_cx = canvas_w // 2
+            else:
+                s_shift = spring_bounce(t - 0.28, duration=0.35, overshoot=0.08)
+                target_cx = int(canvas_w // 2 + (canvas_w * 0.27 - canvas_w // 2) * s_shift)
+                off_x = 0.0
+                off_y = 0.0
+                entry_rot = -2.0 * (1.0 - s_shift)
+
+        curr_w = max(4, int(base_w * cam_scale))
+        curr_h = max(4, int(base_h * cam_scale))
+        cx = int(target_cx + off_x + drift_x)
+        cy = int(target_cy + off_y + drift_y)
+        rot = entry_rot + drift_rot
+        return curr_w, curr_h, cx, cy, rot, True
+
+    else:
+        # Cutout 1: Right entity (staggered entrance)
+        stagger_t = 0.32
+        if t < stagger_t:
+            return 4, 4, 0, 0, 0.0, False
+
+        t_loc = t - stagger_t
+        spring = spring_bounce(t_loc, duration=0.38, overshoot=0.10)
+        target_cx = int(canvas_w * 0.73)
+        target_cy = int(canvas_h * 0.54)
+        drift_x = math.sin(t_loc * 1.5 + 2.0) * 3.5
+        drift_y = math.cos(t_loc * 1.2 + 1.5) * 3.0
+        drift_rot = math.sin(t_loc * 1.0 + 1.0) * 0.8
+
+        if dual_style == "dual_sides":
+            off_x = +canvas_w * 0.55 * (1.0 - spring)
+            off_y = 0.0
+            entry_rot = +2.5 * (1.0 - spring)
+        elif dual_style == "dual_bottom_pop":
+            off_x = 0.0
+            off_y = +canvas_h * 0.55 * (1.0 - spring)
+            entry_rot = 0.0
+        elif dual_style == "dual_diagonal":
+            off_x = +canvas_w * 0.45 * (1.0 - spring)
+            off_y = -canvas_h * 0.35 * (1.0 - spring)
+            entry_rot = +3.0 * (1.0 - spring)
+        else:  # dual_stagger_expand
+            off_x = +canvas_w * 0.55 * (1.0 - spring)
+            off_y = 0.0
+            entry_rot = +2.5 * (1.0 - spring)
+
+        curr_w = max(4, int(base_w * cam_scale))
+        curr_h = max(4, int(base_h * cam_scale))
+        cx = int(target_cx + off_x + drift_x)
+        cy = int(target_cy + off_y + drift_y)
+        rot = entry_rot + drift_rot
+        return curr_w, curr_h, cx, cy, rot, True
+
+
 # ==============================================================================
 # ARCHETYPE A: VANE MOTION / MAGNATESMEDIA DARK STUDIO WITH TEXT BEHIND SUBJECT
 # ==============================================================================
@@ -252,30 +565,32 @@ def create_dark_cosmic_studio_base(
 ) -> Image.Image:
     """
     Renders the signature Vane Motion dark studio canvas:
-    - Deep charcoal/starfield canvas (RGB 10, 12, 16)
-    - Directional radial glow behind subject (Emerald Green, Electric Cyan, or Warm Gold)
+    - Deep charcoal/starfield canvas tinted to theme
+    - Directional radial glow behind subject (Emerald, Cyan, Amber, Crimson, Violet, Gold)
     - Subtle ambient vignette
     """
-    canvas = Image.new("RGB", (width, height), (10, 12, 16))
+    pal = get_theme_palette(theme_name)
+    glow_color = pal["glow"]
+    bg_tint = pal["bg_tint"]
+
+    canvas = Image.new("RGB", (width, height), bg_tint)
     draw = ImageDraw.Draw(canvas)
 
     # Ambient radial spotlight glow
-    glow_color = (0, 210, 106) if theme_name == "emerald" else ((0, 200, 255) if theme_name == "cyan" else (255, 179, 0))
     cx, cy = width // 2, int(height * 0.46)
     max_radius = int(width * 0.48)
 
-    # Fast procedural radial rings
     for r in range(max_radius, 0, -28):
         factor = (1.0 - (r / max_radius)) ** 1.8
         col = (
-            int(10 + glow_color[0] * factor * 0.32),
-            int(12 + glow_color[1] * factor * 0.32),
-            int(16 + glow_color[2] * factor * 0.32)
+            int(bg_tint[0] + glow_color[0] * factor * 0.35),
+            int(bg_tint[1] + glow_color[1] * factor * 0.35),
+            int(bg_tint[2] + glow_color[2] * factor * 0.35)
         )
         draw.ellipse([cx - r, cy - r, cx + r, cy + r], fill=col)
 
     # Subtle star dust
-    rnd = random.Random(42)
+    rnd = random.Random(42 + sum(bg_tint))
     for _ in range(85):
         sx = rnd.randint(0, width - 1)
         sy = rnd.randint(0, height - 1)
@@ -304,7 +619,9 @@ def draw_giant_text_behind_subject(
     if not giant_word:
         giant_word = "DOCUMENTARY"
 
-    primary_color = (0, 220, 110) if theme_name == "emerald" else ((0, 215, 255) if theme_name == "cyan" else (255, 185, 0))
+    pal = get_theme_palette(theme_name)
+    primary_color = pal["primary"]
+    accent_color = pal["accent"]
 
     # Base font size around 110-140px, adjusted with camera zoom
     base_size = int(width * 0.125 * zoom_scale)
@@ -326,7 +643,7 @@ def draw_giant_text_behind_subject(
         sub_w = sub_bbox[2] - sub_bbox[0]
         sub_x = (width - sub_w) // 2
         sub_y = ty - int(th * 0.40) - 10
-        draw.text((sub_x, sub_y), context_phrase, fill=(235, 242, 250, 220), font=f_sub)
+        draw.text((sub_x, sub_y), context_phrase, fill=(accent_color[0], accent_color[1], accent_color[2], 220), font=f_sub)
 
     # 2. Giant Typography with 3D drop shadow
     draw.text((tx + 4, ty + 6), giant_word, fill=(0, 0, 0, 180), font=font_giant)
@@ -345,8 +662,10 @@ def draw_sleek_modern_ui_overlays(
     Renders sleek After Effects UI overlays (green checklists, red alert card,
     sleek folder, celestial portal ring).
     """
+    pal = get_theme_palette(theme_name)
+    primary_color = pal["primary"]
+
     if ui_type == "checklist":
-        # Two sleek green checkmark pills sliding in (Image 6 Panel 2)
         items = ["Even if you pass.", "Even if you're profitable."]
         pill_w = int(width * 0.48)
         pill_h = 52
@@ -361,22 +680,17 @@ def draw_sleek_modern_ui_overlays(
             px = int(width * 0.26 + slide_x)
             py = start_y + idx * 64
 
-            # Translucent dark rounded pill
-            draw.rounded_rectangle([px, py, px + pill_w, py + pill_h], radius=10, fill=(18, 22, 28, 210), outline=(0, 210, 106, 160), width=1)
-            # Emerald green check square
+            draw.rounded_rectangle([px, py, px + pill_w, py + pill_h], radius=10, fill=(18, 22, 28, 210), outline=(primary_color[0], primary_color[1], primary_color[2], 160), width=1)
             sq_size = 28
             sq_x = px + 12
             sq_y = py + (pill_h - sq_size) // 2
-            draw.rectangle([sq_x, sq_y, sq_x + sq_size, sq_y + sq_size], fill=(0, 210, 106, 240))
-            # Checkmark symbol
+            draw.rectangle([sq_x, sq_y, sq_x + sq_size, sq_y + sq_size], fill=(primary_color[0], primary_color[1], primary_color[2], 240))
             f_chk = get_clean_font(18, "bold")
             draw.text((sq_x + 7, sq_y + 4), "✓", fill=(0, 0, 0, 255), font=f_chk)
-            # Item text
             f_txt = get_clean_font(20, "sans")
             draw.text((sq_x + sq_size + 14, py + 15), itm, fill=(245, 250, 255, 230), font=f_txt)
 
     elif ui_type == "scam_alert":
-        # Red glowing threat card (Image 6 Panel 3)
         anim_t = max(0.0, min(1.0, (t - 0.20) / 0.35))
         if anim_t > 0:
             card_w = int(width * 0.46)
@@ -384,11 +698,9 @@ def draw_sleek_modern_ui_overlays(
             cx = (width - card_w) // 2
             cy = int(height * 0.52)
 
-            # Red glow border
             draw.rounded_rectangle([cx - 2, cy - 2, cx + card_w + 2, cy + card_h + 2], radius=14, fill=(180, 20, 20, 60), outline=(255, 40, 40, 200), width=2)
             draw.rounded_rectangle([cx, cy, cx + card_w, cy + card_h], radius=12, fill=(26, 10, 12, 230))
 
-            # Warning icon badge
             badge_w, badge_h = 120, 26
             bx = cx + (card_w - badge_w) // 2
             by = cy - 13
@@ -396,21 +708,18 @@ def draw_sleek_modern_ui_overlays(
             f_b = get_clean_font(14, "bold")
             draw.text((bx + 10, by + 5), "⚠ SCAM ALERT", fill=(255, 255, 255, 255), font=f_b)
 
-            # Target status
             f_t = get_clean_font(20, "sans")
             draw.text((cx + 20, cy + 38), "Target Under Investigation", fill=(255, 220, 220, 240), font=f_t)
 
     elif ui_type == "celestial_ring":
-        # Celestial glowing ring behind hero subject (Image 1, Image 6 Panel 4)
         rx = width // 2
         ry = int(height * 0.44)
         rad = int(width * 0.28)
         pulse = 1.0 + 0.03 * math.sin(t * math.pi * 2)
         cur_rad = int(rad * pulse)
 
-        # Multi-layer soft neon glow
         for glow_w, alpha in [(12, 35), (8, 70), (4, 160), (2, 240)]:
-            col = (255, 255, 255, alpha) if theme_name == "emerald" else (0, 210, 106, alpha)
+            col = (primary_color[0], primary_color[1], primary_color[2], alpha)
             draw.ellipse([rx - cur_rad, ry - cur_rad, rx + cur_rad, ry + cur_rad], outline=col, width=glow_w)
 
 
@@ -433,12 +742,11 @@ def create_ambient_mirror_canvas(
     """
     w, h = target_size
     box_w, box_h = 1080, 608
-    box_y = (h - box_h) // 2  # 656
+    box_y = (h - box_h) // 2
 
     if frame_16_9.size != (box_w, box_h):
         frame_16_9 = frame_16_9.resize((box_w, box_h), Image.LANCZOS)
 
-    # 1. Generate ambient blurred reflection
     ambient = frame_16_9.resize((w, h), Image.BILINEAR)
     ambient_blurred = ambient.filter(ImageFilter.GaussianBlur(radius=blur_radius))
     enhancer = ImageEnhance.Brightness(ambient_blurred)
@@ -447,7 +755,6 @@ def create_ambient_mirror_canvas(
     canvas = ambient_dark.convert("RGBA")
     canvas.paste(frame_16_9, (0, box_y))
 
-    # 2. Add subtle horizontal dividing lines
     draw = ImageDraw.Draw(canvas)
     draw.line([(0, box_y), (w, box_y)], fill=(255, 255, 255, 65), width=2)
     draw.line([(0, box_y + box_h), (w, box_y + box_h)], fill=(255, 255, 255, 65), width=2)
@@ -455,19 +762,26 @@ def create_ambient_mirror_canvas(
     return canvas.convert("RGB")
 
 
-def create_cinematic_sky_background(width: int = 1080, height: int = 608, t: float = 0.0) -> Image.Image:
-    """Procedurally renders a drifting atmospheric sky with warm horizon glow."""
-    sky = Image.new("RGB", (width, height), (35, 65, 110))
+def create_cinematic_sky_background(
+    width: int = 1080,
+    height: int = 608,
+    t: float = 0.0,
+    theme_name: str = "amber"
+) -> Image.Image:
+    """Procedurally renders an atmospheric horizon sky tinted to match the theme."""
+    pal = get_theme_palette(theme_name)
+    glow = pal["glow"]
+
+    sky = Image.new("RGB", (width, height), (25, 35, 55))
     draw = ImageDraw.Draw(sky)
 
     for y in range(height):
         factor = y / float(height)
-        r = int(25 + 160 * (factor ** 2.2))
-        g = int(45 + 130 * (factor ** 1.8))
-        b = int(90 + 70 * factor)
-        draw.line([(0, y), (width, y)], fill=(r, g, b))
+        r = int(18 + glow[0] * 0.65 * (factor ** 2.2))
+        g = int(25 + glow[1] * 0.55 * (factor ** 1.8))
+        b = int(45 + glow[2] * 0.40 * factor)
+        draw.line([(0, y), (width, y)], fill=(min(255, r), min(255, g), min(255, b)))
 
-    # Procedural drifting soft clouds
     rnd = random.Random(101)
     drift_x = int(t * 18.0) % width
     for _ in range(12):
@@ -502,14 +816,12 @@ def build_vintage_newspaper_page(
     paper = Image.new("RGB", (width, height), (236, 230, 218))
     draw = ImageDraw.Draw(paper)
 
-    # Subtle paper fiber noise
     rnd = random.Random(77)
     for _ in range(450):
         nx = rnd.randint(0, width - 1)
         ny = rnd.randint(0, height - 1)
         draw.point((nx, ny), fill=(215, 205, 190))
 
-    # 1. Newspaper Masthead
     draw.line([(40, 35), (width - 40, 35)], fill=(40, 35, 30), width=3)
     draw.line([(40, 42), (width - 40, 42)], fill=(40, 35, 30), width=1)
 
@@ -522,18 +834,15 @@ def build_vintage_newspaper_page(
 
     draw.line([(40, 110), (width - 40, 110)], fill=(40, 35, 30), width=2)
 
-    # 2. Headline
     headline_display = (headline_text.upper()[:45] if headline_text else "SPECIAL REPORT EXPOSED")
     f_headline = get_clean_font(42, "headline")
     draw.text((width // 2, 155), headline_display, fill=(20, 18, 15), font=f_headline, anchor="mm")
 
     draw.line([(40, 195), (width - 40, 195)], fill=(40, 35, 30), width=1)
 
-    # 3. Dual Column Layout
     col_split = int(width * 0.58)
     draw.line([(col_split, 210), (col_split, height - 35)], fill=(180, 172, 160), width=1)
 
-    # Left Column: Embedded Cutout Photo
     photo_box_w = col_split - 80
     photo_box_h = height - 250
     px = 40
@@ -545,14 +854,11 @@ def build_vintage_newspaper_page(
         cw, ch = cutout_img.size
         scale = min((photo_box_w - 20) / max(1, cw), (photo_box_h - 20) / max(1, ch))
         c_scaled = cutout_img.resize((int(cw * scale), int(ch * scale)), Image.LANCZOS)
-        # Convert to authentic vintage photo
         c_gray = c_scaled.convert("L").convert("RGBA")
         paste_x = px + (photo_box_w - c_scaled.width) // 2
         paste_y = py + (photo_box_h - c_scaled.height) // 2
         paper.paste(c_gray, (paste_x, paste_y), mask=c_scaled if c_scaled.mode == "RGBA" else None)
 
-    # Right Column: Simulated text lines
-    f_body = get_clean_font(16, "serif")
     rx = col_split + 30
     ry = 220
     for line_idx in range(11):
@@ -560,12 +866,10 @@ def build_vintage_newspaper_page(
         line_len = width - 40 - rx - (35 if line_idx % 3 == 0 else 0)
         draw.line([(rx, line_y), (rx + line_len, line_y)], fill=(80, 75, 70), width=6)
 
-    # 4. Dynamic Fluorescent Yellow Highlighter Marker
     if highlight_word:
         hw_clean = highlight_word.upper().strip()
         if hw_clean in headline_display:
             hl_bbox = draw.textbbox((width // 2, 155), headline_display, font=f_headline, anchor="mm")
-            # Highlight rect with fluorescent yellow overlay
             hl_overlay = Image.new("RGBA", (width, height), (0, 0, 0, 0))
             hl_draw = ImageDraw.Draw(hl_overlay)
             hl_draw.rectangle([hl_bbox[0] - 8, hl_bbox[1] - 4, hl_bbox[2] + 8, hl_bbox[3] + 4], fill=(255, 245, 0, 115))
@@ -584,16 +888,12 @@ def create_ornate_antique_frame(width: int = 340, height: int = 420) -> Image.Im
     draw = ImageDraw.Draw(frame_img)
 
     border_thick = 26
-    # Outer gold molding
     draw.rectangle([0, 0, width, height], fill=(160, 120, 45, 255))
-    # Beveled inner wood/gold layers
     draw.rectangle([6, 6, width - 6, height - 6], fill=(215, 175, 75, 255))
     draw.rectangle([14, 14, width - 14, height - 14], fill=(130, 90, 30, 255))
     draw.rectangle([20, 20, width - 20, height - 20], fill=(245, 210, 110, 255))
-    # Inner picture opening (transparent)
     draw.rectangle([border_thick, border_thick, width - border_thick, height - border_thick], fill=(0, 0, 0, 0))
 
-    # Corner rosette accents
     for cx, cy in [(13, 13), (width - 13, 13), (13, height - 13), (width - 13, height - 13)]:
         draw.ellipse([cx - 8, cy - 8, cx + 8, cy + 8], fill=(255, 235, 150, 255), outline=(100, 70, 20, 255), width=2)
 
@@ -619,7 +919,7 @@ def create_moody_interior_wall(width: int = 1080, height: int = 608) -> Image.Im
 
 
 # ==============================================================================
-# SCRIPT-AWARE ARCHETYPE & KEYWORD EXTRACTION
+# SCRIPT-AWARE ARCHETYPE & PALETTE EXTRACTION
 # ==============================================================================
 
 def detect_documentary_scene_archetype(
@@ -628,95 +928,120 @@ def detect_documentary_scene_archetype(
     scene_index: int = 0
 ) -> Tuple[str, Dict[str, Any]]:
     """
-    Intelligently determines the ideal editing archetype based on spoken script tokens:
-    - 'vox_newspaper' for scams, exposes, reports, documents
-    - 'antique_frame' for ancient heritage, civilization, kings, history
-    - 'vane_motion_dark_studio' for modern power, technology, AI, power comparisons, or dramatic questions
-    - 'nitish_theatrical_window' for geopolitics, territory, nations, and political clashes
+    Intelligently assigns an editing archetype, theme color, and punch typography
+    based on script tokens, while rotating across scenes to guarantee high visual variety.
     """
     t_clean = (scene_text or "").lower()
     topic_clean = (main_topic or "").lower()
 
-    # 1. Archival Investigative Newspaper Cues
-    newspaper_cues = [
-        "घोटाला", "फ्रॉड", "वांटेड", "रिपोर्ट", "अखबार", "जांच", "पर्दाफाश", "सबूत", "सच्चाई",
-        "scam", "fraud", "exposed", "investigation", "wanted", "report", "police", "court", "arrest"
-    ]
-    if any(k in t_clean for k in newspaper_cues):
-        return "vox_newspaper", {
-            "headline": "SCAM EXPOSED" if "घोटाला" in t_clean or "scam" in t_clean else "SPECIAL REPORT",
-            "highlight": "EXPOSED" if "घोटाला" in t_clean or "scam" in t_clean else "REPORT",
-            "ui_type": "scam_alert",
-            "theme": "emerald"
+    # Determine previous scene archetype to prevent repetitive visual layouts
+    prev_archetype = None
+    if scene_index > 0:
+        try:
+            prev_archetype, _ = detect_documentary_scene_archetype(
+                scene_text="",
+                main_topic=main_topic,
+                scene_index=scene_index - 1
+            )
+        except Exception:
+            pass
+
+    is_question = "?" in scene_text or "सवाल" in t_clean or "क्या " in t_clean or "who" in t_clean or "future" in t_clean
+
+    # 1. Question / Climax: Always Vane Motion Dark Studio with punch question
+    if is_question:
+        giant = "THE QUESTION" if "सवाल" in t_clean else "WHO WINS?"
+        return "vane_motion_dark_studio", {
+            "giant_word": giant,
+            "context": "the ultimate future",
+            "ui_type": "celestial_ring",
+            "theme": "violet",
+            "is_question": True
         }
 
-    # 2. Antique Gallery Frame / Heritage Cues
-    heritage_cues = [
-        "सोने की चिड़िया", "इतिहास", "हजारों साल", "प्राचीन", "विरासत", "संस्कृति", "राजा", "सम्राट", "धरोहर",
-        "golden bird", "ancient", "history", "heritage", "monarch", "civilization", "empire", "dynasty"
-    ]
+    # 2. Colonial / Freedom / Investigation / Newspaper Cues
+    newspaper_cues = ["गुलामी", "आज़ादी", "घोटाला", "फ्रॉड", "रिपोर्ट", "अखबार", "scam", "fraud", "exposed", "investigation", "freedom"]
+    if any(k in t_clean for k in newspaper_cues):
+        arch = "vox_newspaper"
+        if arch == prev_archetype:
+            arch = "antique_frame"
+        return arch, {
+            "headline": "FREEDOM STRUGGLE" if ("गुलामी" in t_clean or "आज़ादी" in t_clean) else "SPECIAL REPORT",
+            "highlight": "FREEDOM" if "आज़ादी" in t_clean else "EXPOSED",
+            "giant_word": "FREEDOM",
+            "context": "centuries of struggle",
+            "ui_type": "scam_alert",
+            "theme": "amber",
+            "is_question": False
+        }
+
+    # 3. Ancient Civilization / Heritage / Golden Bird Cues
+    heritage_cues = ["सोने की चिड़िया", "इतिहास", "हजारों साल", "प्राचीन", "विरासत", "संस्कृति", "ancient", "heritage", "empire"]
     if any(k in t_clean for k in heritage_cues):
-        return "antique_frame", {
+        arch = "antique_frame"
+        if arch == prev_archetype:
+            arch = "nitish_theatrical_window"
+        return arch, {
             "giant_word": "HERITAGE",
             "context": "thousands of years of",
             "ui_type": "none",
-            "theme": "amber"
+            "theme": "amber",
+            "is_question": False
         }
 
-    # 3. Geopolitical Dual Nation Comparison Cues -> Nitish Theatrical Window
-    if any(k in t_clean for k in ["एक तरफ", "दूसरी तरफ", "गुलामी", "आज़ादी", "rivalry", "versus", "clash"]):
-        return "nitish_theatrical_window", {
-            "giant_word": "GLOBAL POWERS",
-            "context": "the historic clash",
+    # 4. Geopolitical Dual Nation / Territory / Clash Cues
+    if any(k in t_clean for k in ["एक तरफ", "दूसरी तरफ", "चुनौती", "rivalry", "versus", "clash"]):
+        arch = "nitish_theatrical_window"
+        if arch == prev_archetype:
+            arch = "vane_motion_dark_studio"
+        theme = "crimson" if "चुनौती" in t_clean else ("amber" if "भारत" in t_clean else "gold")
+        word = "THE CLASH" if "चुनौती" in t_clean else ("BHARAT" if "भारत" in t_clean else "AMERICA")
+        return arch, {
+            "giant_word": word,
+            "context": "global balance of power",
             "ui_type": "none",
-            "theme": "amber"
+            "theme": theme,
+            "is_question": False
         }
 
-    # 4. Modern Power / Technology / Dramatic Question Cues -> Vane Motion Dark Studio
-    modern_cues = [
-        "तकनीक", "आधुनिक", "शक्ति", "सुपरपावर", "अमेरिका", "सवाल", "आगे", "पीछे", "भविष्य",
-        "practice", "power", "superpower", "technology", "ai", "modern", "future", "system", "profit", "pass", "evaluation"
-    ]
-    is_question = "?" in scene_text or "सवाल" in t_clean or "क्या " in t_clean
-    if is_question or any(k in t_clean for k in modern_cues):
-        # Extract giant punch word
-        giant = "SUPERPOWER"
-        ctx = "the modern world"
-        ui = "celestial_ring"
-
-        if is_question:
-            giant = "THE QUESTION"
-            ctx = "can it surpass"
-            ui = "celestial_ring"
-        elif any(k in t_clean for k in ["तकनीक", "technology", "ai", "modern"]):
-            giant = "MODERN TECH"
-            ctx = "cutting edge power"
-            ui = "celestial_ring"
-        elif any(k in t_clean for k in ["शक्ति", "power", "superpower", "अमेरिका"]):
-            giant = "SUPERPOWER"
-            ctx = "global dominance"
-            ui = "checklist"
-        elif any(k in t_clean for k in ["practice", "profit", "pass"]):
-            giant = "PRACTICE"
-            ctx = "so you can"
-            ui = "checklist"
-
-        return "vane_motion_dark_studio", {
-            "giant_word": giant,
-            "context": ctx,
-            "ui_type": ui,
-            "theme": "emerald" if not is_question else "cyan",
-            "is_question": is_question
+    # 5. Technology / Modern Economy Cues
+    if any(k in t_clean for k in ["तकनीक", "technology", "ai", "आधुनिक"]):
+        arch = "vane_motion_dark_studio"
+        if arch == prev_archetype:
+            arch = "nitish_theatrical_window"
+        return arch, {
+            "giant_word": "MODERN TECH",
+            "context": "cutting edge supremacy",
+            "ui_type": "celestial_ring",
+            "theme": "cyan",
+            "is_question": False
         }
 
-    # 4. Default: Dynamic Cycle ensuring visual diversity
-    cycle = ["vane_motion_dark_studio", "nitish_theatrical_window", "antique_frame", "vox_newspaper"]
-    choice = cycle[scene_index % len(cycle)]
-    return choice, {
-        "giant_word": "DOCUMENTARY",
-        "context": "the untold story",
+    if any(k in t_clean for k in ["अर्थव्यवस्था", "economy", "dollar", "wealth"]):
+        arch = "vane_motion_dark_studio"
+        if arch == prev_archetype:
+            arch = "nitish_theatrical_window"
+        return arch, {
+            "giant_word": "ECONOMY",
+            "context": "financial powerhouse",
+            "ui_type": "checklist",
+            "theme": "emerald",
+            "is_question": False
+        }
+
+    # 6. Fallback Dynamic Cycle guaranteeing visual diversity
+    cycle = ["vane_motion_dark_studio", "nitish_theatrical_window", "vox_newspaper", "antique_frame"]
+    pool = [c for c in cycle if c != prev_archetype]
+    chosen_arch = pool[scene_index % len(pool)]
+    themes_cycle = ["emerald", "cyan", "amber", "gold", "crimson", "violet"]
+    chosen_theme = themes_cycle[scene_index % len(themes_cycle)]
+
+    return chosen_arch, {
+        "giant_word": "SUPERPOWER" if "शक्ति" in t_clean else "GLOBAL POWER",
+        "context": "a new era begins",
         "ui_type": "celestial_ring",
-        "theme": "emerald"
+        "theme": chosen_theme,
+        "is_question": False
     }
 
 
@@ -755,8 +1080,6 @@ def render_nitish_documentary_motion_clip(
     theme_name = meta.get("theme", "emerald")
     is_question = meta.get("is_question", False)
 
-    print(f"🎬 [Documentary Motion Engine] Scene {scene_index+1}: Archetype='{archetype.upper()}' | Theme={theme_name} | Duration={duration:.1f}s")
-
     # 2. Sound Design Event Mapping
     sfx_events = []
     whoosh_path = "sound_effects/mixkit-cinematic-whoosh-fast-transition-1492.wav"
@@ -769,17 +1092,6 @@ def render_nitish_documentary_motion_clip(
         sfx_events.append({"file": paper_path, "time_sec": 0.25, "volume": 0.40})
     if is_question and os.path.exists(riser_path):
         sfx_events.append({"file": riser_path, "time_sec": max(0.5, duration - 2.0), "volume": 0.45})
-
-    if audio_path and os.path.exists(audio_path) and sfx_events:
-        temp_audio_out = os.path.splitext(audio_path)[0] + f"_sfx_synced.mp3"
-        mixed_audio = mix_sound_effects_into_audio(audio_path, sfx_events, temp_audio_out)
-        if mixed_audio != audio_path and os.path.exists(mixed_audio):
-            try:
-                import shutil
-                shutil.copy2(mixed_audio, audio_path)
-                print(f"🔊 [Documentary SFX Sync] Mixed {len(sfx_events)} sound cues into scene audio.")
-            except Exception:
-                pass
 
     # 3. Load & Prepare Cutout Subject (Multi-Entity & Side Entrances)
     valid_cutouts = [p for p in cutout_paths if p and os.path.exists(p) and os.path.getsize(p) > 500]
@@ -801,14 +1113,46 @@ def render_nitish_documentary_motion_clip(
     num_cutouts = len(processed_cutouts)
     primary_cutout = processed_cutouts[0]
 
-    # If multiple cutouts exist (e.g. America & India), add second whoosh at t=0.40s
+    # Staggered second whoosh for multi-cutout reveals
     if num_cutouts >= 2 and os.path.exists(whoosh_path):
-        sfx_events.append({"file": whoosh_path, "time_sec": 0.40, "volume": 0.32})
+        sfx_events.append({"file": whoosh_path, "time_sec": 0.32, "volume": 0.32})
+
+    if audio_path and os.path.exists(audio_path) and sfx_events:
+        temp_audio_out = os.path.splitext(audio_path)[0] + f"_sfx_synced.mp3"
+        mixed_audio = mix_sound_effects_into_audio(audio_path, sfx_events, temp_audio_out)
+        if mixed_audio != audio_path and os.path.exists(mixed_audio):
+            try:
+                import shutil
+                shutil.copy2(mixed_audio, audio_path)
+                print(f"🔊 [Documentary SFX Sync] Mixed {len(sfx_events)} sound cues into scene audio.")
+            except Exception:
+                pass
+
+    # 4. Determine Dynamic Motion Choreography
+    prev_motion = None
+    if scene_index > 0:
+        prev_motion = pick_scene_motion_style(
+            scene_index=scene_index - 1,
+            scene_text="",
+            is_question=False,
+            num_cutouts=1,
+            main_topic=main_topic
+        )
+
+    motion_style = pick_scene_motion_style(
+        scene_index=scene_index,
+        scene_text=scene_text,
+        is_question=is_question,
+        num_cutouts=num_cutouts,
+        main_topic=main_topic,
+        prev_motion=prev_motion
+    )
+
+    print(f"🎬 [Documentary Motion Engine] Scene {scene_index+1}: Archetype='{archetype.upper()}' | Theme={theme_name} | Motion='{motion_style}' | Duration={duration:.1f}s")
 
     # Pre-render background bases depending on archetype
     if archetype == "vane_motion_dark_studio":
         dark_studio_canvas = create_dark_cosmic_studio_base(w, h, theme_name=theme_name)
-        # Scale cutout to fit 70% width
         cw, ch = primary_cutout.size
         c_scale = min((w * 0.72) / max(1, cw), (h * 0.52) / max(1, ch))
         cutout_hero = primary_cutout.resize((int(cw * c_scale), int(ch * c_scale)), Image.LANCZOS)
@@ -837,7 +1181,7 @@ def render_nitish_documentary_motion_clip(
         monument_ready = primary_cutout.resize((int(cw * m_scale), int(ch * m_scale)), Image.LANCZOS)
         monument_ready = sharpen_cutout(monument_ready, amount=1.25)
 
-    # 4. Setup FFmpeg streaming pipe (< 35MB RAM)
+    # 5. Setup FFmpeg streaming pipe (< 35MB RAM)
     ffmpeg_cmd = [
         "ffmpeg", "-y",
         "-f", "rawvideo",
@@ -855,7 +1199,7 @@ def render_nitish_documentary_motion_clip(
     ]
     proc = subprocess.Popen(ffmpeg_cmd, stdin=subprocess.PIPE, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
-    # 5. Kinetic Frame Render Loop
+    # 6. Kinetic Frame Render Loop
     for frame_idx in range(total_frames):
         t = frame_idx / float(fps)
         t_norm = frame_idx / max(1, total_frames)
@@ -868,7 +1212,6 @@ def render_nitish_documentary_motion_clip(
         zoom_through_accel = (t_trans ** 2) * 0.28
 
         if archetype == "vane_motion_dark_studio":
-            # Multi-plane Parallax Rendering (Full 9:16 vertical canvas)
             frame_full = dark_studio_canvas.copy()
             draw_full = ImageDraw.Draw(frame_full, "RGBA")
 
@@ -887,67 +1230,47 @@ def render_nitish_documentary_motion_clip(
                 zoom_scale=text_zoom
             )
 
-            # Layer 3: MIDGROUND SUBJECT CUTOUT(S) (Overlapping Text in Front)
+            # Layer 3: Dynamic Cutouts (Single or Multi-Entity)
             if num_cutouts >= 2:
-                # DUAL SPLIT: Left entity slides in from Left, Right entity slides in from Right!
                 c_left = processed_cutouts[0]
                 c_right = processed_cutouts[1]
 
-                # Cutout 1 (Left - e.g. America): slides from Left
-                slide_1 = spring_bounce(t, duration=0.38, overshoot=0.10)
-                scale_1 = min((w * 0.44) / max(1, c_left.width), (h * 0.48) / max(1, c_left.height))
-                c1_w = int(c_left.width * scale_1 * (1.00 + ease_zoom * 0.12))
-                c1_h = int(c_left.height * scale_1 * (1.00 + ease_zoom * 0.12))
-                s1_scaled = c_left.resize((c1_w, c1_h), Image.BILINEAR)
+                # Dual Cutout 0 (Left)
+                w0, h0, x0, y0, r0, vis0 = compute_dual_cutout_motion(
+                    t, duration, motion_style, 0,
+                    base_w=int(w * 0.44), base_h=int(h * 0.48),
+                    canvas_w=w, canvas_h=h,
+                    ease_zoom=ease_zoom, zoom_through=zoom_through_accel
+                )
+                if vis0:
+                    paste_transformed_cutout(frame_full, c_left, w0, h0, x0, y0, rot_deg=r0, shadow_opacity=0.50)
 
-                target_x1 = int(w * 0.27 - c1_w // 2)
-                x1 = int(target_x1 - w * 0.55 * (1.0 - slide_1))
-                y1 = int(h * 0.54 - c1_h // 2)
+                # Dual Cutout 1 (Right)
+                w1, h1, x1, y1, r1, vis1 = compute_dual_cutout_motion(
+                    t, duration, motion_style, 1,
+                    base_w=int(w * 0.44), base_h=int(h * 0.48),
+                    canvas_w=w, canvas_h=h,
+                    ease_zoom=ease_zoom, zoom_through=zoom_through_accel
+                )
+                if vis1:
+                    paste_transformed_cutout(frame_full, c_right, w1, h1, x1, y1, rot_deg=r1, shadow_opacity=0.50)
 
-                sh_1, off_1 = create_cutout_drop_shadow(s1_scaled, blur_radius=18, offset=(6, 14), shadow_opacity=0.50)
-                frame_full.paste(sh_1, (x1 + off_1[0], y1 + off_1[1]), mask=sh_1)
-                frame_full.paste(s1_scaled, (x1, y1), mask=s1_scaled)
-
-                # Cutout 2 (Right - e.g. Bharat): slides from Right staggered at t >= 0.35s
-                if t >= 0.35:
-                    t_sub2 = max(0.0, t - 0.35)
-                    slide_2 = spring_bounce(t_sub2, duration=0.38, overshoot=0.10)
-                    scale_2 = min((w * 0.44) / max(1, c_right.width), (h * 0.48) / max(1, c_right.height))
-                    c2_w = int(c_right.width * scale_2 * (1.00 + ease_zoom * 0.12))
-                    c2_h = int(c_right.height * scale_2 * (1.00 + ease_zoom * 0.12))
-                    s2_scaled = c_right.resize((c2_w, c2_h), Image.BILINEAR)
-
-                    target_x2 = int(w * 0.73 - c2_w // 2)
-                    x2 = int(target_x2 + w * 0.55 * (1.0 - slide_2))
-                    y2 = int(h * 0.54 - c2_h // 2)
-
-                    sh_2, off_2 = create_cutout_drop_shadow(s2_scaled, blur_radius=18, offset=(6, 14), shadow_opacity=0.50)
-                    frame_full.paste(sh_2, (x2 + off_2[0], y2 + off_2[1]), mask=sh_2)
-                    frame_full.paste(s2_scaled, (x2, y2), mask=s2_scaled)
-
-                # Center VS comparison badge
-                if t >= 0.55:
-                    t_vs = max(0.0, t - 0.55)
-                    vs_b = spring_bounce(t_vs, duration=0.28, overshoot=0.15)
+                # Center VS Badge
+                if t >= 0.50:
+                    vs_b = spring_bounce(t - 0.50, duration=0.28, overshoot=0.15)
                     draw_vs_badge(draw_full, (w // 2, int(h * 0.54)), theme_name=theme_name, scale=vs_b)
 
             else:
-                # SINGLE CUTOUT: Dynamic entrance direction (Left or Right side slide with spring bounce!)
-                slide_dir = -1 if (scene_index % 2 == 0) else 1
-                slide_val = spring_bounce(t, duration=0.40, overshoot=0.10)
-
-                cutout_zoom = 1.00 + ease_zoom * 0.16 + zoom_through_accel * 1.5
-                cw = int(cutout_hero.width * cutout_zoom)
-                ch = int(cutout_hero.height * cutout_zoom)
-                target_cx = (w - cw) // 2
-                offset_x = int(w * 0.55 * (1.0 - slide_val) * slide_dir)
-                cx = target_cx + offset_x
-                cy = int(h * 0.54 - ch // 2)
-
-                sub_scaled = cutout_hero.resize((cw, ch), Image.BILINEAR)
-                sh_c, sh_off = create_cutout_drop_shadow(sub_scaled, blur_radius=22, offset=(8, 16), shadow_opacity=0.55)
-                frame_full.paste(sh_c, (cx + sh_off[0], cy + sh_off[1]), mask=sh_c)
-                frame_full.paste(sub_scaled, (cx, cy), mask=sub_scaled)
+                # Single Cutout with Dynamic Randomized Non-Repeating Motion
+                cw, ch, cx, cy, rot = compute_single_cutout_motion(
+                    t=t, duration=duration, motion_style=motion_style,
+                    target_cx=w // 2, target_cy=int(h * 0.54),
+                    base_w=cutout_hero.width, base_h=cutout_hero.height,
+                    canvas_w=w, canvas_h=h,
+                    ease_zoom=ease_zoom, zoom_through=zoom_through_accel,
+                    seed=scene_index
+                )
+                paste_transformed_cutout(frame_full, cutout_hero, cw, ch, cx, cy, rot_deg=rot, shadow_opacity=0.55)
 
             # Layer 4: Modern UI Overlays (Checklists / Alert Cards)
             if meta.get("ui_type") in ["checklist", "scam_alert"]:
@@ -960,20 +1283,20 @@ def render_nitish_documentary_motion_clip(
             frame_16_9 = Image.new("RGB", (box_w, box_h), (20, 20, 20))
 
             if archetype == "vox_newspaper":
-                # 3D Push-in on highlighted headline & photo
                 zoom_factor = 1.00 + ease_zoom * 0.14 + zoom_through_accel
                 zw = int(box_w / zoom_factor)
                 zh = int(box_h / zoom_factor)
-                zx = (box_w - zw) // 2
+                drift_px = int(math.sin(t * 1.2) * 12)
+                zx = (box_w - zw) // 2 + drift_px
                 zy = int((box_h - zh) * 0.40)
                 frame_16_9 = base_paper.crop((zx, zy, zx + zw, zy + zh)).resize((box_w, box_h), Image.BILINEAR)
 
             elif archetype == "antique_frame":
                 frame_16_9 = base_wall.copy()
-                frame_zoom = 1.00 + ease_zoom * 0.18 + zoom_through_accel
+                frame_zoom = 1.00 + ease_zoom * 0.16 + zoom_through_accel
                 fw = int(340 * frame_zoom)
                 fh = int(420 * frame_zoom)
-                fx = (box_w - fw) // 2
+                fx = (box_w - fw) // 2 + int(math.sin(t * 1.2) * 8)
                 fy = (box_h - fh) // 2
 
                 p_frame_scaled = frame_border.resize((fw, fh), Image.BILINEAR)
@@ -988,66 +1311,50 @@ def render_nitish_documentary_motion_clip(
                 frame_16_9.paste(p_frame_scaled, (fx, fy), mask=p_frame_scaled)
 
             else:  # nitish_theatrical_window
-                sky_bg = create_cinematic_sky_background(width=box_w, height=box_h, t=t)
-                frame_16_9 = sky_bg
+                sky_bg = create_cinematic_sky_background(width=box_w, height=box_h, t=t, theme_name=theme_name)
+                frame_16_9 = sky_bg.copy()
+                draw_169 = ImageDraw.Draw(frame_16_9, "RGBA")
 
                 if num_cutouts >= 2:
-                    # Dual cutouts in 16:9 window: Left entity slides from Left, Right entity slides from Right!
                     c_left = processed_cutouts[0]
                     c_right = processed_cutouts[1]
 
-                    slide_1 = spring_bounce(t, duration=0.38, overshoot=0.10)
-                    scale_1 = min((box_w * 0.42) / max(1, c_left.width), (box_h * 0.72) / max(1, c_left.height))
-                    c1_w = int(c_left.width * scale_1 * (1.00 + ease_zoom * 0.10))
-                    c1_h = int(c_left.height * scale_1 * (1.00 + ease_zoom * 0.10))
-                    s1_scaled = c_left.resize((c1_w, c1_h), Image.BILINEAR)
+                    # Dual Cutout 0
+                    w0, h0, x0, y0, r0, vis0 = compute_dual_cutout_motion(
+                        t, duration, motion_style, 0,
+                        base_w=int(box_w * 0.38), base_h=int(box_h * 0.70),
+                        canvas_w=box_w, canvas_h=box_h,
+                        ease_zoom=ease_zoom, zoom_through=zoom_through_accel
+                    )
+                    if vis0:
+                        paste_transformed_cutout(frame_16_9, c_left, w0, h0, x0, y0, rot_deg=r0, shadow_opacity=0.45)
 
-                    target_x1 = int(box_w * 0.26 - c1_w // 2)
-                    x1 = int(target_x1 - box_w * 0.50 * (1.0 - slide_1))
-                    y1 = int(box_h * 0.88 - c1_h)
+                    # Dual Cutout 1
+                    w1, h1, x1, y1, r1, vis1 = compute_dual_cutout_motion(
+                        t, duration, motion_style, 1,
+                        base_w=int(box_w * 0.38), base_h=int(box_h * 0.70),
+                        canvas_w=box_w, canvas_h=box_h,
+                        ease_zoom=ease_zoom, zoom_through=zoom_through_accel
+                    )
+                    if vis1:
+                        paste_transformed_cutout(frame_16_9, c_right, w1, h1, x1, y1, rot_deg=r1, shadow_opacity=0.45)
 
-                    sh_1, off_1 = create_cutout_drop_shadow(s1_scaled, blur_radius=16, offset=(4, 10), shadow_opacity=0.45)
-                    frame_16_9.paste(sh_1, (x1 + off_1[0], y1 + off_1[1]), mask=sh_1)
-                    frame_16_9.paste(s1_scaled, (x1, y1), mask=s1_scaled)
-
-                    if t >= 0.35:
-                        t_sub2 = max(0.0, t - 0.35)
-                        slide_2 = spring_bounce(t_sub2, duration=0.38, overshoot=0.10)
-                        scale_2 = min((box_w * 0.42) / max(1, c_right.width), (box_h * 0.72) / max(1, c_right.height))
-                        c2_w = int(c_right.width * scale_2 * (1.00 + ease_zoom * 0.10))
-                        c2_h = int(c_right.height * scale_2 * (1.00 + ease_zoom * 0.10))
-                        s2_scaled = c_right.resize((c2_w, c2_h), Image.BILINEAR)
-
-                        target_x2 = int(box_w * 0.74 - c2_w // 2)
-                        x2 = int(target_x2 + box_w * 0.50 * (1.0 - slide_2))
-                        y2 = int(box_h * 0.88 - c2_h)
-
-                        sh_2, off_2 = create_cutout_drop_shadow(s2_scaled, blur_radius=16, offset=(4, 10), shadow_opacity=0.45)
-                        frame_16_9.paste(sh_2, (x2 + off_2[0], y2 + off_2[1]), mask=sh_2)
-                        frame_16_9.paste(s2_scaled, (x2, y2), mask=s2_scaled)
-
-                    if t >= 0.55:
-                        t_vs = max(0.0, t - 0.55)
-                        vs_b = spring_bounce(t_vs, duration=0.28, overshoot=0.15)
-                        d_169 = ImageDraw.Draw(frame_16_9, "RGBA")
-                        draw_vs_badge(d_169, (box_w // 2, int(box_h * 0.50)), theme_name=theme_name, scale=vs_b)
+                    if t >= 0.50:
+                        vs_b = spring_bounce(t - 0.50, duration=0.28, overshoot=0.15)
+                        draw_vs_badge(draw_169, (box_w // 2, int(box_h * 0.50)), theme_name=theme_name, scale=vs_b)
 
                 else:
-                    # Single cutout: Smooth entrance from side (Left or Right)
-                    slide_dir = -1 if (scene_index % 2 == 0) else 1
-                    slide_val = spring_bounce(t, duration=0.40, overshoot=0.09)
-
-                    m_zoom = 1.00 + ease_zoom * 0.14 + zoom_through_accel
-                    mw = int(monument_ready.width * m_zoom)
-                    mh = int(monument_ready.height * m_zoom)
-                    target_mx = (box_w - mw) // 2
-                    mx = int(target_mx + box_w * 0.45 * (1.0 - slide_val) * slide_dir)
-                    my = int(box_h * 0.90 - mh)
-
-                    monument_scaled = monument_ready.resize((mw, mh), Image.BILINEAR)
-                    sh_m, sh_off_m = create_cutout_drop_shadow(monument_scaled, blur_radius=18, offset=(0, 12), shadow_opacity=0.45)
-                    frame_16_9.paste(sh_m, (mx + sh_off_m[0], my + sh_off_m[1]), mask=sh_m)
-                    frame_16_9.paste(monument_scaled, (mx, my), mask=monument_scaled)
+                    # Single Cutout with Dynamic Motion inside 16:9 Window
+                    target_y = int(box_h * 0.90 - monument_ready.height // 2) if motion_style not in ["scale_pop", "drop_top"] else (box_h // 2)
+                    cw, ch, cx, cy, rot = compute_single_cutout_motion(
+                        t=t, duration=duration, motion_style=motion_style,
+                        target_cx=box_w // 2, target_cy=target_y,
+                        base_w=monument_ready.width, base_h=monument_ready.height,
+                        canvas_w=box_w, canvas_h=box_h,
+                        ease_zoom=ease_zoom, zoom_through=zoom_through_accel,
+                        seed=scene_index
+                    )
+                    paste_transformed_cutout(frame_16_9, monument_ready, cw, ch, cx, cy, rot_deg=rot, shadow_opacity=0.48)
 
             # Ambient Mirror Blur into Vertical 9:16 Canvas
             final_frame = create_ambient_mirror_canvas(
@@ -1058,16 +1365,17 @@ def render_nitish_documentary_motion_clip(
             ).convert("RGBA")
 
         # Stream frame to FFmpeg rawvideo pipe
-        raw_bytes = final_frame.tobytes()
-        proc.stdin.write(raw_bytes)
-
-        del final_frame
-        if frame_idx % 25 == 0:
-            release_system_memory()
+        try:
+            proc.stdin.write(final_frame.tobytes())
+        except (BrokenPipeError, IOError):
+            break
 
     proc.stdin.close()
     proc.wait()
-    release_system_memory()
 
-    print(f"🎬 [Documentary Motion Engine] Successfully rendered 3D documentary motion clip: {os.path.basename(output_mp4)} ({duration:.1f}s)")
-    return output_mp4
+    release_system_memory()
+    if os.path.exists(output_mp4) and os.path.getsize(output_mp4) > 1000:
+        print(f"🎬 [Documentary Motion Engine] Successfully rendered 3D documentary motion clip: {os.path.basename(output_mp4)} ({duration:.1f}s)")
+        return output_mp4
+
+    return ""
