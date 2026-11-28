@@ -2213,20 +2213,30 @@ def full_process(req: VideoRequest, job_id: str):
             cat_lower_req = str(req.category).lower()
             clean_cat = re.sub(r'[^\w\s]', '', cat_lower_req).strip()
             substyle_req = getattr(req, 'after_effects_substyle', '') or ''
+            mode_req = str(getattr(req, 'mode', '') or '').lower().strip()
             is_color_anime = (
                 substyle_req == 'color_anime' or
                 any(k in cat_lower_req for k in ["color anime", "color animation", "anime motion", "neon motion"])
             )
-            is_after_effects_req = (
-                is_color_anime or
-                any(k in cat_lower_req or k in clean_cat for k in [
-                    "after effect", "aftereffect", "after iffect", "afteriffect", 
-                    "after effects", "aftereffects", "after-effect", "after-effects", 
-                    "vfx", "motion graphic", "motion graphics", "documentary collage",
-                    "documentary"
-                ]) or
-                substyle_req in ['documentary', 'color_anime']
-            )
+
+            # Direct Engine Generation Mode control from UI:
+            if mode_req == "standard":
+                is_after_effects_req = False
+            elif mode_req == "ultra":
+                is_after_effects_req = False
+            elif mode_req == "documentary":
+                is_after_effects_req = True
+            else:
+                is_after_effects_req = (
+                    is_color_anime or
+                    any(k in cat_lower_req or k in clean_cat for k in [
+                        "after effect", "aftereffect", "after iffect", "afteriffect", 
+                        "after effects", "aftereffects", "after-effect", "after-effects", 
+                        "vfx", "motion graphic", "motion graphics", "documentary collage",
+                        "documentary"
+                    ]) or
+                    substyle_req in ['documentary', 'color_anime']
+                )
             is_cartoon_req = not is_color_anime and (any(k in cat_lower_req for k in ["cartoon", "character", "comic"]) or (("anime" in cat_lower_req or "animation" in cat_lower_req) and not is_after_effects_req))
             is_world_news_req = any(k in cat_lower_req for k in ["world news", "geopolitics", "news"])
 
@@ -2547,7 +2557,7 @@ def full_process(req: VideoRequest, job_id: str):
                             v_paths = fb if fb else []
                         except Exception:
                             v_paths = []
-            elif is_ultra and fetch_web_image:
+            elif (is_ultra or mode_req == "ultra") and fetch_web_image:
                 # ---------------------------------------------------------
                 # STANDARD ULTRA 3D PHOTO MOTION FOR OTHER CATEGORIES
                 # ---------------------------------------------------------

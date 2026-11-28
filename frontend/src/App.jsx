@@ -1571,9 +1571,9 @@ function App() {
             ? `${singerName} ${songTitle || 'Hit Song'}`.trim()
             : topic,
           category: getEffectiveCategory(),
-          after_effects_substyle: (category && category.includes('Color Anime')) 
-            ? 'color_anime' 
-            : (category && category.includes('Documentary') ? 'documentary' : afterEffectsSubstyle),
+          after_effects_substyle: generationMode === 'documentary' 
+            ? 'documentary' 
+            : ((category && category.includes('Color Anime')) ? 'color_anime' : afterEffectsSubstyle),
           scenes: scenes,
           font_name: fontName,
           font_color: fontColor,
@@ -1584,7 +1584,7 @@ function App() {
           full_script: isSongVideoMode ? '' : fullScript,
           bg_music: bgMusic,
           user_id: userId,
-          mode: videoType === 'ultra' ? (isSongVideoMode ? songVisualMode : generationMode) : 'standard',
+          mode: isSongVideoMode ? songVisualMode : generationMode,
           aspect_ratio: videoType === 'short' ? '9:16' : (videoType === 'long' ? '16:9' : (aspectRatio || '16:9')),
           filter_style: videoType === 'ultra' ? filterStyle : 'none',
           duration: duration,
@@ -3219,122 +3219,99 @@ function App() {
         <aside className="panel" id="tour-video-settings">
           <h2 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><Settings size={26} /> Video Settings</h2>
 
+          <div className="form-group" style={{ marginBottom: '1.2rem' }}>
+            <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontWeight: '800' }}>
+              <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Sparkles size={16} color="#a855f7" /> Engine Generation Mode</span>
+              <span style={{ fontSize: '0.74rem', padding: '2px 8px', borderRadius: '6px', fontWeight: 'bold', background: generationMode === 'documentary' ? 'rgba(234, 179, 8, 0.2)' : (generationMode === 'ultra' ? 'rgba(168, 85, 247, 0.2)' : 'rgba(6, 182, 212, 0.2)'), color: generationMode === 'documentary' ? '#facc15' : (generationMode === 'ultra' ? '#c084fc' : '#38bdf8') }}>
+                {generationMode === 'documentary' ? '🎬 3D Documentary Motion' : (generationMode === 'ultra' ? '✨ Ultra Photo Motion' : '🎥 Standard Stock Video')}
+              </span>
+            </label>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '8px', marginTop: '6px' }}>
+              <button
+                type="button"
+                onClick={() => {
+                  setGenerationMode('documentary');
+                  setAfterEffectsSubstyle('documentary');
+                }}
+                style={{
+                  padding: '10px 10px',
+                  borderRadius: '14px',
+                  border: generationMode === 'documentary' 
+                    ? '2px solid #eab308' 
+                    : (theme === 'pastel' ? '2px solid #8b5cf6' : '1px solid rgba(255,255,255,0.12)'),
+                  background: generationMode === 'documentary' 
+                    ? 'linear-gradient(135deg, #eab308 0%, #ca8a04 100%)' 
+                    : (theme === 'pastel' ? 'rgba(255, 255, 255, 0.94)' : 'rgba(15, 23, 42, 0.6)'),
+                  color: generationMode === 'documentary' 
+                    ? '#ffffff' 
+                    : (theme === 'pastel' ? '#581c87' : '#94a3b8'),
+                  fontSize: '0.80rem',
+                  fontWeight: '800',
+                  cursor: 'pointer',
+                  textAlign: 'center',
+                  boxShadow: generationMode === 'documentary' ? '0 4px 15px rgba(234, 179, 8, 0.4)' : 'none',
+                  transition: 'all 0.2s ease'
+                }}
+              >
+                <span style={{ display: 'flex', alignItems: 'center', gap: '5px', justifyContent: 'center' }}><Sparkles size={15} /> 3D Documentary</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setGenerationMode('ultra')}
+                style={{
+                  padding: '10px 10px',
+                  borderRadius: '14px',
+                  border: generationMode === 'ultra' 
+                    ? '2px solid #a855f7' 
+                    : (theme === 'pastel' ? '2px solid #8b5cf6' : '1px solid rgba(255,255,255,0.12)'),
+                  background: generationMode === 'ultra' 
+                    ? 'linear-gradient(135deg, #a855f7 0%, #7e22ce 100%)' 
+                    : (theme === 'pastel' ? 'rgba(255, 255, 255, 0.94)' : 'rgba(15, 23, 42, 0.6)'),
+                  color: generationMode === 'ultra' 
+                    ? '#ffffff' 
+                    : (theme === 'pastel' ? '#581c87' : '#94a3b8'),
+                  fontSize: '0.80rem',
+                  fontWeight: '800',
+                  cursor: 'pointer',
+                  textAlign: 'center',
+                  boxShadow: generationMode === 'ultra' ? '0 4px 15px rgba(168, 85, 247, 0.4)' : 'none',
+                  transition: 'all 0.2s ease'
+                }}
+              >
+                <span style={{ display: 'flex', alignItems: 'center', gap: '5px', justifyContent: 'center' }}><Layers size={15} /> Ultra Photo Motion</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setGenerationMode('standard')}
+                style={{
+                  padding: '10px 10px',
+                  borderRadius: '14px',
+                  border: generationMode === 'standard' 
+                    ? '2px solid #06b6d4' 
+                    : (theme === 'pastel' ? '2px solid #8b5cf6' : '1px solid rgba(255,255,255,0.12)'),
+                  background: generationMode === 'standard' 
+                    ? 'linear-gradient(135deg, #06b6d4 0%, #0891b2 100%)' 
+                    : (theme === 'pastel' ? 'rgba(255, 255, 255, 0.94)' : 'rgba(15, 23, 42, 0.6)'),
+                  color: generationMode === 'standard' 
+                    ? '#ffffff' 
+                    : (theme === 'pastel' ? '#581c87' : '#94a3b8'),
+                  fontSize: '0.80rem',
+                  fontWeight: '800',
+                  cursor: 'pointer',
+                  textAlign: 'center',
+                  boxShadow: generationMode === 'standard' ? '0 4px 15px rgba(6, 182, 212, 0.4)' : 'none',
+                  transition: 'all 0.2s ease'
+                }}
+              >
+                <span style={{ display: 'flex', alignItems: 'center', gap: '5px', justifyContent: 'center' }}><Clapperboard size={15} /> Standard Stock Video</span>
+              </button>
+            </div>
+          </div>
+
           {videoType === 'ultra' ? (
             <>
-              {((category && (category.includes('After Effect') || category.includes('Color Anime') || category.includes('Documentary'))) || videoType === 'ultra') && (
-                <div className="form-group" style={{ marginBottom: '1.2rem' }}>
-                  <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontWeight: '800' }}>
-                    <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Sparkles size={16} color="#a855f7" /> After Effects Visual Style</span>
-                    <span style={{ fontSize: '0.72rem', color: afterEffectsSubstyle === 'color_anime' ? '#00e676' : '#eab308', fontWeight: 'bold' }}>
-                      {afterEffectsSubstyle === 'color_anime' ? '🎨 100% Photos' : '📜 Documentary'}
-                    </span>
-                  </label>
-                  <div className="responsive-grid-2" style={{ gap: '8px', marginTop: '6px' }}>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setAfterEffectsSubstyle('documentary');
-                        setCategory('📜 Documentary (After Effects)');
-                      }}
-                      style={{
-                        padding: '10px 12px',
-                        borderRadius: '14px',
-                        border: afterEffectsSubstyle === 'documentary' ? '2px solid #eab308' : '1px solid rgba(255,255,255,0.12)',
-                        background: afterEffectsSubstyle === 'documentary' ? 'linear-gradient(135deg, #eab308 0%, #ca8a04 100%)' : 'rgba(15, 23, 42, 0.6)',
-                        color: afterEffectsSubstyle === 'documentary' ? '#ffffff' : '#94a3b8',
-                        fontSize: '0.82rem',
-                        fontWeight: '800',
-                        cursor: 'pointer',
-                        textAlign: 'center',
-                        boxShadow: afterEffectsSubstyle === 'documentary' ? '0 4px 15px rgba(234, 179, 8, 0.4)' : 'none',
-                        transition: 'all 0.2s ease'
-                      }}
-                    >
-                      📜 Documentary
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setAfterEffectsSubstyle('color_anime');
-                        setCategory('🎨 Color Anime (After Effects)');
-                      }}
-                      style={{
-                        padding: '10px 12px',
-                        borderRadius: '14px',
-                        border: afterEffectsSubstyle === 'color_anime' ? '2px solid #00e676' : '1px solid rgba(255,255,255,0.12)',
-                        background: afterEffectsSubstyle === 'color_anime' ? 'linear-gradient(135deg, #00e676 0%, #059669 100%)' : 'rgba(15, 23, 42, 0.6)',
-                        color: afterEffectsSubstyle === 'color_anime' ? '#ffffff' : '#94a3b8',
-                        fontSize: '0.82rem',
-                        fontWeight: '800',
-                        cursor: 'pointer',
-                        textAlign: 'center',
-                        boxShadow: afterEffectsSubstyle === 'color_anime' ? '0 4px 15px rgba(0, 230, 118, 0.4)' : 'none',
-                        transition: 'all 0.2s ease'
-                      }}
-                    >
-                      🎨 Color Anime
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              <div className="form-group" style={{ marginBottom: '1.2rem' }}>
-                <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: '800' }}>
-                  <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Sparkles size={16} /> Engine Generation Mode</span>
-                </label>
-                <div className="responsive-grid-2" style={{ gap: '8px', marginTop: '6px' }}>
-                  <button
-                    type="button"
-                    onClick={() => setGenerationMode('ultra')}
-                    style={{
-                      padding: '10px 12px',
-                      borderRadius: '16px',
-                      border: generationMode === 'ultra' 
-                        ? '2px solid #a855f7' 
-                        : (theme === 'pastel' ? '2px solid #8b5cf6' : '1px solid rgba(255,255,255,0.12)'),
-                      background: generationMode === 'ultra' 
-                        ? 'linear-gradient(135deg, #a855f7 0%, #7e22ce 100%)' 
-                        : (theme === 'pastel' ? 'rgba(255, 255, 255, 0.94)' : 'rgba(15, 23, 42, 0.6)'),
-                      color: generationMode === 'ultra' 
-                        ? '#ffffff' 
-                        : (theme === 'pastel' ? '#581c87' : '#94a3b8'),
-                      fontSize: '0.82rem',
-                      fontWeight: '800',
-                      cursor: 'pointer',
-                      textAlign: 'center',
-                      boxShadow: generationMode === 'ultra' ? '0 4px 15px rgba(168, 85, 247, 0.4)' : 'none',
-                      transition: 'all 0.2s ease'
-                    }}
-                  >
-                    <span style={{ display: 'flex', alignItems: 'center', gap: '6px', justifyContent: 'center' }}><Sparkles size={16} /> Ultra Photo Motion</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setGenerationMode('standard')}
-                    style={{
-                      padding: '10px 12px',
-                      borderRadius: '16px',
-                      border: generationMode === 'standard' 
-                        ? '2px solid #a855f7' 
-                        : (theme === 'pastel' ? '2px solid #8b5cf6' : '1px solid rgba(255,255,255,0.12)'),
-                      background: generationMode === 'standard' 
-                        ? 'linear-gradient(135deg, #a855f7 0%, #7e22ce 100%)' 
-                        : (theme === 'pastel' ? 'rgba(255, 255, 255, 0.94)' : 'rgba(15, 23, 42, 0.6)'),
-                      color: generationMode === 'standard' 
-                        ? '#ffffff' 
-                        : (theme === 'pastel' ? '#581c87' : '#94a3b8'),
-                      fontSize: '0.82rem',
-                      fontWeight: '800',
-                      cursor: 'pointer',
-                      textAlign: 'center',
-                      boxShadow: generationMode === 'standard' ? '0 4px 15px rgba(168, 85, 247, 0.4)' : 'none',
-                      transition: 'all 0.2s ease'
-                    }}
-                  >
-                    <span style={{ display: 'flex', alignItems: 'center', gap: '6px', justifyContent: 'center' }}><Clapperboard size={16} /> Standard Stock Video</span>
-                  </button>
-                </div>
-              </div>
 
               <div className="form-group" style={{ marginBottom: '1.2rem' }}>
                 <label style={{ fontWeight: '800', display: 'flex', alignItems: 'center', gap: '6px' }}><Layout size={16} /> Aspect Ratio / Video Size</label>
